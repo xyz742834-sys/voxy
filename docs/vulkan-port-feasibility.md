@@ -5,6 +5,8 @@
 **前提環境**: Apple M4 Pro + MoltenVK 1.4.2 (Vulkan 1.4.357, INTEGRATED_GPU)
 **本調査ではコードを一切変更していない。**
 
+> **改訂 (2026-08-14)**: Phase 0 / B-1 の実機実測 ([`phase0-b1-mdi-measurement.md`](phase0-b1-mdi-measurement.md)) を受けて §1 / §3.6 / §6.7(a) / §8.2 / §9 / §10 / §11 を更新した。主な変更は (a) degenerate draw 単体案の撤回と draw 統合の必須化、(b) B-1 の go/no-go からの格下げと B-3 への go/no-go 移動、(c) push constant 上限確定によるデフォルト uniform 対処の難易度引き下げ。実測値を反映した箇所は **[実測済]** と表記する。
+
 ---
 
 ## 0. 表記規約
@@ -12,8 +14,11 @@
 本レポートでは以下を厳密に区別する。
 
 - **[確認済]** — 実際にファイルを読み、または grep で件数を数えて確認した事実。
+- **[実測済]** — Phase 0 で実機ベンチマークにより測定した事実。出典は `phase0-b1-mdi-measurement.md`。
 - **[推測]** — 確認した事実からの推論。検証はしていない。
 - **[未検証]** — 本リポジトリからは判断できず、実測が必要な事項。
+
+> **測定環境に関する注記** [実測済]: Phase 0 のベンチは LWJGL 同梱の **MoltenVK / Vulkan 1.2.296** で実施した。本レポートが前提とする brew 版 1.4.2 とはビルドが異なる。per-draw 課金の構造はドライバのコマンド展開方式に由来するため 1.4 でも同様と見込む [推測] が、移植本体は 1.4 を基準とするため、Phase 4 で 1.4 上での再確認が望ましい。
 
 ---
 
@@ -25,7 +30,7 @@
 |---|---|
 | sparse texture を使っていれば自前ページアロケータが必要 | **sparse texture は不使用。** 使っているのは `ARB_sparse_buffer` のみで、しかも NVIDIA + Windows 限定のフォールバック経路。macOS では機能検出で自動的に無効化される。**対処不要。** |
 | bindless texture の代替評価が必要 | **bindless は一切不使用。** `ARB_bindless_texture`, `glGetTextureHandle*`, uint64 サンプラハンドルすべて 0 件。**対処不要。** |
-| `drawIndirectCount = false` への対処が要設計 | 該当呼び出しは**わずか 2 箇所**。しかも描画コマンドは compute 側で `atomicAdd` により**すでに index 0 から密に詰めて書かれている**ため、degenerate draw 方式が素直に成立する。ただし後述の #5 に別のリスクあり。 |
+| `drawIndirectCount = false` への対処が要設計 | 該当呼び出しは**わずか 2 箇所** [確認済]。ただし当初想定した degenerate draw 単体案は**実測により棄却された** [実測済]。詳細は §3.6。 |
 
 そして最大の朗報:
 
@@ -33,7 +38,22 @@
 
 storage / world / LoD ingest / voxelization 層は GL から完全に分離されており、**そのまま再利用できる**。「storage 層を再利用し rendering 層を新規実装する」という方針は**成立する**。
 
-一方で、**本調査で最も懸念すべき発見**は GL API の棚卸しからは出てこなかった項目である → §9 ブロッカー候補を参照。要約すると `multiDrawIndirect = true` という capability は「MoltenVK で MDI が使える」ことは意味するが「MDI が速い」ことは意味しない。Voxy は 1 フレームあたり最大数万〜数十万件の indirect draw を前提に設計されており、ここが唯一の go/no-go 級の未知数として残る。
+### 実測を受けた最大の設計変更 [実測済]
+
+初版で「唯一の go/no-go 級の未知数」としていた **B-1 (MoltenVK 上の MDI 実効性能) は測定され、結論が出た**。
+
+> **MoltenVK は indirect draw を per-draw 課金で処理する。バッチ効果はゼロで、Metal の Indirect Command Buffer による GPU 側展開は行われていない。**
+> 実描画 **175 ns/draw**、degenerate でも **19 ns/draw**、サブミット時処理が内容非依存で **30 ns/draw**。
+
+これにより **Voxy 現行のセクション単位 draw (88,000 件規模) は維持できない** — 18.0ms かかり、1 パス 1.5ms の予算を 12 倍超過する。degenerate 埋めによる `drawIndirectCount` 代替も 4.2ms で 2.8 倍超過し、**単体では成立しない**。
+
+ただし同時に、**統合の目標値が当初懸念より遥かに緩い**ことも判明した:
+
+> 200,000 三角形を `drawCount = 1` で描くと 18.444ms、`drawCount = 1,000` に分割しても 18.545ms。**差は 0.5%。**
+
+つまり必要なのは「1 ドローまで畳む」ことではなく「**1,000 ドロー以下に収める**」ことである。面方向別 6 ドロー構成は増分 0.016ms で事実上コストゼロ。統合の追加工数は 300〜600 行と見積もられ、改訂後の総見積り 6,750〜11,350 行 (§8.2) に対して誤差の範囲に収まる。
+
+**したがって B-1 は go/no-go ではなく「設計分岐の判定材料」に格下げされ、唯一の go/no-go は B-3 (GL↔Vulkan interop コスト) に移った。** → §9 参照。
 
 ---
 
@@ -233,6 +253,8 @@ public AutoBindingShader ssbo(String define, GlBuffer binding) {
 
 **対処難易度: 容易 (むしろ有利)。** ターゲットが `INTEGRATED_GPU` (ユニファイドメモリ) であるため、`HOST_VISIBLE | HOST_COHERENT | DEVICE_LOCAL` なメモリタイプが全域で利用できる。GL の永続マップは Vulkan の `vkMapMemory` を永続保持する形にそのまま置換でき、しかも**ディスクリート GPU 向けに書かれた staging 経路が不要になるぶん単純化される**。`UploadStream` (187行) / `DownloadStream` (189行) はロジックを保ったままバッファ生成部だけ差し替えられる [推測]。
 
+> **Phase 0 で裏付け済み** [実測済]: `DEVICE_LOCAL | HOST_VISIBLE | HOST_COHERENT | **HOST_CACHED**` を全て備えたメモリタイプの存在と、**ヒープが 1 つのみ**であることを実機確認した。`HOST_CACHED` まで揃っているため読み戻しも速く、`HOST_COHERENT` により `glFlushMappedNamedBufferRange` 相当 (`UploadStream.java:81,117`) の明示フラッシュも不要になる。詳細と工数への反映は §8.2 を参照。
+
 ### 3.5 DSA (`glCreate*` / `glNamed*`)
 
 **33 箇所** [確認済]。内訳:
@@ -275,7 +297,11 @@ public AutoBindingShader ssbo(String define, GlBuffer binding) {
 
 #### `drawIndirectCount = false` への対処
 
-**これは当初想定より簡単である。** 理由 [確認済]:
+> **⚠ 改訂 (Phase 0 実測後)**: 初版はこの項を「実装は容易」と評価していた。**この評価は撤回する。** degenerate draw 方式は単体では予算を 2.8 倍超過し成立しない [実測済]。以下、初版の分析を残したうえで実測結果と改訂後の方針を示す。
+
+##### (初版の分析 — バッファレイアウト面では依然として正しい)
+
+[確認済]:
 
 `lod/gl46/cmdgen.comp` の描画コマンド生成は以下の形になっている:
 
@@ -294,12 +320,7 @@ void writeCmd(uint idx, uint instance, uint offset, uint quadCount) {
 }
 ```
 
-つまり **`atomicAdd` によってコマンドは index 0 から隙間なく詰めて書かれる**。`drawCount` は「有効な先頭 N 件」を意味する。したがって degenerate draw 方式は:
-
-1. コマンドバッファの末尾 (前フレームの残骸) を `indexCount = 0` でクリアする compute パスを 1 本追加、または
-2. 各フレームのコマンド生成後に `[drawCount, maxDrawCount)` を 0 埋めする
-
-だけで成立する。**describe 済みのバッファレイアウトを変える必要がない。**
+つまり **`atomicAdd` によってコマンドは index 0 から隙間なく詰めて書かれる**。`drawCount` は「有効な先頭 N 件」を意味する。したがってバッファレイアウト上は、末尾を `indexCount = 0` で埋めれば `drawIndirectCount` なしでも正しい絵が出る。**この点は実測後も変わらない。**
 
 `maxDrawCount` は固定上限ではなく実セクション数から算出されている [確認済] (`MDICSectionRenderer.java:225`):
 
@@ -310,9 +331,49 @@ this.renderTerrain(viewport, 0, 4*3,
 
 `OPAQUE_DRAW_COUNT = 400_000` は上限クランプにすぎず、通常時は `sectionCount * 4.4 + 128` になる。
 
-**対処難易度: 要設計 (実装は容易、性能影響が未知)。** 実装自体は 0 埋め compute 1 本 (~30行) で済むが、**発行される draw 件数が `sectionCount * 4.4` に膨らむことの MoltenVK 上でのコスト**が未知数。→ §9 ブロッカー候補で詳述。
+##### 実測結果 — degenerate draw 単体案は成立しない [実測済]
 
-代替案 [推測]: `DownloadStream` (189行) の既存インフラを使い、`drawCount` を 1〜2 フレーム遅延で CPU に読み戻して `vkCmdDrawIndexedIndirect` の `drawCount` 引数に渡す方式も取れる。1 フレーム分の描画数がずれるが、Voxy はすでに temporal (前フレーム可視性) の概念を持っているため許容できる可能性がある。ただしこれは本調査で検証していない。
+問題は「正しい絵が出るか」ではなく「発行する draw 件数のコスト」だった。MoltenVK の per-draw 課金は degenerate コマンドにも及ぶ:
+
+| 成分 | 実測値 [実測済] |
+|---|---:|
+| 実描画 (`gpu_ms`) | 175 ns/draw |
+| **degenerate (`gpu_ms`)** | **19 ns/draw** |
+| サブミット時処理 (内容非依存) | 30 ns/draw |
+
+degenerate であっても `19 + 30 = 49 ns/draw` が課金される。`sectionCount = 20,000` → 88,128 draws での試算:
+
+| 条件 | コスト [実測済] | 1 パス予算 1.5ms との比 |
+|---|---:|---:|
+| 実描画 88,000 件 | 18.0 ms | **12.0 倍超過** |
+| **全件 degenerate 88,000 件** | **4.2 ms** | **2.8 倍超過** |
+| 予算 1.5ms に収まる draw 数 | 約 7,300 件 | — |
+
+さらに `HALF` 条件 (実描画と degenerate が半々) が両者の算術平均と誤差 0.05% で一致した [実測済] ことから、**バッチ効果は存在しない**ことが確認されている。「degenerate なら安い」という前提そのものが不成立。
+
+##### 改訂後の方針 — draw 統合が前提
+
+**`drawIndirectCount = false` は単独で解ける問題ではなく、draw 統合の一部として解消される。** 統合後の draw 数が数百〜1,000 件規模になれば:
+
+- degenerate 埋めのコストは無視できる (1,000 件で 0.10ms) [実測済]
+- CPU 側で `maxDrawCount` を固定発行しても問題にならない
+- **`drawIndirectCount` の不在という制約自体が消滅する**
+
+統合の目標値は **1,000 draws 以下** [実測済]。「1 ドローまで畳む」必要はなく、面方向別 6 ドロー構成は増分 0.016ms でコストゼロ。
+
+統合に伴う主要な設計変更 [実測済 — `phase0-b1-mdi-measurement.md` §4.1]:
+
+- `cmdgen.comp` (220行): 「88,000 件の DrawCommand 生成」→「数百件の DrawCommand + セクションオフセットテーブル生成」
+- **`firstInstance` によるセクション ID 伝達は廃止** → prefix sum で `gl_VertexIndex` → (section, quad) を解決
+- `quads3.vert:54` の `positionBuffer[gl_BaseInstance]` は索引方式の変更が必要
+
+なお `firstInstance` の有無は性能に**完全に無影響**であることが確認されている [実測済] ため、これを捨てることによる損失はない。
+
+**対処難易度: 要設計 (draw 統合の一部として)。** degenerate 埋め自体は数十行だが、それが効くのは統合後の話であり、単体では意味を持たない。統合の追加工数は 300〜600 行 [実測済 — 同 §4.3]。
+
+##### 却下された代替案
+
+初版で挙げた「`DownloadStream` で `drawCount` を 1〜2 フレーム遅延で CPU に読み戻す」案は、**そもそも不要になった**。統合後は draw 数が数百なので上限発行のコストが無視でき、遅延読み戻しによる 1 フレームずれのリスクを負う理由がない。
 
 ### 3.7 `glMemoryBarrier` / image load-store / atomic counter
 
@@ -541,7 +602,7 @@ bool isQuadEmpty(uint64_t quad) { return quad == uint64_t(0); }
 #endif
 ```
 
-**`shaderInt64 = true` [実測値] なので、この分岐は 64bit 側が採られる。** SPIR-V では `GL_ARB_gpu_shader_int64` を `#extension` として書く代わりに `Int64` capability が有効になればよく、glslang が自動で処理する。事前想定通り **uvec2 手書き分解は不要** [確認済 — 分解パスは `#else` として存在するが使う必要がない]。
+**`shaderInt64 = true` [実測済 — vulkaninfo および Phase 0 の双方で確認] なので、この分岐は 64bit 側が採られる。** SPIR-V では `GL_ARB_gpu_shader_int64` を `#extension` として書く代わりに `Int64` capability が有効になればよく、glslang が自動で処理する。事前想定通り **uvec2 手書き分解は不要** [確認済 — 分解パスは `#else` として存在するが使う必要がない]。
 
 **対処難易度: 容易。**
 
@@ -579,7 +640,13 @@ bool isQuadEmpty(uint64_t quad) { return quad == uint64_t(0); }
 cmd.baseInstance = instance;   // instance == drawId == gl_GlobalInvocationID.x
 ```
 
-**つまり事前想定は完全に正しい。** `baseInstance` を section ID の運び先として使う設計がすでに実装されており、**`drawIndirectFirstInstance = true` [実測値] がこれを支える**。この capability が false であれば移植は成立しなかった。
+**つまり事前想定は完全に正しい。** `baseInstance` を section ID の運び先として使う設計がすでに実装されており、**`drawIndirectFirstInstance = true` [実測済] がこれを支える**。この capability が false であれば移植は成立しなかった。
+
+> **改訂 (Phase 0 実測後)**: `firstInstance` → `gl_InstanceIndex` の伝達は実機で確認された (200 を設定 → 200 が届く) [実測済]。`shaderDrawParameters = true` なので `gl_BaseInstance` 経路も使え、**両方が利用可能**。
+>
+> **ただし §3.6 の draw 統合方針により、この経路は採用しない見込みである。** 統合後は 1 draw が複数セクションを束ねるため、draw 単位の `baseInstance` ではセクションを識別できない。代わりに **prefix sum による `gl_VertexIndex` → (section, quad) 解決**に置き換わる [実測済 — `phase0-b1-mdi-measurement.md` §4.1]。
+>
+> なお `firstInstance` の有無は性能に完全に無影響であることも確認されており [実測済]、この経路を捨てることによる損失はない。ここで重要なのは「capability が存在したこと」ではなく「存在しても使わない設計に移ること」である。
 
 `gl_InstanceID` は 2 箇所 (`node_outline.vert:24`, `cull/raster.vert:22`) [確認済]。Vulkan では `gl_InstanceIndex` に読み替えが必要 (GL の `gl_InstanceID` は baseInstance を含まないが Vulkan の `gl_InstanceIndex` は含む) — **これは意味論が異なるため注意が必要**。ただし該当 2 箇所はいずれも `baseInstance = 0` で描画されている [推測 — `raster.vert` は `glDrawElementsIndirect` で 1 draw、`node_outline.vert` はデバッグ] ため実害は小さい。
 
@@ -606,11 +673,19 @@ Vulkan GLSL では `layout(location=N) uniform vec2 x;` のような**デフォ�
 | `lod/hierarchical/cleaner/result_transformer.comp` | `uint visibilityCounter` |
 | `lod/hierarchical/cleaner/batch_visibility_set.comp` | `uint count`, `uint setTo` |
 
-実稼働シェーダに限れば **15 箇所**。うち `uint` 1 個だけのものが 4 箇所あり、これらは push constant に最適。`mat4` × 6 の `ssao.comp` は 384 バイトで push constant 上限 (MoltenVK 実測値は未確認) を超える可能性があるため UBO 化が必要 [推測]。
+実稼働シェーダに限れば **15 箇所**。
 
-Java 側の対応する `glUniform*` 呼び出しも書き換えが必要 [確認済 — `glUniform2f`, `nglUniformMatrix4fv`, `glUniform1i`, `glUniform1f` が使われている]。
+**Phase 0 の実測により、全 15 箇所が push constant で処理できることが確定した** [実測済]:
 
-**対処難易度: 要設計。** 機械的だが箇所数が多く、Java 側とシェーダ側の両方を対で直す必要がある。
+> **`maxPushConstantsSize = 4096`**
+
+初版では「`mat4` × 6 の `ssao.comp` は 384 バイトで push constant 上限を超える可能性があるため UBO 化が必要」と推測していたが、**384 バイトは 4096 に対して 9.4% にすぎず、余裕で収まる**。15 箇所のうち最大のものでも上限の 1/10 未満であり、**UBO 化は一切不要**。
+
+これは移植を単純化する。UBO 経路を作れば descriptor set の割り当て・更新・ライフタイム管理が必要になるが、push constant はコマンドバッファに直接埋まるためそれらが全て不要になる。
+
+Java 側の対応する `glUniform*` 呼び出しも書き換えが必要 [確認済 — `glUniform2f`, `nglUniformMatrix4fv`, `glUniform1i`, `glUniform1f` が使われている] だが、`vkCmdPushConstants` への置換は機械的である。
+
+**対処難易度: 容易** (初版の「要設計」から格下げ)。全て push constant に収まり、descriptor 管理が不要になったため。
 
 #### (b) `#import` 独自ディレクティブ — **23 ファイルで使用、12 種類** [確認済]
 
@@ -770,21 +845,39 @@ client/mixin/sodium/MixinVisibleChunkCollector.java
 
 したがって **「新規に書く必要がある行数」の現実的な見積りは 7,917 行ではなく、1,500〜2,500 行程度** [推測] である。内訳:
 
-| 対象 | 現行行数 | 新規実装見積り [推測] | 根拠 |
+| 対象 | 現行行数 | 新規実装見積り | 根拠 |
 |---|---:|---:|---|
-| `client/core/gl/` 全体 (Vulkan ラッパへ) | 1,487 | 2,500〜4,000 | Vulkan は GL より冗長。device/queue/allocator/descriptor 管理が増える |
-| `AbstractRenderPipeline` | 283 | 400〜600 | render pass / barrier 明示化で膨らむ |
-| `MDICSectionRenderer` | 396 | 500〜700 | パイプライン生成 + degenerate draw 追加 |
-| `HierarchicalOcclusionTraverser` | 407 | 450〜550 | バリア記述の増加 |
-| `NodeCleaner` + `AsyncNodeManager` の GL 部 | (39行相当) | 150〜250 | |
-| `UploadStream` / `DownloadStream` / `RawDownloadStream` | 473 | 400〜600 | ユニファイドメモリで単純化される可能性 |
-| `HiZBuffer` | 137 | 200〜300 | |
-| `Capabilities` | 223 | 150〜250 | Vulkan の方が capability クエリは素直 |
-| `GPUTiming` | 207 | 200〜250 | `VkQueryPool` |
-| `Shader` / `ShaderLoader` / `AutoBindingShader` / `ShaderType` | 464 | 600〜900 | glslang 呼び出し + SPIR-V キャッシュ + パイプライン生成 |
-| **小計 (Java)** | — | **5,550〜8,400** | |
-| **GL–Vulkan interop 層 (新規、既存対応物なし)** | 0 | **1,000〜2,500** | §9 参照。IOSurface / 深度合成 |
-| **合計** | — | **6,550〜10,900** | |
+| `client/core/gl/` 全体 (Vulkan ラッパへ) | 1,487 | 2,500〜4,000 [推測] | Vulkan は GL より冗長。device/queue/allocator/descriptor 管理が増える |
+| `AbstractRenderPipeline` | 283 | 400〜600 [推測] | render pass / barrier 明示化で膨らむ |
+| `MDICSectionRenderer` → draw 統合型 renderer | 396 | 500〜700 [推測] | パイプライン生成。degenerate 埋めは数十行 |
+| **draw 統合の追加分** (`cmdgen.comp` 再設計 + prefix sum + `quads3.vert` 索引変更) | — | **300〜600** [実測済] | §3.6。`phase0-b1-mdi-measurement.md` §4.3 の見積り |
+| `HierarchicalOcclusionTraverser` | 407 | 450〜550 [推測] | バリア記述の増加 |
+| `NodeCleaner` + `AsyncNodeManager` の GL 部 | (39行相当) | 150〜250 [推測] | |
+| `UploadStream` / `DownloadStream` / `RawDownloadStream` | 473 | **300〜450** [推測、実測に基づく] | **下方修正。**ユニファイドメモリ確定によりステージング経路が不要 (下記) |
+| `HiZBuffer` | 137 | 200〜300 [推測] | |
+| `Capabilities` | 223 | 150〜250 [推測] | Vulkan の方が capability クエリは素直 |
+| `GPUTiming` | 207 | 200〜250 [推測] | `VkQueryPool`。`timestampValidBits = 64` / `timestampPeriod = 1.0` 確認済 [実測済] |
+| `Shader` / `ShaderLoader` / `AutoBindingShader` / `ShaderType` | 464 | 600〜900 [推測] | shaderc 呼び出し + SPIR-V キャッシュ + パイプライン生成。shaderc 経由の GLSL → SPIR-V は疎通確認済 [実測済] |
+| **小計 (Java)** | — | **5,750〜8,850** | |
+| **GL–Vulkan interop 層 (新規、既存対応物なし)** | 0 | **1,000〜2,500** [推測] | §9 B-3 参照。IOSurface / 深度合成 |
+| **合計** | — | **6,750〜11,350** | |
+
+初版の合計 6,550〜10,900 行に対し、draw 統合分 (+300〜600) と Upload/Download の下方修正 (−100〜150) が相殺し、**実質的に変わらない**。
+
+#### ユニファイドメモリ確定による単純化 [実測済]
+
+Phase 0 の Step 1 で以下が実機確認された:
+
+> **`DEVICE_LOCAL | HOST_VISIBLE | HOST_COHERENT | HOST_CACHED` を全て備えたメモリタイプが存在し、ヒープは 1 つのみ。**
+
+これは §3.4 で「有利化する」と推測していた点の裏付けであり、影響は推測時より大きい:
+
+- **ステージングバッファが一切不要** — `vkCmdCopyBuffer` によるホスト→デバイス転送経路そのものを実装しなくてよい
+- **`HOST_CACHED` があるため読み戻しも速い** — `DownloadStream` (189行) の PBO 相当ロジックが素直に移る
+- GL の永続マップ (`GL_MAP_PERSISTENT_BIT`) は `vkMapMemory` の永続保持にそのまま対応
+- `HOST_COHERENT` があるため `glFlushMappedNamedBufferRange` 相当 (`UploadStream.java:81,117`) の明示フラッシュが不要になる
+
+ディスクリート GPU 向けに書かれた Vulkan の教科書的な転送経路を**丸ごと省略できる**ため、`UploadStream` / `DownloadStream` / `RawDownloadStream` の 473 行は**現行より短くなる可能性がある** [推測]。見積りを 400〜600 から 300〜450 に下方修正した。
 
 ### 8.3 シェーダ (総 3,076 行)
 
@@ -805,36 +898,83 @@ client/mixin/sodium/MixinVisibleChunkCollector.java
 
 ## 9. ブロッカー候補
 
-本調査で「これがあると成立しない」レベルの問題として、以下 1 件を挙げる。残りは工数の問題であり、成立性の問題ではない。
+初版では B-1 を「唯一の go/no-go 級の未知数」としていたが、**Phase 0 の実測により B-1 は解消され、go/no-go は B-3 に移った** [実測済]。
 
-### 🔴 B-1: MoltenVK 上での MDI 実効性能 (**唯一の go/no-go 級の未知数**)
+### 🔴 B-3: GL–Vulkan interop コスト (**現時点で唯一の go/no-go**)
 
-**[未検証 — 本リポジトリからは判断できない。実測が必要]**
+**[未検証 — 実測が必要。Phase 0 の次のステップ]**
 
-`multiDrawIndirect = true` [実測値] は「API が使える」ことを保証するが、**「1 コマンドで N 件の draw が GPU 側で展開される」ことを保証しない**。
+Minecraft 本体は GL のままであるため、Vulkan で描いた LoD を GL のフレームバッファに**深度付きで合成**する必要がある。macOS に GL–Vulkan/Metal の公式 interop 拡張は存在しないため、IOSurface 経由 + 深度を R32F で渡して `gl_FragDepth` に書き戻す方式が想定される。
 
-問題の構造 [確認済 — Voxy 側の事実]:
+**Voxy 側の接続点は小さい** [確認済]。Minecraft 側から受け取るのは **GL テクスチャ ID (int) のみ**:
 
-1. `renderTerrain()` に渡される `maxDrawCount` は `min(sectionCount * 4.4 + 128, 400_000)` (`MDICSectionRenderer.java:225`)
-2. 描画パスは opaque / temporal / translucent の 3 本 (`renderOpaque`, `renderTemporal`, `renderTranslucent`)
-3. 各コマンドは `baseInstance` に固有の section ID を持つ (`cmdgen.comp:47`)
-4. `drawIndirectCount = false` [実測値] のため、CPU は実際の描画数を知らずに `maxDrawCount` 件を発行せざるを得ない
+```java
+// MixinDefaultChunkRenderer.java:61
+renderer.renderOpaque(viewport,
+    ((GlTextureView)target.getDepthTextureView()).glId(),
+    ((GlTextureView)target.getColorTextureView()).glId());
+```
 
-つまり `sectionCount` が 20,000 の場合、opaque だけで **約 88,000 件の indirect draw** を毎フレーム発行することになる。
+接続点は **5 箇所、すべて「GL テクスチャ ID を渡す」という単一の形**に統一されている [確認済 — §9 B-3 詳細を参照]。
 
-懸念点 [推測 — 検証されていない]: Metal の indirect draw は `drawIndexedPrimitives(indirectBuffer:indirectBufferOffset:)` が **1 コマンドにつき 1 draw** であり、MoltenVK が `vkCmdDrawIndexedIndirect(drawCount=N)` を **CPU 側で N 回ループしてエンコードする**実装になっている場合、88,000 件は破滅的なコストになる。Metal の Indirect Command Buffer (ICB) を使えば GPU 側展開が可能だが、MoltenVK がどの条件で ICB 経路を採るかは本リポジトリからは分からない。
+**しかし双方向である** [確認済]。Voxy → MC (描画結果の合成) だけでなく、**MC → Voxy (ライトマップ、ブロックテクスチャアトラス) の方向も存在する**。後者はテクスチャ更新のたびに転送が必要になる [推測]。
 
-さらに `baseInstance` を使っている (項目 3) ことが、ICB 経路を使えるかどうかに影響する可能性がある [推測]。`drawIndirectFirstInstance = true` が報告されている以上サポート自体はされているが、それが「速い経路」かは別問題である。
+**なぜこれが go/no-go なのか**: interop コストは移植の設計努力で減らせる部分が少ない。ドライバと OS の境界を毎フレーム跨ぐコストであり、Voxy 側のアルゴリズムを変えても改善しない。B-1 は「設計を変えれば解決できる」問題だったが、B-3 は**そうではない**。
 
-**なぜこれがブロッカー候補なのか**: これが遅い場合、対処は「Voxy の描画粒度そのものを変える」= セクションあたり 4.4 draw を 1 draw に統合する = `cmdgen.comp` とジオメトリレイアウトの再設計、という**移植ではなくアーキテクチャ変更**になる。§8 の見積りが完全に外れる。
+**撤退ライン: 合計 3〜4ms** [実測済 — `phase0-b1-mdi-measurement.md` §5 で設定]。60fps 予算 16.6ms の約 1/4 を毎フレーム interop に払うことになり、「軽量な LoD レンダラ」という Voxy の存在意義が失われるため。
 
-**検証方法の提案** [推測]:
-Voxy 本体とは独立に、最小の MoltenVK テストプログラムで以下を測る。
-- 空の VS/FS で `vkCmdDrawIndexedIndirect(drawCount = 10,000 / 50,000 / 100,000)` を発行し、フレーム時間を計測
-- `indexCount = 0` の degenerate コマンドと実描画コマンドを混在させ、degenerate のコストを測る
-- `firstInstance != 0` の有無で差が出るか比較
+**測定内容**:
+1. 合成 + 深度書き戻しパスのコスト (ms)
+2. GL↔Vulkan 同期で失うコスト (ms)
 
-**これは Voxy のコードを 1 行も書かずに 1 日程度で測れる。移植着手前に必ず実施すべき。**
+**必要なもの**: JNI または Panama (JDK 25 なので FFM API が正式機能として使える)。
+
+---
+
+### 🟢 B-1: MoltenVK 上での MDI 実効性能 (**解消済 — 設計分岐の判定材料**)
+
+**[実測済 — `phase0-b1-mdi-measurement.md`]**
+
+初版で go/no-go としていた項目。**測定の結果、go/no-go ではなかった。**
+
+#### 測定結果
+
+| 判定項目 | 結果 [実測済] |
+|---|---|
+| MoltenVK の MDI 実装 | **per-draw 課金。バッチ効果ゼロ。ICB 経路は使われていない** |
+| セクション単位 88,000 draws の維持 | **不可** (18.0ms、予算の 12 倍) |
+| degenerate draw による `drawIndirectCount` 代替 | **単体で不可** (88,000 件で 4.2ms、予算の 2.8 倍) |
+| **draw 統合の目標値** | **1,000 draws 以下** |
+
+初版の懸念「MoltenVK が CPU 側で N 回ループしてエンコードする実装なら破滅的」は**形としては外れた** [実測済]。`cpu_ms` は drawCount に依存せず一定 (0.004〜0.019ms) であり、MoltenVK は `vkCmdDrawIndexedIndirect` の時点では処理を遅延し、コストは `gpu_ms` とサブミット時処理に現れる。**ただし per-draw 課金であるという結論は同じ**であり、対処方針への影響はない。
+
+`HALF` 条件が実描画と degenerate の算術平均に誤差 0.05% で一致した [実測済] ことが、バッチ効果ゼロの決定的な証拠である。
+
+#### なぜ go/no-go でなくなったのか
+
+初版は「これが遅い場合、対処は移植ではなくアーキテクチャ変更になり、§8 の見積りが完全に外れる」と評価していた。**この評価は誤りだった** [実測済]。理由:
+
+> 200,000 三角形を `drawCount = 1` で描くと 18.444ms、`drawCount = 1,000` に分割しても 18.545ms。**差は 0.5%。**
+
+統合の目標が「1 ドロー」ではなく「1,000 ドロー以下」で足りるため、実装の自由度が大きい。折れ点は約 7,300 件で、そこまでは draw 起因のコストが 0.35ms 以下に収まる。面方向別 6 ドロー構成は増分 0.016ms で**事実上コストゼロ**。
+
+結果として追加工数は **300〜600 行** [実測済] にとどまり、総見積り 6,750〜11,350 行に対して誤差の範囲。アーキテクチャ変更ではなく**設計上の選択**に収まった。
+
+#### 統合案が実行可能である根拠 [実測済 + 確認済]
+
+| 前提 | 状況 |
+|---|---|
+| 頂点入力 | VAO 不使用、`gl_VertexID` による SSBO からの vertex pulling が既に実装済み [確認済] |
+| prefix sum | `util/prefixsum/inital3.comp` (subgroup版) / `simple.comp` (fallback) が既存 [確認済] |
+| subgroup | `subgroupSize = 32`, `subgroupSizeControl = true` → subgroup 版が使える [実測済] |
+| コマンド生成 | 既に compute (`cmdgen.comp`) で生成しており、生成先を変えるだけ [確認済] |
+| 64bit | `shaderInt64 = true` → `quad_format.glsl` の uint64 実装を維持可 [実測済] |
+
+#### 測定の限界 [実測済 — 同レポート §3.2]
+
+全三角形を同一位置に重ねているため early-z で大半が棄却されており、**フラグメント処理のコストは含まれていない**。本測定の目的は「draw 数に起因する増分」の抽出であり、その成分はジオメトリ配置に依存しないため判定は有効だが、**実描画スループットは Phase 4 で別途測定する必要がある**。
+
+**難易度: 要設計 (困難ではない)。**
 
 ---
 
@@ -850,20 +990,9 @@ Voxy 本体とは独立に、最小の MoltenVK テストプログラムで以�
 
 **難易度: 困難。**
 
-#### B-3: GL–Vulkan interop (本調査の範囲外だが規模を記録)
+#### B-3 の詳細 (go/no-go 本体は上記 🔴 を参照)
 
-[確認済 — Voxy 側の接続点]
-
-Voxy が Minecraft 側から受け取るのは **GL テクスチャ ID (int) のみ**である:
-
-```java
-// MixinDefaultChunkRenderer.java:61
-renderer.renderOpaque(viewport,
-    ((GlTextureView)target.getDepthTextureView()).glId(),
-    ((GlTextureView)target.getColorTextureView()).glId());
-```
-
-同様の箇所 [確認済]:
+接続点の内訳 [確認済]:
 - `client/mixin/sodium/MixinDefaultChunkRenderer.java:61` (Sodium 経路)
 - `client/mixin/nvidium/MixinRenderPipeline.java:23` (Nvidium 経路)
 - `client/core/rendering/util/LightMapHelper.java:30` (ライトマップテクスチャ)
@@ -872,9 +1001,9 @@ renderer.renderOpaque(viewport,
 
 **良いニュース**: 接続点が **5 箇所、しかもすべて「GL テクスチャ ID を渡す」という単一の形**に統一されている。interop 層のインターフェースは小さくて済む。
 
-**悪いニュース**: 双方向である。Voxy → MC (描画結果の合成) だけでなく、**MC → Voxy (ライトマップ、ブロックテクスチャアトラス) の方向も存在する**。後者はブロックテクスチャアトラス全体を Vulkan 側にコピーする必要があり、テクスチャ更新のたびに転送が要る [推測]。
+**悪いニュース**: 双方向である。後者 (MC → Voxy) はブロックテクスチャアトラス全体を Vulkan 側にコピーする必要があり、テクスチャ更新のたびに転送が要る [推測]。
 
-**難易度: 要設計 (本調査では未評価。別途 IOSurface 経路の実測が必要)。**
+なお **ユニファイドメモリが確定した** [実測済] ことは interop にも有利に働く可能性がある [推測] — IOSurface は元々 CPU/GPU 共有メモリの仕組みであり、ステージングを挟まずに扱える見込み。ただしこれは実測で確認すべき事項であり、楽観の根拠にはしない。
 
 #### B-4: `AbstractSectionRenderer` 抽象の実効性が未検証
 
@@ -883,6 +1012,8 @@ renderer.renderOpaque(viewport,
 §2.3 の通り、バックエンド抽象は存在するが**実装は `MDICSectionRenderer` 1 つのみ**で、`getRenderBackendFactory()` はそれをハードコードしている (`TODO` コメント付き)。
 
 抽象が「2 つ目を刺せる形」になっているかは、実際に刺してみるまで分からない [推測]。特に `Viewport<T>` が `GlBuffer` を直接フィールドに持っている点 [確認済 — `MDICViewport.java` は `GlBuffer` を 5 個保持] は、Vulkan 版で `Viewport` 基底クラス側の変更を要求する可能性がある。
+
+**この項目は draw 統合の決定により重要度が上がった** [実測済を受けた推測]。新 renderer は `MDICSectionRenderer` の 1:1 移植ではなく**描画粒度そのものが異なる実装**になるため、`AbstractSectionRenderer` の抽象境界により強い負荷がかかる。具体的には `IGeometryData` / `Viewport` が「セクション単位 draw」を暗黙に前提していないかの確認が必要。
 
 **難易度: 要設計 (小規模)。**
 
@@ -896,9 +1027,14 @@ renderer.renderOpaque(viewport,
 | `transformFeedback` 不在 | **transform feedback は一切不使用。** `TransformFeedback` / `GL_TRANSFORM_FEEDBACK` すべて 0 件。 |
 | `sparseBinding = false` | sparse **texture** 不使用。sparse **buffer** は NVIDIA+Windows 限定フォールバック経路のみ。macOS では自動無効化。**作業不要。** |
 | bindless texture | **完全に不使用。** descriptorIndexing での代替検討すら不要。 |
-| `drawIndirectCount = false` | 該当 2 箇所のみ。コマンドが密に詰まっているため degenerate draw で素直に代替可能。ただし性能面は B-1 に依存。 |
-| `shaderInt64` | `true` [実測値]。`quad_format.glsl` の uint64 実装をそのまま維持可。uvec2 分解不要。 |
-| `drawIndirectFirstInstance` | `true` [実測値]。`cmdgen.comp:47` → `quads3.vert:54` の `baseInstance` 経由 section ID 伝達がそのまま成立。**これが false なら移植不成立だった。** |
+| `drawIndirectCount = false` | 該当 2 箇所のみ [確認済]。**draw 統合により制約自体が消滅する** [実測済]。統合後は draw 数が数百なので上限発行のコストが無視できる。degenerate 単体案は棄却 (§3.6)。 |
+| `shaderInt64` | `true` [実測済]。`quad_format.glsl` の uint64 実装をそのまま維持可。uvec2 分解不要。 |
+| `drawIndirectFirstInstance` | `true` [実測済]。伝達も実機確認済 (200 → 200)。ただし **draw 統合により本経路は採用しない見込み** (§6.6)。性能への影響はゼロと確認されているため、捨てても損失なし。 |
+| `maxPushConstantsSize` | **4096** [実測済]。デフォルト uniform 15 箇所は全て push constant で収まり、UBO 化不要 (§6.7a)。 |
+| メモリタイプ | `DEVICE_LOCAL｜HOST_VISIBLE｜HOST_COHERENT｜HOST_CACHED` が存在、ヒープ 1 つ [実測済]。**ステージング経路の実装が丸ごと不要**(§8.2)。 |
+| `timestampValidBits` / `timestampPeriod` | 64 / 1.0 [実測済]。`GPUTiming` の移植先として `VkQueryPool` が完全に使える。ティック = ナノ秒。 |
+| GLSL → SPIR-V | shaderc 経由で疎通確認済 [実測済]。Phase 2-3 でそのまま使える。 |
+| subgroup | `subgroupSize = 32`, `subgroupSizeControl = true` [実測済]。`prefixsum/inital3.comp` の subgroup 版が使える (fallback も既存)。 |
 | storage 層の GL 漏れ | **漏れなし。** `common` + `commonImpl` 8,992 行に GL import 0 件。 |
 | mesh shader 依存 | `ShaderType.MESH/TASK` の enum 定義はあるが**使用箇所 0**。`IUsesMeshlets` インターフェースも実装クラスなし。 |
 | シェーダリフレクション依存 | なし。バインディングはすべて `#define` による明示的な数値。 |
@@ -910,13 +1046,15 @@ renderer.renderOpaque(viewport,
 
 ### Phase 0: 着手前の必須実測 (Voxy のコードに触れない)
 
-**目的**: B-1 を潰す。ここで詰んだら以降の工数見積りが無意味になる。
+| # | 内容 | 状況 |
+|---|---|---|
+| 1 | MoltenVK 単体テストで大量 indirect draw のコストを測定 (§9 B-1) | **✅ 完了** — `phase0-b1-mdi-measurement.md` |
+| 3 | subgroup capability と push constant 上限の確認 | **✅ 完了** — 副次的に測定 |
+| 2 | GL–Vulkan interop (IOSurface + 深度合成) の往復コストを測定 (§9 B-3) | **⬜ 未実施 — 次のステップ。これが唯一の go/no-go** |
 
-1. MoltenVK 単体テストで大量 indirect draw のコストを測定 (§9 B-1)
-2. GL–Vulkan interop (IOSurface + 深度合成) の往復コストを測定 (§9 B-3 / 事前計画通り)
-3. MoltenVK の subgroup capability (`VkPhysicalDeviceSubgroupProperties`) と push constant 上限を確認
+**1 の判断結果** [実測済]: 破滅的に遅かったが、**アーキテクチャ変更にはならなかった**。draw 統合 (目標 1,000 draws 以下) を Phase 4 の設計前提に組み込むことで解決する。追加工数 300〜600 行。
 
-**判断**: 1 が破滅的に遅い場合、移植ではなくアーキテクチャ変更になるため計画を組み直す。
+**2 の撤退ライン**: 合計 3〜4ms。超過した場合、macOS での Voxy は「軽量」という存在意義を失うため計画を撤回する。JNI または Panama (JDK 25 の FFM API) が必要。
 
 ### Phase 1: 切り離しと足場固め (Voxy を GL のまま動かす)
 
@@ -930,9 +1068,11 @@ renderer.renderOpaque(viewport,
 ### Phase 2: Vulkan 基盤 (描画なし)
 
 1. instance / device / queue / allocator / command pool の初期化
+   — Phase 0 の `Vk.java` / `Offscreen.java` / `Buf.java` / `Pipeline.java` / `Timing.java` が**そのまま出発点になる** [実測済]
 2. `client/core/gl/` に対応する Vulkan ラッパ (`GlBuffer` → `VkBufferWrapper` 等)
-3. glslang による GLSL → SPIR-V コンパイル経路 + キャッシュ
-4. デフォルト uniform 15 箇所を push constant / UBO へ移行 (**シェーダと Java を対で修正**)
+   — ユニファイドメモリ確定によりステージング経路は**実装しない** [実測済]
+3. shaderc による GLSL → SPIR-V コンパイル経路 + キャッシュ (疎通確認済 [実測済])
+4. デフォルト uniform 15 箇所を **全て push constant へ**移行 (`maxPushConstantsSize = 4096` [実測済]、UBO 化不要)
 5. `#define` バインディング番号 → descriptor set レイアウトの写像規約を決定
 
 ### Phase 3: compute パスの移植 (描画なし、検証しやすい)
@@ -945,13 +1085,45 @@ compute だけなら interop なしで単体検証できる。**ここでバリ�
 
 各パスの出力を GL 版とビット単位で比較する検証を用意すると B-2 の事故を早期に捕まえられる [推測]。
 
-### Phase 4: 描画パスの移植
+### Phase 4: 描画パスの移植 — **draw 統合型の新 renderer**
 
-1. `MDICSectionRenderer` → `VulkanSectionRenderer` (`AbstractSectionRenderer` の 2 つ目の実装)
-2. degenerate draw による `drawIndirectCount` 代替 (0 埋め compute 追加)
-3. `quads3.vert` / `quads.frag` の SPIR-V 化
-4. `HiZBuffer` (ラスタ版) の移植
-5. オフスクリーンレンダーターゲットへの描画のみ (interop なし) で画が出ることを確認
+> **改訂 (Phase 0 実測後)**: 初版は「`MDICSectionRenderer` → `VulkanSectionRenderer` の移植」としていた。**これは 1:1 移植ではなく、描画粒度を変える新規実装になる** [実測済]。セクション単位 draw (88,000 件) は維持できず、**1,000 draws 以下**への統合が前提となる。
+
+#### 4-1. draw 統合の設計 (**Phase 4 の中核。ここから着手する**)
+
+現行の「1 セクション = 4.4 draw」を捨て、**可視セクションをバッチに束ねる**構成へ移行する。
+
+- **統合の目標: 1,000 draws 以下** [実測済]。「1 draw まで畳む」必要はない
+- **面方向別 6 ドロー構成はコストゼロ** (増分 0.016ms) [実測済] — 面ごとに分けたままでよい
+- 折れ点は約 7,300 件 [実測済] なので、数百件に収まれば余裕がある
+
+#### 4-2. `cmdgen.comp` (220行) の再設計
+
+| 現行 | 統合後 |
+|---|---|
+| 88,000 件の `DrawCommand` を生成 | **数百件の `DrawCommand` + セクションオフセットテーブル**を生成 |
+| `cmd.baseInstance = drawId` でセクション ID を伝達 | **廃止** |
+| `atomicAdd(opaqueDrawCount, cmdCnt)` でコマンドを密に詰める | オフセットテーブルの構築に変更 |
+
+#### 4-3. prefix sum による `gl_VertexIndex` → (section, quad) 解決
+
+`baseInstance` 経由のセクション ID 伝達を廃止するため、頂点側でセクションを逆引きする必要がある。
+
+- **既存の `util/prefixsum/inital3.comp` (subgroup版) / `simple.comp` (fallback) を流用できる** [確認済]
+- `subgroupSize = 32`, `subgroupSizeControl = true` [実測済] なので subgroup 版が使える
+- `quads3.vert:54` の `positionBuffer[gl_BaseInstance]` を、prefix sum テーブルの二分探索または直接索引に置き換える
+
+**この方式が成立する根拠** [確認済]: Voxy は既に VAO を使わず `gl_VertexID` による SSBO からの vertex pulling を行っている。頂点索引から任意のデータを引く構造が**最初から存在する**ため、索引の計算方法を変えるだけで済む。
+
+#### 4-4. 残りの作業
+
+4. `drawIndirectCount` 対策の degenerate 埋め (数十行) — **統合後は draw 数が数百なのでコストは無視できる** (1,000 件で 0.10ms) [実測済]
+5. `quads3.vert` / `quads.frag` の SPIR-V 化
+6. `HiZBuffer` (ラスタ版) の移植
+7. オフスクリーンレンダーターゲットへの描画のみ (interop なし) で画が出ることを確認
+8. **実描画スループットの測定** — Phase 0 の測定は early-z により大半が棄却されており、フラグメント処理コストを含んでいない [実測済 — 測定の限界]。ここで初めて実地の描画性能が分かる
+
+**追加工数見積り**: 4-2 + 4-3 + `quads3.vert` の索引変更で **300〜600 行** [実測済]。
 
 ### Phase 5: interop と統合
 
@@ -977,8 +1149,9 @@ compute だけなら interop なしで単体検証できる。**ここでバリ�
 | 集中点 | 規模 | 難易度 | 備考 |
 |---|---|---|---|
 | **1. `glMemoryBarrier` 42 箇所の Vulkan 同期への変換** | 42 箇所 + 潜在的な追加 | **困難** | 1:1 変換不可。バグの再現性が低い。**ここが最大の工数** |
-| **2. `client/core/gl/` の Vulkan 再実装** | 1,487 行 → 2,500〜4,000 行 | 要設計 | 機械的だが量がある |
-| **3. GL–Vulkan interop 層 (新規)** | 0 → 1,000〜2,500 行 | 要設計 | 既存対応物なし。接続点は 5 箇所と少ない |
+| **2. `client/core/gl/` の Vulkan 再実装** | 1,487 行 → 2,500〜4,000 行 | 要設計 | 機械的だが量がある。ステージング不要で初版想定より軽い [実測済] |
+| **3. GL–Vulkan interop 層 (新規)** | 0 → 1,000〜2,500 行 | 要設計 | 既存対応物なし。接続点は 5 箇所と少ない。**成立性リスクを伴う唯一の項目** |
+| **4. draw 統合 (新規追加)** | 300〜600 行 [実測済] | 要設計 | `cmdgen.comp` 再設計 + prefix sum。**工数は小さいが Phase 4 の設計前提を変える** |
 
 一方、**工数が集中しないと確認できた箇所**:
 
@@ -987,6 +1160,8 @@ compute だけなら interop なしで単体検証できる。**ここでバリ�
 - メッシュ生成 (`RenderDataFactory` 1,806行) と ノード階層 (`NodeManager` 1,718行) — **GL 非依存、無改変**
 - sparse / bindless — **作業ゼロ**
 - Iris 切り離し — 疎結合、フォールバック構造が既存
+- **デフォルト uniform の移行** — 全て push constant に収まり UBO 化不要 [実測済]
+- **ホスト↔デバイス転送** — ユニファイドメモリによりステージング経路の実装が不要 [実測済]
 
 ### 定量まとめ
 
@@ -996,15 +1171,30 @@ compute だけなら interop なしで単体検証できる。**ここでバリ�
 ├─ 移植対象         7,917 行 (26%)  ← うち実 GL 呼び出しは 871 行のみ
 └─ 削除 (Iris)      1,863 行 (6%)
 
-新規実装見積り      6,550 〜 10,900 行 [推測]
-GLSL 改変           約 280 行 / 3,076 行 (9%)
+新規実装見積り      6,750 〜 11,350 行  (初版 6,550〜10,900 から微増)
+  ├─ draw 統合分     +300 〜   600 行 [実測済]
+  └─ Upload/Download −100 〜   150 行 [実測済を受けた下方修正]
+GLSL 改変           約 280 行 / 3,076 行 (9%) + draw 統合に伴う索引変更
 ```
 
-### 最終所見
+### 最終所見 (Phase 0 実測を反映)
 
-**移植の技術的成立性は高い。** 事前調査で懸念されていた MoltenVK 制約 (geometryShader / transformFeedback / sparseBinding / bindless) は**すべて Voxy が該当機能を使っていないため無効化される**。`drawIndirectCount = false` と `shaderInt64` / `drawIndirectFirstInstance` の組み合わせも、Voxy の既存設計 (`baseInstance` による section ID 伝達、compute による密なコマンド生成) と噛み合っている。
+**移植の技術的成立性は依然として高い。** 事前調査で懸念されていた MoltenVK 制約 (geometryShader / transformFeedback / sparseBinding / bindless) は**すべて Voxy が該当機能を使っていないため無効化される** [確認済]。
 
-**残る唯一の成立性リスクは B-1 (MoltenVK 上での大量 indirect draw の実効性能)** であり、これは Voxy のコードを一切書かずに独立に測定できる。**Phase 0 の実測を移植着手の前提条件とすることを強く推奨する。**
+Phase 0 の実測は、**懸念を 1 つ潰し、条件を 3 つ改善した**:
+
+| 項目 | 実測前 | 実測後 [実測済] |
+|---|---|---|
+| B-1 (MDI 性能) | 唯一の go/no-go | **解消。** draw 統合 (目標 1,000 draws 以下、追加 300〜600 行) で対処可能 |
+| デフォルト uniform | 要設計 (UBO 化が必要かも) | **容易。** `maxPushConstantsSize = 4096` で全て push constant |
+| ホスト↔デバイス転送 | 「有利化する可能性」 | **確定。** ユニファイドメモリでステージング経路が不要 |
+| GPU 計測 / SPIR-V 生成 | 未検証 | **疎通確認済。** `VkQueryPool` と shaderc がそのまま使える |
+
+**一方で、初版の楽観が 1 点覆った**: `drawIndirectCount = false` に対する degenerate draw 単体案は、degenerate であっても 49 ns/draw が課金されるため予算を 2.8 倍超過し、**成立しない** [実測済]。ただしこれは draw 統合の一部として解消され、統合の目標値自体が緩い (1,000 draws 以下、1 draw まで畳む必要なし) ため、致命傷にはならなかった。
+
+**残る唯一の成立性リスクは B-3 (GL↔Vulkan interop コスト)** に移った。これは B-1 と性質が異なる — **Voxy 側の設計努力で減らせない**。ドライバと OS の境界を毎フレーム跨ぐコストだからである。撤退ライン 3〜4ms を超えれば、macOS 版 Voxy は「軽量」という存在意義を失う。
+
+**Phase 0 の残り (B-3 の実測) を移植着手の前提条件とすることを引き続き強く推奨する。**
 
 ---
 
