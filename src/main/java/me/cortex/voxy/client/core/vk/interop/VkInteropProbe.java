@@ -303,6 +303,39 @@ public final class VkInteropProbe {
     private double lastMcFarPlane;
 
     /**
+     * <b>どの組だけを描くか</b> (-1 = 全部) [Phase 5c-3a]。
+     *
+     * <h2>⚠ なぜ要るのか — 3 組は見分けが付かない</h2>
+     * 3 組は同じ地形なので、画面のどの塊がどれか<b>目では区別できない</b>。
+     * 「外の組が出たか」を人に判断させると答えが得られない [実際に得られなかった]。
+     *
+     * <p>さらに、全部まとめて描くと<b>画素数の比較も成立しない</b> —
+     * ウィンドウの大きさやカメラ位置が変われば総数は当然変わる
+     * (off で 113111/1639680、on で 15050/10608960 という比較にならない数字が出た)。
+     *
+     * <p><b>1 組だけ描けば、ログの「drawn=」が 0 か否かで決まる。</b>
+     * 画面にも 1 つしか出ないので、目で見ても迷わない。
+     */
+    private static final int ONLY_COPY = resolveOnlyCopy();
+
+    private static int resolveOnlyCopy() {
+        String v = System.getProperty("voxy.5c3.only");
+        if (v == null) return -1;
+        return switch (v.toLowerCase(java.util.Locale.ROOT)) {
+            case "all" -> -1;
+            case "near" -> 0;
+            case "mid", "far" -> 1;
+            case "beyond" -> 2;
+            default -> throw new IllegalArgumentException("unknown voxy.5c3.only=" + v
+                + " (expected all|near|mid|beyond)");
+        };
+    }
+
+    private static String copyName(int i) {
+        return switch (i) { case 0 -> "near"; case 1 -> "mid"; case 2 -> "beyond"; default -> "all"; };
+    }
+
+    /**
      * 3 つ目の組を MC の far 平面の<b>何倍の距離</b>に置くか。
      *
      * <p>⚠ 1.0 に近いと「境界にいるので見えたり見えなかったりする」になり、
@@ -520,7 +553,12 @@ public final class VkInteropProbe {
         tracker.waitForFrame();
 
         // --- 診断 (最初の数フレームだけ) ---
-        if (this.frames < 3) {
+        //
+        // ⚠ 5c-3a では**周期的にも出す**。答えが「drawn= の数字」なので、
+        // プレイヤーが向きを変えたあとにも読めなければ確認できない。
+        // 最初の 3 フレームだけだと、たまたまそちらを向いていなかった場合と
+        // 「描けていない」場合が**区別できない**
+        if (this.frames < 3 || (MODE == Mode.TRIPLE && this.frames % 300 == 0)) {
             this.logDiagnostics(mcColourTexture, mcDepthTexture, w, h);
         }
         this.frames++;
@@ -613,8 +651,27 @@ public final class VkInteropProbe {
         // 面方向マスクは **相対配置** で決まる。アンカーで平行移動しても変わらないので
         // ORIGIN のまま 1 度だけ作ってよい
         var draws = this.terrain.opaqueDrawCommands(starts, SyntheticTerrain.ORIGIN);
+        if (ONLY_COPY >= 0) {
+            // ⚠ 1 組だけ描く。**どの塊がどれか**を目で当てさせないため
+            int per = Math.max(1, this.terrain.sectionCount() / copies());
+            int want = Math.min(ONLY_COPY, copies() - 1);
+            int before = draws.size();
+            draws = draws.stream()
+                .filter(d -> Math.min(d.drawId() / per, copies() - 1) == want)
+                .toList();
+            Logger.info("[5c-3a] drawing ONLY the '" + copyName(want) + "' copy: "
+                + draws.size() + " of " + before + " draws"
+                + "  [\"voxy footprint: drawn=\" in the log is now that copy alone]");
+            if (draws.isEmpty()) {
+                throw new IllegalStateException("filtering to the '" + copyName(want)
+                    + "' copy left no draws — the section-to-copy mapping is wrong");
+            }
+        }
         SyntheticTerrain.writeDrawCommands(this.res.drawCall, draws, this.res.indexQuadCapacity);
         this.drawCount = draws.size();
+        Logger.info("[5c-3a] projection=" + (VOXY_PROJECTION ? "VOXY (near=16 far=48000, depth reprojected)"
+            : "MINECRAFT (control)") + "  copies=" + copies()
+            + "  drawing=" + copyName(ONLY_COPY));
         Logger.info("[5c-1d] synthetic terrain: " + this.terrain.sectionCount() + " sections, "
             + this.terrain.totalQuads() + " quads, " + this.drawCount + " draws"
             + " (same dataset as interopCompositeCheck)");

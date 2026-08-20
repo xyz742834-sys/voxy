@@ -542,6 +542,12 @@ tasks.named('runClient') {
     if (project.hasProperty('voxy5c3')) {
         jvmArgs("-Dvoxy.5c3=" + project.property('voxy5c3'))
     }
+    // ⚠ **1 組だけ描く**。3 組は見た目が同じなので、目で当てさせない
+    //   ./gradlew runClient -Pvoxy5c3=on  -Pvoxy5c3Only=beyond   -> drawn > 0 でなければならない
+    //   ./gradlew runClient -Pvoxy5c3=off -Pvoxy5c3Only=beyond   -> drawn = 0 でなければならない
+    if (project.hasProperty('voxy5c3Only')) {
+        jvmArgs("-Dvoxy.5c3.only=" + project.property('voxy5c3Only'))
+    }
     if (project.hasProperty('voxy5c3Factor')) {
         jvmArgs("-Dvoxy.5c3.factor=" + project.property('voxy5c3Factor'))
     }
