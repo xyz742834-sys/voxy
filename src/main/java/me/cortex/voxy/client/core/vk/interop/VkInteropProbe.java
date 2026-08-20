@@ -144,7 +144,9 @@ public final class VkInteropProbe {
          * <b>手前が出ていて奥が隠れている</b>ことを同時に見て初めて、
          * 深度テストが<b>効いている</b>と言える。
          */
-        PAIR
+        PAIR,
+        /** 5c-3a: 3 組。<b>3 つ目は MC の far 平面の外</b>に置く。 */
+        TRIPLE
     }
 
     private static final Mode MODE = resolveMode();
@@ -155,6 +157,8 @@ public final class VkInteropProbe {
      * 当時の手動確認をそのまま再現できる。
      */
     private static Mode resolveMode() {
+        // 5c-3a: 配置は 3 組で固定し、**投影だけ**を切り替える (VOXY_PROJECTION)
+        if (System.getProperty("voxy.5c3") != null) return Mode.TRIPLE;
         String e = System.getProperty("voxy.5c1e");
         if (e != null) return parse("voxy.5c1e", e, Mode.PAIR);
         String v = System.getProperty("voxy.5c1d");
@@ -181,6 +185,7 @@ public final class VkInteropProbe {
             case "terrain-nodepth", "nodepth" -> Mode.TERRAIN_NODEPTH;
             case "terrain-refmvp", "refmvp" -> Mode.TERRAIN_REFMVP;
             case "pair" -> Mode.PAIR;
+            case "triple" -> Mode.TRIPLE;
             case "full" -> fullMeans;
             default -> throw new IllegalArgumentException("unknown " + property + "=" + value);
         };
@@ -189,11 +194,40 @@ public final class VkInteropProbe {
     /** 地形を描くモードか。 */
     private static boolean drawsTerrain() {
         return MODE == Mode.TERRAIN || MODE == Mode.TERRAIN_NODEPTH
-            || MODE == Mode.TERRAIN_REFMVP || MODE == Mode.PAIR;
+            || MODE == Mode.TERRAIN_REFMVP || MODE == Mode.PAIR || MODE == Mode.TRIPLE;
     }
 
-    /** 手前と奥の 2 組を置くモードか。 */
-    private static boolean drawsPair() { return MODE == Mode.PAIR; }
+    /** 何組の地形を置くか。1 = 単体、2 = 5c-1e の手前/奥、3 = 5c-3a (+ far 平面の外)。 */
+    private static int copies() {
+        return switch (MODE) {
+            case PAIR -> 2;
+            case TRIPLE -> 3;
+            default -> 1;
+        };
+    }
+
+    /** 複数組を置くモードか。 */
+    private static boolean drawsPair() { return copies() > 1; }
+
+    /**
+     * <b>Voxy 自前の投影で描き、深度を MC の空間へ再投影するか</b> [Phase 5c-3a]。
+     *
+     * <p>⚠ <b>配置 ({@link Mode#TRIPLE}) とは分けてある。</b>
+     * 同じ配置のまま投影だけを切り替えられなければ、
+     * 「3 つ目が見えないのは投影のせいか置き場所のせいか」が分からない [規約 3]。
+     */
+    private static final boolean VOXY_PROJECTION = resolveVoxyProjection();
+
+    private static boolean resolveVoxyProjection() {
+        String v = System.getProperty("voxy.5c3");
+        if (v == null) return false;
+        return switch (v.toLowerCase(java.util.Locale.ROOT)) {
+            case "off" -> false;              // 対照: MC の投影のまま 3 組置く
+            case "on", "full" -> true;        // 本命: 自前の投影 + 深度再投影
+            default -> throw new IllegalArgumentException("unknown voxy.5c3=" + v
+                + " (expected 'off' or 'on')");
+        };
+    }
 
     private static VkInteropProbe INSTANCE;
 
@@ -263,6 +297,19 @@ public final class VkInteropProbe {
     private int[] lastFarAnchor;
     /** 5c-1e: 奥のアンカーを決めたときのカメラ位置 (診断用)。 */
     private double[] farAnchorCam;
+    /** 5c-3a: MC の far 平面の外に置いた組 (診断用)。 */
+    private int[] lastBeyondAnchor;
+    private double lastBeyondDistance;
+    private double lastMcFarPlane;
+
+    /**
+     * 3 つ目の組を MC の far 平面の<b>何倍の距離</b>に置くか。
+     *
+     * <p>⚠ 1.0 に近いと「境界にいるので見えたり見えなかったりする」になり、
+     * <b>対照が揺れる</b>。はっきり外に置く。
+     */
+    private static final double BEYOND_FAR_PLANE_FACTOR =
+        Double.parseDouble(System.getProperty("voxy.5c3.factor", "2.0"));
 
     /** 合成地形の中心をカメラから何ブロック前に置くか。 */
     private static final double TERRAIN_DISTANCE_BLOCKS =
@@ -369,7 +416,8 @@ public final class VkInteropProbe {
                 // MERGED (本番の統合描画) は cmdgen/HiZ が要るので 5c-4 で入れる
                 VkTerrainRenderer.Mode.PER_SECTION, VkTerrainRenderer.Pass.OPAQUE,
                 VkInteropImage.Kind.COLOR_BGRA8.vkFormat);
-            this.resolve = new VkDepthResolve(this.rt.depth, w, h);
+            // 5c-3a: 自前の投影で描くなら、深度を MC の空間へ写し直す必要がある
+            this.resolve = new VkDepthResolve(this.rt.depth, w, h, VOXY_PROJECTION);
             this.lastAnchor = null;   // サイズが変わったら位置も書き直す
         }
 
@@ -449,7 +497,7 @@ public final class VkInteropProbe {
         var tracker = VkFrameTracker.get();
         var cmd = tracker.beginFrame();
         switch (MODE) {
-            case TERRAIN, TERRAIN_NODEPTH, TERRAIN_REFMVP, PAIR -> {
+            case TERRAIN, TERRAIN_NODEPTH, TERRAIN_REFMVP, PAIR, TRIPLE -> {
                 // 焼いたテクスチャを先に流す。地形描画の recordUploads より前でなければ
                 // ミップの遷移とレイアウトが噛み合わない
                 if (this.bakery != null) this.bakery.recordUploads(cmd);
@@ -513,7 +561,7 @@ public final class VkInteropProbe {
                     GlInteropCompositor.Defect.CONSTANT_COLOUR, GlInteropCompositor.DepthMode.NONE);
                 // ⚠ 5c-1d で初めて深度を書く。**無条件の上書きではない** —
                 // 描いていない画素は捨て、残りは MC の深度と比較する
-                case TERRAIN, PAIR -> GlInteropCompositor.forHost();
+                case TERRAIN, PAIR, TRIPLE -> GlInteropCompositor.forHost();
                 // 診断: 深度を見ずに全面を貼る。橙一色なら地形が画面に無い
                 case TERRAIN_NODEPTH, TERRAIN_REFMVP ->
                     new GlInteropCompositor(GlInteropCompositor.DepthMode.NONE);
@@ -534,9 +582,7 @@ public final class VkInteropProbe {
     private void ensureScene() {
         if (this.res != null) return;
         // 5c-1e は同じ地形を 2 組持つ。前半 = 手前、後半 = 奥
-        this.terrain = drawsPair()
-            ? SyntheticTerrain.boundaryCases().duplicated()
-            : SyntheticTerrain.boundaryCases();
+        this.terrain = SyntheticTerrain.boundaryCases().repeated(copies());
         // ⚠ 実データのモデル id は mapper が採番するので、合成の maxStateId とは無関係。
         // 少なめに取ると **範囲外読み**になる (バリデーションは捕まえない)
         int models = REAL_MODELS ? 4096 : this.terrain.maxStateId() + 1;
@@ -634,12 +680,30 @@ public final class VkInteropProbe {
         // ⚠ MC の投影は逆Z・**-1..1**。Vulkan のクリップ空間は常に 0..1 なので、
         // そのまま渡すと z < 0 の断片が全部クリップされる (5c-1d で 1 画素も出なかった原因)。
         // 規約を決め打ちせず、検算して要るときだけ変換する [規約 9]
-        var vkProjection = me.cortex.voxy.client.core.vk.VkHostViewport.projectionForVulkan(
+        var mcProjection = me.cortex.voxy.client.core.vk.VkHostViewport.projectionForVulkan(
             projection, modelView, sub, TERRAIN_CENTRE_SECTIONS);
+
+        // 5c-3a: 自前の投影で描くと MC の far 平面の外まで届く。
+        // ⚠ その代わり深度は MC の空間に無いので、**書き戻す前に写し直す**必要がある
+        var vkProjection = VOXY_PROJECTION
+            ? me.cortex.voxy.client.core.vk.VkHostViewport.voxyProjection(mcProjection,
+                me.cortex.voxy.client.core.vk.VkHostViewport.VOXY_NEAR,
+                me.cortex.voxy.client.core.vk.VkHostViewport.VOXY_FAR)
+            : mcProjection;
         float[] m = me.cortex.voxy.client.core.vk.VkHostViewport.mvp(vkProjection, modelView, sub);
 
         VkSceneUniform.write(this.res.uniform, m, anchor,
             (int) (this.frames & 0x7fffffff), sub);
+
+        if (VOXY_PROJECTION) {
+            // ⚠ 写し先の MVP は**同じ sub** で組むこと。再投影が経由する
+            // 「カメラ相対ワールド座標」が両者で同じ空間でなければならない
+            float[] mcM = me.cortex.voxy.client.core.vk.VkHostViewport.mvp(
+                mcProjection, modelView, sub);
+            this.resolve.setReprojection(
+                new org.joml.Matrix4f().set(m).invert(),
+                new org.joml.Matrix4f().set(mcM));
+        }
 
         if (this.frames < 3) {
             this.logViewportMath(modelView, m, anchor, sub);
@@ -648,6 +712,18 @@ public final class VkInteropProbe {
                 Logger.warn("[5c-1d] the depth of the terrain centre is STILL outside (0,1)"
                     + " after the zero-to-one conversion — the host uses a depth convention"
                     + " this code does not know about");
+            }
+            if (VOXY_PROJECTION && this.lastBeyondAnchor != null) {
+                float[] beyondSub = me.cortex.voxy.client.core.vk.VkHostViewport.cameraSubPos(
+                    cameraX, cameraY, cameraZ, this.lastBeyondAnchor);
+                boolean outOfMc = me.cortex.voxy.client.core.vk.VkHostViewport.depthStillOutOfRange(
+                    mcProjection, modelView, beyondSub, TERRAIN_CENTRE_SECTIONS);
+                boolean outOfVoxy = me.cortex.voxy.client.core.vk.VkHostViewport.depthStillOutOfRange(
+                    vkProjection, modelView, beyondSub, TERRAIN_CENTRE_SECTIONS);
+                Logger.info("[5c-3a] BEYOND copy: outside Minecraft's frustum=" + outOfMc
+                    + " (must be true, else the control is vacuous),"
+                    + " outside Voxy's frustum=" + outOfVoxy
+                    + " (must be false, else it cannot be drawn at all)");
             }
             // ⚠ 5c-1e: 奥の組が MC の far 平面の外にいると、
             // 「奥が見えない」のが**遮蔽ではなく切り落とし**になり対照が空虚になる
@@ -748,12 +824,34 @@ public final class VkInteropProbe {
             camX, camY, camZ, dir[0], dir[1], PAIR_FAR_BLOCKS, PAIR_LATERAL_BLOCKS,
             TERRAIN_CENTRE_SECTIONS, PAIR_QUANTUM);
 
+        // 5c-3a: 3 つ目は **MC の far 平面の外**に置く。距離は描画距離から導く —
+        // 決め打ちにすると描画距離を変えたときに対照が黙って成立しなくなる
+        int[] beyondAnchor = null;
+        if (copies() >= 3) {
+            var mc01 = me.cortex.voxy.client.core.vk.VkHostViewport.projectionForVulkan(
+                projection, modelView,
+                me.cortex.voxy.client.core.vk.VkHostViewport.cameraSubPos(camX, camY, camZ, nearAnchor),
+                TERRAIN_CENTRE_SECTIONS);
+            double mcFar = me.cortex.voxy.client.core.vk.VkHostViewport.farPlaneDistance(mc01);
+            this.lastMcFarPlane = mcFar;
+            double beyond = Math.min(mcFar * BEYOND_FAR_PLANE_FACTOR,
+                me.cortex.voxy.client.core.vk.VkHostViewport.VOXY_FAR * 0.5);
+            beyondAnchor = me.cortex.voxy.client.core.vk.VkHostViewport.anchorAlongDirection(
+                camX, camY, camZ, dir[0], dir[1], beyond, -PAIR_LATERAL_BLOCKS,
+                TERRAIN_CENTRE_SECTIONS, PAIR_QUANTUM);
+            this.lastBeyondDistance = beyond;
+        }
+
         int n = this.terrain.sectionCount();
-        int half = n / 2;
+        int per = n / copies();
         int[][] anchors = new int[n][];
-        for (int i = 0; i < n; i++) anchors[i] = i < half ? nearAnchor : farAnchor;
+        for (int i = 0; i < n; i++) {
+            int copy = Math.min(i / per, copies() - 1);
+            anchors[i] = copy == 0 ? nearAnchor : (copy == 1 ? farAnchor : beyondAnchor);
+        }
         this.terrain.writePositionsPerSection(this.res.positionScratch, anchors);
 
+        this.lastBeyondAnchor = beyondAnchor;
         this.lastFarAnchor = farAnchor;
         this.farAnchorCam = new double[]{camX, camY, camZ};
         if (this.frames < 3 || this.frames % 600 == 0) {
@@ -762,6 +860,13 @@ public final class VkInteropProbe {
                 + "  (near=" + (int) TERRAIN_DISTANCE_BLOCKS + "b far=" + (int) PAIR_FAR_BLOCKS
                 + "b lateral=" + (int) PAIR_LATERAL_BLOCKS + "b)"
                 + "  [the FAR copy is the one that must be hidden by Minecraft's terrain]");
+            if (beyondAnchor != null) {
+                Logger.info("[5c-3a] BEYOND copy anchored at section "
+                    + java.util.Arrays.toString(beyondAnchor)
+                    + "  (" + (int) this.lastBeyondDistance + "b out; Minecraft's far plane is at "
+                    + (int) this.lastMcFarPlane + "b)"
+                    + "  [this copy can only appear with Voxy's own projection]");
+            }
         }
     }
 

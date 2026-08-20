@@ -40,9 +40,16 @@ import static org.lwjgl.vulkan.VK13.vkCmdEndRendering;
  * 2 フレーム目以降は {@code GENERAL} からの遷移になる。
  */
 public class VkDepthResolve {
+    /** push constant 内の位置。{@code mat4} 2 つ。 */
+    private static final int PUSH_INV_SRC_MVP = 0;
+    private static final int PUSH_DST_MVP = 64;
+
     private final VkAutoBindingShader shader;
     private final VkGraphicsPipeline pipeline;
     private final int width, height;
+    /** 深度を別の投影空間へ写すか [Phase 5c-3a]。 */
+    private final boolean reproject;
+    private boolean reprojectionSet;
     private boolean freed;
 
     /**
@@ -50,18 +57,41 @@ public class VkDepthResolve {
      *                 ({@link VkRenderTarget} の深度は既に持っている)
      */
     public VkDepthResolve(VkTexture srcDepth, int width, int height) {
+        this(srcDepth, width, height, false);
+    }
+
+    /**
+     * @param reproject 深度を<b>別の投影空間へ写す</b>か [Phase 5c-3a]。
+     *                  真にした場合は<b>毎フレーム {@link #setReprojection} を呼ぶこと</b> —
+     *                  呼ばずに {@link #record} すると例外になる (行列が 0 のまま流れると
+     *                  <b>全画素が同じ深度になって「動いているように見える」</b>ため)
+     */
+    public VkDepthResolve(VkTexture srcDepth, int width, int height, boolean reproject) {
         this.width = width;
         this.height = height;
+        this.reproject = reproject;
 
-        this.shader = VkShader.makeAuto().name("vk-depth-resolve")
+        var builder = VkShader.makeAuto().name("vk-depth-resolve" + (reproject ? "-reproject" : ""))
             .addSource(ShaderType.VERTEX, VkShaderLoader.parse("voxy:lod/vk/depth_resolve.vert"))
-            .addSource(ShaderType.FRAGMENT, VkShaderLoader.parse("voxy:lod/vk/depth_resolve.frag"))
-            .compile();
+            .addSource(ShaderType.FRAGMENT, VkShaderLoader.parse("voxy:lod/vk/depth_resolve.frag"));
+        if (reproject) {
+            // ⚠ **VkDepth.defines は必須である。** 忘れると depthutils.glsl が非逆Z側の
+            // 分岐に落ち、CLOSER_SIGN が -1.0 になって clamp が**奥へ押しやる**。
+            // 落ちないし、絵は「遠景が MC の地形に負ける」形でしか出ない
+            // [docs/phase5c3-plan.md 2.5]
+            builder = VkDepth.defines(builder).define("REPROJECT_DEPTH");
+        }
+        this.shader = builder.compile();
 
         this.shader.texture(0, srcDepth, VkSampler.nearestClamp());
         var missing = this.shader.unboundBindings();
         if (!missing.isEmpty()) {
             throw new IllegalStateException("depth resolve has unbound descriptors: " + missing);
+        }
+
+        if (reproject && this.shader.pushConstantSize() < PUSH_DST_MVP + 64) {
+            throw new IllegalStateException("the reprojecting resolve shader has only "
+                + this.shader.pushConstantSize() + " bytes of push constants; two mat4 need 128");
         }
 
         this.pipeline = VkGraphicsPipeline.builder(this.shader)
@@ -79,8 +109,33 @@ public class VkDepthResolve {
      *
      * @param srcDepth 直前の描画が書いた深度。{@link VkRenderTarget#depth} を渡す
      */
+    /**
+     * 再投影に使う行列を渡す [Phase 5c-3a]。<b>フレームごとに呼ぶこと</b> (カメラが動く)。
+     *
+     * @param invSrcMvp 描いたときの MVP の<b>逆行列</b>。画面 → カメラ相対ワールド
+     * @param dstMvp    写し先の MVP。カメラ相対ワールド → 写し先のクリップ空間
+     */
+    public void setReprojection(org.joml.Matrix4fc invSrcMvp, org.joml.Matrix4fc dstMvp) {
+        if (!this.reproject) {
+            throw new IllegalStateException("this pass was not built to reproject");
+        }
+        try (MemoryStack stack = stackPush()) {
+            var buf = stack.malloc(64);
+            invSrcMvp.get(buf);
+            this.shader.pushBytes(PUSH_INV_SRC_MVP, buf);
+            dstMvp.get(buf);
+            this.shader.pushBytes(PUSH_DST_MVP, buf);
+        }
+        this.reprojectionSet = true;
+    }
+
     public void record(VkCommandBuffer cmd, VkTexture srcDepth, VkInteropImage dst) {
         if (this.freed) throw new IllegalStateException("VkDepthResolve was freed");
+        if (this.reproject && !this.reprojectionSet) {
+            // ⚠ 0 行列のまま流すと**全画素が同じ深度**になる。絵は出るので気付かない
+            throw new IllegalStateException("setReprojection has not been called —"
+                + " recording with a zero matrix would silently flatten every pixel");
+        }
         if (dst.width != this.width || dst.height != this.height) {
             throw new IllegalArgumentException("destination is " + dst.width + "x" + dst.height
                 + " but the pass was built for " + this.width + "x" + this.height);
@@ -122,6 +177,7 @@ public class VkDepthResolve {
 
             this.pipeline.bind(cmd);
             this.shader.bind(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS);
+            if (this.reproject) this.shader.flushPushConstants(cmd);
             vkCmdDraw(cmd, 3, 1, 0, 0);
         }
         vkCmdEndRendering(cmd);

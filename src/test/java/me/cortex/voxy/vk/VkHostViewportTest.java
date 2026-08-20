@@ -315,4 +315,152 @@ public class VkHostViewportTest {
         assertEquals(camY, ((long) anchor[1] << 5) + sub[1], 0.01, "... in Y");
         assertEquals(camZ, ((long) anchor[2] << 5) + sub[2], 0.01, "... in Z");
     }
+
+    // ================= 5c-3a: Voxy 自前の投影 =================
+
+    /** クリップ座標。{@code projection * (x,y,z,1)}。 */
+    private static float[] clipOf(Matrix4f projection, float x, float y, float z) {
+        var v = new org.joml.Vector4f(x, y, z, 1.0f).mul(projection);
+        return new float[]{v.x, v.y, v.z, v.w};
+    }
+
+    private static Matrix4f voxyProjection() {
+        return VkHostViewport.voxyProjection(mcLikeProjection(),
+            VkHostViewport.VOXY_NEAR, VkHostViewport.VOXY_FAR);
+    }
+
+    /**
+     * <b>変わるのは深度だけであること。</b>
+     *
+     * <p>これが再投影ブリットの<b>前提</b>である — 色が同じ画面位置に出るからこそ、
+     * 色は素通しで深度だけを画素ごとに変換すればよい。崩れると
+     * <b>色と深度が別の場所を指す</b>ことになり、遮蔽が 1 画素単位でずれる。
+     *
+     * <p>⚠ 主張は<b>式ではなく性質</b>である [規約 4] —
+     * {@code voxyProjection} の式を再実行して比べているのではなく、
+     * 「xy と w が一致し、z<b>だけ</b>が違う」ことを言っている。
+     * {@code assertNotEquals} は<b>「入力をそのまま返す」実装を落とす</b>ための対照である。
+     */
+    @Test
+    void voxysProjectionChangesTheDepthAndNothingElse() {
+        var mc = mcLikeProjection();
+        var voxy = voxyProjection();
+        float[][] points = {
+            {0, 0, -20}, {3, -2, -50}, {-40, 25, -300}, {100, 100, -5000}, {-7, 0.5f, -16}
+        };
+        for (float[] pt : points) {
+            float[] a = clipOf(mc, pt[0], pt[1], pt[2]);
+            float[] b = clipOf(voxy, pt[0], pt[1], pt[2]);
+            String at = "at view point (" + pt[0] + "," + pt[1] + "," + pt[2] + ")";
+
+            assertEquals(a[3], b[3], 1e-4 * Math.abs(a[3]) + 1e-6, at + ": w must not change");
+            assertEquals(a[0] / a[3], b[0] / b[3], 1e-5, at + ": x_ndc must not change");
+            assertEquals(a[1] / a[3], b[1] / b[3], 1e-5, at + ": y_ndc must not change");
+
+            // ...そして深度は**実際に変わる**こと (恒等写像を落とす対照)
+            assertNotEquals(a[2] / a[3], b[2] / b[3], 1e-4,
+                at + ": the depth did not change — voxyProjection returned the host's depth row");
+        }
+    }
+
+    /**
+     * <b>near で 1、far で 0</b> であること (逆Z)。
+     *
+     * <p>期待値は<b>平面の定義そのもの</b>であって {@code voxyProjection} の式ではない [規約 4]。
+     */
+    @Test
+    void voxysPlanesLandOnTheReverseZEndpoints() {
+        var voxy = voxyProjection();
+
+        float[] atNear = clipOf(voxy, 0, 0, -VkHostViewport.VOXY_NEAR);
+        assertEquals(1.0, atNear[2] / atNear[3], 1e-4,
+            "a point on the near plane must sit at NEAR (1.0 under reverse-Z)");
+
+        float[] atFar = clipOf(voxy, 0, 0, -VkHostViewport.VOXY_FAR);
+        assertEquals(0.0, atFar[2] / atFar[3], 1e-6,
+            "a point on the far plane must sit at FAR (0.0 under reverse-Z)");
+
+        // 間は単調に減る (逆Z: 遠いほど小さい)
+        float prev = Float.MAX_VALUE;
+        for (float d = VkHostViewport.VOXY_NEAR; d < VkHostViewport.VOXY_FAR; d *= 2) {
+            float[] c = clipOf(voxy, 0, 0, -d);
+            float z = c[2] / c[3];
+            assertTrue(z < prev, "depth must decrease with distance under reverse-Z (at d=" + d + ")");
+            prev = z;
+        }
+    }
+
+    /**
+     * <b>これが 5c-3a の存在理由である</b> —
+     * MC の far 平面の外にあるものは、<b>MC の投影では深度範囲に入らない</b>が、
+     * Voxy の投影なら入る。
+     *
+     * <p>⚠ 両側を見ること。「Voxy なら入る」だけでは
+     * <b>「何でも入る」実装</b>と区別が付かない [規約 11]。
+     */
+    @Test
+    void onlyVoxysProjectionReachesPastMinecraftsFarPlane() {
+        var mc = mcLikeProjection();      // far = 192
+        var voxy = voxyProjection();      // far = 48000
+
+        // 手前 — **どちらの投影でも入る** (「MC は常に外」を落とす対照)
+        assertTrue(VkHostViewport.insideDepth(clipOf(mc, 0, 0, -100)),
+            "control: 100 blocks is inside Minecraft's own frustum");
+        assertTrue(VkHostViewport.insideDepth(clipOf(voxy, 0, 0, -100)),
+            "control: 100 blocks is inside Voxy's frustum too");
+
+        // 遠景 — **Voxy だけが届く**
+        assertFalse(VkHostViewport.insideDepth(clipOf(mc, 0, 0, -10000)),
+            "10000 blocks must fall outside Minecraft's far plane — otherwise there is"
+                + " nothing for 5c-3a to fix");
+        assertTrue(VkHostViewport.insideDepth(clipOf(voxy, 0, 0, -10000)),
+            "10000 blocks must be inside Voxy's frustum — that is the whole point");
+    }
+
+    /**
+     * <b>far 平面の距離が読み取れること。</b>
+     *
+     * <p>期待値は<b>投影を作るときに渡した far そのもの</b>であって、
+     * {@code farPlaneDistance} の式ではない [規約 4]。
+     *
+     * <p>これが要るのは、「MC の far 平面の外」を<b>描画距離に依らず</b>
+     * 指定するためである。決め打ちの数字にすると、描画距離を変えたときに
+     * <b>対照が黙って成立しなくなる</b>。
+     */
+    @Test
+    void theFarPlaneDistanceCanBeReadBackFromTheProjection() {
+        for (float far : new float[]{64f, 192f, 1024f, 48000f}) {
+            var p = new Matrix4f().set(VkSceneUniform.perspective(
+                (float) Math.toRadians(70), 16.0f / 9.0f, 0.05f, far));
+            assertEquals(far, VkHostViewport.farPlaneDistance(p), far * 1e-3,
+                "the far plane of a projection built with far=" + far);
+        }
+        // Voxy 自前の投影でも読めること (別の作り方をした行列)
+        var voxy = voxyProjection();
+        assertEquals(VkHostViewport.VOXY_FAR,
+            VkHostViewport.farPlaneDistance(voxy), VkHostViewport.VOXY_FAR * 1e-3,
+            "the far plane of Voxy's own projection");
+
+        // ...そして near は far ではない (「常に引数を返す」実装を落とす対照)
+        assertTrue(VkHostViewport.farPlaneDistance(voxy)
+            > VkHostViewport.farPlaneDistance(new Matrix4f().set(VkSceneUniform.perspective(
+                (float) Math.toRadians(70), 16.0f / 9.0f, 0.05f, 192f))),
+            "Voxy's frustum must reach farther than a 192-block one");
+    }
+
+    /** 平面の指定が壊れていたら<b>黙って進まない</b>こと。 */
+    @Test
+    void voxysProjectionRejectsImpossiblePlanes() {
+        var mc = mcLikeProjection();
+        assertThrows(IllegalArgumentException.class,
+            () -> VkHostViewport.voxyProjection(mc, 0.0f, 100.0f));
+        assertThrows(IllegalArgumentException.class,
+            () -> VkHostViewport.voxyProjection(mc, -1.0f, 100.0f));
+        assertThrows(IllegalArgumentException.class,
+            () -> VkHostViewport.voxyProjection(mc, 100.0f, 100.0f));
+        assertThrows(IllegalArgumentException.class,
+            () -> VkHostViewport.voxyProjection(mc, 100.0f, 50.0f));
+        // 範囲内は通すこと (弾きすぎの対照)
+        assertNotNull(VkHostViewport.voxyProjection(mc, 16.0f, 48000.0f));
+    }
 }

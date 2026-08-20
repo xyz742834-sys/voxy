@@ -534,6 +534,17 @@ tasks.named('runClient') {
     if (project.hasProperty('voxy5c2')) {
         jvmArgs("-Dvoxy.5c2=" + project.property('voxy5c2'))
     }
+    // 5c-3a: 自前の投影 + 深度再投影。
+    //   ./gradlew runClient -Pvoxy5c3=off   3 組置くが **MC の投影のまま** (対照)
+    //   ./gradlew runClient -Pvoxy5c3=on    自前の投影 + 再投影 (本命)
+    // どちらでも 3 つ目は MC の far 平面の外に置かれる。off で 3 つ目が見えたら
+    // 「置き場所が far 平面の外になっていない」ということで、対照が空虚である。
+    if (project.hasProperty('voxy5c3')) {
+        jvmArgs("-Dvoxy.5c3=" + project.property('voxy5c3'))
+    }
+    if (project.hasProperty('voxy5c3Factor')) {
+        jvmArgs("-Dvoxy.5c3.factor=" + project.property('voxy5c3Factor'))
+    }
     if (project.hasProperty('voxy5c1e')) {
         jvmArgs("-Dvoxy.5c1e=" + project.property('voxy5c1e'))
     }

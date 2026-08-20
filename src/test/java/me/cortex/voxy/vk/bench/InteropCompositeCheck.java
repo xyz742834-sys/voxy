@@ -249,6 +249,12 @@ public final class InteropCompositeCheck {
             checkDepthTestedComposite(ioRenderer, ioRt, resolve, colourInterop, depthInterop,
                 res, mvp, drawCount, out, glColour, glDepth, resolved);
 
+            // C16: 5c-3a の深度再投影 — 自前の投影で描いて MC の空間へ写し直す
+            System.out.println();
+            System.out.println("=== 5c-3a depth reprojection ===");
+            checkDepthReprojection(ioRenderer, ioRt, colourInterop, depthInterop,
+                res, drawCount, depthReadback);
+
         } catch (Throwable t) {
             t.printStackTrace();
             failures.add("exception: " + t);
@@ -909,6 +915,147 @@ public final class InteropCompositeCheck {
 
     // ---------------- 検査の報告 ----------------
 
+    /**
+     * <b>C16 — 深度の再投影 (5c-3a)。</b>
+     *
+     * <h2>何を主張するのか</h2>
+     * Voxy は自前の投影 (near=16 / far=48000) で描き、書き戻す前に深度を
+     * <b>MC の投影空間へ写し直す</b>。その写し直しが正しいことを、
+     * <b>MC を起動せずに</b>言い切る。
+     *
+     * <pre>
+     * A: dst の投影で描いて素直に解決     → これが答え
+     * B: src の投影で描いて (inv(src),dst) で再投影 → A と一致すべき
+     * </pre>
+     *
+     * <p>⚠ 両者は<b>同じ画素を覆う</b>。投影が違うのは深度の行だけで、
+     * x/y の行は共通だからである [docs/phase5c3-plan.md 2.2]。
+     * これが成り立たなければ比較そのものが無意味になるので、覆いも数えて比べる。
+     *
+     * <h2>この検査を空虚に満たす方法と、その塞ぎ方</h2>
+     * <ol>
+     *   <li><b>再投影が何もしていない</b> (dst を無視して素通し) →
+     *       {@code C16b} が「src をそのまま解決したもの」と<b>違う</b>ことを要求する</li>
+     *   <li><b>画面座標 → NDC の写像がずれている</b> (Y 反転など) →
+     *       ⚠ <b>深度だけを比べる検査では原理的に捕まらない。</b>
+     *       (ndc_x, ndc_y, depth) から復元した点は、xy を変えても<b>視空間の z が同じ</b>で、
+     *       写し先が同じ視点の標準的な透視投影なら深度は z だけで決まるためである
+     *       [実際に Y 反転の変異が素通りした — 失敗例 24]。
+     *       {@code C16c} が<b>深度が横位置に依存する投影</b>を使って捕まえる</li>
+     * </ol>
+     */
+    static void checkDepthReprojection(VkTerrainRenderer renderer, VkRenderTarget rt,
+                                       VkInteropImage colour, VkInteropImage depth,
+                                       VkTerrainResources res, int drawCount, VkBuffer readback) {
+        VkDepthResolve plain = null, reproj = null;
+        try {
+            plain = new VkDepthResolve(rt.depth, W, H);
+            reproj = new VkDepthResolve(rt.depth, W, H, true);
+
+            float[] srcMvp = closeUpMvpWithPlanes(0.1f, 2000f);
+            float[] dstMvp = closeUpMvpWithPlanes(0.5f, 300f);
+            var srcM = new org.joml.Matrix4f().set(srcMvp);
+            var dstM = new org.joml.Matrix4f().set(dstMvp);
+            var invSrc = new org.joml.Matrix4f(srcM).invert();
+
+            // A — 写し先の投影で素直に描いて解決した「答え」
+            renderInterop(renderer, rt, plain, colour, depth, res, dstMvp, drawCount);
+            float[] answer = readInteropDepth(depth, readback);
+
+            // src の投影で素直に解決したもの (対照用: 再投影が何もしていない場合の値)
+            renderInterop(renderer, rt, plain, colour, depth, res, srcMvp, drawCount);
+            float[] srcPlain = readInteropDepth(depth, readback);
+
+            // B — src で描いて (inv(src), dst) で再投影
+            reproj.setReprojection(invSrc, dstM);
+            renderInterop(renderer, rt, reproj, colour, depth, res, srcMvp, drawCount);
+            float[] reprojected = readInteropDepth(depth, readback);
+
+            // --- 覆いが同じであること (比較が成立する前提) ---
+            int drawnA = countDrawn(answer), drawnB = countDrawn(reprojected);
+            report("C16 control: both projections cover the same pixels",
+                drawnA > 5000 && Math.abs(drawnA - drawnB) < drawnA / 100,
+                "drawn A=" + drawnA + " B=" + drawnB + "; the comparison would be meaningless");
+
+            // --- C16b: 再投影が「答え」に一致すること ---
+            double worst = worstDrawnDiff(answer, reprojected);
+            report("C16b reprojected depth matches rendering in the target projection",
+                worst < 1e-5, "worst difference " + worst);
+            System.out.println("     [C16b] worst |reprojected - answer| = " + worst
+                + " over " + drawnA + " drawn pixels");
+
+            // --- 対照: 再投影しなければ**一致しない** ---
+            double ifNoop = worstDrawnDiff(answer, srcPlain);
+            report("C16 ...and NOT reprojecting does not match",
+                ifNoop > 1e-2,
+                "src and dst depths differ by only " + ifNoop + "; C16b proves nothing");
+
+            // --- C16c: 復元した**世界の点**そのものが正しいこと ---
+            //
+            // ⚠ ここまでの検査は**横位置の誤りを検出できない**。深度は視空間の z だけで
+            // 決まるので、画面座標 → NDC の写像がずれていても答えが変わらない
+            // [失敗例 24 — Y 反転の変異が素通りした]。
+            //
+            // そこで**深度の行に横位置を混ぜた投影** (斜め投影) を写し先にする。
+            // clip.z が view.x / view.y にも依存するので、復元した点がずれれば深度も動く。
+            // x/y の行は触らないので**覆う画素は変わらず**、比較は成立したままである。
+            float[] shearedProj = VkSceneUniform.perspective(
+                (float) Math.toRadians(60), (float) W / H, 0.5f, 300f);
+            shearedProj[2] = 0.002f;    // clip.z += 0.002 * view.x  (列優先: m[col*4+row])
+            shearedProj[6] = -0.0015f;  // clip.z -= 0.0015 * view.y
+            float[] shearedMvp = VkSceneUniform.mul(shearedProj,
+                VkSceneUniform.lookAt(new float[]{14.0f, 7.0f, 13.0f},
+                    new float[]{8.5f, 0.5f, 0.5f}, new float[]{0, 1, 0}));
+
+            renderInterop(renderer, rt, plain, colour, depth, res, shearedMvp, drawCount);
+            float[] shearAnswer = readInteropDepth(depth, readback);
+
+            reproj.setReprojection(invSrc, new org.joml.Matrix4f().set(shearedMvp));
+            renderInterop(renderer, rt, reproj, colour, depth, res, srcMvp, drawCount);
+            double shearWorst = worstDrawnDiff(shearAnswer, readInteropDepth(depth, readback));
+
+            report("C16c the reconstructed world position is right, not just its depth",
+                shearWorst < 1e-5, "worst difference " + shearWorst);
+            System.out.println("     [C16c] worst difference under a laterally-dependent"
+                + " projection = " + shearWorst);
+
+            // ...そしてその投影では横位置が**実際に効く** (C16c が空虚でない対照)
+            double shearVsPlain = worstDrawnDiff(shearAnswer, answer);
+            report("C16c control: that projection really does depend on lateral position",
+                shearVsPlain > 1e-3,
+                "the shear changed the depth by only " + shearVsPlain + "; C16c proves nothing");
+
+            // --- C16 control: src==dst の往復は恒等 ---
+            reproj.setReprojection(new org.joml.Matrix4f(srcM).invert(), srcM);
+            renderInterop(renderer, rt, reproj, colour, depth, res, srcMvp, drawCount);
+            double roundTrip = worstDrawnDiff(srcPlain, readInteropDepth(depth, readback));
+            report("C16 control: reprojecting onto itself is the identity",
+                roundTrip < 1e-5, "worst round-trip difference " + roundTrip
+                    + " — a flipped or mis-scaled NDC mapping would show up here");
+            System.out.println("     [C16] worst identity round-trip difference = " + roundTrip);
+        } finally {
+            if (plain != null) plain.free();
+            if (reproj != null) reproj.free();
+        }
+    }
+
+    /** 何か描かれた画素数 (FAR でないもの)。 */
+    static int countDrawn(float[] depth) {
+        int n = 0;
+        for (float v : depth) if (v != VkDepth.FAR) n++;
+        return n;
+    }
+
+    /** <b>両方が描いている画素</b>での最大差。空 (FAR) の画素は比べない。 */
+    static double worstDrawnDiff(float[] a, float[] b) {
+        double worst = 0;
+        for (int i = 0; i < a.length; i++) {
+            if (a[i] == VkDepth.FAR || b[i] == VkDepth.FAR) continue;
+            worst = Math.max(worst, Math.abs(a[i] - b[i]));
+        }
+        return worst;
+    }
+
     static void report(String what, boolean ok, String detail) {
         System.out.printf("%-58s %s%n", what, ok ? "PASS" : ("FAIL  (" + detail + ")"));
         if (!ok) failures.add(what + " -- " + detail);
@@ -1053,6 +1200,14 @@ public final class InteropCompositeCheck {
         return VkSceneUniform.mul(
             VkSceneUniform.perspective((float) Math.toRadians(60), (float) W / H, 0.1f, 2000f),
             VkSceneUniform.lookAt(eye, centre, new float[]{0, 1, 0}));
+    }
+
+    /** {@link #closeUpMvp} と<b>同じ視点</b>で、投影の平面だけを変えた MVP。 */
+    static float[] closeUpMvpWithPlanes(float near, float far) {
+        return VkSceneUniform.mul(
+            VkSceneUniform.perspective((float) Math.toRadians(60), (float) W / H, near, far),
+            VkSceneUniform.lookAt(new float[]{14.0f, 7.0f, 13.0f},
+                new float[]{8.5f, 0.5f, 0.5f}, new float[]{0, 1, 0}));
     }
 
     static float[] closeUpMvp() {

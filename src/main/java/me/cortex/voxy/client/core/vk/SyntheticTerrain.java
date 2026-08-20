@@ -600,8 +600,17 @@ public final class SyntheticTerrain {
      * 深度テストが<b>効いている</b>と言える [7 例目からの設計]。
      */
     public SyntheticTerrain duplicated() {
+        return this.repeated(2);
+    }
+
+    /**
+     * 同じ地形を {@code copies} 組ぶんつなげる。
+     * {@link #writePositionsPerSection} と組み合わせて<b>別々の距離に置く</b>のに使う。
+     */
+    public SyntheticTerrain repeated(int copies) {
+        if (copies < 1) throw new IllegalArgumentException("copies must be >= 1, got " + copies);
         var out = new SyntheticTerrain();
-        for (int pass = 0; pass < 2; pass++) {
+        for (int pass = 0; pass < copies; pass++) {
             for (var s : this.sections) {
                 var copy = new Section(s.x, s.y, s.z, s.level).translucent(s.translucentCount);
                 System.arraycopy(s.faceCounts, 0, copy.faceCounts, 0, s.faceCounts.length);

@@ -232,6 +232,72 @@ public final class VkHostViewport {
         return !insideDepth(clipOfCentre(chosen, modelView, sub, centre));
     }
 
+    /** Voxy の自前投影の near 平面 (ブロック)。 [確認済 — VoxyRenderSystem.computeProjectionMat] */
+    public static final float VOXY_NEAR = 16.0f;
+
+    /** Voxy の自前投影の far 平面 (ブロック)。{@code 16*3000}。 */
+    public static final float VOXY_FAR = 16.0f * 3000.0f;
+
+    /**
+     * <b>Voxy 自前の投影</b> — MC の投影の<b>深度の行だけ</b>を差し替える (Phase 5c-3a)。
+     *
+     * <h2>⚠ 変わるのは深度だけである</h2>
+     * {@code VoxyRenderSystem.computeProjectionMat} は MC の投影行列の
+     * <b>m22 / m32 だけ</b>を書き換える [確認済]。行 0・1・3 は触らない。したがって
+     * <b>{@code x_ndc} と {@code y_ndc} は MC のものと完全に一致する</b> —
+     * 色は同じ画面位置に出るので、<b>色は素通し、深度だけを画素ごとに変換すればよい</b>。
+     * これが再投影ブリットが成立する根拠である。
+     *
+     * <h2>逆Z・0..1 の式</h2>
+     * 逆Zでは near と far を入れ替える [確認済 — {@code computeProjectionMat} の
+     * {@code if (properties.isReverseZ())}]。0..1 側の式は:
+     * <pre>
+     * m22 = far'/(near'-far')          near' = far, far' = near (入れ替え後)
+     * m32 = far'*near'/(near'-far')
+     * z_ndc = -m22 + m32/d
+     * </pre>
+     * {@code d = near} で 1 (NEAR)、{@code d = far} で 0 (FAR) になる。
+     *
+     * <p>⚠ <b>{@code halveDepthRange} はこの経路では要らない</b> —
+     * MC の投影が {@code -1..1} なのは深度の行がそうだからで、
+     * ここではその行を<b>自分で 0..1 の式で書く</b>。
+     *
+     * @param mcProjection MC が渡してきた投影行列。<b>深度の行以外はそのまま使う</b>
+     * @param near         手前の平面 (ブロック)。{@link #VOXY_NEAR}
+     * @param far          奥の平面 (ブロック)。{@link #VOXY_FAR}
+     */
+    public static Matrix4f voxyProjection(Matrix4fc mcProjection, float near, float far) {
+        if (!(near > 0) || !(far > near)) {
+            throw new IllegalArgumentException("need 0 < near < far, got near=" + near + " far=" + far);
+        }
+        // 逆Z: near と far を入れ替える
+        float n = far, f = near;
+        return new Matrix4f(mcProjection)
+            .m22(f / (n - f))
+            .m32(f * n / (n - f));
+    }
+
+    /**
+     * <b>投影の far 平面までの距離</b> (ブロック)。
+     *
+     * <p>逆Z・0..1 の投影では、深度は {@code z_ndc = -m22 + m32/d} なので
+     * {@code z_ndc = 0} (= FAR) になる距離は <b>{@code m32/m22}</b> である。
+     *
+     * <p>⚠ <b>0..1 に直した行列を渡すこと</b> ({@link #projectionForVulkan} の結果)。
+     * MC が渡してくる {@code -1..1} のままでは値が違う。
+     *
+     * <p>これを使うと「MC の far 平面の外」を<b>描画距離に依らず</b>指定できる。
+     * 決め打ちの数字にすると、描画距離を変えたときに<b>対照が黙って成立しなくなる</b>。
+     *
+     * @return far 平面までの距離。無限遠投影なら {@link Double#POSITIVE_INFINITY}
+     */
+    public static double farPlaneDistance(Matrix4fc zeroToOneReverseZ) {
+        float m22 = zeroToOneReverseZ.m22();
+        float m32 = zeroToOneReverseZ.m32();
+        if (Math.abs(m22) < 1e-12f) return Double.POSITIVE_INFINITY;
+        return Math.abs((double) m32 / m22);
+    }
+
     /**
      * {@code -1..1} の深度を {@code 0..1} に写す。
      * クリップ空間で {@code z' = (z + w) / 2} なので、<b>行 2 に行 3 を足して半分</b>にする。
