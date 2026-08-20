@@ -1,5 +1,6 @@
 package me.cortex.voxy.client.mixin.minecraft;
 
+import me.cortex.voxy.client.VoxyClient;
 import me.cortex.voxy.client.VoxyClientInstance;
 import me.cortex.voxy.client.config.VoxyConfig;
 import me.cortex.voxy.client.core.IVoxyRenderSystemHolder;
@@ -67,6 +68,18 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
         }
         if (!VoxyConfig.CONFIG.isRenderingEnabled()) {
             Logger.info("Not creating renderer due to disabled rendering");
+            return;
+        }
+        if (VoxyClient.backend() == VoxyClient.Backend.VULKAN) {
+            // Phase 5c-1a: バックエンド選択までは通し、描画系はまだ作らない。
+            //
+            // VoxyRenderSystem のコンストラクタは GL を直接叩く
+            // (glFinish / glGetIntegeri / RenderResourceReuse の GL バッファ)。
+            // この Mac の GL 4.1 では compute も MDI も無いので、作れば必ず落ちる。
+            // **作らないことで「MC の絵が一切変わらない」状態を保つ**
+            // [docs/phase5c-plan.md 9 の 5c-1a]。
+            Logger.info("Not creating renderer: the Vulkan backend is selected but the render "
+                + "path is not wired yet (Phase 5c-1a). Minecraft renders unchanged.");
             return;
         }
         if (this.identifier == null) {

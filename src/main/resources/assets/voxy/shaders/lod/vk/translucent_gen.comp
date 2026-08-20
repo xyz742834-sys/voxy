@@ -1,0 +1,73 @@
+#version 460
+#extension GL_ARB_gpu_shader_int64 : enable
+
+// 半透明セクションを距離バケット順に並べ替える (Vulkan 専用)。
+// lod/gl46/buildtranslucents.comp に対応する。
+//
+// == GL 版との違い ==
+//   GL 版  セクションごとに DrawCommand を 1 本書く (最大 100,000 draws)
+//   ここ   テーブルのエントリを 1 本書く。draw はバケット単位で後段が作る (最大 1,024)
+//
+// == 順序は非決定的で、それでよい ==
+// スロットは atomicAdd で取るので **バケット内の並びは実行ごとに変わる**。
+// GL 版も同じで [確認済 — buildtranslucents.comp の atomicAdd]、
+// バケット内の順序に意味を持たせないのが上流の設計判断である。
+// 移植側で決定的にすると挙動が変わり、Phase 5 で
+// 「GL 版と同じ絵か」を問うときに原因の切り分けができなくなる。
+//
+// 代わりに合成データ側で「半透明 quad が画面上で重ならない」ことを規約にして、
+// 検証で使う絵が決定的になるようにしている
+// (docs/phase4-stage1-completion.md 5.1 の 2 本目)。
+
+layout(local_size_x = 128) in;
+
+#define SECTION_METADATA_BUFFER_BINDING 3
+#define INDIRECT_SECTION_LOOKUP_BINDING 5
+
+#import <voxy:lod/section.glsl>
+#import <voxy:lod/gl46/bindings.glsl>
+
+// 走査済み: バケットごとのスロット開始位置。ここを atomicAdd で進めてスロットを取るので、
+// **このシェーダが終わった時点で bucketBase[b] はバケット b の終端**になる。
+// 後段はそれをバケットの区切りとして使う。
+layout(binding = TRANSLUCENT_BUCKET_BINDING, std430) restrict buffer TranslucentBucketBuffer {
+    uint bucketBase[];
+};
+
+layout(binding = TRANSLUCENT_LIST_BINDING, std430) readonly restrict buffer TranslucentListBuffer {
+    uint translucentSectionCount;
+    uint translucentSections[];
+};
+
+layout(binding = TRANSLUCENT_ENTRY_BINDING, std430) writeonly restrict buffer TranslucentEntryBuffer {
+    uvec2 translucentEntries[];
+};
+
+layout(binding = TRANSLUCENT_PREFIX_BINDING, std430) restrict buffer TranslucentPrefixBuffer {
+    uint translucentSlotCount;
+    uint translucentCounts[];
+};
+
+void main() {
+    uint gid = gl_GlobalInvocationID.x;
+    if (gid >= translucentSectionCount) {
+        return;
+    }
+    // 後段が走査する要素数を知る必要がある。全スレッドが同じ値を書く
+    translucentSlotCount = translucentSectionCount;
+
+    uint drawId = translucentSections[gid];
+    SectionMeta meta = sectionData[indirectLookup[drawId]];
+    uint detail = extractDetail(meta);
+
+    // cmdgen とまったく同じ式でバケットを出す。ずれるとスロットが溢れる
+    uvec3 absRel = uvec3(abs(extractPosition(meta) - (baseSectionPos >> int(detail))));
+    uint dist = (absRel.x + absRel.y + absRel.z) << detail;
+    dist = (TRANSLUCENT_BUCKETS - 1u) - min(dist, TRANSLUCENT_BUCKETS - 1u);
+
+    uint slot = atomicAdd(bucketBase[dist], 1u);
+
+    // 半透明ランはセクションの quad 列の **先頭** にある [確認済 — writeGeometry の順]
+    translucentEntries[slot] = uvec2(extractQuadStart(meta), drawId);
+    translucentCounts[slot] = meta.b.x & 0xFFFFu;
+}

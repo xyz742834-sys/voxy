@@ -1,0 +1,127 @@
+#version 460
+
+// 半透明テーブルの prefix sum + バケットごとの DrawCommand 書き出し (Vulkan 専用)。
+// 不透明側の merged_prefix.comp と同じ構造で、区切りが「面」ではなく「距離バケット」。
+//
+// 入力の並びは translucent_gen.comp が atomicAdd で作ったもので、
+// **バケット内の順序は非決定的**。バケットの境界そのものは決定的である。
+
+#define WORK_SIZE 256
+#define MAX_CHUNKS 65536
+
+layout(local_size_x = WORK_SIZE) in;
+
+layout(binding = TRANSLUCENT_PREFIX_BINDING, std430) restrict buffer TranslucentPrefixBuffer {
+    uint translucentSlotCount;
+    uint translucentPrefix[];   // 入力: スロットごとの quad 数 / 出力: 排他的 prefix + 番兵
+};
+
+// translucent_gen が atomicAdd で進めたあとなので、bucketEnd[b] はバケット b の終端スロット。
+// バケット b の範囲は [b==0 ? 0 : bucketEnd[b-1], bucketEnd[b])
+layout(binding = TRANSLUCENT_BUCKET_BINDING, std430) readonly restrict buffer TranslucentBucketBuffer {
+    uint bucketEnd[];
+};
+
+struct TranslucentDrawCommand {
+    uint count;
+    uint instanceCount;
+    uint firstIndex;
+    int  baseVertex;
+    uint baseInstance;
+};
+
+layout(binding = TRANSLUCENT_DRAW_BINDING, std430) writeonly restrict buffer TranslucentDrawBuffer {
+    TranslucentDrawCommand translucentDrawCmd[];
+};
+
+// 診断用。1 バケットの最大 quad 数を残す。共有インデックスバッファ (T) を超えると
+// その draw はインデックスバッファの外を読むため、CPU 側が確かめられるようにする
+layout(binding = TRANSLUCENT_STATS_BINDING, std430) restrict buffer TranslucentStatsBuffer {
+    uint maxBucketQuads;
+    uint clampedBuckets;
+};
+
+layout(push_constant) uniform TranslucentPrefixPushConstants {
+    uint quadCapacityPC;    // T
+};
+
+shared uint sScan[WORK_SIZE];
+shared uint sCarry;
+
+void main() {
+    uint n = translucentSlotCount;
+    uint tid = gl_LocalInvocationID.x;
+
+    if (tid == 0u) {
+        sCarry = 0u;
+        maxBucketQuads = 0u;
+        clampedBuckets = 0u;
+    }
+    barrier();
+
+    // --- スロットごとの quad 数を排他的 prefix にする (merged_prefix.comp と同じ) ---
+    for (uint chunk = 0u; chunk < MAX_CHUNKS; chunk++) {
+        uint base = chunk * WORK_SIZE;
+        if (base >= n) {
+            break;                  // uniform な条件なので barrier と両立する
+        }
+        uint idx = base + tid;
+        uint value = (idx < n) ? translucentPrefix[idx] : 0u;
+
+        sScan[tid] = value;
+        barrier();
+        for (uint offset = 1u; offset < WORK_SIZE; offset <<= 1) {
+            uint add = (tid >= offset) ? sScan[tid - offset] : 0u;
+            barrier();
+            sScan[tid] += add;
+            barrier();
+        }
+        uint inclusive = sScan[tid];
+        uint chunkTotal = sScan[WORK_SIZE - 1u];
+
+        if (idx < n) {
+            translucentPrefix[idx] = sCarry + inclusive - value;
+        }
+        barrier();
+        if (tid == 0u) {
+            sCarry += chunkTotal;
+        }
+        barrier();
+    }
+
+    if (tid == 0u) {
+        translucentPrefix[n] = sCarry;      // 番兵 = 総半透明 quad 数
+    }
+    memoryBarrierBuffer();
+    barrier();
+
+    // --- バケットごとに 1 draw ---
+    for (uint b = tid; b < TRANSLUCENT_BUCKETS; b += WORK_SIZE) {
+        uint slotStart = (b == 0u) ? 0u : bucketEnd[b - 1u];
+        uint slotEnd = bucketEnd[b];
+
+        uint quadStart = translucentPrefix[slotStart];
+        uint quadEnd = translucentPrefix[slotEnd];
+        uint count = quadEnd - quadStart;
+
+        atomicMax(maxBucketQuads, count);
+
+        // ⚠ 1 バケットが T を超えると共有インデックスバッファの外を読む。
+        // ここでは **切り詰めて安全側に倒し**、起きたことを診断バッファに残す。
+        // 分割にしなかったのは、バケットが 1024 本あり draw スロットの上限が
+        // データ依存になるため (不透明側の面 7 つとは事情が違う)。
+        // 実データで clampedBuckets が 0 でなくなったら分割の実装が要る
+        if (count > quadCapacityPC) {
+            atomicAdd(clampedBuckets, 1u);
+            count = quadCapacityPC;
+        }
+
+        TranslucentDrawCommand cmd;
+        cmd.count = count * 6u;
+        cmd.instanceCount = (count == 0u) ? 0u : 1u;
+        cmd.firstIndex = 0u;
+        cmd.baseVertex = int(quadStart) << 2;
+        cmd.baseInstance = 0u;
+        translucentDrawCmd[b] = cmd;
+    }
+}

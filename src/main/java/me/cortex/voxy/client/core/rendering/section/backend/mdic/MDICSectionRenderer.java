@@ -45,6 +45,15 @@ import static org.lwjgl.opengl.NVRepresentativeFragmentTest.GL_REPRESENTATIVE_FR
 public class MDICSectionRenderer extends AbstractSectionRenderer<MDICViewport, BasicSectionGeometryData> {
     public static final Factory<MDICViewport, BasicSectionGeometryData> FACTORY = AbstractSectionRenderer.Factory.create(MDICSectionRenderer.class);
 
+    /**
+     * Texture units for the terrain shader. These must not collide with the UBO/SSBO binding
+     * points used by the same pipeline (0..5), because Vulkan places every resource in one
+     * descriptor set even though GL keeps the namespaces separate.
+     * Keep in sync with lod/gl46/quads.frag and lod/gl46/quads3.vert.
+     */
+    private static final int LIGHTMAP_TEXTURE_UNIT = 6;      //LIGHTING_SAMPLER_BINDING
+    private static final int BLOCK_ATLAS_TEXTURE_UNIT = 7;   //blockModelAtlas
+
     public static final int OPAQUE_DRAW_COUNT = 400_000;//in draw calls
     public static final int TRANSLUCENT_DRAW_COUNT = 100_000;//in draw calls
     public static final int TEMPORAL_DRAW_COUNT = 100_000;//in draw calls
@@ -172,9 +181,11 @@ public class MDICSectionRenderer extends AbstractSectionRenderer<MDICViewport, B
         glBindBufferBase(GL_UNIFORM_BUFFER, 0, this.uniform.id);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, this.geometryManager.getGeometryBuffer().id);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, this.geometryManager.getMetadataBuffer().id);
-        this.modelStore.bind(3, 4, 0);
+        //Texture units 6/7 (not 0/1) so the numbers stay unique across UBO/SSBO/sampler.
+        //Vulkan puts all of them in one descriptor set; see docs/phase2-binding-audit.md
+        this.modelStore.bind(3, 4, BLOCK_ATLAS_TEXTURE_UNIT);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, viewport.positionScratchBuffer.id);
-        LightMapHelper.bind(1);
+        LightMapHelper.bind(LIGHTMAP_TEXTURE_UNIT);
         glBindTextureUnit(2, viewport.depthBoundingBuffer.getDepthTex().id);
 
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SharedIndexBuffer.INSTANCE.id());
@@ -208,10 +219,10 @@ public class MDICSectionRenderer extends AbstractSectionRenderer<MDICViewport, B
 
         glEnable(GL_CULL_FACE);
         glBindVertexArray(0);
-        glBindSampler(0, 0);
-        glBindTextureUnit(0, 0);
-        glBindSampler(1, 0);
-        glBindTextureUnit(1, 0);
+        glBindSampler(BLOCK_ATLAS_TEXTURE_UNIT, 0);
+        glBindTextureUnit(BLOCK_ATLAS_TEXTURE_UNIT, 0);
+        glBindSampler(LIGHTMAP_TEXTURE_UNIT, 0);
+        glBindTextureUnit(LIGHTMAP_TEXTURE_UNIT, 0);
 
         //RenderLayer.getCutoutMipped().endDrawing();
     }
@@ -246,10 +257,10 @@ public class MDICSectionRenderer extends AbstractSectionRenderer<MDICViewport, B
 
         glEnable(GL_CULL_FACE);
         glBindVertexArray(0);
-        glBindSampler(0, 0);
-        glBindTextureUnit(0, 0);
-        glBindSampler(1, 0);
-        glBindTextureUnit(1, 0);
+        glBindSampler(BLOCK_ATLAS_TEXTURE_UNIT, 0);
+        glBindTextureUnit(BLOCK_ATLAS_TEXTURE_UNIT, 0);
+        glBindSampler(LIGHTMAP_TEXTURE_UNIT, 0);
+        glBindTextureUnit(LIGHTMAP_TEXTURE_UNIT, 0);
 
         glDisable(GL_BLEND);
     }

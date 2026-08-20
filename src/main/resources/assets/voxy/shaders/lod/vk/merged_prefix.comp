@@ -1,0 +1,156 @@
+#version 460
+
+// 統合テーブルの prefix sum + 面ごとの DrawCommand 書き出し (Vulkan 専用)。
+//
+// == なぜ util/prefixsum/inital3.comp を流用しなかったか ==
+// 既存の 2 本は **ちょうど 1024 要素** (256 スレッド x uvec4) を 1 ディスパッチで処理する形に
+// 固定されており、チャンクをまたぐキャリーを持たない [確認済 — 両ファイルとも
+// ioCount[gl_GlobalInvocationID.x] を 1 回読んで 1 回書くだけ]。
+// 半透明の距離バケット (TRANSLUCENT_WRITE_BASE = 1024) 専用の作りである。
+//
+// 統合テーブルは 7 * sectionCount 要素で、20,000 セクションなら 140,000 要素になる。
+// そこで **単一ワークグループ + チャンクごとのキャリー** で任意長を走査する形にした。
+// 複数ワークグループにするとディスパッチ間同期が要り、段数が増える。
+// 1 ワークグループなら barrier() だけで閉じる。
+//
+// == ループの上限 ==
+// 外側ループは MAX_CHUNKS で必ず止まる。mergedEntryCount が壊れていても
+// ハングしない (間違った答えを返すだけ)。
+// Phase 0 で OS レベルの GPU リセットを起こしているため、
+// GPU 上のループには例外なく上限を付ける。
+//
+// ⚠ 外側ループの終了条件は **全スレッドで同一** でなければならない (barrier があるため)。
+// base と n はどちらも uniform なので成り立っている。
+
+#define WORK_SIZE 256
+// 256 * 65536 = 16.7M エントリまで。sectionCount 上限 (1<<20) の 7 倍を十分覆う
+#define MAX_CHUNKS 65536
+
+layout(local_size_x = WORK_SIZE) in;
+
+layout(binding = MERGED_PREFIX_BINDING, std430) restrict buffer MergedPrefixBuffer {
+    uint mergedEntryCount;
+    uint mergedPrefix[];     // 入力: エントリごとの quad 数 / 出力: 排他的 prefix + 末尾番兵
+};
+
+// DrawCommand は lod/gl46/bindings.glsl と同じ 5 uint。
+// bindings.glsl を import すると使わない SceneUniform UBO まで付いてくるので、
+// ここでは同じ形の構造体を自前で宣言する
+struct MergedDrawCommand {
+    uint count;
+    uint instanceCount;
+    uint firstIndex;
+    int  baseVertex;
+    uint baseInstance;
+};
+
+layout(binding = MERGED_DRAW_BINDING, std430) writeonly restrict buffer MergedDrawBuffer {
+    MergedDrawCommand mergedDrawCmd[];
+};
+
+layout(push_constant) uniform MergedPrefixPushConstants {
+    uint sectionCountPC;
+    // 共有インデックスバッファが覆う quad 数 (T)。1 draw の上限になる
+    uint quadCapacityPC;
+    // 間接描画に渡す draw 本数。余りは instanceCount=0 で埋める
+    uint maxDrawsPC;
+};
+
+shared uint sScan[WORK_SIZE];
+shared uint sCarry;
+
+void main() {
+    uint n = mergedEntryCount;
+    uint tid = gl_LocalInvocationID.x;
+
+    if (tid == 0u) {
+        sCarry = 0u;
+    }
+    barrier();
+
+    for (uint chunk = 0u; chunk < MAX_CHUNKS; chunk++) {
+        uint base = chunk * WORK_SIZE;
+        if (base >= n) {
+            break;              // uniform な条件なので barrier と両立する
+        }
+        uint idx = base + tid;
+        uint value = (idx < n) ? mergedPrefix[idx] : 0u;
+
+        sScan[tid] = value;
+        barrier();
+
+        // Hillis-Steele の包含的走査。256 要素なので段数は 8
+        for (uint offset = 1u; offset < WORK_SIZE; offset <<= 1) {
+            uint add = (tid >= offset) ? sScan[tid - offset] : 0u;
+            barrier();
+            sScan[tid] += add;
+            barrier();
+        }
+
+        uint inclusive = sScan[tid];
+        uint chunkTotal = sScan[WORK_SIZE - 1u];
+
+        // 排他的 prefix = 包含的 - 自分の値。キャリーを足して書き戻す
+        if (idx < n) {
+            mergedPrefix[idx] = sCarry + inclusive - value;
+        }
+        barrier();
+        if (tid == 0u) {
+            sCarry += chunkTotal;
+        }
+        barrier();
+    }
+
+    if (tid == 0u) {
+        mergedPrefix[n] = sCarry;      // 末尾番兵 = 総 quad 数
+    }
+    // 上の書き込みを同じワークグループの後続の読みから見えるようにする
+    memoryBarrierBuffer();
+    barrier();
+
+    // 面ごとの DrawCommand。面 f のエントリは [f*sectionCount, (f+1)*sectionCount) を占めるので、
+    // その両端の prefix がそのまま quad 通し番号の区間になる。
+    //
+    // 面の quad 数が共有インデックスバッファ (T) を超えたら baseVertex を進めて分割する。
+    // 分割しても gl_VertexIndex>>2 はグローバルな quad 通し番号のままなので
+    // 頂点シェーダは変わらない (docs/phase4-stage4-completion.md)。
+    //
+    // 出力スロットを 256 スレッドで分担する。どのスロットがどの面の何番目のチャンクかは、
+    // 面が 7 つしかないので各スレッドが 7 回まわれば分かる
+    for (uint slot = tid; slot < maxDrawsPC; slot += WORK_SIZE) {
+        uint acc = 0u;
+        uint chosenFace = 7u;
+        uint chunkIndex = 0u;
+        for (uint f = 0u; f < 7u; f++) {
+            uint s = mergedPrefix[f * sectionCountPC];
+            uint e = mergedPrefix[(f + 1u) * sectionCountPC];
+            // 空の面も 1 本出す (no-op)。面と draw の対応をデータ非依存に保つため
+            uint chunks = max(1u, (e - s + quadCapacityPC - 1u) / quadCapacityPC);
+            if (slot < acc + chunks) {
+                chosenFace = f;
+                chunkIndex = slot - acc;
+                break;
+            }
+            acc += chunks;
+        }
+
+        MergedDrawCommand cmd;
+        cmd.firstIndex = 0u;
+        cmd.baseInstance = 0u;
+        if (chosenFace == 7u) {
+            // 上限まで埋める余りスロット
+            cmd.count = 0u;
+            cmd.instanceCount = 0u;
+            cmd.baseVertex = 0;
+        } else {
+            uint s = mergedPrefix[chosenFace * sectionCountPC];
+            uint e = mergedPrefix[(chosenFace + 1u) * sectionCountPC];
+            uint o = s + chunkIndex * quadCapacityPC;
+            uint count = (o < e) ? min(e - o, quadCapacityPC) : 0u;
+            cmd.count = count * 6u;
+            cmd.instanceCount = (count == 0u) ? 0u : 1u;
+            cmd.baseVertex = int(o) << 2;
+        }
+        mergedDrawCmd[slot] = cmd;
+    }
+}

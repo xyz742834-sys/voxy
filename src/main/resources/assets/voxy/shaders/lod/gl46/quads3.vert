@@ -14,7 +14,10 @@
 #define MODEL_BUFFER_BINDING 3
 #define MODEL_COLOUR_BUFFER_BINDING 4
 #define POSITION_SCRATCH_BINDING 5
-#define LIGHTING_SAMPLER_BINDING 1
+//NOTE: must not collide with QUAD_BUFFER_BINDING (1). GL keeps SSBO binding points and
+// texture units in separate namespaces so 1 was legal here, but Vulkan puts every
+// resource in one descriptor set. See docs/phase2-binding-audit.md (C-2).
+#define LIGHTING_SAMPLER_BINDING 6
 
 #ifdef USE_SINGLE_TRI
 #define USE_NV_BARRY

@@ -8,6 +8,7 @@ import me.cortex.voxy.client.VoxyClient;
 import me.cortex.voxy.client.core.IVoxyRenderSystemHolder;
 import me.cortex.voxy.client.core.rendering.Viewport;
 import me.cortex.voxy.client.core.util.IrisUtil;
+import me.cortex.voxy.client.core.vk.interop.VkInteropProbe;
 import net.caffeinemc.mods.sodium.client.render.chunk.ChunkRenderMatrices;
 import net.caffeinemc.mods.sodium.client.render.chunk.DefaultChunkRenderer;
 import net.caffeinemc.mods.sodium.client.render.chunk.ShaderChunkRenderer;
@@ -49,6 +50,21 @@ public abstract class MixinDefaultChunkRenderer extends ShaderChunkRenderer {
     private void doRender(ChunkRenderMatrices matrices, TerrainRenderPass renderPass, CameraTransform camera, FogParameters fogParameters) {
         if (renderPass == DefaultTerrainRenderPasses.CUTOUT) {
             var renderer = IVoxyRenderSystemHolder.getNullable();
+            if (renderer == null && VoxyClient.backend() == VoxyClient.Backend.VULKAN) {
+                // Phase 5c-1d: **Phase 4 の合成地形**を Vulkan で描いて合成する。
+                // ここで初めて Voxy 自身の深度を MC の深度バッファへ書くので、
+                // 深度テストの設定が MC の描画順と噛み合うかが焦点になる
+                // [docs/phase5c1d-completion.md]
+                var target = renderPass.getTarget();
+                VkInteropProbe.get().composite(
+                    ((GlTextureView) target.getColorTextureView()).glId(),
+                    ((GlTextureView) target.getDepthTextureView()).glId(),
+                    target.width, target.height,
+                    // 5c-1d: 合成地形を **MC の投影**で描く。座標系の変換を増やさない
+                    matrices.projection(), matrices.modelView(),
+                    camera.x, camera.y, camera.z);
+                return;
+            }
             if (renderer != null) {
                 Viewport<?> viewport = null;
                 var target = renderPass.getTarget();

@@ -34,13 +34,17 @@ import org.lwjgl.system.MemoryUtil;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.lwjgl.opengl.ARBDirectStateAccess.glGetTextureImage;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL11C.GL_RGBA;
 import static org.lwjgl.opengl.GL12.GL_PACK_IMAGE_HEIGHT;
 import static org.lwjgl.opengl.GL15C.glBindBuffer;
 import static org.lwjgl.opengl.GL21.GL_PIXEL_PACK_BUFFER;
 import static org.lwjgl.opengl.GL30C.GL_FRAMEBUFFER;
+import static org.lwjgl.opengl.GL21.GL_PIXEL_PACK_BUFFER_BINDING;
+import static org.lwjgl.opengl.GL30C.GL_DRAW_FRAMEBUFFER;
+import static org.lwjgl.opengl.GL30C.GL_DRAW_FRAMEBUFFER_BINDING;
+import static org.lwjgl.opengl.GL30C.GL_READ_FRAMEBUFFER;
+import static org.lwjgl.opengl.GL30C.GL_READ_FRAMEBUFFER_BINDING;
 import static org.lwjgl.opengl.GL30C.glBindFramebuffer;
 
 public class SoftwareModelTextureBakery {
@@ -70,6 +74,20 @@ public class SoftwareModelTextureBakery {
         //Just do it ourselves as doing it with b3d has some issues, (doing it ourselves is also just much much much shorter)
         var texture = new int[width * height];
 
+        // ⚠ ここから**生の GL で MC の状態を変える**。Blaze3D の GlStateManager は
+        // 控えを持っているので、変えたまま戻さないと**控えと実際がずれる**
+        // [5c-1b の黒画面]。上流は起動時に 1 度だけ呼んでいたので問題にならなかったが、
+        // Vulkan 経路では**フレームの途中** (DefaultChunkRenderer.doRender の中) で
+        // 呼ばれるので、MC の描画先を奪ったままにすると**そのフレームが壊れる**。
+        int prevDrawFb = glGetInteger(GL_DRAW_FRAMEBUFFER_BINDING);
+        int prevReadFb = glGetInteger(GL_READ_FRAMEBUFFER_BINDING);
+        int prevPackBuf = glGetInteger(GL_PIXEL_PACK_BUFFER_BINDING);
+        int prevPackRowLength = glGetInteger(GL_PACK_ROW_LENGTH);
+        int prevPackImageHeight = glGetInteger(GL_PACK_IMAGE_HEIGHT);
+        int prevPackSkipRows = glGetInteger(GL_PACK_SKIP_ROWS);
+        int prevPackSkipPixels = glGetInteger(GL_PACK_SKIP_PIXELS);
+        int prevPackAlignment = glGetInteger(GL_PACK_ALIGNMENT);
+
         glFlush();
         glFinish();
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -79,7 +97,48 @@ public class SoftwareModelTextureBakery {
         glPixelStorei(GL_PACK_SKIP_ROWS, 0);
         glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
         glPixelStorei(GL_PACK_ALIGNMENT, 4);
-        glGetTextureImage(((GlTexture) tex).glId(), 0, GL_RGBA, GL_UNSIGNED_BYTE, texture);
+        // ⚠ glGetTextureImage は **GL 4.5 (DSA)** である。Apple の GL 4.1 には無く、
+        // 関数ポインタが NULL なので LWJGL が NullPointerException を投げる
+        // [確認済 — run/crash-reports/crash-2026-08-20_12.51.04-client.txt]。
+        // 束縛してから glGetTexImage (GL 1.0) を呼ぶ形なら、**どちらの GL でも動く**。
+        //
+        // ⚠ 束縛は**必ず元へ戻す**こと。Blaze3D の GlStateManager は束縛を控えているので、
+        // 生の GL で変えたままにすると控えと実際がずれ、MC が別のテクスチャを読む
+        // [5c-1b の黒画面と同じ型]。**同じ id へ戻せば控えは正しいまま**である。
+        for (int i = 0; i < 16 && glGetError() != GL_NO_ERROR; i++) { /* 先客のエラーを捨てる */ }
+        int previousBinding = glGetInteger(GL_TEXTURE_BINDING_2D);
+        glBindTexture(GL_TEXTURE_2D, ((GlTexture) tex).glId());
+        glGetTexImage(GL_TEXTURE_2D, targetMipLevel, GL_RGBA, GL_UNSIGNED_BYTE, texture);
+        int err = glGetError();
+
+        // 変えたものを**全て元へ戻す**
+        glBindTexture(GL_TEXTURE_2D, previousBinding);
+        glPixelStorei(GL_PACK_ROW_LENGTH, prevPackRowLength);
+        glPixelStorei(GL_PACK_IMAGE_HEIGHT, prevPackImageHeight);
+        glPixelStorei(GL_PACK_SKIP_ROWS, prevPackSkipRows);
+        glPixelStorei(GL_PACK_SKIP_PIXELS, prevPackSkipPixels);
+        glPixelStorei(GL_PACK_ALIGNMENT, prevPackAlignment);
+        glBindBuffer(GL_PIXEL_PACK_BUFFER, prevPackBuf);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prevDrawFb);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, prevReadFb);
+
+        if (err != GL_NO_ERROR) {
+            throw new IllegalStateException("reading back the block atlas failed with GL error 0x"
+                    + Integer.toHexString(err) + " (" + width + "x" + height + ")");
+        }
+
+        // 【規約 11】「落ちなかった」は「読めた」の証拠にならない。
+        // 読めていなければ配列は 0 のままで、**焼けるモデルが全て同じ絵になる** —
+        // それは規約 1 (取り違えたら絵に出る) を黙って壊す。
+        boolean anyOpaque = false;
+        for (int px : texture) {
+            if ((px & 0xFF000000) != 0) { anyOpaque = true; break; }
+        }
+        if (!anyOpaque) {
+            throw new IllegalStateException("the block atlas read back fully transparent ("
+                    + width + "x" + height + ") — every baked model would look identical");
+        }
+
         this.rasterizer.setSamplerTexture(texture, width, height);
     }
 

@@ -1,0 +1,68 @@
+#version 460
+
+// 統合描画版の prep (Vulkan 専用)。lod/gl46/prep.comp に対応する。
+//
+// GL 版との違い:
+//   GL 版  cmdgen の間接ディスパッチサイズ + 描画カウンタ + cull の間接描画コマンド
+//   ここ   cmdgen の間接ディスパッチサイズ + **統合テーブルのエントリ数**
+//
+// 不透明の描画カウンタ (opaqueDrawCount 等) は要らなくなった。
+// 統合後は draw 数が面の数で固定され、実際の描画数を数える必要が無いため
+// [確認済 — docs/phase0-b1-mdi-measurement.md 6.5]。
+
+layout(local_size_x = 1) in;
+
+#define INDIRECT_SECTION_LOOKUP_BINDING 5
+
+#import <voxy:lod/gl46/bindings.glsl>
+
+layout(binding = MERGED_PREFIX_BINDING, std430) restrict buffer MergedPrefixBuffer {
+    uint mergedEntryCount;
+    uint mergedPrefix[];
+};
+
+layout(binding = MERGED_DISPATCH_BINDING, std430) writeonly restrict buffer MergedDispatchBuffer {
+    uint cmdGenDispatchX;
+    uint cmdGenDispatchY;
+    uint cmdGenDispatchZ;
+};
+
+layout(binding = TEMPORAL_PREFIX_BINDING, std430) writeonly restrict buffer TemporalPrefixBuffer {
+    uint temporalEntryCount;
+    uint temporalPrefix[];
+};
+
+layout(binding = TRANSLUCENT_BUCKET_BINDING, std430) writeonly restrict buffer TranslucentBucketBuffer {
+    uint bucketCount[];
+};
+layout(binding = TRANSLUCENT_LIST_BINDING, std430) writeonly restrict buffer TranslucentListBuffer {
+    uint translucentSectionCount;
+    uint translucentSections[];
+};
+// スロット数もここで 0 に戻す。半透明セクションが 1 つも無いと
+// translucent_gen が 1 スレッドも走らず、**前フレームの値が残る**
+layout(binding = TRANSLUCENT_PREFIX_BINDING, std430) writeonly restrict buffer TranslucentPrefixBuffer {
+    uint translucentSlotCount;
+    uint translucentPrefix[];
+};
+
+void main() {
+    cmdGenDispatchX = (sectionCount + 127u) / 128u;
+    cmdGenDispatchY = 1u;
+    cmdGenDispatchZ = 1u;
+
+    // テーブルは密なので、エントリ数は可視判定とは無関係に 7 * sectionCount で決まる。
+    // これが決定的であること自体が、CPU 版とバイト単位で比較できる根拠になっている
+    mergedEntryCount = sectionCount * 7u;
+    temporalEntryCount = sectionCount * 7u;
+
+    // 半透明カウンタを毎フレーム 0 に戻す。GL 側は CPU が zeroRange していたが
+    // [確認済 — MDICSectionRenderer:317]、GPU 側でやれば
+    // 「CPU 書き込みと GPU コマンドの順序」を考えずに済む。
+    // ループは 1024 回で固定 (バケット数)。
+    translucentSectionCount = 0u;
+    translucentSlotCount = 0u;
+    for (uint b = 0u; b < TRANSLUCENT_BUCKETS; b++) {
+        bucketCount[b] = 0u;
+    }
+}

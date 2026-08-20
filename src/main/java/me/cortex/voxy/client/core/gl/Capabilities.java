@@ -33,7 +33,22 @@ import static org.lwjgl.opengl.NVXGPUMemoryInfo.*;
 
 public class Capabilities {
 
-    public static final Capabilities INSTANCE = new Capabilities();
+    public static final Capabilities INSTANCE = create();
+
+    /**
+     * GL コンテキストが存在したか。
+     *
+     * <p><b>false になるのは Minecraft が OpenGL 以外のバックエンドを選んだとき</b>である。
+     * MC 26.2 は Vulkan バックエンドを持っており、
+     * {@code options.txt} の {@code preferredGraphicsBackend:"vulkan"} で選べる
+     * [確認済 — docs/phase5c-mc-vulkan-survey.md §2]。
+     * そのとき GL コンテキストは作られないので、GL の問い合わせは全て失敗する。
+     *
+     * <p>false のときは<b>全ての機能フラグが false</b> になり、
+     * {@code VoxyClient.initVoxyClient} の {@code systemSupported} 判定で
+     * Voxy が自己無効化される。
+     */
+    public final boolean glAvailable;
 
     public final boolean repFragTest;
     public final boolean meshShaders;
@@ -54,8 +69,60 @@ public class Capabilities {
     public final boolean nvBarryCoords;
     public final boolean hasBrokenDepthSampler;
 
-    public Capabilities() {
-        var cap = GL.getCapabilities();
+    /**
+     * GL コンテキストの有無で分岐して生成する。
+     *
+     * <p><b>ここで例外を投げてはならない。</b> これは {@code static final} の初期化なので、
+     * 失敗すると {@code ExceptionInInitializerError} になり
+     * <b>Minecraft 全体が起動時に落ちる</b>。実際に MC を Vulkan にすると
+     * そうなっていた [確認済 — docs/phase5c-mc-vulkan-survey.md §5]。
+     * Voxy には自己無効化の仕組みがあるのに、その判定より前に clinit が走るため
+     * 効かなかった。
+     *
+     * <p>Phase 1 で {@code IrisUtil} をスタブ化したのと同じ形 — 「無いものは
+     * 無いものとして扱い、上位の判定に委ねる」。
+     */
+    private static Capabilities create() {
+        org.lwjgl.opengl.GLCapabilities cap;
+        try {
+            cap = GL.getCapabilities();
+        } catch (IllegalStateException | NullPointerException e) {
+            // GL コンテキストが無い。MC が Vulkan など別のバックエンドを選んでいる
+            Logger.warn("No OpenGL context on this thread (" + e.getClass().getSimpleName()
+                + "); Minecraft is probably not using the OpenGL backend. Voxy will disable itself.");
+            return new Capabilities();
+        }
+        return new Capabilities(cap);
+    }
+
+    /**
+     * GL が無いときの Capabilities。<b>全ての機能を false / -1 にする。</b>
+     * ここから GL を呼んではならない。
+     */
+    private Capabilities() {
+        this.glAvailable = false;
+        this.sparseBuffer = false;
+        this.compute = false;
+        this.indirectParameters = false;
+        this.repFragTest = false;
+        this.meshShaders = false;
+        this.canQueryGpuMemory = false;
+        this.INT64_t = false;
+        this.subgroup = false;
+        this.ssboMaxSize = -1;
+        this.ssboBindingAlignment = 16;
+        this.isMesa = false;
+        this.isIntel = false;
+        this.isNvidia = false;
+        this.isAmd = false;
+        this.totalDedicatedMemory = -1;
+        this.totalDynamicMemory = -1;
+        this.nvBarryCoords = false;
+        this.hasBrokenDepthSampler = false;
+    }
+
+    private Capabilities(org.lwjgl.opengl.GLCapabilities cap) {
+        this.glAvailable = true;
         this.sparseBuffer = cap.GL_ARB_sparse_buffer;
         this.compute = cap.glDispatchComputeIndirect != 0;
         this.indirectParameters = cap.glMultiDrawElementsIndirectCountARB != 0;

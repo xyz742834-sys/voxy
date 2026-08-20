@@ -1,0 +1,34 @@
+#version 460
+
+// 統合テーブルの索引解決を **全数検査** するための調査用シェーダ (テスト専用)。
+//
+// 頂点シェーダと **まったく同じ** quad_index.glsl の resolveQuad を呼び、
+// 0..totalQuads-1 のすべての通し番号について結果を書き出す。
+// CPU 側の線形探索と突き合わせれば、二分探索の実装そのものを全数で確かめられる。
+//
+// 「絵が合っているから索引も合っている」では、
+// 偶然一致した場合と区別が付かない。索引だけを単独で見るためにこれを置く。
+
+layout(local_size_x = 64) in;
+
+#define MERGED_ENTRY_BINDING 10
+#define MERGED_PREFIX_BINDING 11
+
+#import <voxy:lod/vk/quad_index.glsl>
+
+layout(binding = 0, std430) writeonly restrict buffer ProbeResultBuffer {
+    uvec2 probeResults[];
+};
+
+layout(push_constant) uniform IndexProbePushConstants {
+    uint totalQuads;
+};
+
+void main() {
+    uint q = gl_GlobalInvocationID.x;
+    if (q >= totalQuads) {
+        return;
+    }
+    MergedQuadRef ref = resolveQuad(q);
+    probeResults[q] = uvec2(ref.quadIndex, ref.drawId);
+}

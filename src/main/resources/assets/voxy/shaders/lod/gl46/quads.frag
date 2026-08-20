@@ -9,7 +9,11 @@
 #extension GL_NV_fragment_shader_barycentric: require
 #endif
 
-layout(binding = 0) uniform sampler2D blockModelAtlas;
+//NOTE: must not collide with the SceneUniform UBO at binding 0 (declared unguarded in
+// lod/gl46/bindings.glsl, which this file imports). GL keeps UBO binding points and
+// texture units in separate namespaces so 0 was legal here, but Vulkan puts every
+// resource in one descriptor set. See docs/phase2-binding-audit.md (C-1).
+layout(binding = 7) uniform sampler2D blockModelAtlas;
 layout(binding = 2) uniform sampler2D depthTex;
 
 //#define DEBUG_RENDER

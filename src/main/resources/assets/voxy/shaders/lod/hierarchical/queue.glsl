@@ -1,6 +1,19 @@
 #define SENTINAL_OUT_OF_BOUNDS uint(-1)
 
+//Which traversal iteration this dispatch is for. Changes every iteration of the dispatch loop
+//in HierarchicalOcclusionTraverser.doTraversal, so it is per-dispatch state, not per-frame.
+//
+//Vulkan GLSL forbids default-block uniforms, so it becomes a push constant there. The block is
+//declared without an instance name so the member is still referenced as plain `queueIdx` on both
+//backends -- the five use sites below are identical either way.
+//See docs/phase2-glsl-compat.md (T-4) and docs/phase2-pushconstant-todo.md.
+#ifdef VULKAN
+layout(push_constant) uniform TraversalPushConstants {
+    uint queueIdx;
+};
+#else
 layout(location = NODE_QUEUE_INDEX_BINDING) uniform uint queueIdx;
+#endif
 
 layout(binding = NODE_QUEUE_META_BINDING, std430) restrict buffer NodeQueueMeta {
     uvec4 nodeQueueMetadata[MAX_ITERATIONS];

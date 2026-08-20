@@ -5,10 +5,7 @@ import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
-import me.cortex.voxy.client.core.gl.GlBuffer;
-import me.cortex.voxy.client.core.gl.GlTexture;
 import me.cortex.voxy.client.core.model.bakery.SoftwareModelTextureBakery;
-import me.cortex.voxy.client.core.rendering.util.UploadStream;
 import me.cortex.voxy.common.Logger;
 import me.cortex.voxy.common.util.MemoryBuffer;
 import me.cortex.voxy.common.util.Pair;
@@ -44,7 +41,6 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static me.cortex.voxy.client.core.model.ModelStore.MODEL_SIZE;
-import static org.lwjgl.opengl.ARBDirectStateAccess.nglTextureSubImage2D;
 import static org.lwjgl.opengl.GL11.*;
 
 //Manages the storage and updating of model states, textures and colours
@@ -121,7 +117,8 @@ public class ModelFactory {
     private final List<ModelBlockStatePair> modelsRequiringBiomeColours = new ArrayList<>();
 
     private final Mapper mapper;
-    private final ModelStore storage;
+    /** ベイク結果の置き場所。<b>GPU の種類は知らない</b> [Phase 5c-2b]。 */
+    private final ModelUploadTarget storage;
 
     private final ConcurrentLinkedDeque<BlockBake> bakeQueue = new ConcurrentLinkedDeque<>();
 
@@ -132,7 +129,13 @@ public class ModelFactory {
 
     //TODO: NOTE!!! is it worth even uploading as a 16x16 texture, since automatic lod selection... doing 8x8 textures might be perfectly ok!!!
     // this _quarters_ the memory requirements for the texture atlas!!! WHICH IS HUGE saving
-    public ModelFactory(Mapper mapper, ModelStore storage) {
+    /**
+     * @param storage ベイク結果の置き場所。<b>GL 実装 ({@code ModelStore}) でも
+     *                Vulkan 実装 ({@code VkModelUploadTarget}) でもよい</b> —
+     *                ベイク側は GPU の種類を知らない
+     *                [docs/phase5c2b-boundary.md]
+     */
+    public ModelFactory(Mapper mapper, ModelUploadTarget storage) {
         this.mapper = mapper;
         this.storage = storage;
         this.bakery2 = new SoftwareModelTextureBakery();
@@ -327,20 +330,21 @@ public class ModelFactory {
         var upload = this.uploadResults.poll();
         if (upload==null) return;
 
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-        glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-        glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+        // ⚠ ここは**置き場所ごとに違う**ので、生の GL を直に呼んではならない
+        // [Phase 5c-2b の分岐点]。GL は アンパック指定 + UploadStream の転送が要るが、
+        // Vulkan では要らない — ここに GL を書くと**Vulkan 経路で JVM ごと落ちる**
+        // (UploadStream は GL 4.5 DSA。地雷 2 つ目)
+        this.storage.beginUploads();
         do {
             upload.upload(this.storage);
             upload.free();
             upload = this.uploadResults.poll();
         } while (upload != null);
-        UploadStream.INSTANCE.commit();
+        this.storage.commitUploads();
     }
 
     private interface ResultUploader {
-        void upload(ModelStore store);
+        void upload(ModelUploadTarget target);
         void free();
     }
 
@@ -359,28 +363,22 @@ public class ModelFactory {
             this.texture = new MemoryBuffer((2L*3*(useMips?computeSizeWithMips(MODEL_TEXTURE_SIZE):MODEL_TEXTURE_SIZE*MODEL_TEXTURE_SIZE))*4);
         }
 
-        public void upload(ModelStore store) {//Uploads and resets for reuse
-            this.upload(store.modelBuffer, store.modelColourBuffer, store.textures);
-        }
-
-        public void upload(GlBuffer modelBuffer, GlBuffer colourBuffer, GlTexture atlas) {//Uploads and resets for reuse
-            this.model.cpyTo(UploadStream.INSTANCE.upload(modelBuffer, (long) this.modelId * MODEL_SIZE, MODEL_SIZE));
+        /**
+         * ベイク結果を置き場所へ渡す (Phase 5c-2b で GL / Vulkan の分岐点になった)。
+         *
+         * <p>⚠ <b>ここから先は GPU の種類を知らない。</b> 渡すのは CPU のバッファと索引だけで、
+         * 実際の転送は {@link ModelUploadTarget} の実装が行う
+         * [docs/phase5c2a-completion.md §4]。
+         */
+        public void upload(ModelUploadTarget target) {//Uploads and resets for reuse
+            target.uploadModel(this.modelId, this.model);
             if (this.biomeUploadIndex != -1) {
-                this.biomeUpload.cpyTo(UploadStream.INSTANCE.upload(colourBuffer, this.biomeUploadIndex * 4L, this.biomeUpload.size));
+                target.uploadBiomeColours(this.biomeUploadIndex, this.biomeUpload);
                 this.biomeUploadIndex = -1;
                 this.biomeUpload.free();
                 this.biomeUpload = null;
             }
-
-            int X = (this.modelId&0xFF) * MODEL_TEXTURE_SIZE*3;
-            int Y = ((this.modelId>>8)&0xFF) * MODEL_TEXTURE_SIZE*2;
-
-            long cAddr = this.texture.address;
-            for (int lvl = 0; lvl < (this.hasMips?LAYERS:1); lvl++) {
-                nglTextureSubImage2D(atlas.id, lvl, X >> lvl, Y >> lvl, (MODEL_TEXTURE_SIZE*3) >> lvl, (MODEL_TEXTURE_SIZE*2) >> lvl, GL_RGBA, GL_UNSIGNED_BYTE, cAddr);
-                cAddr += (MODEL_TEXTURE_SIZE*MODEL_TEXTURE_SIZE*3*2*4)>>(lvl<<1);
-            }
-
+            target.uploadModelTexture(this.modelId, this.texture, this.hasMips ? LAYERS : 1);
             this.modelId = -1;
         }
 
@@ -718,18 +716,14 @@ public class ModelFactory {
             this.modelBiomeIndexPairs = new MemoryBuffer(models*8);
         }
 
-        public void upload(ModelStore store) {
-            this.upload(store.modelBuffer, store.modelColourBuffer);
-        }
-
-        public void upload(GlBuffer modelBuffer, GlBuffer modelColourBuffer) {
-            this.biomeColourBuffer.cpyTo(UploadStream.INSTANCE.upload(modelColourBuffer, 0, this.biomeColourBuffer.size));
+        public void upload(ModelUploadTarget target) {
+            target.uploadBiomeColourTable(this.biomeColourBuffer);
 
             //TODO: optimize this to like a compute scatter update or something
             long ptr = this.modelBiomeIndexPairs.address;
             for (long offset = 0; offset < this.modelBiomeIndexPairs.size; offset += 8) {
                 long v = MemoryUtil.memGetLong(ptr);ptr += 8;
-                MemoryUtil.memPutInt(UploadStream.INSTANCE.upload(modelBuffer, (MODEL_SIZE*(v&((1L<<32)-1)))+ 4*6 + 4, 4), (int) (v>>>32));
+                target.patchModelBiomeIndex((int) (v&((1L<<32)-1)), (int) (v>>>32));
             }
 
             this.biomeColourBuffer.free();

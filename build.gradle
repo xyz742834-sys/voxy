@@ -3,6 +3,8 @@ plugins {
     id 'maven-publish'
 }
 def INCLUDE_OTHER_ARCHS = "true".equalsIgnoreCase(project.findProperty("includeOtherArchs"))
+// Vulkan backend (macOS/MoltenVK) 用。開発中は既定で有効。
+def INCLUDE_MACOS_ARM64 = !"false".equalsIgnoreCase(String.valueOf(project.findProperty("includeMacosArm64")))
 
 def isInGHA = System.getenv("GITHUB_ACTIONS") == "true"
 
@@ -389,6 +391,21 @@ dependencies {
         include(runtimeOnly "org.lwjgl:lwjgl-zstd:$lwjglVersion:natives-linux-arm64")
     }
 
+    // --- Vulkan backend (macOS / MoltenVK) ---
+    // lwjgl-vulkan の natives は macOS のみ存在する (MoltenVK を同梱するため)。
+    // Windows/Linux ではローダーが OS 側にあるので natives 不要。
+    include(implementation "org.lwjgl:lwjgl-vulkan:$lwjglVersion")
+    include(implementation "org.lwjgl:lwjgl-shaderc:$lwjglVersion")
+    include(runtimeOnly "org.lwjgl:lwjgl-shaderc:$lwjglVersion:natives-windows")
+    include(runtimeOnly "org.lwjgl:lwjgl-shaderc:$lwjglVersion:natives-linux")
+    if (INCLUDE_MACOS_ARM64) {
+        include(runtimeOnly "org.lwjgl:lwjgl:$lwjglVersion:natives-macos-arm64")
+        include(runtimeOnly "org.lwjgl:lwjgl-vulkan:$lwjglVersion:natives-macos-arm64")
+        include(runtimeOnly "org.lwjgl:lwjgl-shaderc:$lwjglVersion:natives-macos-arm64")
+        include(runtimeOnly "org.lwjgl:lwjgl-lmdb:$lwjglVersion:natives-macos-arm64")
+        include(runtimeOnly "org.lwjgl:lwjgl-zstd:$lwjglVersion:natives-macos-arm64")
+    }
+
     include(implementation 'redis.clients:jedis:5.1.0')
     include(implementation('org.rocksdb:rocksdbjni:10.2.1'))//update to 10.10 when issue 14537 is fixed
     include(implementation 'org.apache.commons:commons-pool2:2.12.0')
@@ -404,7 +421,86 @@ dependencies {
     }
     //implementation 'org.rocksdb:rocksdbjni:8.10.0'
     //implementation 'redis.clients:jedis:5.1.0'
+
+    // --- Vulkan backend tests ---
+    // VkContext はサーフェスもウィンドウも持たないため、Minecraft を起動せずに
+    // 素の JVM から Vulkan/MoltenVK を初期化できる (Phase 0 のベンチが実証済み)。
+    // testImplementation / testRuntimeOnly は java プラグインの既定で
+    // implementation / runtimeOnly を extendsFrom するので、lwjgl-vulkan と
+    // shaderc の natives はそのまま引き継がれる。
+    testImplementation "org.junit.jupiter:junit-jupiter:5.10.2"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
+
+test {
+    useJUnitPlatform()
+    // LWJGL 3.4 / JDK 25 では native アクセスに明示的な許可が要る
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    // Vulkan 系テストは MoltenVK natives がある macOS arm64 でのみ動く。
+    // 他環境では VkContext を要するテストが自動的に skip される (VulkanTestSupport 参照)。
+    systemProperty("voxy.test.os", System.getProperty("os.name") + "/" + System.getProperty("os.arch"))
+    // LWJGL は既定で同梱の MoltenVK を直接ロードする (ローダーを経由しない)。
+    // Khronos ローダー経由にすると explicit layer (バリデーション) が使えるようになる。
+    //   ./gradlew test -PvkLibname=/opt/homebrew/lib/libvulkan.dylib
+    if (project.hasProperty("vkLibname")) {
+        systemProperty("org.lwjgl.vulkan.libname", project.property("vkLibname"))
+    }
+    if (project.hasProperty("vkValidation")) {
+        systemProperty("voxy.vk.validation", project.property("vkValidation"))
+        // brew の vulkan-validationlayers はマニフェストを Cellar 側に置くため、
+        // ローダーに探索パスを教えないと見つからない (formula の caveats のとおり)。
+        def layerRoot = "/opt/homebrew/opt/vulkan-validationlayers"
+        def layerPath = "$layerRoot/share/vulkan/explicit_layer.d"
+        if (file(layerPath).exists()) {
+            environment("VK_LAYER_PATH", layerPath)
+            // マニフェストの library_path が相対名 (libVkLayer_khronos_validation.dylib) なのに
+            // 実体は ../lib にあるため、そのままではローダーが解決できず
+            // VK_ERROR_LAYER_NOT_PRESENT (-6) になる。dylib の探索パスを足して解決させる。
+            environment("DYLD_LIBRARY_PATH", "$layerRoot/lib")
+            if (project.hasProperty("vkSyncEnv")) {
+                environment("VK_LAYER_ENABLES", "VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT")
+            }
+        }
+    }
+    testLogging {
+        events "passed", "skipped", "failed"
+        showStandardStreams = true
+        exceptionFormat = "full"
+    }
+}
+
+// Phase 5a のベンチ。GL コンテキストを作るため JUnit では動かせない
+// (GLFW は macOS で main スレッドを要求し、Gradle の test worker はそれを満たさない)。
+// テスト本体 (155 件) は素の JVM のまま維持し、GL が要るものだけこちらに置く。
+//
+//   ./gradlew glToVkSyncBench
+//   ./gradlew glToVkSyncBench --args="--loads 0,4,32 --iters 100"
+def glVkTask = { String name, String mainClassName, String desc ->
+    tasks.register(name, JavaExec) {
+        group = "verification"
+        description = desc
+        classpath = sourceSets.test.runtimeClasspath
+        mainClass = mainClassName
+        jvmArgs("--enable-native-access=ALL-UNNAMED", "-XstartOnFirstThread")
+        if (project.hasProperty("vkLibname")) {
+            systemProperty("org.lwjgl.vulkan.libname", project.property("vkLibname"))
+        }
+        if (project.hasProperty("vkValidation")) {
+            systemProperty("voxy.vk.validation", project.property("vkValidation"))
+            def layerRoot = "/opt/homebrew/opt/vulkan-validationlayers"
+            def layerPath = "$layerRoot/share/vulkan/explicit_layer.d"
+            if (file(layerPath).exists()) {
+                environment("VK_LAYER_PATH", layerPath)
+                environment("DYLD_LIBRARY_PATH", "$layerRoot/lib")
+            }
+        }
+    }
+}
+
+glVkTask("glToVkSyncBench", "me.cortex.voxy.vk.bench.GlToVkSyncBench",
+    "Phase 5a: measure the GL -> Vulkan synchronisation cost")
+glVkTask("interopCompositeCheck", "me.cortex.voxy.vk.bench.InteropCompositeCheck",
+    "Phase 5b: verify the interop composite matches the Phase 4 offscreen output")
 
 /*
 if (!isInGHA) {
@@ -420,3 +516,41 @@ if (!isInGHA) {
         }
     }
 }*/
+// Phase 5c-1b / 5c-1c / 5c-1d の切り分け用スイッチ。再ビルドせずに 1 変数ずつ試せる。
+//
+//   ./gradlew runClient -Pvoxy5c1d=off       合成を完全に止める (5c-1a と同じ)
+//   ./gradlew runClient -Pvoxy5c1d=state     FBO/ビューポートの控え・復帰だけ (描かない)
+//   ./gradlew runClient -Pvoxy5c1d=pattern   5c-1b の非対称パターン (色経路だけの既知の正解)
+//   ./gradlew runClient -Pvoxy5c1d=solid     テクスチャを読まずマゼンタ一色 (描画が届くかの診断)
+//   ./gradlew runClient -Pvoxy5c1d=depth     5c-1c の深度可視化 (深度経路が生きているかの診断)
+//   ./gradlew runClient -Pvoxy5c1d=terrain   合成地形を描いて合成する (既定)
+//
+// 各段のスイッチ名も残してある。**その段の "full" はその段の全経路**を指すので、
+// 当時の手動確認をそのまま再現できる:
+//   -Pvoxy5c1c=full -> depth      -Pvoxy5c1b=full -> pattern
+tasks.named('runClient') {
+    // Phase 5c-2b: 実際のブロックを焼いて使う (ワールドに入っていること)
+    //   ./gradlew runClient -Pvoxy5c2=real
+    if (project.hasProperty('voxy5c2')) {
+        jvmArgs("-Dvoxy.5c2=" + project.property('voxy5c2'))
+    }
+    if (project.hasProperty('voxy5c1e')) {
+        jvmArgs("-Dvoxy.5c1e=" + project.property('voxy5c1e'))
+    }
+    // 5c-1e の置き場所 (ブロック)。奥の組が far 平面で切られるときに詰める
+    ['near', 'far', 'lateral'].each { k ->
+        def prop = 'voxy5c1e' + k.capitalize()
+        if (project.hasProperty(prop)) {
+            jvmArgs("-Dvoxy.5c1e." + k + "=" + project.property(prop))
+        }
+    }
+    if (project.hasProperty('voxy5c1d')) {
+        jvmArgs("-Dvoxy.5c1d=" + project.property('voxy5c1d'))
+    }
+    if (project.hasProperty('voxy5c1c')) {
+        jvmArgs("-Dvoxy.5c1c=" + project.property('voxy5c1c'))
+    }
+    if (project.hasProperty('voxy5c1b')) {
+        jvmArgs("-Dvoxy.5c1b=" + project.property('voxy5c1b'))
+    }
+}

@@ -17,10 +17,20 @@ layout(binding = OUTPUT_BUFFER_BINDING, std430) restrict volatile buffer Minimum
     uint minVisIds[OUTPUT_SIZE];
 };
 
+//Upper bound on CAS retries. A GPU has no preemption, so an unbounded spin is a hard hang and
+//takes the whole OS display stack with it (seen in Phase 0: GPU hang -> driver reset ->
+//VK_ERROR_OUT_OF_DEVICE_MEMORY). The loop should terminate on its own -- some thread always makes
+//progress -- but corrupt node data can make the comparison never settle, so cap it anyway.
+//
+//Bailing out drops this element from the sort. That is benign here: this is the node *cleaner*,
+//so a dropped element just means that node's geometry is not reclaimed on this pass and gets
+//retried on the next one. Correctness of rendering is unaffected.
+#define MAX_CAS_RETRIES 1024u
+
 //Returns the id of the max value
 uint atomicDerefMaxExchangeGlobal(uint atId, uint id) {
     const uint value = visibility[id];
-    while (true) {
+    for (uint retry = 0u; retry < MAX_CAS_RETRIES; retry++) {
         const uint existingId = minVisIds[atId];//TODO: check that this does what we want, and that it obtains the value of atValue, at this point
         if (existingId == id) {//If we are trying to insert self, return -1
             return uint(-1);
@@ -39,6 +49,8 @@ uint atomicDerefMaxExchangeGlobal(uint atId, uint id) {
             return existingId;
         }
     }
+    //Retry budget exhausted: drop this element (see MAX_CAS_RETRIES).
+    return uint(-1);
 }
 
 //TODO: optimize
@@ -59,7 +71,7 @@ shared uint initalSort[OUTPUT_SIZE];
 //Returns the id of the max value
 uint atomicDerefMaxExchangeLocal(uint atId, uint id) {
     const uint value = visibility[id];
-    while (true) {
+    for (uint retry = 0u; retry < MAX_CAS_RETRIES; retry++) {
         const uint existingId = initalSort[atId];//TODO: check that this does what we want, and that it obtains the value of atValue, at this point
         if (existingId == id) {//If we are trying to insert self, return -1
             return uint(-1);
@@ -78,6 +90,8 @@ uint atomicDerefMaxExchangeLocal(uint atId, uint id) {
             return existingId;
         }
     }
+    //Retry budget exhausted: drop this element (see MAX_CAS_RETRIES).
+    return uint(-1);
 }
 void bubbleSortInital(uint vis, uint id) {
     uint start = 0;
