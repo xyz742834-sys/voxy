@@ -59,11 +59,29 @@ public final class VkRealModelBakery {
     private final Mapper mapper;
     private final ModelFactory factory;
     private final VkModelUploadTarget target;
+    /** Mapper を自分で作ったか。ワールドのものを借りているなら閉じてはならない。 */
+    private final boolean ownsMapper;
     private boolean freed;
 
+    /** 5c-2b: 合成ジオメトリ用。<b>自前の Mapper</b> を作る。 */
     public VkRealModelBakery(VkModelUploadTarget target) {
+        this(target, null);
+    }
+
+    /**
+     * @param existing ワールドの {@code Mapper}。5c-3b の実ジオメトリでは<b>必ずこれを渡す</b>。
+     *
+     * <h2>⚠ 新しい Mapper を作ってはならない</h2>
+     * {@code WorldSection} の中身は<b>ワールドの Mapper が採番した</b>
+     * ブロック状態 id とバイオーム id である。別の Mapper で読むと
+     * <b>全部が別のブロックになる</b> — 落ちないし絵も出るので気付きにくい。
+     *
+     * <p>⚠ 渡された Mapper は<b>所有しない</b>。{@link #free} で閉じない。
+     */
+    public VkRealModelBakery(VkModelUploadTarget target, Mapper existing) {
         this.target = target;
-        this.mapper = new Mapper(new InMemoryMappingStorage());
+        this.ownsMapper = existing == null;
+        this.mapper = existing != null ? existing : new Mapper(new InMemoryMappingStorage());
         // ⚠ ModelBakerySubsystem を通さない。通すと ModelStore (GL 4.5 DSA) が作られる
         this.factory = new ModelFactory(this.mapper, target);
         // ⚠ **本番はこの配線を ModelBakerySubsystem.addBiome が担っている。**
@@ -228,6 +246,77 @@ public final class VkRealModelBakery {
             }
         }
     }
+
+    /**
+     * ブロック状態 id の集合について<b>モデルが焼けていることを保証する</b> (Phase 5c-3b)。
+     *
+     * <h2>⚠ なぜ要るのか — 規約 16 の数え上げで出た</h2>
+     * 本番はメッシャが {@code ModelBakerySubsystem.requestBlockBake} を呼び、
+     * 出会ったブロックのモデルを非同期に焼かせている。
+     * <b>{@code ModelBakerySubsystem} を迂回すると、この配線が落ちる</b> —
+     * そのまま {@code generateMesh} を呼ぶと {@code IdNotYetComputedException} になる。
+     *
+     * <p>5c-2b の {@code addBiome} と<b>同じ型の見落とし</b>である。
+     * あちらは「草と葉が黒くなる」で出た。こちらは例外で出るぶん見つけやすい。
+     *
+     * @return 新しく焼いた数
+     */
+    public int ensureModels(it.unimi.dsi.fastutil.ints.IntCollection blockIds) {
+        int added = 0;
+        for (int id : blockIds) {
+            if (id == 0) continue;                       // 空気
+            if (this.factory.hasModelForBlockId(id)) continue;
+            if (this.factory.addEntry(id)) added++;
+        }
+        if (added == 0) return 0;
+        int spins = 0;
+        while (this.factory.processAllThings()) {
+            if (++spins > 1_000_000) {
+                throw new IllegalStateException("the bakery did not settle after " + spins
+                    + " steps while baking " + added + " block states");
+            }
+        }
+        this.factory.processUploads();
+        return added;
+    }
+
+    /**
+     * ワールドの Mapper に<b>既に登録されているバイオーム</b>を factory へ流し込む
+     * (Phase 5c-3b)。
+     *
+     * <h2>⚠ コールバックだけでは足りない</h2>
+     * {@code setBiomeCallback} は<b>これから登録されるもの</b>しか拾わない。
+     * ワールドは取り込み時に既にバイオームを登録しているので、
+     * <b>そのぶんは永久に届かない</b> — 着色されるブロックが黒くなる
+     * (5c-2b で踏んだのと同じ症状の、別の原因)。
+     *
+     * <h2>⚠ モデルより後に呼ぶこと</h2>
+     * {@code addBiome0} は「色が要るモデル」が 1 つも無いと<b>何も作らずに返す</b>
+     * [5c-2b §9.4]。
+     *
+     * @return 流し込んだバイオーム数
+     */
+    public int replayBiomes() {
+        var entries = this.mapper.getBiomeEntries();
+        int n = 0;
+        for (var e : entries) {
+            if (e == null) continue;
+            this.factory.addBiome(e);
+            n++;
+        }
+        int spins = 0;
+        while (this.factory.processAllThings()) {
+            if (++spins > 1_000_000) {
+                throw new IllegalStateException("the biome replay did not settle");
+            }
+        }
+        this.factory.processUploads();
+        Logger.info("[5c-3b] replayed " + n + " biomes already registered by the world");
+        return n;
+    }
+
+    /** ベイク済みモデルの置き場所 (メッシャに渡す)。 */
+    public ModelFactory factory() { return this.factory; }
 
     /** 溜まったテクスチャをアトラスへ流す。<b>フレームの中で呼ぶこと。</b> */
     public int recordUploads(VkCommandBuffer cmd) {

@@ -545,6 +545,20 @@ tasks.named('runClient') {
     // ⚠ **1 組だけ描く**。3 組は見た目が同じなので、目で当てさせない
     //   ./gradlew runClient -Pvoxy5c3=on  -Pvoxy5c3Only=beyond   -> drawn > 0 でなければならない
     //   ./gradlew runClient -Pvoxy5c3=off -Pvoxy5c3Only=beyond   -> drawn = 0 でなければならない
+    // 5c-3b: 実ジオメトリ。半径 (既定 4) のセクションを LoD 0 でメッシュ化する。
+    //   ./gradlew runClient -Pvoxy5c3b=on     半径 4
+    //   ./gradlew runClient -Pvoxy5c3b=2      半径 2 (狭く)
+    //   -Pvoxy5c3bRealColours=true            実テクスチャで描く (既定は id 由来の合成色)
+    //   -Pvoxy5c3bQuads=4000000               ジオメトリバッファを広げる
+    if (project.hasProperty('voxy5c3b')) {
+        jvmArgs("-Dvoxy.5c3b=" + project.property('voxy5c3b'))
+    }
+    if (project.hasProperty('voxy5c3bRealColours')) {
+        jvmArgs("-Dvoxy.5c3b.realColours=" + project.property('voxy5c3bRealColours'))
+    }
+    if (project.hasProperty('voxy5c3bQuads')) {
+        jvmArgs("-Dvoxy.5c3b.quads=" + project.property('voxy5c3bQuads'))
+    }
     if (project.hasProperty('voxy5c3Only')) {
         jvmArgs("-Dvoxy.5c3.only=" + project.property('voxy5c3Only'))
     }

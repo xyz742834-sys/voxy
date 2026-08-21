@@ -159,6 +159,8 @@ public final class VkInteropProbe {
     private static Mode resolveMode() {
         // 5c-3a: 配置は 3 組で固定し、**投影だけ**を切り替える (VOXY_PROJECTION)
         if (System.getProperty("voxy.5c3") != null) return Mode.TRIPLE;
+        // 5c-3b: 実ジオメトリ。組の複製は要らない (地形はワールドが決める)
+        if (System.getProperty("voxy.5c3b") != null) return Mode.TERRAIN;
         String e = System.getProperty("voxy.5c1e");
         if (e != null) return parse("voxy.5c1e", e, Mode.PAIR);
         String v = System.getProperty("voxy.5c1d");
@@ -349,6 +351,50 @@ public final class VkInteropProbe {
      * <p>⚠ 1.0 に近いと「境界にいるので見えたり見えなかったりする」になり、
      * <b>対照が揺れる</b>。はっきり外に置く。
      */
+    /**
+     * <b>実ジオメトリを使うか</b> [Phase 5c-3b]。
+     *
+     * <p>⚠ <b>モデルは合成色のままにする</b> (5c-3c で実色にする)。
+     * 実ジオメトリでは位置が実データになるので<b>規約 1 の「各 quad が別々の可視位置を
+     * 占める」が保証から要求に変わる</b>。だが色を合成のままにしておけば
+     * 「索引がずれたら色が変わる」性質は保たれるので、<b>この段では表面化しない</b>
+     * [docs/phase5c3-plan.md 3.1]。<b>1 変数ずつ</b>。
+     */
+    private static final int REAL_GEOMETRY_RADIUS = resolveRealGeometry();
+
+    private static int resolveRealGeometry() {
+        String v = System.getProperty("voxy.5c3b");
+        if (v == null) return -1;
+        if (v.equalsIgnoreCase("off")) return -1;
+        int r = v.equalsIgnoreCase("on") || v.equalsIgnoreCase("full") ? 4 : Integer.parseInt(v);
+        if (r < 0 || r > 16) {
+            throw new IllegalArgumentException("voxy.5c3b radius " + r + " is out of range (0..16)");
+        }
+        return r;
+    }
+
+    private static boolean usesRealGeometry() { return REAL_GEOMETRY_RADIUS >= 0; }
+
+    private me.cortex.voxy.client.core.vk.VkRealMesher mesher;
+    private double lastCameraX, lastCameraY, lastCameraZ;
+    private boolean warnedNoWorld;
+
+    /** 実ジオメトリのジオメトリバッファ容量 (quad)。足りなければ半径を下げる。 */
+    private static final int REAL_GEOMETRY_MAX_QUADS =
+        Integer.parseInt(System.getProperty("voxy.5c3b.quads", "2000000"));
+
+    /**
+     * 実モデルのテクスチャを使うか。<b>既定は使わない</b> = 合成アトラス (id 由来の色)。
+     *
+     * <p>⚠ 5c-3b で見たいのは<b>ジオメトリ</b>である。色を索引由来にしておけば
+     * 「索引がずれたら色が変わる」性質が保たれる (規約 1)。
+     * モデルの面情報は<b>実物のまま</b>なので、面の大きさやくぼみは正しく出る。
+     */
+    private static final boolean REAL_GEOMETRY_COLOURS =
+        Boolean.parseBoolean(System.getProperty("voxy.5c3b.realColours", "false"));
+    private java.util.List<me.cortex.voxy.client.core.rendering.building.BuiltSection> meshedSections;
+    private int[] lastMeshedCameraSection;
+
     /** 合成地形が横に占めるブロック数 (見かけの大きさの見積もり用)。 */
     private static final double TERRAIN_SPAN_BLOCKS = 192.0;
 
@@ -487,6 +533,9 @@ public final class VkInteropProbe {
                           double cameraX, double cameraY, double cameraZ) {
         if (MODE == Mode.OFF) return;
         if (w <= 0 || h <= 0) return;
+        // ⚠ ensureScene はカメラを引数で受け取らないが、実ジオメトリでは
+        // **どこをメッシュ化するか**にカメラが要る
+        this.lastCameraX = cameraX; this.lastCameraY = cameraY; this.lastCameraZ = cameraZ;
 
         // ⚠ `target.width/height` はレンダーターゲットの論理サイズで、
         // テクスチャの実寸と食い違いうる (Retina のバッキングスケール等)。
@@ -620,6 +669,112 @@ public final class VkInteropProbe {
         }
     }
 
+    // ---------------- 5c-3b: 実ジオメトリ ----------------
+
+    /**
+     * ワールドの実データをメッシュ化して置く (Phase 5c-3b)。
+     *
+     * <h2>⚠ ワールドがまだ無いことがある</h2>
+     * Voxy は<b>プレイヤーが読み込んだセクションしか持たない</b>。
+     * 何も取れなければ資源を作らずに戻り、<b>次のフレームでやり直す</b> —
+     * ここで諦めると「一度失敗したら永久に出ない」になる。
+     */
+    private void ensureRealScene() {
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        if (level == null) return;
+        var world = me.cortex.voxy.commonImpl.WorldIdentifier.ofEngineNullable(level);
+        if (world == null) {
+            if (!this.warnedNoWorld) {
+                this.warnedNoWorld = true;
+                Logger.warn("[5c-3b] no Voxy world engine for this level yet — retrying each frame");
+            }
+            return;
+        }
+
+        int r = REAL_GEOMETRY_RADIUS;
+        int side = 2 * r + 1;
+        int maxSections = side * side * side;
+
+        var res = new VkTerrainResources(maxSections, REAL_GEOMETRY_MAX_QUADS,
+            maxSections * 7, 1 << 16,
+            me.cortex.voxy.client.core.vk.VkQuadIndexBuffer.DEFAULT_QUAD_CAPACITY,
+            VkTerrainResources.AtlasScale.REAL);
+        var target = new me.cortex.voxy.client.core.vk.VkModelUploadTarget(res);
+        // ⚠ **ワールドの Mapper を借りる。** 新しく作ると、セクションの中身の
+        // ブロック id / バイオーム id が全部別のものを指す
+        var bakery = new me.cortex.voxy.client.core.vk.VkRealModelBakery(target, world.getMapper());
+        var mesher = new me.cortex.voxy.client.core.vk.VkRealMesher(world, bakery);
+
+        int cx = me.cortex.voxy.client.core.vk.VkHostViewport.sectionOf(this.lastCameraX);
+        int cy = me.cortex.voxy.client.core.vk.VkHostViewport.sectionOf(this.lastCameraY);
+        int cz = me.cortex.voxy.client.core.vk.VkHostViewport.sectionOf(this.lastCameraZ);
+        var built = mesher.meshAround(cx, cy, cz, r);
+
+        if (built.isEmpty()) {
+            // まだ何も無い。**捨ててやり直す** (res を残すと二度と作り直されない)
+            mesher.free(); bakery.free(); target.free(); res.free();
+            return;
+        }
+
+        bakery.replayBiomes();
+        var uploaded = me.cortex.voxy.client.core.vk.VkRealSectionUpload.upload(built, res);
+
+        // ⚠ 実モデルのテクスチャを流すかどうか。既定では流さない = 合成アトラス
+        if (REAL_GEOMETRY_COLOURS) res.useExternalAtlasContent();
+
+        this.res = res;
+        this.modelTarget = target;
+        this.bakery = bakery;
+        this.mesher = mesher;
+        this.meshedSections = built;
+        this.drawCount = uploaded.drawCount();
+        this.lastMeshedCameraSection = new int[]{cx, cy, cz};
+
+        Logger.info("[5c-3b] uploaded " + uploaded.sectionCount() + " sections, "
+            + uploaded.totalQuads() + " quads, " + uploaded.drawCount() + " draws"
+            + "  (colours=" + (REAL_GEOMETRY_COLOURS ? "REAL textures" : "synthetic, by model id")
+            + ")");
+
+        // --- 不変条件。**絵を見る前に**言えることを言う ---
+        var problems = me.cortex.voxy.client.core.vk.VkGeometryInvariants.checkSections(
+            uploaded.geometry(), res.maxModels, res.indexQuadCapacity);
+        if (problems.isEmpty()) {
+            Logger.info("[5c-3b] the real geometry satisfies every invariant across "
+                + uploaded.sectionCount() + " sections"
+                + " (bucket order, stateId range, no duplicate quads, fits one draw)");
+        } else {
+            for (String p : problems) Logger.error("[5c-3b] ⚠ invariant broken: " + p);
+        }
+        this.reportGreedyMerging(uploaded);
+    }
+
+    /**
+     * <b>貪欲メッシュが効いているか</b>を数字で言う (Phase 5c-3b)。
+     *
+     * <p>⚠ 合成地形は<b>全 quad が 1x1</b> だった。実データでも全部 1x1 なら
+     * <b>併合が働いていない</b> — これは落ちないし絵も出るので、見に行かないと分からない
+     * [規約 19 を書いたときの副産物]。
+     */
+    private void reportGreedyMerging(
+            me.cortex.voxy.client.core.vk.VkRealSectionUpload.Uploaded uploaded) {
+        long merged = 0, total = 0, area = 0;
+        for (var sg : uploaded.geometry()) {
+            for (int i = 0; i < sg.quadCount(); i++) {
+                long q = org.lwjgl.system.MemoryUtil.memGetLong(sg.quadAddress() + (long) i * 8L);
+                // ⚠ ここだけ大きさのビットを読む。**quad_format.glsl の literal**
+                int sx = (int) ((q >>> 3) & 0xFL) + 1;
+                int sy = (int) ((q >>> 7) & 0xFL) + 1;
+                area += (long) sx * sy;
+                if (sx > 1 || sy > 1) merged++;
+                total++;
+            }
+        }
+        Logger.info("[5c-3b] greedy merging: " + merged + " of " + total
+            + " quads cover more than one block (" + area + " block faces in "
+            + total + " quads)"
+            + (merged == 0 ? "  ⚠ NOTHING merged — the mesher is emitting 1x1 quads only" : ""));
+    }
+
     // ---------------- 5c-1d: 合成地形 ----------------
 
     /**
@@ -630,6 +785,7 @@ public final class VkInteropProbe {
      */
     private void ensureScene() {
         if (this.res != null) return;
+        if (usesRealGeometry()) { this.ensureRealScene(); return; }
         // 5c-1e は同じ地形を 2 組持つ。前半 = 手前、後半 = 奥
         this.terrain = SyntheticTerrain.boundaryCases().repeated(copies());
         // ⚠ 実データのモデル id は mapper が採番するので、合成の maxStateId とは無関係。
@@ -689,6 +845,52 @@ public final class VkInteropProbe {
     }
 
     /**
+     * 実ジオメトリ用のユニフォーム (Phase 5c-3b)。
+     *
+     * <h2>合成地形との違い</h2>
+     * <ul>
+     *   <li>アンカーは<b>カメラのセクション</b>。本番と同じである
+     *       (合成地形だけが「カメラの前に置く」ために別のアンカーを使っていた)</li>
+     *   <li>位置は<b>アップロード時に絶対座標で書き終えている</b>。毎フレーム書き直さない</li>
+     * </ul>
+     */
+    private void writeRealSceneUniform(org.joml.Matrix4fc projection, org.joml.Matrix4fc modelView,
+                                       double cameraX, double cameraY, double cameraZ) {
+        int[] anchor = {
+            me.cortex.voxy.client.core.vk.VkHostViewport.sectionOf(cameraX),
+            me.cortex.voxy.client.core.vk.VkHostViewport.sectionOf(cameraY),
+            me.cortex.voxy.client.core.vk.VkHostViewport.sectionOf(cameraZ)};
+        float[] sub = me.cortex.voxy.client.core.vk.VkHostViewport.cameraSubPos(
+            cameraX, cameraY, cameraZ, anchor);
+
+        var mcProjection = me.cortex.voxy.client.core.vk.VkHostViewport.projectionForVulkan(
+            projection, modelView, sub, new int[]{0, 0, 0});
+        var vkProjection = VOXY_PROJECTION
+            ? me.cortex.voxy.client.core.vk.VkHostViewport.voxyProjection(mcProjection,
+                me.cortex.voxy.client.core.vk.VkHostViewport.VOXY_NEAR,
+                me.cortex.voxy.client.core.vk.VkHostViewport.VOXY_FAR)
+            : mcProjection;
+        float[] m = me.cortex.voxy.client.core.vk.VkHostViewport.mvp(vkProjection, modelView, sub);
+        VkSceneUniform.write(this.res.uniform, m, anchor,
+            (int) (this.frames & 0x7fffffff), sub);
+
+        if (VOXY_PROJECTION) {
+            float[] mcM = me.cortex.voxy.client.core.vk.VkHostViewport.mvp(
+                mcProjection, modelView, sub);
+            this.resolve.setReprojection(
+                new org.joml.Matrix4f().set(m).invert(),
+                new org.joml.Matrix4f().set(mcM));
+        }
+
+        if (this.frames < 3 || this.frames % 300 == 0) {
+            Logger.info("[5c-3b] camera section " + java.util.Arrays.toString(anchor)
+                + "  meshed around " + java.util.Arrays.toString(this.lastMeshedCameraSection)
+                + "  draws=" + this.drawCount
+                + "  [the mesh does NOT follow the camera in 5c-3b; walk back if nothing shows]");
+        }
+    }
+
+    /**
      * MC のカメラから <b>MVP・アンカー・カメラ内位置</b>を作ってユニフォームに書く。
      *
      * <h2>本番の GL 経路と同じ組み立て [確認済 — {@code MDICSectionRenderer.uploadUniformBuffer}]</h2>
@@ -720,6 +922,10 @@ public final class VkInteropProbe {
                                    double cameraX, double cameraY, double cameraZ) {
         if (MODE == Mode.TERRAIN_REFMVP) {
             this.writeReferenceSceneUniform();
+            return;
+        }
+        if (usesRealGeometry()) {
+            this.writeRealSceneUniform(projection, modelView, cameraX, cameraY, cameraZ);
             return;
         }
         // ⚠ **カメラの正面**に置く。固定の方角に置いていた 5c-1d の初回は、
@@ -1297,6 +1503,11 @@ public final class VkInteropProbe {
         this.freeSizeDependent();
         if (this.res != null) { this.res.free(); this.res = null; }
         if (this.scratchFbo != null) { this.scratchFbo.free(); this.scratchFbo = null; }
+        if (this.mesher != null) { this.mesher.free(); this.mesher = null; }
+        if (this.meshedSections != null) {
+            for (var b : this.meshedSections) b.free();
+            this.meshedSections = null;
+        }
         if (this.bakery != null) { this.bakery.free(); this.bakery = null; }
         if (this.modelTarget != null) { this.modelTarget.free(); this.modelTarget = null; }
         if (this.depthImport != null) { this.depthImport.free(); this.depthImport = null; }
