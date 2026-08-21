@@ -101,10 +101,21 @@ public class VkTraversalTest {
 
     /** 1 フレーム走らせて、描かれたメッシュ id を返す。 */
     private static int[] run(VkTraversal tr, VkNodeTree tree, float minSSS) {
+        return run(tr, tree, minSSS, new int[]{0, 0, 0});
+    }
+
+    /**
+     * カメラのセクションを指定して走らせる。
+     *
+     * <p>⚠ MVP は<b>カメラ相対</b>なので動かさない。
+     * {@code camSecPos} を動かすと<b>世界のほうが動く</b> —
+     * これは本番と同じ組み立てである [{@code basePos = ((pos&lt;&lt;lod)-camSecPos)&lt;&lt;5 - camSubSecPos}]。
+     */
+    private static int[] run(VkTraversal tr, VkNodeTree tree, float minSSS, int[] camSection) {
         tree.write(tr.nodeData);
         tree.writeTopNodes(tr.topNodeIds);
         var m = mvp();
-        tr.writeUniform(m, new int[]{0, 0, 0}, new float[]{0, 0, 0},
+        tr.writeUniform(m, camSection, new float[]{0, 0, 0},
             (HIZ_W << 16) | HIZ_H, minSSS, VkHostViewport.frustumPlanes(m), 1, -1.0f);
         tr.reset(tree.topNodes().length);
 
@@ -302,6 +313,103 @@ public class VkTraversalTest {
                 "one barrier between each pair of dispatches, plus one after the last;"
                     + " the next iteration reads the previous one's count through"
                     + " vkCmdDispatchIndirect");
+        } finally { tr.free(); }
+    }
+
+    // ================= 【C】LoD と距離 =================
+
+    /** 描かれたうち<b>最も細かい</b> LoD レベル (小さいほど細かい)。 */
+    private static int finestLevel(VkNodeTree tree, int[] drawnMeshes) {
+        int finest = Integer.MAX_VALUE;
+        for (int mesh : drawnMeshes) finest = Math.min(finest, tree.levelOf(mesh));
+        return finest;
+    }
+
+    /**
+     * <b>同じフレームで、近いところは細かく、遠いところは粗く選ばれること</b>。
+     *
+     * <p>⚠ <b>両方向を 1 回の実行で要求する</b> — 片方だけだと
+     * 「常に細かい」「常に粗い」を落とせない [5c-1e と同じ構造]。
+     * 木は 2 本、<b>大きさは同じで距離だけが違う</b>。
+     */
+    @Test
+    void nearThingsAreDrawnFinerThanFarThingsInTheSameFrame() {
+        var tr = new VkTraversal(hiz, 256, 512, 512, 256);
+        try {
+            // 近い木 (LoD0 セクション -8 付近) と 遠い木 (-64 付近)。大きさは同じ
+            var near = VkNodeTree.twoLevelOctree(2, 0, 0, -2);
+            var far  = VkNodeTree.twoLevelOctree(2, 0, 0, -16);
+
+            int[] drawnNear = run(tr, near, 0.02f);
+            int[] drawnFar  = run(tr, far,  0.02f);
+
+            assertTrue(drawnNear.length > 0, "control: the near tree must be drawn at all");
+            assertTrue(drawnFar.length > 0, "control: the far tree must be drawn at all");
+
+            int fNear = finestLevel(near, drawnNear);
+            int fFar  = finestLevel(far,  drawnFar);
+            assertTrue(fNear < fFar,
+                "the near tree must be drawn finer than the far one, got near=" + fNear
+                    + " far=" + fFar + " (smaller is finer)"
+                    + "; near drew " + drawnNear.length + " nodes, far drew " + drawnFar.length);
+
+            // ...そして遠いほうは根で止まっていること (「両方とも細かい」を落とす)
+            assertEquals(2, fFar, "the far tree should not have descended at all");
+        } finally { tr.free(); }
+    }
+
+    /**
+     * <b>カメラを遠ざけると切り口は粗くなる一方で、細かくなることはないこと。</b>
+     *
+     * <p>個々の選択を予測せず、<b>変化の向きだけ</b>を言う。
+     * 5c-1c で {@code movingTheCameraCloserIncreasesTheClosestDepth} を作ったのと同じ発想。
+     *
+     * <h2>⚠ 両方向</h2>
+     * <ul>
+     *   <li>遠ざかる → 最も細かいレベルは<b>細かくならない</b> (単調非減少)</li>
+     *   <li>近づく → <b>粗くならない</b> (同じ列を逆に読むので同時に主張される)</li>
+     *   <li>⚠ そして<b>実際に変わること</b> — 全部同じなら単調性は何も言っていない</li>
+     * </ul>
+     *
+     * <p>⚠ 「遠ざかると描かれる数が<b>減る</b>」とは言えない。
+     * 粗くなるので数は減りうるが、<b>体積は同じ</b>である。増えないことだけを言う。
+     */
+    @Test
+    void movingAwayOnlyEverCoarsensTheCut() {
+        var tr = new VkTraversal(hiz, 256, 512, 512, 256);
+        try {
+            var tree = VkNodeTree.twoLevelOctree(2, 0, 0, -2);
+            int[] distances = {0, 2, 4, 8, 16, 32};
+            int[] finest = new int[distances.length];
+            int[] counts = new int[distances.length];
+
+            for (int i = 0; i < distances.length; i++) {
+                // camSecPos.z を増やす = カメラが +Z へ下がる = 木が遠ざかる
+                int[] drawn = run(tr, tree, 0.02f, new int[]{0, 0, distances[i]});
+                assertTrue(drawn.length > 0,
+                    "nothing drawn at camera section z=" + distances[i]
+                        + "; the monotonicity claim would be vacuous");
+                finest[i] = finestLevel(tree, drawn);
+                counts[i] = drawn.length;
+            }
+            System.out.println("[vk] cut vs distance: finest=" + Arrays.toString(finest)
+                + " drawn=" + Arrays.toString(counts));
+
+            for (int i = 1; i < distances.length; i++) {
+                assertTrue(finest[i] >= finest[i - 1],
+                    "moving away made the cut FINER at z=" + distances[i]
+                        + ": finest went " + finest[i - 1] + " -> " + finest[i]
+                        + " (" + Arrays.toString(finest) + ")");
+                assertTrue(counts[i] <= counts[i - 1],
+                    "moving away increased the number of drawn nodes at z=" + distances[i]
+                        + ": " + counts[i - 1] + " -> " + counts[i]
+                        + " (" + Arrays.toString(counts) + ")");
+            }
+
+            // ⚠ 実際に変わっていること。全部同じなら上の単調性は空虚である
+            assertTrue(finest[finest.length - 1] > finest[0],
+                "the cut never coarsened across the whole sweep " + Arrays.toString(finest)
+                    + " — the monotonicity check is not distinguishing anything");
         } finally { tr.free(); }
     }
 }

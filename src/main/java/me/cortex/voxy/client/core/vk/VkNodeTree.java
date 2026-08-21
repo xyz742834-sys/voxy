@@ -26,6 +26,22 @@ import java.util.List;
  *   <tr><td>w</td><td>{@code childPtr} (24bit) | {@code flags} の上位 8bit &lt;&lt; 24</td></tr>
  * </table>
  *
+ * <h2>⚠ 同じ詰め方に<b>ワード順が 2 通り</b>ある</h2>
+ * {@code pos_util.glsl} は {@code packedPos.x} = レベル + y + z上位、
+ * {@code packedPos.y} = x + z下位 と読む。メモリ上では {@code .x} が先である。
+ *
+ * <table>
+ *   <tr><th></th><th>long の中身</th><th>書き出し</th></tr>
+ *   <tr><td>{@link SyntheticTerrain#packPosition}</td><td>下位 = {@code .x}</td>
+ *       <td>下位を先に書く (ここ)</td></tr>
+ *   <tr><td>{@code NodeStore.nodePosition}</td><td><b>上位 = {@code .x}</b></td>
+ *       <td>上位を先に書く</td></tr>
+ * </table>
+ *
+ * <p><b>どちらもメモリ上は同じ並びになる</b>が、long の中では逆である。
+ * 片方の書き出し規約でもう片方の long を書くと<b>位置が滅茶苦茶になる</b> —
+ * 落ちないし、地形はどこかに描かれる。
+ *
  * <p>{@code flags} の意味 [確認済]:
  * <ul>
  *   <li>bit 0 — 要求済み ({@code hasRequested})</li>
@@ -145,6 +161,35 @@ public final class VkNodeTree {
      *   <li>どちらでも<b>反鎖である</b> — 根と子が同時に出たら切り口ではない</li>
      * </ul>
      */
+    /**
+     * <b>2 段降りられる木</b>。根 1 + 子 8 + 孫 64。全員がメッシュを持つ。
+     *
+     * <p>LoD が距離に対して単調かを見るのに使う —
+     * <b>切り口が 3 段のどこにでも落ちうる</b>ので、
+     * 「常に根」「常に葉」では通らない構成になる。
+     */
+    public static VkNodeTree twoLevelOctree(int level, int x, int y, int z) {
+        var t = new VkNodeTree();
+        int root = t.add(level, x, y, z, 0, 1, 8);            // 子は id 1..8
+        for (int i = 0; i < 8; i++) {
+            int cx = (x << 1) | (i & 1), cy = (y << 1) | ((i >> 1) & 1), cz = (z << 1) | ((i >> 2) & 1);
+            // 孫は id 9 + i*8 .. 9 + i*8 + 7
+            t.add(level - 1, cx, cy, cz, 1 + i, 9 + i * 8, 8);
+        }
+        for (int i = 0; i < 8; i++) {
+            int cx = (x << 1) | (i & 1), cy = (y << 1) | ((i >> 1) & 1), cz = (z << 1) | ((i >> 2) & 1);
+            for (int j = 0; j < 8; j++) {
+                t.addLeaf(level - 2, (cx << 1) | (j & 1), (cy << 1) | ((j >> 1) & 1),
+                    (cz << 1) | ((j >> 2) & 1), 9 + i * 8 + j);
+            }
+        }
+        t.markTop(root);
+        return t;
+    }
+
+    /** ノード id からその LoD レベル。 */
+    public int levelOf(int nodeId) { return this.nodes.get(nodeId).level(); }
+
     public static VkNodeTree oneLevelOctree(int level, int x, int y, int z) {
         var t = new VkNodeTree();
         int root = t.add(level, x, y, z, 0, 1, 8);   // 子は id 1..8

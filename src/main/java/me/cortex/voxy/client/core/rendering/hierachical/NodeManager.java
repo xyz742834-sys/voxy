@@ -1355,13 +1355,24 @@ public class NodeManager {
 
     //==================================================================================================================
     public boolean writeChanges(GlBuffer nodeBuffer) {
+        return this.writeChanges(new GlNodeUploadTarget(nodeBuffer));
+    }
+
+    /**
+     * 更新のあったノードを置き場所へ書く。
+     *
+     * <p>⚠ 置き場所は<b>GPU の種類を知らない</b> [Phase 5c-4b の分岐点]。
+     * GL 実装は転送ストリーム経由、Vulkan 実装はホスト可視メモリへ直接書く。
+     */
+    public boolean writeChanges(NodeUploadTarget target) {
         //TODO: use like compute based copy system or something
         // since microcopies are bad
         if (this.nodeUpdates.isEmpty()) {
             return false;
         }
-        this.nodeUpdates.forEach((int i) -> this.nodeData.writeNode(UploadStream.INSTANCE.upload(nodeBuffer, i*16L, 16L), i));
+        this.nodeUpdates.forEach((int i) -> this.nodeData.writeNode(target.nodeWriteAddress(i), i));
         this.nodeUpdates.clear();
+        target.commitNodes();
         return true;
     }
 
