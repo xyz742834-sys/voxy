@@ -289,15 +289,95 @@ public final class VkRealModelBakery {
      */
     public int reportIndistinguishableStagedTiles() {
         var ids = this.target.stagedModelIds();
+        long bytes = (long) ModelAtlasLayout.tileWidth(ModelAtlasLayout.FACE_TEXELS, 0)
+            * ModelAtlasLayout.tileHeight(ModelAtlasLayout.FACE_TEXELS, 0) * 4L;
+
         long[] addrs = new long[ids.length];
-        for (int i = 0; i < ids.length; i++) addrs[i] = this.target.stagedTileAddress(ids[i]);
-        var problems = assertTilesAreDistinguishable(ids, addrs, ModelAtlasLayout.FACE_TEXELS);
-        for (String s : problems) Logger.warn("[5c-3b] ⚠ 規約 1 weakened: " + s);
-        if (!problems.isEmpty()) {
-            Logger.warn("[5c-3b] ⚠ " + problems.size() + " indistinguishable pairs among "
-                + ids.length + " baked models — swapping those would not change the picture");
+        boolean[] blank = new boolean[ids.length];
+        int blankCount = 0;
+        for (int i = 0; i < ids.length; i++) {
+            addrs[i] = this.target.stagedTileAddress(ids[i]);
+            blank[i] = addrs[i] != 0 && isBlank(addrs[i], bytes);
+            if (blank[i]) blankCount++;
         }
-        return problems.size();
+
+        // --- 同じ中身どうしをまとめる ---
+        int[] group = new int[ids.length];
+        java.util.Arrays.fill(group, -1);
+        var groups = new ArrayList<List<Integer>>();
+        for (int i = 0; i < ids.length; i++) {
+            if (group[i] != -1 || addrs[i] == 0) continue;
+            List<Integer> g = null;
+            for (int j = i + 1; j < ids.length; j++) {
+                if (group[j] != -1 || addrs[j] == 0) continue;
+                if (!sameBytes(addrs[i], addrs[j], bytes)) continue;
+                if (g == null) { g = new ArrayList<>(); g.add(i); group[i] = groups.size(); }
+                g.add(j);
+                group[j] = groups.size();
+            }
+            if (g != null) groups.add(g);
+        }
+        if (groups.isEmpty()) return 0;
+
+        int involved = 0, pairs = 0;
+        for (var g : groups) { involved += g.size(); pairs += g.size() * (g.size() - 1) / 2; }
+
+        // ⚠ **「焼き損なって空」と「実データとして同じ絵」は別物である。**
+        // 前者は欠陥、後者はブロック状態の性質 (見た目に効かない property の違い)。
+        // 一緒くたに警告すると、本当の欠陥が 57 行のノイズに埋まる
+        Logger.warn("[5c-3b] ⚠ 規約 1 weakened: " + involved + " of " + ids.length
+            + " baked models are visually interchangeable with another"
+            + " (" + pairs + " pairs in " + groups.size() + " groups)"
+            + (blankCount > 0 ? "; " + blankCount + " of them bake to a BLANK tile" : ""));
+        if (blankCount > 0) {
+            Logger.warn("[5c-3b] ⚠ a blank tile means the bake produced nothing —"
+                + " that is a defect, not a property of the data");
+        }
+
+        // どのブロックが衝突しているのかを言う。判断できなければ意味がない
+        var modelToBlocks = this.modelToBlockStates();
+        int shown = 0;
+        for (var g : groups) {
+            if (shown++ >= 5) {
+                Logger.warn("[5c-3b]   ... and " + (groups.size() - 5) + " more groups");
+                break;
+            }
+            var sb = new StringBuilder("[5c-3b]   group of " + g.size() + (blank[g.get(0)]
+                ? " (BLANK): " : ": "));
+            for (int k = 0; k < Math.min(4, g.size()); k++) {
+                int modelId = ids[g.get(k)];
+                sb.append(modelId).append('=').append(modelToBlocks.getOrDefault(modelId, "?"));
+                if (k + 1 < Math.min(4, g.size())) sb.append(", ");
+            }
+            if (g.size() > 4) sb.append(", ...");
+            Logger.warn(sb.toString());
+        }
+        return pairs;
+    }
+
+    /** モデル id -> そのモデルを使うブロック状態 (先頭 1 つの名前)。診断用。 */
+    private java.util.Map<Integer, String> modelToBlockStates() {
+        var out = new java.util.HashMap<Integer, String>();
+        int[] idMappings = this.factory._unsafeRawAccess();
+        for (int blockId = 0; blockId < idMappings.length; blockId++) {
+            int modelId = idMappings[blockId];
+            if (modelId < 0 || out.containsKey(modelId)) continue;
+            try {
+                var state = this.mapper.getBlockStateFromBlockId(blockId);
+                out.put(modelId, state == null ? "?" : state.getBlock().toString());
+            } catch (RuntimeException e) {
+                out.put(modelId, "?");
+            }
+        }
+        return out;
+    }
+
+    /** タイルが<b>全部 0</b> か (= 焼き損なって何も出ていない)。 */
+    private static boolean isBlank(long addr, long n) {
+        for (long i = 0; i < n; i += 8) {
+            if (MemoryUtil.memGetLong(addr + i) != 0L) return false;
+        }
+        return true;
     }
 
     /**
