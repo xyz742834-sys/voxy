@@ -49,6 +49,35 @@ public class VkRealPositionTest {
     }
 
     /**
+     * <b>2 つの形式は「別物」ではなく<b>ワードを入れ替えたもの</b>である。</b>
+     *
+     * <pre>
+     * WorldEngine のキー : lvl&lt;&lt;60 | y&lt;&lt;52 | z&lt;&lt;28 | x&lt;&lt;4
+     * packPosition       : px = lvl&lt;&lt;28 | y&lt;&lt;20 | z上位     (下位ワード)
+     *                      py = x&lt;&lt;4 | z下位&lt;&lt;28            (上位ワード)
+     *
+     *   (int)(key &gt;&gt;&gt; 32) == px        (int) key == py
+     * </pre>
+     *
+     * <p><b>これが分かると、上流が復号せずに上位ワードから書いている理由が読める</b>
+     * [{@code SectionMeta.writeMetadataSplitParts} / {@code NodeStore.writeNode}]。
+     * メモリ上は {@code .x = px, .y = py} になり、{@code pos_util.glsl} の読み方と合う。
+     *
+     * <p>⚠ <b>この関係が崩れたら、上流の書き出しと {@code VkRealSectionUpload} の
+     * 両方が同時に壊れる</b>。だからここで固定する。
+     */
+    @Test
+    void theWorldKeyIsPackPositionWithItsWordsSwapped() {
+        for (int[] c : CASES) {
+            long key = WorldEngine.getWorldSectionId(c[3], c[0], c[1], c[2]);
+            long gpu = SyntheticTerrain.packPosition(c[0], c[1], c[2], c[3]);
+            String at = "(" + c[0] + "," + c[1] + "," + c[2] + ") lvl " + c[3];
+            assertEquals((int) gpu, (int) (key >>> 32), at + ": key's HIGH word must be px");
+            assertEquals((int) (gpu >>> 32), (int) key, at + ": key's LOW word must be py");
+        }
+    }
+
+    /**
      * <b>対照: 2 つの形式は本当に違う。</b>
      *
      * <p>これが無いと「詰め直しは実は不要だった」と区別が付かず、

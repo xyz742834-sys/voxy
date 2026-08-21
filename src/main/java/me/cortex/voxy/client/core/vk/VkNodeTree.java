@@ -42,6 +42,12 @@ import java.util.List;
  * 片方の書き出し規約でもう片方の long を書くと<b>位置が滅茶苦茶になる</b> —
  * 落ちないし、地形はどこかに描かれる。
  *
+ * <p>⚠ <b>「別の詰め方」ではなく「ワードの入れ替え」である</b>
+ * [確認済 — {@code VkRealPositionTest.theWorldKeyIsPackPositionWithItsWordsSwapped}]。
+ * そう分かると、上流が<b>復号せずに上位ワードから書いている</b>理由が読める。
+ * 3 箇所で同じ形が出ている: {@code NodeStore.writeNode} /
+ * {@code SectionMeta.writeMetadataSplitParts} / ここ。
+ *
  * <p>{@code flags} の意味 [確認済]:
  * <ul>
  *   <li>bit 0 — 要求済み ({@code hasRequested})</li>

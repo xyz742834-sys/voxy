@@ -16,9 +16,21 @@ import java.util.List;
  * GPU が読むのは <b>{@code pos_util.glsl} の形式</b>
  * ({@link SyntheticTerrain#packPosition}) である。<b>別物である。</b>
  *
- * <p>そのまま書くと位置が滅茶苦茶になる。落ちないし、
+ * <p>⚠⚠ <b>ただし「別物」ではない</b> — 調べると<b>ワードを入れ替えただけ</b>だった
+ * [確認済 — {@code VkRealPositionTest.theWorldKeyIsPackPositionWithItsWordsSwapped}]:
+ *
+ * <pre>
+ *   (int)(key &gt;&gt;&gt; 32) == packPosition の下位ワード (px)
+ *   (int) key         == packPosition の上位ワード (py)
+ * </pre>
+ *
+ * <p>だから上流は<b>復号せずに上位ワードから書く</b>だけで正しい
+ * [{@code SectionMeta.writeMetadataSplitParts}]。
+ * ここは復号して詰め直しているので<b>遠回りだが結果は同じ</b>である。
+ * 動いていて検査もあるので変えない — <b>等価な書き換えで壊す危険のほうが大きい</b>。
+ *
+ * <p>そのまま低位ワードから書くと位置が滅茶苦茶になる。落ちないし、
  * 「地形がどこかに出ている」ようには見えるので<b>気付きにくい</b>。
- * ここで必ず<b>復号して詰め直す</b>。
  *
  * <h2>AABB はそのまま使える [確認済]</h2>
  * {@code RenderDataFactory} は {@code minX | minY<<5 | minZ<<10 |
