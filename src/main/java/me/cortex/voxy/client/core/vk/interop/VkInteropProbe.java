@@ -757,7 +757,10 @@ public final class VkInteropProbe {
                 // 描いていない画素は捨て、残りは MC の深度と比較する
                 // 5c-3b: MC も同じ場所を描いているので、深度を見ると当然ちらつく。
                 // Voxy 側だけを見たいときは深度を見ない
-                case TERRAIN, PAIR, TRIPLE -> (usesRealGeometry() && REAL_GEOMETRY_ONLY)
+                // ⚠ **HIERARCHICAL をここに入れ忘れると default に落ちて DepthMode.NONE になる。**
+                // 深度を見ずに全面を貼るので、**クリア色が MC の画面を丸ごと覆う**
+                // (5c-1d の「橙一色」と同じ症状・同じ場所)
+                case TERRAIN, PAIR, TRIPLE, HIERARCHICAL -> (usesRealGeometry() && REAL_GEOMETRY_ONLY)
                     ? new GlInteropCompositor(GlInteropCompositor.DepthMode.NONE)
                     : GlInteropCompositor.forHost();
                 // 診断: 深度を見ずに全面を貼る。橙一色なら地形が画面に無い
@@ -1377,7 +1380,12 @@ public final class VkInteropProbe {
             + "  dropped: pushes=" + tr.droppedNodePushes()
             + " reads=" + tr.droppedNodeReads()
             + (tr.droppedNodePushes() + tr.droppedNodeReads() > 0
-                ? "  ⚠ THE QUEUE OVERFLOWED — raise -Pvoxy5c4Sections" : ""));
+                ? "  ⚠ THE QUEUE OVERFLOWED — raise -Pvoxy5c4Sections" : "")
+            // ⚠ drawn=0 の意味を 1 通りにする [規約 18]。木は populate した位置に
+            // 固定されているので、離れれば何も選ばれないのが**正常**である
+            + (this.scene.drawnSectionCount() == 0
+                ? "  [drawn=0: the tree is anchored where it was populated and does NOT"
+                  + " follow the camera — walk back, or restart to re-populate here]" : ""));
         Logger.info("[5c-4c] GPU " + this.scene.timer().describe());
     }
 
