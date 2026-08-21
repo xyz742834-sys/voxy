@@ -28,6 +28,8 @@ public class VkContext {
     public final VkPhysicalDeviceMemoryProperties memProps;
 
     public final float timestampPeriod;
+    /** キューがタイムスタンプを取れるビット数。<b>0 なら取れない</b>。 */
+    public final int timestampValidBits;
     public final int maxPushConstantsSize;
     public final int subgroupSize;
     public final boolean hasSubgroup;
@@ -244,6 +246,9 @@ public class VkContext {
             }
             if (family < 0) throw new IllegalStateException("no graphics queue family");
             this.queueFamily = family;
+            // ⚠ タイムスタンプは**使えるとは限らない**。0 なら計測器は数字を出してはいけない
+            // [Phase 5c-4c]。「対応していない」と「0 ms だった」は別物である [規約 18]
+            this.timestampValidBits = qfp.get(family).timestampValidBits();
 
             VkDeviceQueueCreateInfo.Buffer qci = VkDeviceQueueCreateInfo.calloc(1, stack)
                 .sType$Default().queueFamilyIndex(queueFamily)
@@ -337,6 +342,7 @@ public class VkContext {
             Logger.info("Vulkan: " + props.deviceNameString()
                 + " api=" + VK_VERSION_MAJOR(props.apiVersion()) + "." + VK_VERSION_MINOR(props.apiVersion())
                 + " subgroupSize=" + subgroupSize
+                + " timestampBits=" + timestampValidBits + " timestampPeriod=" + timestampPeriod
                 + " maxPushConstants=" + maxPushConstantsSize
                 + " minSsboOffsetAlign=" + minStorageBufferOffsetAlignment
                 + " unifiedMemType=" + unifiedMemoryType
