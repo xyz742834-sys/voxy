@@ -299,6 +299,55 @@ public final class VkHostViewport {
     }
 
     /**
+     * <b>視錐台の 6 平面</b>を MVP から取り出す (Phase 5c-4b)。
+     *
+     * <h2>並びと向き [確認済 — {@code frustum.glsl} / JOML の {@code FrustumIntersection}]</h2>
+     * 並びは <b>NX, PX, NY, PY, NZ, PZ</b>。
+     * {@code testPlane} は {@code dot(plane.xyz, p) >= -plane.w} を「内側」とするので、
+     * 平面は {@code (nx,ny,nz,d)} で内側が {@code n·p + d >= 0} である。
+     *
+     * <p>⚠ シェーダは <b>index 5 (PZ = far) を検査しない</b>
+     * [確認済 — {@code outsideFrustum} が 0..4 だけを見る]。それでも 6 つ書く —
+     * ユニフォームの配置がそうなっているため。
+     *
+     * <p>⚠ <b>正規化していない。</b> AABB の判定は
+     * 「正の倍率で不変」なので要らない [{@code testPlane} は符号しか見ない]。
+     * 球の判定に使うなら正規化が要るが、この経路では使わない。
+     *
+     * <p>深度は 0..1 とする ({@link #projectionForVulkan} を通した MVP を渡すこと)。
+     *
+     * @return 長さ 24 の配列 (6 平面 x 4 成分)
+     */
+    public static float[] frustumPlanes(Matrix4fc mvp) {
+        // 数学上の行 r = (m0r, m1r, m2r, m3r)  [JOML は列優先で mXY = 列X 行Y]
+        float[] r0 = {mvp.m00(), mvp.m10(), mvp.m20(), mvp.m30()};
+        float[] r1 = {mvp.m01(), mvp.m11(), mvp.m21(), mvp.m31()};
+        float[] r2 = {mvp.m02(), mvp.m12(), mvp.m22(), mvp.m32()};
+        float[] r3 = {mvp.m03(), mvp.m13(), mvp.m23(), mvp.m33()};
+
+        float[] out = new float[24];
+        put(out, 0, add(r3, r0));   // NX  clip.x >= -clip.w
+        put(out, 1, sub(r3, r0));   // PX  clip.x <=  clip.w
+        put(out, 2, add(r3, r1));   // NY
+        put(out, 3, sub(r3, r1));   // PY
+        put(out, 4, r2);            // NZ  clip.z >= 0   (深度 0..1)
+        put(out, 5, sub(r3, r2));   // PZ  clip.z <= clip.w
+        return out;
+    }
+
+    private static float[] add(float[] a, float[] b) {
+        return new float[]{a[0] + b[0], a[1] + b[1], a[2] + b[2], a[3] + b[3]};
+    }
+
+    private static float[] sub(float[] a, float[] b) {
+        return new float[]{a[0] - b[0], a[1] - b[1], a[2] - b[2], a[3] - b[3]};
+    }
+
+    private static void put(float[] out, int plane, float[] v) {
+        System.arraycopy(v, 0, out, plane * 4, 4);
+    }
+
+    /**
      * {@code -1..1} の深度を {@code 0..1} に写す。
      * クリップ空間で {@code z' = (z + w) / 2} なので、<b>行 2 に行 3 を足して半分</b>にする。
      */
