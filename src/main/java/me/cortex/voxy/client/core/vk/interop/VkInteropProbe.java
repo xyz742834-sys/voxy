@@ -228,7 +228,19 @@ public final class VkInteropProbe {
 
     private static boolean resolveVoxyProjection() {
         String v = System.getProperty("voxy.5c3");
-        if (v == null) return false;
+        // ⚠ 階層トラバーサルは**自前の投影が前提**である。
+        // MC の投影のままでは MC の far 平面の外へ届かず、
+        // **5c-3a で作ったものが効かない**。既定で入れる
+        //
+        // ⚠⚠ ここは **MODE が先に初期化されていること**に依存する (静的初期化は宣言順)。
+        // 並べ替えると MODE が null になり、この判定が黙って false に倒れて
+        // **自前の投影が無効になる** — 絵は出るので気付かない。だから明示的に落とす
+        if (MODE == null) {
+            throw new IllegalStateException("MODE must be initialised before VOXY_PROJECTION;"
+                + " the field order in this class was changed and the projection would have"
+                + " silently fallen back to Minecraft's");
+        }
+        if (v == null) return MODE == Mode.HIERARCHICAL;
         return switch (v.toLowerCase(java.util.Locale.ROOT)) {
             case "off" -> false;              // 対照: MC の投影のまま 3 組置く
             case "on", "full" -> true;        // 本命: 自前の投影 + 深度再投影
@@ -716,6 +728,9 @@ public final class VkInteropProbe {
         if (MODE == Mode.HIERARCHICAL && this.scene != null
                 && (this.frames == 2 || this.frames % 120 == 0)) {
             this.logHierarchical();
+            // ⚠ **画素数を出す。** 「drawn=216」は*選ばれた*数であって
+            // *画面に出た*数ではない。目視で判断させると 5c-3a と同じ空振りになる
+            Logger.info("[5c-4c]   voxy footprint: " + this.screenFootprint());
         }
         this.frames++;
 
