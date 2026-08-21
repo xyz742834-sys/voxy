@@ -100,6 +100,9 @@ public final class VkHierarchicalScene {
 
     private int topLevelCount;
     private int meshedSections;
+    /** 既にメッシュ化を試した位置。監視集合との差分を取るのに使う。 */
+    private final it.unimi.dsi.fastutil.longs.LongOpenHashSet pendingMesh =
+        new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
 
     /**
      * @param depthSource 深度解決の出力 (HiZ の元)
@@ -207,6 +210,11 @@ public final class VkHierarchicalScene {
         this.timer.reset(cmd);
         this.timer.mark(cmd, 0);
 
+        // ⚠ **焼いたタイルをアトラスへ流す。** これを忘れると
+        // `useExternalAtlasContent()` で合成の中身も止めているので
+        // **アトラスが未初期化のまま**になる。落ちないし絵も出る — 一色になるだけである
+        this.bakery.recordUploads(cmd);
+
         this.hiz.record(cmd);
         this.timer.mark(cmd, 1);
 
@@ -227,6 +235,61 @@ public final class VkHierarchicalScene {
     /** 深度解決を差し替えられるようにするだけの薄い口。 */
     public interface VkInteropDepth {
         void resolve(VkCommandBuffer cmd, VkTexture depth);
+    }
+
+    /**
+     * <b>トラバーサルの要求に答える</b> (Phase 5c-4c)。フレームの完了後に呼ぶこと。
+     *
+     * <h2>⚠ これが無いと木は深くならない</h2>
+     * トラバーサルは「降りたいが子がいない」ノードを要求キューに積む
+     * [{@code traversal_dev.comp} の {@code addRequest}]。
+     * 誰も答えなければ<b>最上位ノードを描き続ける</b> —
+     * 実際に {@code drawn=27} (= 最上位の数) のまま動かなかった。
+     *
+     * <p>⚠ 要求は<b>1 度しか積まれない</b> ({@code markRequested} が印を付ける)。
+     * 「要求数が 0 だから要求していない」ではない — <b>既に答え待ちかもしれない</b>。
+     *
+     * <h2>位置の詰め方</h2>
+     * 要求キューに入るのは {@code getRawPos(node)} = <b>GPU の詰め方</b> (px, py) である。
+     * {@code NodeManager} が要るのは<b>ワールドのキー</b>。
+     * 両者は<b>ワードを入れ替えたもの</b>なので、組み直すだけでよい
+     * [確認済 — {@code VkRealPositionTest.theWorldKeyIsPackPositionWithItsWordsSwapped}]。
+     *
+     * @param maxMeshesPerCall 1 回でメッシュ化する上限。<b>止めないため</b>に要る
+     * @return 新しくメッシュ化した数
+     */
+    public int serviceRequests(int maxMeshesPerCall) {
+        int count = Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.traversal.request.addr()),
+            4096);
+        for (int i = 0; i < count; i++) {
+            long e = this.traversal.request.addr() + 8L + (long) i * 8L;
+            int px = org.lwjgl.system.MemoryUtil.memGetInt(e);
+            int py = org.lwjgl.system.MemoryUtil.memGetInt(e + 4);
+            // ⚠ ワールドのキーは px が上位ワード
+            long key = (Integer.toUnsignedLong(px) << 32) | Integer.toUnsignedLong(py);
+            try {
+                this.nodes.processRequest(key);
+            } catch (RuntimeException ex) {
+                Logger.warn("[5c-4c] request for " + WorldEngine.pprintPos(key)
+                    + " was rejected: " + ex);
+            }
+        }
+
+        // ⚠ NodeManager が新しく監視し始めた位置には、まだジオメトリが無い。
+        // **監視集合との差分**が「メッシュ化すべきもの」である
+        int meshed = 0;
+        for (long pos : this.watcher.watched.keySet().toLongArray()) {
+            if (meshed >= maxMeshesPerCall) break;
+            if (!this.pendingMesh.add(pos)) continue;   // 済み
+            int lvl = WorldEngine.getLevel(pos);
+            var built = this.mesher.meshOne(lvl, WorldEngine.getX(pos),
+                WorldEngine.getY(pos), WorldEngine.getZ(pos));
+            if (built == null) continue;
+            this.nodes.processGeometryResult(built);
+            this.meshedSections++;
+            meshed++;
+        }
+        return meshed;
     }
 
     /** トラバーサルが選んだセクション数 (= {@code indirectLookup} の先頭)。 */

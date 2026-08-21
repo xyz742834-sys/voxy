@@ -399,6 +399,15 @@ public final class VkInteropProbe {
      */
     private static final double HIER_SUBDIVISION_PX =
         Double.parseDouble(System.getProperty("voxy.5c4.subdivision", "128"));
+    /**
+     * 5c-4c: 1 フレームでメッシュ化する上限。
+     *
+     * <p>⚠ 上限が無いと、要求が一気に来たフレームで<b>数秒止まる</b>。
+     * 本番は専用スレッドが非同期に行う。
+     */
+    private static final int HIER_MESHES_PER_FRAME =
+        Integer.parseInt(System.getProperty("voxy.5c4.meshesPerFrame", "16"));
+
     /** 5c-4c: 描画距離 (ブロック)。負なら無制限。 */
     private static final double HIER_RENDER_DISTANCE =
         Double.parseDouble(System.getProperty("voxy.5c4.distance", "-1"));
@@ -696,6 +705,11 @@ public final class VkInteropProbe {
         // 「描けていない」場合が**区別できない**
         if (this.frames < 3 || (MODE == Mode.TRIPLE && this.frames % 300 == 0)) {
             this.logDiagnostics(mcColourTexture, mcDepthTexture, w, h);
+        }
+        // ⚠ トラバーサルの要求に答える。**フレームの完了後**でなければ
+        // 要求キューの中身が確定していない
+        if (MODE == Mode.HIERARCHICAL && this.scene != null) {
+            this.scene.serviceRequests(HIER_MESHES_PER_FRAME);
         }
         // ⚠ 5c-4c は**毎フレーム値が変わる**ので周期的に出す。
         // 初回だけだと「まだメッシュ化が終わっていない状態」の数字を見てしまう

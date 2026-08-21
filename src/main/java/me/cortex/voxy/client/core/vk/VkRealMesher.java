@@ -122,7 +122,13 @@ public final class VkRealMesher {
         return out;
     }
 
-    private BuiltSection meshOne(int level, int x, int y, int z) {
+    /**
+     * 1 セクションだけメッシュ化する。
+     *
+     * <p>⚠ ワールドがその位置を持っていなければ {@code null}。
+     * トラバーサルの要求に答えるときは<b>「まだ無い」が普通に起きる</b>。
+     */
+    public BuiltSection meshOne(int level, int x, int y, int z) {
         WorldSection section = this.world.acquireIfExists(level, x, y, z);
         if (section == null) { this.missing++; return null; }
         try {
