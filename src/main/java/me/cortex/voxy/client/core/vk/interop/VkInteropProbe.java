@@ -299,6 +299,14 @@ public final class VkInteropProbe {
     private double[] farAnchorCam;
     /** 5c-3a: MC の far 平面の外に置いた組 (診断用)。 */
     private int[] lastBeyondAnchor;
+    /**
+     * 5c-3a: 外の組が<b>いま画面に入る位置にあるか</b>。
+     *
+     * <p>⚠ これが無いと {@code drawn=0} が
+     * <b>「描けていない」と「そちらを向いていない」のどちらか分からない</b>。
+     * 対照の答えが 0 か否かなので、0 の意味が 2 通りあると何も言えない。
+     */
+    private Boolean beyondOnScreen;
     private double lastBeyondDistance;
     private double lastMcFarPlane;
 
@@ -341,6 +349,9 @@ public final class VkInteropProbe {
      * <p>⚠ 1.0 に近いと「境界にいるので見えたり見えなかったりする」になり、
      * <b>対照が揺れる</b>。はっきり外に置く。
      */
+    /** 合成地形が横に占めるブロック数 (見かけの大きさの見積もり用)。 */
+    private static final double TERRAIN_SPAN_BLOCKS = 192.0;
+
     private static final double BEYOND_FAR_PLANE_FACTOR =
         Double.parseDouble(System.getProperty("voxy.5c3.factor", "2.0"));
 
@@ -752,6 +763,14 @@ public final class VkInteropProbe {
         VkSceneUniform.write(this.res.uniform, m, anchor,
             (int) (this.frames & 0x7fffffff), sub);
 
+        if (copies() >= 3 && this.lastBeyondAnchor != null) {
+            float[] beyondSub = me.cortex.voxy.client.core.vk.VkHostViewport.cameraSubPos(
+                cameraX, cameraY, cameraZ, this.lastBeyondAnchor);
+            this.beyondOnScreen = me.cortex.voxy.client.core.vk.VkHostViewport.insideFrustum(
+                me.cortex.voxy.client.core.vk.VkHostViewport.clipOfCentre(
+                    vkProjection, modelView, beyondSub, TERRAIN_CENTRE_SECTIONS));
+        }
+
         if (VOXY_PROJECTION) {
             // ⚠ 写し先の MVP は**同じ sub** で組むこと。再投影が経由する
             // 「カメラ相対ワールド座標」が両者で同じ空間でなければならない
@@ -918,11 +937,25 @@ public final class VkInteropProbe {
                 + "b lateral=" + (int) PAIR_LATERAL_BLOCKS + "b)"
                 + "  [the FAR copy is the one that must be hidden by Minecraft's terrain]");
             if (beyondAnchor != null) {
+                // ⚠ **どれくらいの大きさに見えるはずか**を先に言う。
+                // 「見えなかった」が「壊れている」なのか「小さすぎる」なのかを、
+                // 実際に見る前に切り分けられるようにするため
+                // (実際に 4092b 先で 12 画素になり、目視できなかった)。
+                // ndc 幅 = m00 * (幅ブロック / 距離)、画面比はその半分
+                double spanBlocks = TERRAIN_SPAN_BLOCKS;
+                double px = projection.m00() * (spanBlocks / this.lastBeyondDistance)
+                    * 0.5 * this.width;
                 Logger.info("[5c-3a] BEYOND copy anchored at section "
                     + java.util.Arrays.toString(beyondAnchor)
                     + "  (" + (int) this.lastBeyondDistance + "b out; Minecraft's far plane is at "
                     + (int) this.lastMcFarPlane + "b)"
-                    + "  [this copy can only appear with Voxy's own projection]");
+                    + "  [this copy can only appear with Voxy's own projection."
+                    + " It should span about " + Math.round(px) + " px of "
+                    + this.width + "; the synthetic terrain is sparse, so expect far fewer"
+                    + " drawn pixels than that."
+                    + (px < 200 ? " ⚠ TOO SMALL TO SEE — lower the render distance to bring"
+                        + " Minecraft's far plane closer, then this copy comes closer too." : "")
+                    + "]");
             }
         }
     }
@@ -981,7 +1014,15 @@ public final class VkInteropProbe {
                 + "]");
         }
         if (drawsTerrain()) {
-            Logger.info("[5c-1d]   voxy footprint: " + this.screenFootprint());
+            String where = "";
+            if (MODE == Mode.TRIPLE && this.beyondOnScreen != null) {
+                // ⚠ drawn=0 の意味を確定させる。「向いていない」と「描けていない」は別物
+                where = "   [the '" + copyName(ONLY_COPY) + "' copy; the BEYOND copy's centre is "
+                    + (this.beyondOnScreen ? "ON screen — drawn=0 here means it was NOT drawn"
+                        : "OFF screen — drawn=0 here says nothing, turn to face it")
+                    + "]";
+            }
+            Logger.info("[5c-1d]   voxy footprint: " + this.screenFootprint() + where);
         }
         Logger.info("[5c-1d]   colour in interop: " + this.readProbe(this.colour)
             + "   [BGRA bytes; sky is magenta = B and R high, G low]");
