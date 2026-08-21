@@ -12,11 +12,10 @@
 |---|---|---|
 | 1 | macOS / Apple Silicon で MC 26.2 の Vulkan レンダラが起動するか | **起動する [確認済 — 実機]** |
 | 1b | `VK_KHR_push_descriptor` が MoltenVK で使えるか | **使える [確認済 — 実機で列挙 + MC が実際に有効化]** |
-| 2 | Sodium が MC の Vulkan バックエンドで動くか | **静的には対応済み。起動はする。地形は未確認** (§4) |
+| 2 | Sodium が MC の Vulkan バックエンドで動くか | ✅ **動く。地形が描かれる [確認済 — 実機 2026-08-21]** (§4.4) |
 | 3 | MC の `VkDevice` に mod からアクセスできるか | **できる [確認済 — public メソッド + 既存の前例]** |
 
-**判定**: 1 と 3 は通った。2 は<b>起動までは確認できた</b>が、
-ワールドに入って地形が描かれるかは未確認。
+**判定**: ⚠ **3 つとも通った** (2026-08-21 に §4.4 で確定)。
 
 > ⚠ **副産物として、判断より重い問題が 1 つ見つかった。**
 > **Voxy は MC を Vulkan にした瞬間に起動時クラッシュしていた** (§5)。
@@ -371,3 +370,65 @@ MC / Sodium のバイトコード調査は `javap -c -p` と
 - **MC-Vulkan の in-flight フレーム数**。Voxy は in-flight = 1 前提で
   `VkTexture` のレイアウト追跡を組んでいる [確認済 — `VkTexture` の javadoc]。
   MC が 2〜3 フレームを重ねるなら、この前提が崩れる
+
+
+---
+
+## 10. ⚠⚠ 追記 (2026-08-21) — <b>問い 2 が通った</b>
+
+§9 の筆頭に置いていた未確認項目
+「Sodium が MC-Vulkan で実際に地形を描くか」を<b>実機で確かめた</b>。
+
+```
+[21:51:08] [Voxy] No OpenGL context on this thread; Minecraft is probably not using
+                  the OpenGL backend. Voxy will disable itself.
+[21:51:08] [Minecraft] Using graphics backend Vulkan, using drivers: 1.2.334 MoltenVK 1.4.2
+[21:51:39] [Minecraft] Stopping!
+```
+
+| 見たもの | 結果 |
+|---|---|
+| Vulkan バックエンドで起動 | ✅ |
+| **ワールドに入って地形が描かれる** | ✅ |
+| **フレーム時間** | ✅ <b>向上</b> (目視。数値は未記録) |
+| MoltenVK の警告 | <b>1 件も無し</b> (§4.2 で見えた primitive restart の警告すら出ない) |
+| 終了 | 正常 (クラッシュレポート無し) |
+
+⚠ Voxy は自己無効化した (§5 の修正が効いている)。
+**つまりこの観測は「MC + Sodium が Vulkan で動く」ことだけを言っており、
+Voxy が乗るかどうかは別問題である。**
+
+### 10.1 これで何が変わるか
+
+§4.2b で「MC-Vulkan と Voxy の同居は現状そもそも成立しない」と書いたが、
+<b>塞いでいるのは 1 箇所のキャストだけ</b>である:
+
+```java
+((GlTextureView) target.getDepthTextureView()).glId()
+```
+
+**設計上の障壁ではなく、受け渡しの実装である。**
+
+MC が Vulkan なら、Voxy は<b>MC の {@code VkImage} へ直接描ける</b>。
+interop がまるごと不要になる:
+
+| 消せるもの | |
+|---|---|
+| `VkInteropImage` / IOSurface | 形式が BGRA と R32F に限られる制約も消える |
+| `GlInteropCompositor` / `GlDepthImport` / `GlScratchFramebuffer` | GL 4.1 の合成器 |
+| `GlVkSync` | GL→Vulkan の同期 (Phase 0 で 0.3ms と測ったもの) |
+| **GL 4.5 DSA の地雷 6 個** | GL に一切触れなくなる |
+
+<b>Phase 0〜5c の成果はほぼ全て生きる</b> — `VkTerrainRenderer` / `VkHiZ` /
+`VkTraversal` / `VkMergedTableBuilder` はデバイスの持ち主に依存しない。
+
+### 10.2 ⚠ ただし残る未検証 — <b>1 つは設計の前提</b>
+
+| | |
+|---|---|
+| Voxy の Sodium mixin 9 個が Vulkan 経路で効くか | 推測のまま。<b>今回は Voxy が無効化されたので何も通っていない</b> |
+| `VkContext` が MC のデバイスを借りられるか | 実装事項 (今は自前で作っている) |
+| キューの取り合い (MC は graphics/compute/transfer の 3 本) | 設計事項 |
+| **MC の in-flight フレーム数** | ⚠ <b>Voxy は in-flight = 1 前提</b>で `VkTexture` のレイアウト追跡を組んでいる。MC が 2〜3 枚重ねるなら<b>追跡の作り直し</b>になる |
+
+最後のものだけは費用が読めない。**乗り換えを決める前にここを調べること。**
