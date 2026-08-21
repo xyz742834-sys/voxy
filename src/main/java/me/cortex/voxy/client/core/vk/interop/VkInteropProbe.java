@@ -754,13 +754,11 @@ public final class VkInteropProbe {
         this.uploadBakedTiles = REAL_GEOMETRY_COLOURS;
         if (REAL_GEOMETRY_COLOURS) {
             res.useExternalAtlasContent();
-            // 規約 1 の実データ版: 焼けたタイルが互いに区別できなければ、
-            // モデルを取り違えても絵が変わらない
-            var indistinguishable = bakery.reportIndistinguishableStagedTiles();
-            if (indistinguishable == 0) {
-                Logger.info("[5c-3b] 規約 1: every baked tile is distinguishable from every other,"
-                    + " so a model mix-up would show in the picture");
-            }
+            // 規約 1 の実データ版。⚠ **ここで結論を言わない** —
+            // 「全部区別できる」は事実より強い主張になる (57 組は実際にタイルを共有していて、
+            // 無害なだけである)。内訳を知っているのは bakery のほうなので、
+            // 報告もあちらに任せる [規約 20]
+            bakery.reportIndistinguishableStagedTiles();
         }
 
         this.res = res;
