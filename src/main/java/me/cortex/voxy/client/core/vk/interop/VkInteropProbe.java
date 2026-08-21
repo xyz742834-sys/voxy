@@ -645,12 +645,27 @@ public final class VkInteropProbe {
         }
 
         // ---- 3. Vulkan ----
-        if (drawsTerrain()) {
+        if (MODE == Mode.HIERARCHICAL) {
+            if (this.scene == null) this.buildHierarchicalScene(w, h);
+            if (this.scene != null) {
+                this.writeHierarchicalUniform(projection, modelView, cameraX, cameraY, cameraZ);
+            }
+        } else if (drawsTerrain()) {
             this.writeSceneUniform(projection, modelView, cameraX, cameraY, cameraZ);
         }
         var tracker = VkFrameTracker.get();
         var cmd = tracker.beginFrame();
         switch (MODE) {
+            case HIERARCHICAL -> {
+                if (this.scene != null) {
+                    this.scene.record(cmd, this.rt, TERRAIN_CLEAR,
+                        (c, d) -> this.resolve.record(c, d, this.depth));
+                    this.colour.toGeneral(cmd,
+                        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0);
+                }
+            }
             case TERRAIN, TERRAIN_NODEPTH, TERRAIN_REFMVP, PAIR, TRIPLE -> {
                 // 焼いたテクスチャを先に流す。地形描画の recordUploads より前でなければ
                 // ミップの遷移とレイアウトが噛み合わない
@@ -681,6 +696,12 @@ public final class VkInteropProbe {
         // 「描けていない」場合が**区別できない**
         if (this.frames < 3 || (MODE == Mode.TRIPLE && this.frames % 300 == 0)) {
             this.logDiagnostics(mcColourTexture, mcDepthTexture, w, h);
+        }
+        // ⚠ 5c-4c は**毎フレーム値が変わる**ので周期的に出す。
+        // 初回だけだと「まだメッシュ化が終わっていない状態」の数字を見てしまう
+        if (MODE == Mode.HIERARCHICAL && this.scene != null
+                && (this.frames == 2 || this.frames % 120 == 0)) {
+            this.logHierarchical();
         }
         this.frames++;
 
@@ -1324,6 +1345,26 @@ public final class VkInteropProbe {
                     + "]");
             }
         }
+    }
+
+    /**
+     * 実データのトラバーサルの内訳を出す (Phase 5c-4c)。
+     *
+     * <h2>⚠ この段の数字は「遅くて正常」である</h2>
+     * まだ最適化していない — 保守的なバリア、密テーブル、旧経路が残っている。
+     * <b>合計ではなく内訳</b>を出すのは、Phase 6 で<b>何を疑うか</b>を決めるためである。
+     */
+    private void logHierarchical() {
+        var tr = this.scene.traversal();
+        Logger.info("[5c-4c] drawn=" + this.scene.drawnSectionCount()
+            + " of " + this.scene.meshedSections() + " meshed"
+            + " (top-level nodes " + this.scene.topLevelCount() + ")"
+            + "  requests=" + tr.requestCount()
+            + "  dropped: pushes=" + tr.droppedNodePushes()
+            + " reads=" + tr.droppedNodeReads()
+            + (tr.droppedNodePushes() + tr.droppedNodeReads() > 0
+                ? "  ⚠ THE QUEUE OVERFLOWED — raise -Pvoxy5c4Sections" : ""));
+        Logger.info("[5c-4c] GPU " + this.scene.timer().describe());
     }
 
     /**
