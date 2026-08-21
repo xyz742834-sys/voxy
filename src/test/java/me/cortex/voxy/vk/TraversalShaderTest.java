@@ -22,8 +22,14 @@ public class TraversalShaderTest {
     private static VkShader.Builder<VkShader> traversalBuilder(String name) {
         // 本番の HierarchicalOcclusionTraverser と同じく printf プロセッサを通す。
         // 通さないと traversal_dev.comp の printf(...) が GL_EXT_debug_printf 要求で落ちる。
-        return VkShader.make(me.cortex.voxy.client.core.rendering.util.PrintfDebugUtil.PRINTF_processor)
-            .name(name)
+        // ⚠⚠ **深度規約が要る。** traversal_dev.comp -> screenspace.glsl が
+        // REDUCTION / NEAR / DEPTH_SCALAR_COMPARE_EQUAL を使う。
+        // 渡さないと **HiZ の遮蔽判定が裏返り、見えているノードを落とす** (絵に穴)。
+        // この検査は 5c-4a のガードを入れるまで**渡していなかった** — 本番でこの形を
+        // 真似ていたら、そのまま出荷していた
+        return me.cortex.voxy.client.core.vk.VkDepth.defines(
+            VkShader.make(me.cortex.voxy.client.core.rendering.util.PrintfDebugUtil.PRINTF_processor)
+            .name(name))
             .define("MAX_ITERATIONS", 5)          // WorldEngine.MAX_LOD_LAYER + 1
             .define("LOCAL_SIZE_BITS", 5)
             .define("MAX_REQUEST_QUEUE_SIZE", 1024)

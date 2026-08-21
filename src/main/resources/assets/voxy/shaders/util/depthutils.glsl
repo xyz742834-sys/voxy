@@ -3,6 +3,24 @@
 #ifndef UNDEFINE_DEPTH
 #define UNDEFINE_DEPTH
 
+// ⚠⚠ Vulkan 経路では深度規約の define が **必須** である (Phase 5c-4a)。
+//
+// このフォークの Vulkan 側は「逆Z・0..1」しか持たない [VkDepth の javadoc]。
+// 定義を忘れると下の #else に落ち、**黙って非逆Zの定数になる**:
+//
+//   REDUCTION      min -> max      HiZ が「最も手前」を持ち、見えているノードを落とす (絵に穴)
+//   CLOSER_SIGN    +1.0 -> -1.0    深度の clamp が手前ではなく奥へ押しやる
+//   NEAR / FAR     反転            「何も描いていない」の判定が全部裏返る
+//
+// いずれも**落ちないし警告も出ない**。実際に 5c-3a と 5c-4a の両方で、
+// 変異を入れると絵だけが静かに壊れることを確かめている。
+//
+// ⚠ ここに #error を置くのは**やめた**。#error はプリプロセスそのものを失敗させるので、
+// VkShader.explainCompileFailure が展開テキストを得られなくなり、
+// **他のガードの診断を潰す** (実際に gl_InstanceID の案内が出なくなった)。
+// 代わりに VkShader.Builder.compile() が Java 側で弾く — あちらのほうが
+// 早く発火し、メッセージも読める。
+
 #ifdef USE_REVERSE_Z
 #define REDUCTION min
 #define REDUCTION2 max

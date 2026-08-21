@@ -46,9 +46,13 @@ public class ShaderGuardTest {
      */
     @Test
     void unshimmedInstanceIdIsRejectedWithGuidance() {
+        // ⚠ 深度規約の define を**渡しておく**。raster.vert は depthutils を取り込むので、
+        // 渡さないと 5c-4a のガードが先に発火し、**この検査が見たいものに届かない**。
+        // (実際にそうなった。ガードは早く弾くほうが正しいので、検査の側を直した)
         var e = assertThrows(IllegalStateException.class, () ->
-            VkShader.make().name("raster-guard")
-                .addSource(ShaderType.VERTEX, VkShaderLoader.parse("voxy:lod/gl46/cull/raster.vert"))
+            me.cortex.voxy.client.core.vk.VkDepth.defines(
+                VkShader.make().name("raster-guard")
+                    .addSource(ShaderType.VERTEX, VkShaderLoader.parse("voxy:lod/gl46/cull/raster.vert")))
                 .compile());
 
         System.out.println("[vk] gl_InstanceID guard:\n" + e.getMessage());
@@ -82,5 +86,41 @@ public class ShaderGuardTest {
         assertFalse(raw.contains("gl_VertexIndex"),
             "the on-disk shader must stay GL-native; the shim is injected at load time only");
         assertTrue(raw.contains("gl_VertexID"));
+    }
+
+    /**
+     * <b>深度規約の define を忘れた Vulkan シェーダはコンパイルできないこと</b> (Phase 5c-4a)。
+     *
+     * <p>忘れると {@code depthutils.glsl} が非逆Z側の分岐に落ち、
+     * {@code REDUCTION} が min↔max、{@code CLOSER_SIGN} が符号反転、
+     * {@code NEAR}/{@code FAR} が入れ替わる。
+     * <b>落ちないし警告も出ない</b> — 5c-3a と 5c-4a の両方で変異を入れて確かめた壊れ方である。
+     *
+     * <p>⚠ <b>実在のシェーダで試す。</b> 手で書いた断片では
+     * {@code #import} が展開されず、<b>ガードの発火条件を満たさない</b>
+     * (実際に最初そう書いて空振りした)。
+     */
+    @Test
+    void aVulkanShaderThatForgetsTheDepthConventionCannotCompile() {
+        var e = assertThrows(IllegalStateException.class, () ->
+            VkShader.make().name("depthutils-guard")
+                .addSource(ShaderType.FRAGMENT, VkShaderLoader.parse("voxy:hiz/blit.fsh"))
+                .compile());
+
+        System.out.println("[vk] depth convention guard:\n" + e.getMessage());
+        assertTrue(e.getMessage().contains("VkDepth.defines"),
+            "must say what to call: " + e.getMessage());
+        assertTrue(e.getMessage().contains("USE_REVERSE_Z"),
+            "must name the missing define: " + e.getMessage());
+        assertTrue(e.getMessage().contains("only the picture is wrong"),
+            "must say why it matters — this failure has no other symptom");
+
+        // ...そして**定義があれば通る**。これが無いと「常に落ちるガード」と区別が付かない
+        assertDoesNotThrow(() ->
+            me.cortex.voxy.client.core.vk.VkDepth.defines(
+                VkShader.make().name("depthutils-guard-ok")
+                    .addSource(ShaderType.FRAGMENT, VkShaderLoader.parse("voxy:hiz/blit.fsh")))
+                .compile().free(),
+            "a shader built through VkDepth.defines must still compile");
     }
 }

@@ -31,7 +31,9 @@ public class TerrainShaderTest {
      * 詳細は docs/phase2-glsl-compat.md 4.
      */
     private static VkShader.Builder<VkShader> terrainBuilder(String name) {
-        return VkShader.make().name(name)
+        // ⚠ quads.frag は DEPTH_SCALAR_COMPARE を使う = 深度規約が要る。
+        // 渡さないと非逆Z側の分岐に落ち、**深度で落とす向きが裏返る** [5c-4a のガード]
+        return me.cortex.voxy.client.core.vk.VkDepth.defines(VkShader.make().name(name))
             .define("NO_SHADE_FACE_TINT", "1.0")
             .define("UP_FACE_TINT", "1.0")
             .define("DOWN_FACE_TINT", "0.5")

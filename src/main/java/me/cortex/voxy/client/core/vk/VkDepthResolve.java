@@ -71,16 +71,14 @@ public class VkDepthResolve {
         this.height = height;
         this.reproject = reproject;
 
-        var builder = VkShader.makeAuto().name("vk-depth-resolve" + (reproject ? "-reproject" : ""))
-            .addSource(ShaderType.VERTEX, VkShaderLoader.parse("voxy:lod/vk/depth_resolve.vert"))
-            .addSource(ShaderType.FRAGMENT, VkShaderLoader.parse("voxy:lod/vk/depth_resolve.frag"));
-        if (reproject) {
-            // ⚠ **VkDepth.defines は必須である。** 忘れると depthutils.glsl が非逆Z側の
-            // 分岐に落ち、CLOSER_SIGN が -1.0 になって clamp が**奥へ押しやる**。
-            // 落ちないし、絵は「遠景が MC の地形に負ける」形でしか出ない
-            // [docs/phase5c3-plan.md 2.5]
-            builder = VkDepth.defines(builder).define("REPROJECT_DEPTH");
-        }
+        // ⚠ **深度規約の define は常に付ける。** 再投影しない版も depthutils を import
+        // しており、付け忘れると非逆Z側の分岐に落ちる。いまは使っていないだけで、
+        // 使った瞬間に静かに壊れる — depthutils.glsl 側の #error がこれを構造で塞いでいる
+        var builder = VkDepth.defines(
+            VkShader.makeAuto().name("vk-depth-resolve" + (reproject ? "-reproject" : ""))
+                .addSource(ShaderType.VERTEX, VkShaderLoader.parse("voxy:lod/vk/depth_resolve.vert"))
+                .addSource(ShaderType.FRAGMENT, VkShaderLoader.parse("voxy:lod/vk/depth_resolve.frag")));
+        if (reproject) builder = builder.define("REPROJECT_DEPTH");
         this.shader = builder.compile();
 
         this.shader.texture(0, srcDepth, VkSampler.nearestClamp());

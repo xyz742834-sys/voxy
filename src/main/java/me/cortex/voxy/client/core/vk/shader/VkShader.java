@@ -218,6 +218,7 @@ public class VkShader {
 
         public T compile() {
             if (this.sources.isEmpty()) throw new IllegalStateException("no shader sources: " + this.name);
+            this.requireDepthConventionWhereNeeded();
 
             String defs = this.defines.entrySet().stream()
                 .map(e -> "#define " + e.getKey() + " " + e.getValue() + "\n")
@@ -350,6 +351,52 @@ public class VkShader {
             int r = 0;
             for (int s : stages) r |= s;
             return r;
+        }
+
+        /**
+         * <b>{@code depthutils.glsl} を取り込んだシェーダは、深度規約の define を必ず持つこと</b>
+         * (Phase 5c-4a)。
+         *
+         * <h2>なぜ構造で塞ぐのか — 2 度同じ型を踏んだ</h2>
+         * 忘れると {@code depthutils.glsl} が<b>非逆Z側の分岐に落ちる</b>。
+         * 定数が静かに反転する:
+         *
+         * <table>
+         *   <tr><th></th><th>忘れると</th><th>絵はどうなるか</th></tr>
+         *   <tr><td>{@code REDUCTION}</td><td>min → max</td>
+         *       <td>HiZ が「最も手前」を持ち<b>見えているノードを落とす</b> (穴が開く)</td></tr>
+         *   <tr><td>{@code CLOSER_SIGN}</td><td>+1 → -1</td>
+         *       <td>深度の clamp が<b>奥へ押しやる</b></td></tr>
+         *   <tr><td>{@code NEAR}/{@code FAR}</td><td>反転</td>
+         *       <td>「何も描いていない」の判定が全部裏返る</td></tr>
+         * </table>
+         *
+         * <p><b>いずれも落ちないし警告も出ない</b> — 5c-3a と 5c-4a の両方で
+         * 変異を入れて確かめた壊れ方である [規約 6: 分かった制約は同じ変更でガードにする]。
+         *
+         * <h2>⚠ なぜ GLSL の {@code #error} ではないのか</h2>
+         * {@code #error} は<b>プリプロセスそのものを失敗させる</b>ので、
+         * {@code explainCompileFailure} が展開テキストを得られず
+         * <b>他のガードの診断を潰す</b> (実際に {@code gl_InstanceID} の案内が出なくなった)。
+         * ここで弾けば shaderc より先に、読めるメッセージで止まる。
+         */
+        private void requireDepthConventionWhereNeeded() {
+            boolean hasReverseZ = this.defines.containsKey("USE_REVERSE_Z");
+            boolean hasZeroOne = this.defines.containsKey("USE_ZERO_ONE_DEPTH");
+            if (hasReverseZ && hasZeroOne) return;
+            for (var entry : this.sources.entrySet()) {
+                // depthutils.glsl の取り込みガード。#import 展開後の本文に必ず現れる
+                if (!entry.getValue().contains("#define UNDEFINE_DEPTH")) continue;
+                throw new IllegalStateException(
+                    "Shader '" + this.name + "' (" + entry.getKey() + ") imports depthutils.glsl"
+                  + " but was not given the depth convention defines"
+                  + (hasReverseZ ? "" : " USE_REVERSE_Z")
+                  + (hasZeroOne ? "" : " USE_ZERO_ONE_DEPTH") + "."
+                  + "\n  Build it through VkDepth.defines(...). Without them the shader silently"
+                  + " compiles the non-reverse-Z branch: REDUCTION flips min<->max, CLOSER_SIGN"
+                  + " flips sign, and NEAR/FAR swap. Nothing crashes; only the picture is wrong."
+                  + "\n  See VkDepth and docs/phase5c4-plan.md.");
+            }
         }
 
         private static String injectDefines(String src, String defs) {

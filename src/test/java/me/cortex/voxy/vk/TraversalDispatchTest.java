@@ -38,8 +38,10 @@ public class TraversalDispatchTest {
         VulkanTestSupport.requireVulkan();
         VkFrameTracker.init();
 
-        shader = VkShader.make(me.cortex.voxy.client.core.rendering.util.PrintfDebugUtil.PRINTF_processor)
-            .name("traversal-dispatch-test")
+        // ⚠ screenspace.glsl が深度規約を使う [5c-4a のガード]
+        shader = me.cortex.voxy.client.core.vk.VkDepth.defines(
+            VkShader.make(me.cortex.voxy.client.core.rendering.util.PrintfDebugUtil.PRINTF_processor)
+            .name("traversal-dispatch-test"))
             .define("MAX_ITERATIONS", MAX_ITERATIONS)
             .define("LOCAL_SIZE_BITS", 5)
             .define("MAX_REQUEST_QUEUE_SIZE", 1024)
