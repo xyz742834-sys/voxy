@@ -25,7 +25,8 @@ public class TraversalDispatchTest {
 
     // HierarchicalOcclusionTraverser の BINDING_COUNTER = 1 起点の採番
     private static final int SCENE_UNIFORM = 1, REQUEST_QUEUE = 2, RENDER_QUEUE = 3,
-        NODE_DATA = 4, QUEUE_META = 6, QUEUE_SOURCE = 7, QUEUE_SINK = 8, RENDER_TRACKER = 9;
+        NODE_DATA = 4, QUEUE_META = 6, QUEUE_SOURCE = 7, QUEUE_SINK = 8, RENDER_TRACKER = 9,
+        TRAVERSAL_LIMITS = 10;
 
     private static VkShader shader;
     private static VkDescriptorSetGroup sets;
@@ -54,6 +55,7 @@ public class TraversalDispatchTest {
             .define("NODE_QUEUE_SOURCE_BINDING", QUEUE_SOURCE)
             .define("NODE_QUEUE_SINK_BINDING", QUEUE_SINK)
             .define("RENDER_TRACKER_BINDING", RENDER_TRACKER)
+            .define("TRAVERSAL_LIMITS_BINDING", TRAVERSAL_LIMITS)
             .addSource(ShaderType.COMPUTE, VkShaderLoader.parse("voxy:lod/hierarchical/traversal_dev.comp"))
             .compile();
     }
@@ -91,6 +93,7 @@ public class TraversalDispatchTest {
         var scratchA   = buf(1024 * 4);
         var scratchB   = buf(1024 * 4);
         var tracker    = buf(1024 * 4);
+        var limits     = buf(16);   // 上限に当たった回数 [5c-4]
 
         sets = new VkDescriptorSetGroup(shader, 3);
         sets.shared(SCENE_UNIFORM, uniform)
@@ -98,7 +101,8 @@ public class TraversalDispatchTest {
             .shared(RENDER_QUEUE, renderList)
             .shared(NODE_DATA, nodeData)
             .shared(QUEUE_META, queueMeta)
-            .shared(RENDER_TRACKER, tracker);
+            .shared(RENDER_TRACKER, tracker)
+            .shared(TRAVERSAL_LIMITS, limits);
 
         // (SOURCE, SINK) の 3 通り
         sets.variant(0, QUEUE_SOURCE, topNodeIds).variant(0, QUEUE_SINK, scratchB);

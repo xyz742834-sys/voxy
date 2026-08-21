@@ -64,15 +64,18 @@ void pushNode(uint nodeId) {
 
 キューが溢れると<b>範囲外に書く</b>。GL でも Vulkan でも未定義動作である。
 
-同様に `enqueueChildren` のループ:
+⚠ **`enqueueChildren` のループは<b>上限がある</b>** — 調べたら予測が外れた:
 
 ```glsl
-uint children = getChildCount(node);
-for (int i = 0; i < children; i++) { pushNode(ptr+i); }
+uint getChildCount(in UnpackedNode node) { return ((node.flags >> 2)&7U)+1; }
 ```
 
-`children` は<b>ノードデータ由来</b>である。八分木なので 8 以下のはずだが、
-<b>データが壊れていれば上限がない</b>。
+<b>3 ビット幅で抽出している</b>ので、データが何であっても <b>1..8 に収まる</b>。
+「ノードデータ由来だから上限がない」という当初の見立ては<b>誤りだった</b>。
+clamp は入れない — <b>要らない上限を足すと、なぜ足したかが分からなくなる</b>。
+
+> **危険だと思った箇所を数えたら、片方は構造で守られていた。**
+> 上限を切る前に<b>本当に上限が無いのか</b>を確かめる。
 
 > **Phase 0 で OS レベルの GPU リセットを起こしたのと同じ型である。**
 > Vulkan 版では<b>両方に上限を切る</b>。

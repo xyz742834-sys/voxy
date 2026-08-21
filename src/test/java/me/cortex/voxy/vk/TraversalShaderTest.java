@@ -42,7 +42,10 @@ public class TraversalShaderTest {
             .define("NODE_QUEUE_META_BINDING", 6)
             .define("NODE_QUEUE_SOURCE_BINDING", 7)
             .define("NODE_QUEUE_SINK_BINDING", 8)
-            .define("RENDER_TRACKER_BINDING", 9);
+            .define("RENDER_TRACKER_BINDING", 9)
+            // ⚠ Vulkan 経路はキューの上限に当たった回数を数える [5c-4]。
+            // **この define が無いとコンパイルできない** = 器を渡し忘れられない
+            .define("TRAVERSAL_LIMITS_BINDING", 10);
     }
 
     /** 移行後、traversal が SPIR-V にコンパイルできること。 */
@@ -109,5 +112,50 @@ public class TraversalShaderTest {
         assertTrue(raw.contains("#else"));
         assertTrue(raw.contains("layout(location = NODE_QUEUE_INDEX_BINDING) uniform uint queueIdx;"),
             "the GL declaration must stay intact -- it is the reference spec for the port");
+    }
+
+    /**
+     * <b>上限を数える器を渡さないとコンパイルできないこと</b> (Phase 5c-4)。
+     *
+     * <p>Vulkan 経路の {@code queue.glsl} はキューの範囲外アクセスを塞いでおり、
+     * 当たった回数を {@code TRAVERSAL_LIMITS_BINDING} のバッファに書く。
+     * <b>数えないなら塞ぐ意味が薄い</b> — 黙って捨てると
+     * 「描かれない」と「選ばれなかった」が区別できない [規約 18]。
+     *
+     * <p>だから<b>省略できない形</b>にしてある。
+     *
+     * <p>⚠ <b>実際に溢れさせる検査は 5c-4b</b> で行う。
+     * 溢れを起こすには合成のノード木が要り、それはまだ無い。
+     * ここで言えるのは「器を渡し忘れられない」ことだけである。
+     */
+    @Test
+    void theTraversalCannotBeBuiltWithoutTheLimitCounters() {
+        var e = assertThrows(RuntimeException.class, () ->
+            me.cortex.voxy.client.core.vk.VkDepth.defines(
+                VkShader.make(me.cortex.voxy.client.core.rendering.util.PrintfDebugUtil.PRINTF_processor)
+                    .name("traversal-no-limits")
+                    .define("MAX_ITERATIONS", 5)
+                    .define("LOCAL_SIZE_BITS", 5)
+                    .define("MAX_REQUEST_QUEUE_SIZE", 1024)
+                    .define("HIZ_BINDING", 0)
+                    .define("SCENE_UNIFORM_BINDING", 1)
+                    .define("REQUEST_QUEUE_BINDING", 2)
+                    .define("RENDER_QUEUE_BINDING", 3)
+                    .define("NODE_DATA_BINDING", 4)
+                    .define("NODE_QUEUE_META_BINDING", 6)
+                    .define("NODE_QUEUE_SOURCE_BINDING", 7)
+                    .define("NODE_QUEUE_SINK_BINDING", 8)
+                    .define("RENDER_TRACKER_BINDING", 9))
+                    // TRAVERSAL_LIMITS_BINDING を**わざと省く**
+                .addSource(ShaderType.COMPUTE,
+                    VkShaderLoader.parse("voxy:lod/hierarchical/traversal_dev.comp"))
+                .compile());
+        System.out.println("[vk] traversal limits guard:\n" + e.getMessage());
+
+        // ...そして渡せば通ること (弾きすぎの対照)
+        assertDoesNotThrow(() -> traversalBuilder("traversal-with-limits")
+            .addSource(ShaderType.COMPUTE,
+                VkShaderLoader.parse("voxy:lod/hierarchical/traversal_dev.comp"))
+            .compile().free());
     }
 }

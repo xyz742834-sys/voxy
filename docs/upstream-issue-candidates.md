@@ -69,3 +69,59 @@ Phase 1 で `IrisUtil` をスタブ化したのと同じ形。
 
 ここに載せるのは<b>本家の利用者が踏むもの</b>だけである。
 macOS/Vulkan フォーク固有の判断・設計は各 phase の doc に置く。
+
+---
+
+## 3. トラバーサルのノードキューが<b>範囲外に読み書きする</b> — 未修正 (上流も TODO を残している)
+
+**影響**: 階層トラバーサルを使う<b>全ユーザー</b>。
+ノード数が確保したキュー容量を超えたときに発生する。
+
+**場所**: `assets/voxy/shaders/lod/hierarchical/queue.glsl`
+
+```glsl
+//TODO: limit the size/writing out of bounds     <-- 上流のコメント
+uint nodePushIndex = -1;
+void pushNodesInit(uint nodeCount) {
+    uint index = atomicAdd(nodeQueueMetadata[queueIdx+1].w, nodeCount);
+    ...
+    nodePushIndex = index;                        // 上限の検査が無い
+}
+void pushNode(uint nodeId) {
+    nodeQueueSink[nodePushIndex++] = nodeId;      // <-- 範囲外書き込み
+}
+```
+
+読み側も同じである:
+
+```glsl
+uint getCurrentNode() {
+    if (nodeQueueMetadata[queueIdx].w <= gl_GlobalInvocationID.x) {
+        return SENTINAL_OUT_OF_BOUNDS;
+    }
+    return nodeQueueSource[gl_GlobalInvocationID.x];   // <-- 個数は溢れても増え続ける
+}
+```
+
+**なぜメタデータの個数が境界にならないか**: `nodeQueueMetadata[..].w` は
+`atomicAdd` で<b>際限なく増える</b>。容量を超えても増え続けるので、
+それを上限に使うと<b>確保していない領域を指す</b>。
+
+**深刻度**: SSBO の範囲外アクセスは GL でも Vulkan でも未定義動作である。
+⚠ **MoltenVK (macOS) では OS レベルの GPU リセットを起こした実績がある**
+(このフォークの Phase 0、別の上限なしループで)。
+`robustBufferAccess` が有効なら丸め込まれるが、<b>依存すべき挙動ではない</b>。
+
+**このフォークでの対処**: `#ifdef VULKAN` の側にだけ上限を入れた。
+
+- `pushNode` — `nodeQueueSink.length()` を超えたら捨てる
+- `getCurrentNode` — `nodeQueueSource.length()` を超えたら番兵を返す
+- 捨てた回数を数えて報告する (黙って切り捨てると「描かれない」と
+  「選ばれなかった」が区別できなくなるため)
+
+> **GL 側は上流のまま残してある。** この環境では GL 版を走らせられないので、
+> 上限を入れて<b>壊していないことを確かめられない</b>。
+
+**参考: 上限が要らなかった箇所**: 同じファイルの `enqueueChildren` のループは
+`getChildCount` が `((flags >> 2)&7U)+1` = <b>3 ビット抽出なので 1..8 に収まる</b>。
+データが壊れていても上限がある。<b>こちらには何も足していない。</b>
