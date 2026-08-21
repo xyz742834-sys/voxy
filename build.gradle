@@ -550,6 +550,23 @@ tasks.named('runClient') {
     //   ./gradlew runClient -Pvoxy5c3b=2      半径 2 (狭く)
     //   -Pvoxy5c3bRealColours=true            実テクスチャで描く (既定は id 由来の合成色)
     //   -Pvoxy5c3bQuads=4000000               ジオメトリバッファを広げる
+    // 5c-4c: 実データの階層トラバーサル。**Voxy の本質が初めて動く**
+    //   ./gradlew runClient -Pvoxy5c4=on
+    //   -Pvoxy5c4Radius=1        最上位ノードの半径 (MAX_LOD_LAYER の粒度、既定 1 = 3x3x3)
+    //   -Pvoxy5c4Depth=2         最上位から何段下までメッシュ化するか
+    //   -Pvoxy5c4Subdivision=128 降下の閾値 (画素の一辺)。小さいほど深く降りる
+    //   -Pvoxy5c4Distance=-1     描画距離 (ブロック)。負なら無制限
+    //   -Pvoxy5c4Sections=20000  描画キューと密テーブルの容量
+    if (project.hasProperty('voxy5c4')) {
+        jvmArgs("-Dvoxy.5c4=" + project.property('voxy5c4'))
+    }
+    ['Radius': 'radius', 'Depth': 'depth', 'Subdivision': 'subdivision',
+     'Distance': 'distance', 'Sections': 'sections'].each { k, v ->
+        def prop = 'voxy5c4' + k
+        if (project.hasProperty(prop)) {
+            jvmArgs("-Dvoxy.5c4." + v + "=" + project.property(prop))
+        }
+    }
     if (project.hasProperty('voxy5c3b')) {
         jvmArgs("-Dvoxy.5c3b=" + project.property('voxy5c3b'))
     }

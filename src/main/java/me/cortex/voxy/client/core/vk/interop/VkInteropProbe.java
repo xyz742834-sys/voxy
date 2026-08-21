@@ -146,7 +146,9 @@ public final class VkInteropProbe {
          */
         PAIR,
         /** 5c-3a: 3 組。<b>3 つ目は MC の far 平面の外</b>に置く。 */
-        TRIPLE
+        TRIPLE,
+        /** 5c-4c: <b>実データの階層トラバーサル</b>。何を描くかを GPU が選ぶ。 */
+        HIERARCHICAL
     }
 
     private static final Mode MODE = resolveMode();
@@ -159,6 +161,8 @@ public final class VkInteropProbe {
     private static Mode resolveMode() {
         // 5c-3a: 配置は 3 組で固定し、**投影だけ**を切り替える (VOXY_PROJECTION)
         if (System.getProperty("voxy.5c3") != null) return Mode.TRIPLE;
+        // 5c-4c: 実データの階層トラバーサル
+        if (System.getProperty("voxy.5c4") != null) return Mode.HIERARCHICAL;
         // 5c-3b: 実ジオメトリ。組の複製は要らない (地形はワールドが決める)
         if (System.getProperty("voxy.5c3b") != null) return Mode.TERRAIN;
         String e = System.getProperty("voxy.5c1e");
@@ -188,6 +192,7 @@ public final class VkInteropProbe {
             case "terrain-refmvp", "refmvp" -> Mode.TERRAIN_REFMVP;
             case "pair" -> Mode.PAIR;
             case "triple" -> Mode.TRIPLE;
+            case "hierarchical", "hier" -> Mode.HIERARCHICAL;
             case "full" -> fullMeans;
             default -> throw new IllegalArgumentException("unknown " + property + "=" + value);
         };
@@ -196,7 +201,8 @@ public final class VkInteropProbe {
     /** 地形を描くモードか。 */
     private static boolean drawsTerrain() {
         return MODE == Mode.TERRAIN || MODE == Mode.TERRAIN_NODEPTH
-            || MODE == Mode.TERRAIN_REFMVP || MODE == Mode.PAIR || MODE == Mode.TRIPLE;
+            || MODE == Mode.TERRAIN_REFMVP || MODE == Mode.PAIR || MODE == Mode.TRIPLE
+            || MODE == Mode.HIERARCHICAL;
     }
 
     /** 何組の地形を置くか。1 = 単体、2 = 5c-1e の手前/奥、3 = 5c-3a (+ far 平面の外)。 */
@@ -376,6 +382,26 @@ public final class VkInteropProbe {
     private static boolean usesRealGeometry() { return REAL_GEOMETRY_RADIUS >= 0; }
 
     private me.cortex.voxy.client.core.vk.VkRealMesher mesher;
+    private me.cortex.voxy.client.core.vk.VkHierarchicalScene scene;
+
+    /** 5c-4c: 最上位ノードの半径 ({@code MAX_LOD_LAYER} の粒度)。 */
+    private static final int HIER_TOP_RADIUS =
+        Integer.parseInt(System.getProperty("voxy.5c4.radius", "1"));
+    /** 5c-4c: 最上位から何段下までメッシュ化するか。 */
+    private static final int HIER_DEPTH =
+        Integer.parseInt(System.getProperty("voxy.5c4.depth", "2"));
+    /**
+     * 5c-4c: 降下の閾値 (画面面積の比)。
+     *
+     * <p>本番は {@code subDivisionSize^2 / (width*height)} [確認済 —
+     * {@code HierarchicalOcclusionTraverser.uploadUniform}]。
+     * ここは<b>画素数で指定させて同じ式で割る</b>。
+     */
+    private static final double HIER_SUBDIVISION_PX =
+        Double.parseDouble(System.getProperty("voxy.5c4.subdivision", "128"));
+    /** 5c-4c: 描画距離 (ブロック)。負なら無制限。 */
+    private static final double HIER_RENDER_DISTANCE =
+        Double.parseDouble(System.getProperty("voxy.5c4.distance", "-1"));
     private double lastCameraX, lastCameraY, lastCameraZ;
     private boolean warnedNoWorld;
 
@@ -520,6 +546,16 @@ public final class VkInteropProbe {
         this.visualise = new VkDepthVisualise(this.depth.texture(), w, h,
             VkInteropImage.Kind.COLOR_BGRA8.vkFormat);
 
+        if (MODE == Mode.HIERARCHICAL) {
+            // ⚠ シーンは**サイズ依存として作り直す**。HiZ と描画器が画面サイズを持つので、
+            // 分けて持つより単純である。メッシュ化をやり直すぶん遅いが、リサイズは稀
+            if (this.scene != null) { this.scene.free(); this.scene = null; }
+            this.rt = new VkRenderTarget(w, h, this.colour.texture(),
+                VkInteropImage.Kind.COLOR_BGRA8.vkFormat);
+            this.resolve = new VkDepthResolve(this.rt.depth, w, h, VOXY_PROJECTION);
+            this.buildHierarchicalScene(w, h);
+            return;
+        }
         if (drawsTerrain()) {
             this.ensureScene();
             // 描き先は **interop の色画像**。5b の ioRt と同じ組み方である
@@ -696,6 +732,91 @@ public final class VkInteropProbe {
                 default -> new GlInteropCompositor(GlInteropCompositor.DepthMode.NONE);
             };
         }
+    }
+
+    // ---------------- 5c-4c: 実データの階層トラバーサル ----------------
+
+    /**
+     * 実データのシーンを作ってメッシュ化する。
+     *
+     * <p>⚠ ワールドがまだ無ければ<b>作らずに戻る</b>。次のフレームでやり直す。
+     */
+    private void buildHierarchicalScene(int w, int h) {
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        if (level == null) return;
+        var world = me.cortex.voxy.commonImpl.WorldIdentifier.ofEngineNullable(level);
+        if (world == null) {
+            if (!this.warnedNoWorld) {
+                this.warnedNoWorld = true;
+                Logger.warn("[5c-4c] no Voxy world engine yet — retrying each frame");
+            }
+            return;
+        }
+        // ⚠ HiZ の元は **前フレームの解決済み深度**。本番は MC の深度も混ざるが、
+        // まずは Voxy 自身の遮蔽だけにする [1 変数ずつ]
+        var built = new me.cortex.voxy.client.core.vk.VkHierarchicalScene(
+            world, this.depth.texture(), w, h,
+            Integer.parseInt(System.getProperty("voxy.5c4.sections", "20000")),
+            REAL_GEOMETRY_MAX_QUADS, VkInteropImage.Kind.COLOR_BGRA8.vkFormat);
+        try {
+            built.populate(this.lastCameraX, this.lastCameraY, this.lastCameraZ,
+                HIER_TOP_RADIUS, HIER_DEPTH);
+        } catch (RuntimeException e) {
+            built.free();
+            throw e;
+        }
+        if (built.meshedSections() == 0) {
+            // ⚠ ワールドがまだその LoD を持っていない。作り直せるように捨てる
+            Logger.warn("[5c-4c] ⚠ nothing meshed at LoD " + me.cortex.voxy.common.world.WorldEngine.MAX_LOD_LAYER
+                + ".." + Math.max(0, me.cortex.voxy.common.world.WorldEngine.MAX_LOD_LAYER - HIER_DEPTH)
+                + " — Voxy only has what the player has loaded. Fly around, or lower"
+                + " -Pvoxy5c4Depth so it reaches a level that exists");
+            built.free();
+            return;
+        }
+        this.scene = built;
+    }
+
+    /**
+     * 階層トラバーサル用のユニフォーム。<b>描画とトラバーサルで同じ MVP を使う</b> —
+     * 違うと画面上の大きさが食い違い、<b>降下の判定が描画とずれる</b>。
+     */
+    private void writeHierarchicalUniform(org.joml.Matrix4fc projection,
+                                          org.joml.Matrix4fc modelView,
+                                          double cameraX, double cameraY, double cameraZ) {
+        int[] anchor = {
+            me.cortex.voxy.client.core.vk.VkHostViewport.sectionOf(cameraX),
+            me.cortex.voxy.client.core.vk.VkHostViewport.sectionOf(cameraY),
+            me.cortex.voxy.client.core.vk.VkHostViewport.sectionOf(cameraZ)};
+        float[] sub = me.cortex.voxy.client.core.vk.VkHostViewport.cameraSubPos(
+            cameraX, cameraY, cameraZ, anchor);
+
+        var mcProjection = me.cortex.voxy.client.core.vk.VkHostViewport.projectionForVulkan(
+            projection, modelView, sub, new int[]{0, 0, 0});
+        var vkProjection = VOXY_PROJECTION
+            ? me.cortex.voxy.client.core.vk.VkHostViewport.voxyProjection(mcProjection,
+                me.cortex.voxy.client.core.vk.VkHostViewport.VOXY_NEAR,
+                me.cortex.voxy.client.core.vk.VkHostViewport.VOXY_FAR)
+            : mcProjection;
+        float[] m = me.cortex.voxy.client.core.vk.VkHostViewport.mvp(vkProjection, modelView, sub);
+
+        VkSceneUniform.write(this.scene.res.uniform, m, anchor,
+            (int) (this.frames & 0x7fffffff), sub);
+
+        if (VOXY_PROJECTION) {
+            float[] mcM = me.cortex.voxy.client.core.vk.VkHostViewport.mvp(
+                mcProjection, modelView, sub);
+            this.resolve.setReprojection(
+                new org.joml.Matrix4f().set(m).invert(),
+                new org.joml.Matrix4f().set(mcM));
+        }
+
+        float minSSS = (float) ((HIER_SUBDIVISION_PX * HIER_SUBDIVISION_PX)
+            / ((double) this.width * this.height));
+        float renderDistance = HIER_RENDER_DISTANCE < 0 ? -1.0f
+            : (float) (HIER_RENDER_DISTANCE * HIER_RENDER_DISTANCE);
+        this.scene.prepare(new org.joml.Matrix4f().set(m), anchor, sub,
+            minSSS, (int) (this.frames & 0x7fffffff), renderDistance);
     }
 
     // ---------------- 5c-3b: 実ジオメトリ ----------------
@@ -1542,6 +1663,7 @@ public final class VkInteropProbe {
         this.freeSizeDependent();
         if (this.res != null) { this.res.free(); this.res = null; }
         if (this.scratchFbo != null) { this.scratchFbo.free(); this.scratchFbo = null; }
+        if (this.scene != null) { this.scene.free(); this.scene = null; }
         if (this.mesher != null) { this.mesher.free(); this.mesher = null; }
         if (this.meshedSections != null) {
             for (var b : this.meshedSections) b.free();
