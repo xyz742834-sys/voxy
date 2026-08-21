@@ -137,6 +137,30 @@ public class VkDescriptorSetGroup {
         return this.sharedTexture(this.resolve(define), tex, sampler);
     }
 
+    /**
+     * <b>1 つのミップレベルだけ</b>を読ませる (Phase 5c-4a)。
+     *
+     * <p>HiZ の連鎖は「レベル i-1 を読んでレベル i を書く」ので、
+     * 読み側を<b>そのレベルに絞る</b>必要がある。
+     * GL 版が {@code GL_TEXTURE_BASE_LEVEL/MAX_LEVEL} でやっていることに当たる。
+     *
+     * <p>⚠ {@code textureGather} には LOD 引数が無いので、
+     * <b>ビューを絞る以外に方法がない</b>。
+     */
+    public VkDescriptorSetGroup variantTextureLevel(int variant, int binding, VkTexture tex,
+                                                    int level, VkSampler sampler) {
+        this.assertNotFreed();
+        if (this.shader.bindingAt(binding) == null) {
+            throw new IllegalArgumentException("shader '" + this.shader.debugName()
+                + "' declares no descriptor at set 0 binding " + binding);
+        }
+        this.pendingImages.put(variant * 1000 + binding,
+            new ImageWrite(variant, binding, tex.view(level), sampler,
+                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+        this.dirty = true;
+        return this;
+    }
+
     public VkDescriptorSetGroup variantTexture(int variant, int binding, VkTexture tex, VkSampler sampler) {
         this.assertNotFreed();
         var declared = this.shader.bindingAt(binding);

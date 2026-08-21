@@ -200,3 +200,76 @@ LoD ごとの「見た数」と「描いた数」が取れるので、<b>両方�
 3. **5c-4c** — 実 `NodeManager`。選択が実データで起きる。
 
 ⚠ **1 と 2 の間で `queue.glsl` の上限を入れる。** 実データを流す前に済ませる。
+
+---
+
+## 6. 5c-4a 完了 — <b>HiZ のミップ連鎖</b>
+
+### 6.1 何を作ったか
+
+| | GL | Vulkan (`VkHiZ`) |
+|---|---|---|
+| 格納 | `GL_DEPTH24_STENCIL8` + `gl_FragDepth` | **`R32_SFLOAT` の色** |
+| 読み側を 1 レベルに絞る | `GL_TEXTURE_BASE_LEVEL/MAX_LEVEL` | **レベルごとのビュー** |
+| 断片シェーダ | `voxy:hiz/blit.fsh` | **同じものを使う** (`OUTPUT_COLOUR` を定義) |
+
+traversal は `sampler2D` の `.r` を `texelFetch` するだけなので<b>色でも深度でも等価</b>である
+[確認済 — `screenspace.glsl`]。
+
+⚠ `textureGather` には LOD 引数が無いので、<b>ビューを絞る以外に方法がない</b>。
+`VkDescriptorSetGroup.variantTextureLevel` を足した。
+
+⚠ 精度は<b>むしろ上がる</b> (24bit 固定小数 → float)。
+逆Zでは奥ほど 0 に近いので float のほうが遠方に細かい。
+<b>GL 版と数値が一致するとは限らない</b>が、この環境では GL 版を走らせられないので
+比較はもともとできない。
+
+### 6.2 ⚠ レベル 0 だけは厳密に言えない
+
+| レベル | 中身 |
+|---|---|
+| 0 | 元の深度の<b>再標本化</b>。元 (100x40) と HiZ (64x32) で大きさが違うので<b>一致は言えない</b> |
+| i ≥ 1 | レベル i-1 の<b>ちょうど 2 倍</b>なので、`textureGather` の 4 テクセルは <b>2x2 ブロックそのもの</b> |
+
+**したがって i ≥ 1 についてはビット単位で厳密に要求できる。**
+レベル 0 については「平坦でないこと」だけを言う。
+
+> <b>言えることと言えないことを分けて書く。</b>
+> レベル 0 まで「一致」を主張すると、通らないか、通す代わりに許容幅を入れて
+> <b>i ≥ 1 の厳密さまで緩める</b>ことになる。
+
+### 6.3 検査
+
+| 検査 | 主張 |
+|---|---|
+| `theChainIsSizedTheWayTheReferenceSizesIt` | 2 の冪へ<b>切り下げ</b>、レベル数 = `ceil(log2(max(w,h)))` |
+| **`eachLevelIsTheExactReductionOfTheOneAbove`** | i ≥ 1 が i-1 の 2x2 の **min と厳密に一致** |
+| `theSourcePatternActuallyDistinguishesMinFromMax` | ⚠ <b>対照</b>。平坦なら縮約が何でも通る |
+| `takingTheMaximumInsteadWouldBeDetected` | ⚠ <b>対照</b>。min と max を区別できること |
+| `levelZeroActuallySampledTheSource` | 元が読まれている |
+
+### 6.4 変異で確かめた
+
+| 変異 | 落ちた検査 |
+|---|---|
+| **`VkDepth.defines()` を外す** (`USE_REVERSE_Z` 忘れ) | 2 件 ✅ |
+| 読むレベルを i-1 ではなく i に | 1 件 ✅ |
+| レベルを絞らず全レベルのビューを渡す | 1 件 ✅ |
+
+> ⚠ **1 つ目が要である。** 定義を忘れると `REDUCTION` が min から max へ反転し、
+> HiZ は「最も手前」を持つことになる。すると遮蔽判定は
+> <b>見えているノードを隠れていると判定して落とす</b> — <b>絵に穴が開く</b>。
+> 落ちないし、警告も出ない。
+>
+> **5c-3a の再投影で予測した壊れ方が、別のシェーダでそのまま再現した。**
+> `VkDepth.defines()` の呼び忘れは<b>この移植で繰り返し出る型</b>である。
+
+### 6.5 ⚠ 検査の主張が過剰だった (自分で踏んだ)
+
+`levelZeroActuallySampledTheSource` に
+「レベル 0 の先頭が FAR なら元が空」という主張を入れたが、
+模様の (0,0) が<b>たまたま 0.0 = FAR</b> だったので落ちた。**縮約は正しかった。**
+
+> 実際の深度バッファでは<b>空が FAR なのは正常</b>である。
+> 「FAR だから空」は成り立たない。模様のほうを 0 から外した —
+> <b>0 の意味を 1 通りにする</b> [規約 18]。
