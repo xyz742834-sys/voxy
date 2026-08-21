@@ -56,6 +56,20 @@ public final class VkHierarchicalScene {
         @Override public int get(long position) { return this.watched.get(position); }
     }
 
+    /**
+     * <b>2 の冪へ切り上げる</b> (既に 2 の冪ならそのまま)。
+     *
+     * <p>⚠ {@code NodeManager} と {@code AbstractSectionGeometryManager} が
+     * <b>2 の冪を要求する</b>。実際に 20000 を渡して
+     * {@code "Max node count must be a power of 2"} で落ちた。
+     *
+     * <p>⚠ <b>既に 2 の冪なら増やさない</b> — 増やすと確保が黙って倍になる。
+     */
+    public static int roundUpToPowerOfTwo(int v) {
+        if (v < 4) return 4;
+        return Integer.highestOneBit(v - 1) << 1;
+    }
+
     /** GPU の区間。⚠ 名前は<b>疑う先</b>に対応させる [Phase 6]。 */
     public static final String[] SPANS = {"hiz", "traversal", "table", "draw", "resolve"};
 
@@ -92,8 +106,16 @@ public final class VkHierarchicalScene {
      * @param maxSections 描画キューと密テーブルの容量。<b>選ばれうるセクション数の上限</b>
      */
     public VkHierarchicalScene(WorldEngine world, VkTexture depthSource,
-                               int width, int height, int maxSections, int maxQuads,
+                               int width, int height, int requestedSections, int maxQuads,
                                int colourFormat) {
+        // ⚠ {@code NodeManager} も {@code AbstractSectionGeometryManager} も
+        // **2 の冪を要求する** [確認済 — どちらもコンストラクタで弾く]。
+        // 呼び出し側に押し付けず、ここで切り上げる
+        int maxSections = roundUpToPowerOfTwo(requestedSections);
+        if (maxSections != requestedSections) {
+            Logger.info("[5c-4c] rounded the section capacity " + requestedSections
+                + " up to " + maxSections + " (must be a power of two)");
+        }
         this.maxSections = maxSections;
         this.maxDraws = SyntheticTerrain.maxFaceDrawCount(maxQuads,
             VkQuadIndexBuffer.DEFAULT_QUAD_CAPACITY);
