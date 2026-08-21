@@ -292,6 +292,38 @@ public final class VkHierarchicalScene {
         return meshed;
     }
 
+    /**
+     * <b>描画キューに入った不正な id を数える</b> (Phase 5c-4c)。
+     *
+     * <h2>⚠ 上流は「葉ノードは必ずメッシュを持つ」を前提にしている</h2>
+     * {@code traversal_dev.comp} の自己描画の枝は <b>{@code hasMesh} を見ていない</b> —
+     * コメントに「is error state if it doesnt have one since all leaf nodes
+     * should have a mesh」とある。
+     *
+     * <p><b>その前提をこちらの組み立てが破る。</b> 最上位ノードを先に作ってから
+     * メッシュを流し込むので、<b>メッシュ未着のノードが存在する</b>。
+     * それが {@code NULL_MESH} のまま描画キューへ入り、
+     * cmdgen が<b>範囲外のセクションメタデータ</b>を読む。
+     *
+     * <p>⚠ 落ちない。バリデーションも捕まえない。<b>絵が出ないだけ</b>である。
+     *
+     * @return {@code {不正な id の数, 全体}}
+     */
+    public int[] countInvalidRenderIds() {
+        int n = this.drawnSectionCount();
+        int bad = 0;
+        for (int i = 0; i < n; i++) {
+            int id = org.lwjgl.system.MemoryUtil.memGetInt(
+                this.res.indirectLookup.addr() + 4L + (long) i * 4L);
+            // NULL_MESH / EMPTY_MESH / 範囲外
+            if (id < 0 || id >= this.maxSections
+                || id == VkNodeTree.NULL_MESH || id == VkNodeTree.EMPTY_MESH) {
+                bad++;
+            }
+        }
+        return new int[]{bad, n};
+    }
+
     /** トラバーサルが選んだセクション数 (= {@code indirectLookup} の先頭)。 */
     public int drawnSectionCount() {
         return Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.res.indirectLookup.addr()),

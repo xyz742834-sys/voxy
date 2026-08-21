@@ -1407,6 +1407,18 @@ public final class VkInteropProbe {
             + (this.scene.drawnSectionCount() == 0
                 ? "  [drawn=0: the tree is anchored where it was populated and does NOT"
                   + " follow the camera — walk back, or restart to re-populate here]" : ""));
+        // ⚠ **選ばれた数がメッシュ化した数を超えたら、切り口ではありえない。**
+        // 推論ではなく測って言う
+        int[] invalid = this.scene.countInvalidRenderIds();
+        if (invalid[0] > 0 || this.scene.drawnSectionCount() > this.scene.meshedSections()) {
+            Logger.error("[5c-4c] ⚠ " + invalid[0] + " of " + invalid[1]
+                + " render-queue entries are NOT valid section ids"
+                + " (drawn=" + this.scene.drawnSectionCount()
+                + " vs meshed=" + this.scene.meshedSections() + ")."
+                + " The traversal renders nodes without a mesh: its self-render branch does not"
+                + " check hasMesh, relying on \"all leaf nodes have a mesh\", which this"
+                + " population breaks. cmdgen then reads section metadata out of range.");
+        }
         Logger.info("[5c-4c] GPU " + this.scene.timer().describe());
     }
 
