@@ -322,34 +322,62 @@ public final class VkRealModelBakery {
         int involved = 0, pairs = 0;
         for (var g : groups) { involved += g.size(); pairs += g.size() * (g.size() - 1) / 2; }
 
-        // ⚠ **「焼き損なって空」と「実データとして同じ絵」は別物である。**
-        // 前者は欠陥、後者はブロック状態の性質 (見た目に効かない property の違い)。
-        // 一緒くたに警告すると、本当の欠陥が 57 行のノイズに埋まる
-        Logger.warn("[5c-3b] ⚠ 規約 1 weakened: " + involved + " of " + ids.length
-            + " baked models are visually interchangeable with another"
-            + " (" + pairs + " pairs in " + groups.size() + " groups)"
-            + (blankCount > 0 ? "; " + blankCount + " of them bake to a BLANK tile" : ""));
-        if (blankCount > 0) {
-            Logger.warn("[5c-3b] ⚠ a blank tile means the bake produced nothing —"
-                + " that is a defect, not a property of the data");
+        var modelToBlocks = this.modelToBlockStates();
+
+        // ⚠⚠ **「同じブロックの別状態」と「違うブロックどうし」は<b>意味が違う</b>。**
+        //
+        // 水の水位違いが同じタイルになるのは当然で、**取り違えても絵は正しい**。
+        // 規約 1 が本当に弱まるのは<b>違うブロックが同じ絵になる</b>場合だけである
+        // — そのときだけ「モデルを取り違えても気付けない」が成立する。
+        //
+        // 一緒に数えると「24% が弱まっている」と読めてしまうが、実態は違う
+        var crossBlock = new ArrayList<List<Integer>>();
+        int sameBlockGroups = 0, blankGroups = 0;
+        for (var g : groups) {
+            if (blank[g.get(0)]) { blankGroups++; continue; }
+            var names = new java.util.HashSet<String>();
+            for (int idx : g) names.add(modelToBlocks.getOrDefault(ids[idx], "?"));
+            if (names.size() == 1) sameBlockGroups++; else crossBlock.add(g);
         }
 
-        // どのブロックが衝突しているのかを言う。判断できなければ意味がない
-        var modelToBlocks = this.modelToBlockStates();
+        Logger.info("[5c-3b] 規約 1: " + involved + " of " + ids.length
+            + " baked models share a tile with another (" + pairs + " pairs, "
+            + groups.size() + " groups) — " + sameBlockGroups
+            + " groups are states of the SAME block (harmless: swapping them still"
+            + " draws that block), " + blankGroups + " are blank (air-like), "
+            + crossBlock.size() + " span DIFFERENT blocks");
+
+        if (blankCount > 0) {
+            var sb = new StringBuilder("[5c-3b] blank tiles: ");
+            for (int i = 0; i < ids.length; i++) {
+                if (blank[i]) sb.append(modelToBlocks.getOrDefault(ids[i], "?")).append(' ');
+            }
+            Logger.info(sb + " [blank is correct for blocks with no rendered shape;"
+                + " anything else here means the bake produced nothing]");
+        }
+
+        if (crossBlock.isEmpty()) {
+            Logger.info("[5c-3b] ⚠ no two DIFFERENT blocks bake to the same tile —"
+                + " 規約 1 still holds where it matters");
+            return 0;
+        }
+
+        // ⚠ ここだけが本当の弱まりである
+        Logger.warn("[5c-3b] ⚠ 規約 1 weakened: " + crossBlock.size()
+            + " groups contain DIFFERENT blocks with identical tiles."
+            + " Mixing those up would NOT change the picture");
         int shown = 0;
-        for (var g : groups) {
-            if (shown++ >= 5) {
-                Logger.warn("[5c-3b]   ... and " + (groups.size() - 5) + " more groups");
+        for (var g : crossBlock) {
+            if (shown++ >= 8) {
+                Logger.warn("[5c-3b]   ... and " + (crossBlock.size() - 8) + " more");
                 break;
             }
-            var sb = new StringBuilder("[5c-3b]   group of " + g.size() + (blank[g.get(0)]
-                ? " (BLANK): " : ": "));
-            for (int k = 0; k < Math.min(4, g.size()); k++) {
-                int modelId = ids[g.get(k)];
-                sb.append(modelId).append('=').append(modelToBlocks.getOrDefault(modelId, "?"));
-                if (k + 1 < Math.min(4, g.size())) sb.append(", ");
+            var sb = new StringBuilder("[5c-3b]   ");
+            for (int k = 0; k < g.size(); k++) {
+                sb.append(ids[g.get(k)]).append('=')
+                  .append(modelToBlocks.getOrDefault(ids[g.get(k)], "?"));
+                if (k + 1 < g.size()) sb.append(", ");
             }
-            if (g.size() > 4) sb.append(", ...");
             Logger.warn(sb.toString());
         }
         return pairs;
