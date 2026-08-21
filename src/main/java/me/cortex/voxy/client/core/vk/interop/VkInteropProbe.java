@@ -159,10 +159,12 @@ public final class VkInteropProbe {
      * 当時の手動確認をそのまま再現できる。
      */
     private static Mode resolveMode() {
+        // ⚠ **5c-4c を先に見る。** 逆にすると `-Pvoxy5c3=off -Pvoxy5c4=on` が
+        // TRIPLE になり、**投影を切り替えるつもりでモードごと変わる**。
+        // 実際にその対照コマンドを出して空振りした
+        if (System.getProperty("voxy.5c4") != null) return Mode.HIERARCHICAL;
         // 5c-3a: 配置は 3 組で固定し、**投影だけ**を切り替える (VOXY_PROJECTION)
         if (System.getProperty("voxy.5c3") != null) return Mode.TRIPLE;
-        // 5c-4c: 実データの階層トラバーサル
-        if (System.getProperty("voxy.5c4") != null) return Mode.HIERARCHICAL;
         // 5c-3b: 実ジオメトリ。組の複製は要らない (地形はワールドが決める)
         if (System.getProperty("voxy.5c3b") != null) return Mode.TERRAIN;
         String e = System.getProperty("voxy.5c1e");
@@ -227,6 +229,10 @@ public final class VkInteropProbe {
     private static final boolean VOXY_PROJECTION = resolveVoxyProjection();
 
     private static boolean resolveVoxyProjection() {
+        // ⚠ 階層モード専用の切り替え。`voxy.5c3` はモード選択も兼ねているので、
+        // **投影だけを変えたいときに使えない**
+        String own = System.getProperty("voxy.5c4.projection");
+        if (own != null) return Boolean.parseBoolean(own);
         String v = System.getProperty("voxy.5c3");
         // ⚠ 階層トラバーサルは**自前の投影が前提**である。
         // MC の投影のままでは MC の far 平面の外へ届かず、

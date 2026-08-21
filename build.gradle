@@ -560,8 +560,10 @@ tasks.named('runClient') {
     if (project.hasProperty('voxy5c4')) {
         jvmArgs("-Dvoxy.5c4=" + project.property('voxy5c4'))
     }
+    //   -Pvoxy5c4Projection=false  自前投影を切る (対照。MC の投影で描く)
     ['Radius': 'radius', 'Depth': 'depth', 'Subdivision': 'subdivision',
-     'Distance': 'distance', 'Sections': 'sections'].each { k, v ->
+     'Distance': 'distance', 'Sections': 'sections', 'Projection': 'projection',
+     'MeshesPerFrame': 'meshesPerFrame'].each { k, v ->
         def prop = 'voxy5c4' + k
         if (project.hasProperty(prop)) {
             jvmArgs("-Dvoxy.5c4." + v + "=" + project.property(prop))
