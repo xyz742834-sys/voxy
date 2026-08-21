@@ -281,6 +281,26 @@ public final class VkRealModelBakery {
     }
 
     /**
+     * <b>まだ流していないタイルが互いに区別できるか</b> (規約 1 の実データ版, Phase 5c-3b)。
+     *
+     * <p>⚠ {@code recordUploads} より<b>前に</b>呼ぶこと。溜めた分が空になると読めない。
+     *
+     * @return 見分けが付かない組の数。0 なら全部区別できる
+     */
+    public int reportIndistinguishableStagedTiles() {
+        var ids = this.target.stagedModelIds();
+        long[] addrs = new long[ids.length];
+        for (int i = 0; i < ids.length; i++) addrs[i] = this.target.stagedTileAddress(ids[i]);
+        var problems = assertTilesAreDistinguishable(ids, addrs, ModelAtlasLayout.FACE_TEXELS);
+        for (String s : problems) Logger.warn("[5c-3b] ⚠ 規約 1 weakened: " + s);
+        if (!problems.isEmpty()) {
+            Logger.warn("[5c-3b] ⚠ " + problems.size() + " indistinguishable pairs among "
+                + ids.length + " baked models — swapping those would not change the picture");
+        }
+        return problems.size();
+    }
+
+    /**
      * ワールドの Mapper に<b>既に登録されているバイオーム</b>を factory へ流し込む
      * (Phase 5c-3b)。
      *

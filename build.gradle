@@ -556,6 +556,12 @@ tasks.named('runClient') {
     if (project.hasProperty('voxy5c3bRealColours')) {
         jvmArgs("-Dvoxy.5c3b.realColours=" + project.property('voxy5c3bRealColours'))
     }
+    // ⚠ MC も同じ場所を描いているので、深度を見ると当然ちらつく。
+    //   Voxy の絵だけを見たいとき:
+    //   ./gradlew runClient -Pvoxy5c3b=on -Pvoxy5c3bOnly=true
+    if (project.hasProperty('voxy5c3bOnly')) {
+        jvmArgs("-Dvoxy.5c3b.only=" + project.property('voxy5c3bOnly'))
+    }
     if (project.hasProperty('voxy5c3bQuads')) {
         jvmArgs("-Dvoxy.5c3b.quads=" + project.property('voxy5c3bQuads'))
     }

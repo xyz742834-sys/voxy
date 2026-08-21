@@ -201,6 +201,13 @@ public final class VkModelUploadTarget implements ModelUploadTarget {
         return MemoryUtil.memGetInt(this.res.model.addr() + (long) modelId * MODEL_SIZE + 28);
     }
 
+    /** まだ流していないモデル id。{@link #stagedTileAddress} と組で使う。 */
+    public int[] stagedModelIds() {
+        var out = new int[this.pending.size()];
+        for (int i = 0; i < out.length; i++) out[i] = this.pending.get(i).modelId();
+        return out;
+    }
+
     /** バイオーム色表の {@code index} 番目。 */
     public int biomeColour(int index) {
         if (index < 0 || (index + 1L) * 4L > this.res.modelColour.size()) return 0;

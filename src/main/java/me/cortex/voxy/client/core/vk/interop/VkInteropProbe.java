@@ -384,14 +384,39 @@ public final class VkInteropProbe {
         Integer.parseInt(System.getProperty("voxy.5c3b.quads", "2000000"));
 
     /**
-     * 実モデルのテクスチャを使うか。<b>既定は使わない</b> = 合成アトラス (id 由来の色)。
+     * 実モデルのテクスチャを使うか。<b>既定は使う</b>。
      *
-     * <p>⚠ 5c-3b で見たいのは<b>ジオメトリ</b>である。色を索引由来にしておけば
-     * 「索引がずれたら色が変わる」性質が保たれる (規約 1)。
-     * モデルの面情報は<b>実物のまま</b>なので、面の大きさやくぼみは正しく出る。
+     * <h2>⚠ 合成色を既定にしようとして、目で読めないと分かった</h2>
+     * 合成アトラスの色は <b>{@code R = モデル id, G = 0, B = 面*40+15}</b> である
+     * [確認済 — {@code fillSyntheticAtlas}]。**G が常に 0** なので、
+     * 実データの 200 個ほどのモデルでは<b>青紫の斑にしかならない</b> (実機で確認)。
+     * あの配色は<b>オフスクリーンの検査が {@code atlasTexel} と突き合わせるため</b>のもので、
+     * 人の目で読むためのものではない。
+     *
+     * <h2>規約 1 はどう担保されるか</h2>
+     * 実テクスチャでも<b>「索引がずれたら絵が変わる」は保たれる</b> —
+     * ただしそれは<b>焼けたタイルが互いに区別できる場合に限る</b>。
+     * だから {@code VkRealModelBakery.assertTilesAreDistinguishable} を
+     * <b>実ジオメトリの経路でも走らせる</b> [5c-2b §6.3 の実データ版]。
      */
     private static final boolean REAL_GEOMETRY_COLOURS =
-        Boolean.parseBoolean(System.getProperty("voxy.5c3b.realColours", "false"));
+        Boolean.parseBoolean(System.getProperty("voxy.5c3b.realColours", "true"));
+
+    /**
+     * <b>MC の深度を無視して Voxy の絵だけを見る</b>か [Phase 5c-3b の診断]。
+     *
+     * <p>⚠ 5c-3b は<b>カメラの周り半径 4</b> を LoD 0 で描く。
+     * そこは <b>MC 自身も描いている</b>ので、同じ面が同じ深度で争って<b>ちらつく</b>。
+     * これは欠陥ではなく<b>この段の設定の当然の帰結</b>である
+     * (本番の Voxy は MC の描画距離の<b>外</b>しか描かない)。
+     *
+     * <p>Voxy 側だけを見たいときに使う。
+     */
+    private static final boolean REAL_GEOMETRY_ONLY =
+        Boolean.parseBoolean(System.getProperty("voxy.5c3b.only", "false"));
+
+    /** 焼いたタイルを GPU へ流すか (合成アトラスと<b>二重に流さない</b>ため)。 */
+    private boolean uploadBakedTiles = true;
     private java.util.List<me.cortex.voxy.client.core.rendering.building.BuiltSection> meshedSections;
     private int[] lastMeshedCameraSection;
 
@@ -593,7 +618,7 @@ public final class VkInteropProbe {
             case TERRAIN, TERRAIN_NODEPTH, TERRAIN_REFMVP, PAIR, TRIPLE -> {
                 // 焼いたテクスチャを先に流す。地形描画の recordUploads より前でなければ
                 // ミップの遷移とレイアウトが噛み合わない
-                if (this.bakery != null) this.bakery.recordUploads(cmd);
+                if (this.bakery != null && this.uploadBakedTiles) this.bakery.recordUploads(cmd);
                 // 合成地形を描き、その深度を interop の R32F へ解決する。
                 // **色と深度の両方**が GL に渡る (5c-1c までは色だけだった)
                 this.renderer.record(cmd, this.rt, this.drawCount, TERRAIN_CLEAR);
@@ -659,7 +684,11 @@ public final class VkInteropProbe {
                     GlInteropCompositor.Defect.CONSTANT_COLOUR, GlInteropCompositor.DepthMode.NONE);
                 // ⚠ 5c-1d で初めて深度を書く。**無条件の上書きではない** —
                 // 描いていない画素は捨て、残りは MC の深度と比較する
-                case TERRAIN, PAIR, TRIPLE -> GlInteropCompositor.forHost();
+                // 5c-3b: MC も同じ場所を描いているので、深度を見ると当然ちらつく。
+                // Voxy 側だけを見たいときは深度を見ない
+                case TERRAIN, PAIR, TRIPLE -> (usesRealGeometry() && REAL_GEOMETRY_ONLY)
+                    ? new GlInteropCompositor(GlInteropCompositor.DepthMode.NONE)
+                    : GlInteropCompositor.forHost();
                 // 診断: 深度を見ずに全面を貼る。橙一色なら地形が画面に無い
                 case TERRAIN_NODEPTH, TERRAIN_REFMVP ->
                     new GlInteropCompositor(GlInteropCompositor.DepthMode.NONE);
@@ -719,8 +748,20 @@ public final class VkInteropProbe {
         bakery.replayBiomes();
         var uploaded = me.cortex.voxy.client.core.vk.VkRealSectionUpload.upload(built, res);
 
-        // ⚠ 実モデルのテクスチャを流すかどうか。既定では流さない = 合成アトラス
-        if (REAL_GEOMETRY_COLOURS) res.useExternalAtlasContent();
+        // ⚠ **アトラスの出どころは 1 つに決める。**
+        // 両方流すと毎フレーム上書きし合い、実タイルと合成タイルが混ざる
+        // (実機で「青紫の斑に緑の葉が混じる」形で出た)
+        this.uploadBakedTiles = REAL_GEOMETRY_COLOURS;
+        if (REAL_GEOMETRY_COLOURS) {
+            res.useExternalAtlasContent();
+            // 規約 1 の実データ版: 焼けたタイルが互いに区別できなければ、
+            // モデルを取り違えても絵が変わらない
+            var indistinguishable = bakery.reportIndistinguishableStagedTiles();
+            if (indistinguishable == 0) {
+                Logger.info("[5c-3b] 規約 1: every baked tile is distinguishable from every other,"
+                    + " so a model mix-up would show in the picture");
+            }
+        }
 
         this.res = res;
         this.modelTarget = target;
