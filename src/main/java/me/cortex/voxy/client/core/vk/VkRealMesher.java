@@ -84,12 +84,26 @@ public final class VkRealMesher {
      * @return 中身のあるセクションだけ。<b>呼び出し側が free すること</b>
      */
     public List<BuiltSection> meshAround(int cx, int cy, int cz, int radius) {
+        return this.meshAround(cx, cy, cz, radius, 0);
+    }
+
+    /**
+     * 指定した LoD レベルでメッシュ化する (Phase 5c-4c)。
+     *
+     * <p>⚠ <b>レベル n のセクション座標は、レベル 0 の座標を n だけ右シフトしたもの</b>である。
+     * 呼び出し側が既にその座標系で渡すこと。
+     *
+     * <p>⚠ 世界がそのレベルのデータを持っているとは限らない。
+     * Voxy は取り込み時に LoD の階層を作るが、<b>プレイヤーが読み込んだ範囲だけ</b>である。
+     * 無ければ {@code missing} に数えて飛ばす。
+     */
+    public List<BuiltSection> meshAround(int cx, int cy, int cz, int radius, int level) {
         this.meshed = this.empty = this.missing = this.gaveUp = this.modelsBaked = 0;
         var out = new ArrayList<BuiltSection>();
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dy = -radius; dy <= radius; dy++) {
                 for (int dz = -radius; dz <= radius; dz++) {
-                    var built = this.meshOne(cx + dx, cy + dy, cz + dz);
+                    var built = this.meshOne(level, cx + dx, cy + dy, cz + dz);
                     if (built == null) continue;
                     if (built.isEmpty()) { this.empty++; built.free(); continue; }
                     out.add(built);
@@ -98,7 +112,7 @@ public final class VkRealMesher {
             }
         }
         Logger.info("[5c-3b] meshed " + this.meshed + " sections around [" + cx + "," + cy + ","
-            + cz + "] r=" + radius + " (LoD 0): " + this.empty + " empty, "
+            + cz + "] r=" + radius + " (LoD " + level + "): " + this.empty + " empty, "
             + this.missing + " not in the world yet, " + this.gaveUp + " gave up, "
             + this.modelsBaked + " models baked on demand");
         if (this.meshed == 0) {
@@ -108,8 +122,8 @@ public final class VkRealMesher {
         return out;
     }
 
-    private BuiltSection meshOne(int x, int y, int z) {
-        WorldSection section = this.world.acquireIfExists(0, x, y, z);
+    private BuiltSection meshOne(int level, int x, int y, int z) {
+        WorldSection section = this.world.acquireIfExists(level, x, y, z);
         if (section == null) { this.missing++; return null; }
         try {
             // ⚠ **先にモデルを焼く。** 本番は例外を投げて非同期に焼かせるが、

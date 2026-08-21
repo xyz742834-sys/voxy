@@ -49,6 +49,8 @@ public final class VkTraversal {
 
     public final VkBuffer uniform, request, renderQueue, nodeData, queueMeta,
         topNodeIds, scratchA, scratchB, renderTracker, limits;
+    /** 描画キューを外から借りているか。借り物は free しない。 */
+    private final boolean borrowedRenderQueue;
     private final int maxRenderQueue, maxRequests;
     private int barriersEmitted;
     private boolean freed;
@@ -61,12 +63,33 @@ public final class VkTraversal {
      */
     public VkTraversal(VkTexture hiz, int maxNodes, int queueCapacity,
                        int maxRenderQueue, int maxRequests) {
+        this(hiz, maxNodes, queueCapacity, maxRenderQueue, maxRequests, null);
+    }
+
+    /**
+     * @param externalRenderQueue 描画キューを外から渡す。
+     *                            ⚠ <b>{@code indirectLookup} と同じ形</b>
+     *                            ({@code uint count; uint ids[]}) なので、
+     *                            そのまま渡すと <b>cmdgen が直接読める</b>
+     *                            [確認済 — {@code bindings.glsl} の
+     *                            {@code IndirectSectionLookupBuffer}]。
+     *                            {@code null} なら自前で作る
+     */
+    public VkTraversal(VkTexture hiz, int maxNodes, int queueCapacity,
+                       int maxRenderQueue, int maxRequests, VkBuffer externalRenderQueue) {
         this.maxRenderQueue = maxRenderQueue;
         this.maxRequests = maxRequests;
+        this.borrowedRenderQueue = externalRenderQueue != null;
 
         this.uniform      = new VkBuffer(UNIFORM_SIZE).name("traversalUniform");
         this.request      = new VkBuffer((long) maxRequests * 8 + 8).name("requestQueue");
-        this.renderQueue  = new VkBuffer((long) maxRenderQueue * 4 + 4).name("renderQueue");
+        this.renderQueue  = externalRenderQueue != null ? externalRenderQueue
+            : new VkBuffer((long) maxRenderQueue * 4 + 4).name("renderQueue");
+        if (this.renderQueue.size() < (long) maxRenderQueue * 4 + 4) {
+            throw new IllegalArgumentException("the render queue holds "
+                + ((this.renderQueue.size() - 4) / 4) + " ids but " + maxRenderQueue
+                + " were asked for");
+        }
         this.nodeData     = new VkBuffer((long) maxNodes * VkNodeTree.NODE_SIZE).name("nodeData");
         this.queueMeta    = new VkBuffer(16L * MAX_ITERATIONS,
             VkBuffer.DEFAULT_USAGE | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT, true).name("queueMeta");
@@ -288,10 +311,12 @@ public final class VkTraversal {
         vkDestroyPipeline(VkContext.get().device, this.pipeline, null);
         this.sets.free();
         this.shader.free();
-        for (var b : new VkBuffer[]{this.uniform, this.request, this.renderQueue, this.nodeData,
+        for (var b : new VkBuffer[]{this.uniform, this.request, this.nodeData,
                 this.queueMeta, this.topNodeIds, this.scratchA, this.scratchB,
                 this.renderTracker, this.limits}) {
             b.free();
         }
+        // ⚠ 借り物は解放しない。二重解放になる
+        if (!this.borrowedRenderQueue) this.renderQueue.free();
     }
 }
