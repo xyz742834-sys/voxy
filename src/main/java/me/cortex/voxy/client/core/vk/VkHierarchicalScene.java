@@ -101,6 +101,18 @@ public final class VkHierarchicalScene {
 
     private int topLevelCount;
     private int meshedSections;
+    /**
+     * 前フレームのトラバーサルが選んだセクション数。
+     *
+     * <p>⚠ <b>{@code reset()} が描画キューの先頭を 0 にする</b>ので、
+     * 記録の時点で読むと必ず 0 になる。0 を {@code merged_prefix} に渡すと
+     * 全 7 面が同じ位置を指し、<b>描画コマンドが全部空になる</b> — 実際にそうなった。
+     *
+     * <p>1 フレーム遅れは<b>設計どおり</b>である —
+     * {@code VkMergedTableBuilder} は「このフレームの描画は前フレームのテーブルで行う」
+     * ことを前提にしている。
+     */
+    private int lastDrawnSections;
     /** 既にメッシュ化を試した位置。監視集合との差分を取るのに使う。 */
     private final it.unimi.dsi.fastutil.longs.LongOpenHashSet pendingMesh =
         new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
@@ -227,6 +239,8 @@ public final class VkHierarchicalScene {
         var flushed = VkGeometryFlush.flush(this.geometry, this.res.geometry, this.res.sectionMetadata);
         this.traversal.writeUniform(mvp, camSection, camSubPos, this.hiz.packedSize(),
             minScreenSize, VkHostViewport.frustumPlanes(mvp), frameId, renderDistance);
+        // ⚠ **reset の前に読む。** reset が描画キューの先頭を 0 にする
+        this.lastDrawnSections = this.drawnSectionCount();
         this.traversal.reset(this.topLevelCount);
         this.markEverythingVisible(frameId);
         return flushed;
@@ -254,8 +268,7 @@ public final class VkHierarchicalScene {
         this.traversal.record(cmd, this.topLevelCount);
         this.timer.mark(cmd, 2);
 
-        int drawn = this.drawnSectionCount();
-        this.table.record(cmd, drawn, this.maxDraws);
+        this.table.record(cmd, this.lastDrawnSections, this.maxDraws);
         this.timer.mark(cmd, 3);
 
         this.renderer.record(cmd, target, this.maxDraws, clearColour);
@@ -457,6 +470,9 @@ public final class VkHierarchicalScene {
         return Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.res.indirectLookup.addr()),
             this.maxSections);
     }
+
+    /** 前フレームの選択数 ({@code merged_prefix} に渡した値)。 */
+    public int lastDrawnSections() { return this.lastDrawnSections; }
 
     public VkGpuTimer timer() { return this.timer; }
     public VkTraversal traversal() { return this.traversal; }

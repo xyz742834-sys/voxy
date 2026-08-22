@@ -1436,6 +1436,7 @@ public final class VkInteropProbe {
             Logger.info("[5c-4c] first entry: " + this.scene.describeFirstEntry());
         }
         Logger.info("[5c-4c] merged table: entries=" + table[0] + " totalQuads=" + table[1]
+            + " (sectionCount passed to prefix=" + this.scene.lastDrawnSections() + ")"
             + (table[1] == 0 ? "  ⚠ THE TABLE IS EMPTY — the problem is at or before cmdgen"
                : table[1] < 0 ? "  ⚠ entry count is out of range" : ""));
         Logger.info("[5c-4c] GPU " + this.scene.timer().describe());
