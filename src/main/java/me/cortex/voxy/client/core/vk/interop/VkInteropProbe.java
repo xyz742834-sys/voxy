@@ -1427,6 +1427,10 @@ public final class VkInteropProbe {
         }
         // ⚠ 画素が 0 のとき、原因が**テーブルの側**か**描画の側**かを分ける
         int[] table = this.scene.mergedTableTotals();
+        if (table[1] == 0 && this.scene.drawnSectionCount() > 0) {
+            // ⚠ 空の原因は「可視の印」か「メタデータ」しかない。**読んで**決める
+            Logger.info("[5c-4c] first entry: " + this.scene.describeFirstEntry());
+        }
         Logger.info("[5c-4c] merged table: entries=" + table[0] + " totalQuads=" + table[1]
             + (table[1] == 0 ? "  ⚠ THE TABLE IS EMPTY — the problem is at or before cmdgen"
                : table[1] < 0 ? "  ⚠ entry count is out of range" : ""));

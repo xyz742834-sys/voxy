@@ -388,6 +388,42 @@ public final class VkHierarchicalScene {
         return new int[]{entries, total};
     }
 
+    /**
+     * <b>cmdgen が読む値そのもの</b>を先頭のエントリについて書き出す (Phase 5c-4c)。
+     *
+     * <p>テーブルが空になる原因は 2 つしかない:
+     * <ul>
+     *   <li>{@code visibilityData[sid] != frameId} → 可視の印が届いていない</li>
+     *   <li>面ごとの quad 数が全部 0 → <b>メタデータが届いていない</b></li>
+     * </ul>
+     * どちらかを<b>読んで</b>言う。
+     */
+    public String describeFirstEntry() {
+        int n = this.drawnSectionCount();
+        if (n == 0) return "nothing selected";
+        int sid = org.lwjgl.system.MemoryUtil.memGetInt(this.res.indirectLookup.addr() + 4L);
+        int frameId = org.lwjgl.system.MemoryUtil.memGetInt(this.res.uniform.addr() + 76);
+        int vis = org.lwjgl.system.MemoryUtil.memGetInt(
+            this.res.visibility.addr() + (long) sid * 4L);
+        long meta = this.res.sectionMetadata.addr() + (long) sid * 32L;
+        int quadStart = org.lwjgl.system.MemoryUtil.memGetInt(meta + 12);
+        var counts = new StringBuilder();
+        int totalFaces = 0;
+        for (int w = 0; w < 4; w++) {
+            int v = org.lwjgl.system.MemoryUtil.memGetInt(meta + 16 + w * 4L);
+            counts.append(v & 0xFFFF).append('/').append((v >>> 16) & 0xFFFF).append(' ');
+            totalFaces += (v & 0xFFFF) + ((v >>> 16) & 0xFFFF);
+        }
+        return "sid=" + sid
+            + " visibility=0x" + Integer.toHexString(vis)
+            + " frameId=" + frameId
+            + " visibleMatches=" + (((vis & 0x7fffffff) == frameId) ? "YES" : "NO")
+            + " quadStart=" + quadStart
+            + " counts(t/ds d/u n/s w/e)=" + counts
+            + " sumOfCounts=" + totalFaces
+            + (totalFaces == 0 ? "  ⚠ THE SECTION METADATA HAS NO QUADS" : "");
+    }
+
     /** トラバーサルが選んだセクション数 (= {@code indirectLookup} の先頭)。 */
     public int drawnSectionCount() {
         return Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.res.indirectLookup.addr()),
