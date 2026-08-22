@@ -127,6 +127,69 @@ public class VkTemporalTest {
         }
     }
 
+    /**
+     * <b>不透明を描いた上に temporal を重ねる</b> (Phase 5c-5a)。
+     *
+     * <p>本番の記録順そのものである [`AbstractRenderPipeline.runPipeline`:
+     * {@code renderOpaque} → … → {@code renderTemporal}]。
+     * temporal は<b>色も深度もクリアしない</b>。
+     *
+     * @param clearOnTemporal ⚠ <b>変異用</b>。true にすると temporal がクリアする —
+     *                        これが「重ねる」を「置き換える」に変える壊し方である
+     */
+    private static Run runLayered(SyntheticTerrain terrain, boolean[] wasVisibleLastFrame,
+                                  Barriers barriers, boolean clearOnTemporal) {
+        var res = new VkTerrainResources(terrain.sectionCount(), terrain.totalQuads(), 4096,
+            terrain.maxStateId() + 1);
+        var rt = new VkRenderTarget(W, H);
+        VkTerrainRenderer opaque = null;
+        VkTerrainRenderer temporal = null;
+        VkMergedTableBuilder builder = null;
+        try {
+            int[] starts = terrain.writeGeometry(res.geometry);
+            terrain.writeMetadata(res.sectionMetadata, starts);
+            res.fillModels(VkTerrainResources.MODEL_FLAG_SHADED);
+            terrain.writeIndirectLookup(res.indirectLookup);
+            terrain.writeVisibility(res.visibility, FRAME_ID, null, wasVisibleLastFrame);
+
+            builder = new VkMergedTableBuilder(res, barriers);
+            opaque = new VkTerrainRenderer(res, W, H, barriers, Mode.MERGED, Pass.OPAQUE);
+            temporal = new VkTerrainRenderer(res, W, H, barriers, Mode.MERGED, Pass.TEMPORAL);
+            int maxDraws = SyntheticTerrain.maxFaceDrawCount(terrain.totalQuads(),
+                res.indexQuadCapacity);
+            VkSceneUniform.write(res.uniform, mvp(), SyntheticTerrain.ORIGIN, FRAME_ID,
+                new float[]{0, 0, 0});
+
+            var t = VkFrameTracker.get();
+            for (int frame = 0; frame < 2; frame++) {
+                var cmd = t.beginFrame();
+                if (frame > 0) {
+                    opaque.record(cmd, rt, maxDraws, CLEAR);
+                    temporal.record(cmd, rt, maxDraws,
+                        clearOnTemporal ? CLEAR : null,
+                        clearOnTemporal ? VkDepth.CLEAR : null);
+                    rt.recordReadback(cmd);
+                }
+                builder.record(cmd, terrain.sectionCount(), maxDraws);
+                t.endFrame();
+                t.waitForFrame();
+            }
+
+            int n = 7 * terrain.sectionCount();
+            return new Run(res, rt,
+                MemoryUtil.memGetInt(res.mergedPrefix.addr() + 4L + (long) n * 4),
+                MemoryUtil.memGetInt(res.temporalPrefix.addr() + 4L + (long) n * 4));
+        } catch (RuntimeException e) {
+            rt.free();
+            res.free();
+            throw e;
+        } finally {
+            if (builder != null) builder.free();
+            if (opaque != null) opaque.free();
+            if (temporal != null) temporal.free();
+        }
+    }
+
     private static boolean[] all(int n, boolean v) {
         var a = new boolean[n];
         Arrays.fill(a, v);
@@ -338,5 +401,75 @@ public class VkTemporalTest {
             if ((MemoryUtil.memGetInt(base + i * 4) & 0x00FFFFFF) != (clear & 0x00FFFFFF)) n++;
         }
         return n;
+    }
+
+    // ---------------- 5c-5a: 重ねる ----------------
+
+    /**
+     * <b>不透明の上に temporal を重ねても、絵が不透明と差分ゼロであること</b> (Phase 5c-5a)。
+     *
+     * <h2>なぜ差分ゼロが正しいのか</h2>
+     * temporal は不透明の<b>部分集合</b>を、<b>同じ頂点シェーダ・同じジオメトリ</b>で
+     * 描き直す。深度比較は {@code GREATER_OR_EQUAL} なので同じ深度の再描画は通り、
+     * 同じ色を書く。したがって<b>重ねても絵は変わらない</b>。
+     *
+     * <p>⚠ これは<b>temporal が何もしていない</b>ことの検査ではない —
+     * {@link #layeringMustNotClearWhatTheOpaquePassDrew()} が
+     * <b>temporal 単独の絵は不透明と違う</b>ことを同時に要求する。
+     * 片方だけだと「クリアしている」も「何も描いていない」も通る [規約 11]。
+     */
+    @Test
+    void temporalLayeredOnOpaqueLeavesTheOpaqueImageIntact() {
+        var terrain = SyntheticTerrain.boundaryCases();
+        var wasVisible = all(terrain.sectionCount(), false);
+        wasVisible[0] = true;      // temporal を真部分集合にする
+
+        var opaqueOnly = run(terrain, wasVisible, Pass.OPAQUE, Barriers.CONSERVATIVE);
+        var layered = runLayered(terrain, wasVisible, Barriers.CONSERVATIVE, false);
+        try {
+            assertTrue(coverage(opaqueOnly.target()) > 1000,
+                "the comparison is only meaningful if the opaque pass drew something");
+            assertTrue(layered.temporalQuads() > 0,
+                "temporal must be non-empty here, or layering asserts nothing");
+            assertTrue(layered.temporalQuads() < layered.opaqueQuads(),
+                "temporal must be a strict subset, or 'unchanged' holds for the wrong reason");
+            long diff = VkRenderTarget.compareColor(opaqueOnly.target(), layered.target());
+            assertEquals(0, diff,
+                "layering temporal on top of opaque changed " + diff + " pixels;"
+                    + " it must neither clear nor overdraw with a different colour");
+        } finally {
+            opaqueOnly.target().free(); opaqueOnly.res().free();
+            layered.target().free(); layered.res().free();
+        }
+    }
+
+    /**
+     * <b>⚠ 対照</b>: temporal がクリアすると絵が変わること (Phase 5c-5a)。
+     *
+     * <p>上の検査を<b>空虚に満たす方法</b>を塞ぐ。temporal がクリアしても
+     * 「差分ゼロ」になるなら、それは temporal と不透明の絵が同じという意味で、
+     * 部分集合であることと矛盾する。<b>実際に変わることを確かめておく。</b>
+     *
+     * <p>⚠ この壊し方は<b>落ちない</b>。temporal は不透明の部分集合なので
+     * 「絵が薄くなった」ようにしか見えない。バリデーションも何も言わない。
+     */
+    @Test
+    void layeringMustNotClearWhatTheOpaquePassDrew() {
+        var terrain = SyntheticTerrain.boundaryCases();
+        var wasVisible = all(terrain.sectionCount(), false);
+        wasVisible[0] = true;
+
+        var kept = runLayered(terrain, wasVisible, Barriers.CONSERVATIVE, false);
+        var cleared = runLayered(terrain, wasVisible, Barriers.CONSERVATIVE, true);
+        try {
+            long diff = VkRenderTarget.compareColor(kept.target(), cleared.target());
+            System.out.println("[vk] clearing on the temporal pass -> " + diff + " px differ");
+            assertTrue(diff > 0,
+                "clearing on the temporal pass must change the image; if it does not,"
+                    + " the 'layering leaves opaque intact' check cannot detect a lost clear");
+        } finally {
+            kept.target().free(); kept.res().free();
+            cleared.target().free(); cleared.res().free();
+        }
     }
 }

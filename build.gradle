@@ -569,6 +569,21 @@ tasks.named('runClient') {
             jvmArgs("-Dvoxy.5c4." + v + "=" + project.property(prop))
         }
     }
+    // 5c-5a: temporal パスを実データで戻す。**可視の書き方が temporal を決める**
+    //   ./gradlew runClient -Pvoxy5c4=on -Pvoxy5c5=all    全て前フレーム可視 -> temporal は空
+    //   ./gradlew runClient -Pvoxy5c4=on -Pvoxy5c5=none   全て新規可視     -> temporal == 不透明
+    //   ./gradlew runClient -Pvoxy5c4=on -Pvoxy5c5=even   偶数 id だけ新規 -> 真部分集合
+    //   ./gradlew runClient -Pvoxy5c4=on -Pvoxy5c5=odd    奇数 id だけ新規 -> even との和が全体
+    //   ./gradlew runClient -Pvoxy5c4=on -Pvoxy5c5=cycle  上の 4 つを順に回して分割の恒等式を見る
+    // ⚠ 片方だけでは駄目である。「空」だけを見ると「常に空」が通り、
+    //   「一致」だけを見ると「常に不透明と同じ」が通る (5c-1e と同じ型)
+    if (project.hasProperty('voxy5c5')) {
+        jvmArgs("-Dvoxy.5c5=" + project.property('voxy5c5'))
+    }
+    //   -Pvoxy5c5Frames=30  cycle のとき 1 モードを何フレーム保つか
+    if (project.hasProperty('voxy5c5Frames')) {
+        jvmArgs("-Dvoxy.5c5.frames=" + project.property('voxy5c5Frames'))
+    }
     if (project.hasProperty('voxy5c3b')) {
         jvmArgs("-Dvoxy.5c3b=" + project.property('voxy5c3b'))
     }

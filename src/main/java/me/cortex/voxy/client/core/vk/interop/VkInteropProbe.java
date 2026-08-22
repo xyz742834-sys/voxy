@@ -426,11 +426,46 @@ public final class VkInteropProbe {
     private static final int HIER_MESHES_PER_FRAME =
         Integer.parseInt(System.getProperty("voxy.5c4.meshesPerFrame", "16"));
 
+    /**
+     * 可視の書き方 (Phase 5c-5a)。{@code -Pvoxy5c5=all|none|even|odd|cycle}。
+     *
+     * <p>⚠ <b>これが temporal の中身を決める唯一のもの</b>である。
+     * 既定の {@code all} では temporal は<b>構造的に空</b>になるので、
+     * temporal の描画が繋がっているかどうかを<b>既定のまま確かめることはできない</b>
+     * [規約 11]。
+     */
+    private static final String TEMPORAL_MODE =
+        System.getProperty("voxy.5c5", "all").toLowerCase();
+
+    /** {@code cycle} のとき 1 モードを保つフレーム数。系が落ち着くのを待つ [規約 23]。 */
+    private static final int TEMPORAL_CYCLE_FRAMES =
+        Integer.parseInt(System.getProperty("voxy.5c5.frames", "30"));
+
+    /** {@code cycle} が回す順。<b>4 つ揃って初めて分割の恒等式が言える</b>。 */
+    private static final me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility[]
+        TEMPORAL_CYCLE = {
+            me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility.ALL_VISIBLE,
+            me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility.NONE_VISIBLE,
+            me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility.EVEN_NEW,
+            me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility.ODD_NEW,
+        };
+
+
     /** 5c-4c: 描画距離 (ブロック)。負なら無制限。 */
     private static final double HIER_RENDER_DISTANCE =
         Double.parseDouble(System.getProperty("voxy.5c4.distance", "-1"));
     private double lastCameraX, lastCameraY, lastCameraZ;
     private boolean warnedNoWorld;
+    /**
+     * モードごとの直近の観測。{@code {drawn, opaqueQuads, temporalQuads}}。
+     *
+     * <p>⚠ <b>モードをまたいで比べられるのは drawn が同じときだけ</b>である。
+     * トラバーサルの選択が動いていたら、quad 数の差が可視の書き方によるものか
+     * 選択が変わったせいかを<b>区別できない</b> [規約 22]。
+     */
+    private final java.util.EnumMap<
+        me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility, int[]> temporalSamples =
+        new java.util.EnumMap<>(me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility.class);
 
     /** 実ジオメトリのジオメトリバッファ容量 (quad)。足りなければ半径を下げる。 */
     private static final int REAL_GEOMETRY_MAX_QUADS =
@@ -683,6 +718,8 @@ public final class VkInteropProbe {
             }
             if (this.scene == null) this.buildHierarchicalScene(w, h);
             if (this.scene != null) {
+                // ⚠ **prepare より前**に決める。writeVisibility は prepare の中で走る
+                this.scene.setVisibility(this.visibilityForThisFrame());
                 this.writeHierarchicalUniform(projection, modelView, cameraX, cameraY, cameraZ);
             }
         } else if (drawsTerrain()) {
@@ -745,6 +782,12 @@ public final class VkInteropProbe {
             // ⚠ **画素数を出す。** 「drawn=216」は*選ばれた*数であって
             // *画面に出た*数ではない。目視で判断させると 5c-3a と同じ空振りになる
             Logger.info("[5c-4c]   voxy footprint: " + this.screenFootprint());
+        }
+        // ⚠ cycle はモードの**最後のフレーム**でだけ採る。切り替えた直後は
+        // まだ前のモードのテーブルが残っている [規約 23]
+        if (MODE == Mode.HIERARCHICAL && this.scene != null && "cycle".equals(TEMPORAL_MODE)
+                && (this.frames % TEMPORAL_CYCLE_FRAMES) == TEMPORAL_CYCLE_FRAMES - 1) {
+            this.sampleTemporal();
         }
         this.frames++;
 
@@ -1393,6 +1436,112 @@ public final class VkInteropProbe {
         }
     }
 
+    // ---------------- 5c-5a: temporal の実データ ----------------
+
+    /** 短縮名。{@code VkHierarchicalScene.Visibility} を毎回書かないためだけのもの。 */
+    private static me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility vis(String name) {
+        return me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility.valueOf(name);
+    }
+
+    /**
+     * このフレームの可視の書き方 (Phase 5c-5a)。
+     *
+     * <p>{@code cycle} は {@link #TEMPORAL_CYCLE} を {@link #TEMPORAL_CYCLE_FRAMES}
+     * フレームずつ回す。<b>4 つ揃って初めて分割の恒等式が言える</b>ので、
+     * 途中で止めると何も主張できない。
+     */
+    private me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility visibilityForThisFrame() {
+        return switch (TEMPORAL_MODE) {
+            case "none" -> vis("NONE_VISIBLE");
+            case "even" -> vis("EVEN_NEW");
+            case "odd" -> vis("ODD_NEW");
+            case "cull" -> vis("CULL");
+            case "cycle" -> TEMPORAL_CYCLE[(int)
+                ((this.frames / TEMPORAL_CYCLE_FRAMES) % TEMPORAL_CYCLE.length)];
+            default -> vis("ALL_VISIBLE");
+        };
+    }
+
+    /**
+     * <b>4 つのモードの観測を突き合わせる</b> (Phase 5c-5a)。
+     *
+     * <h2>何を主張しているのか</h2>
+     * <table>
+     *   <tr><th>主張</th><th>これが落とす実装</th></tr>
+     *   <tr><td>{@code ALL_VISIBLE} で temporal = <b>0</b></td>
+     *       <td>「常に不透明と同じものを描く」</td></tr>
+     *   <tr><td>{@code NONE_VISIBLE} で temporal = <b>不透明</b></td>
+     *       <td>「temporal は常に空」</td></tr>
+     *   <tr><td><b>{@code EVEN} + {@code ODD} = {@code NONE}</b></td>
+     *       <td>上の 2 つを<b>同時に</b>落とす</td></tr>
+     * </table>
+     *
+     * <p>⚠⚠ <b>分割の恒等式は quad 数の数え方に依存しない。</b>
+     * 面ごとの quad 数の式をこちらで書き直すと
+     * <b>予測と実装が同じ規約を共有する</b> [規約 4]。
+     * 偶数 id と奇数 id は<b>互いに素で全体を覆う</b>ので、
+     * 和が全体になることは<b>フィルタだけを主張している</b>。
+     *
+     * <p>⚠ <b>不透明側が動かないことも要求する。</b> 可視の書き方は bit 31 しか変えないので、
+     * 不透明の quad 数がモードで変わったら<b>フィルタが不透明側に漏れている</b>。
+     */
+    private void sampleTemporal() {
+        var mode = this.scene.visibility();
+        int[] opaque = this.scene.mergedTableTotals();
+        int[] temporal = this.scene.temporalTableTotals();
+        int drawn = this.scene.drawnSectionCount();
+        this.temporalSamples.put(mode, new int[]{drawn, opaque[1], temporal[1]});
+        Logger.info("[5c-5a] " + mode + ": drawn=" + drawn
+            + " opaqueQuads=" + opaque[1] + " temporalQuads=" + temporal[1]);
+
+        if (this.temporalSamples.size() < TEMPORAL_CYCLE.length) return;
+
+        var all = this.temporalSamples.get(vis("ALL_VISIBLE"));
+        var none = this.temporalSamples.get(vis("NONE_VISIBLE"));
+        var even = this.temporalSamples.get(vis("EVEN_NEW"));
+        var odd = this.temporalSamples.get(vis("ODD_NEW"));
+
+        // ⚠ 選択が動いていたら比べない。**数字が違う理由が 2 通りある状態で
+        // 結論を出さない** [規約 22]
+        if (all[0] != none[0] || all[0] != even[0] || all[0] != odd[0]) {
+            Logger.info("[5c-5a] the drawn set moved between modes ("
+                + all[0] + "/" + none[0] + "/" + even[0] + "/" + odd[0]
+                + ") — stand still and let it settle before reading the identity");
+            return;
+        }
+        // ⚠ drawn=0 なら全部 0 で恒等式が**空虚に成立**する [規約 18]
+        if (all[1] <= 0) {
+            Logger.warn("[5c-5a] ⚠ the opaque table is empty, so every claim below holds"
+                + " vacuously — nothing is being asserted");
+            return;
+        }
+
+        boolean opaqueStable = all[1] == none[1] && all[1] == even[1] && all[1] == odd[1];
+        boolean emptyWhenAllVisible = all[2] == 0;
+        boolean fullWhenNoneVisible = none[2] == all[1];
+        boolean partitions = (long) even[2] + odd[2] == none[2];
+
+        Logger.info("[5c-5a] ---- temporal on real data ----");
+        Logger.info("[5c-5a]   opaque unchanged across modes: " + verdict(opaqueStable)
+            + "  (" + all[1] + "/" + none[1] + "/" + even[1] + "/" + odd[1] + ")");
+        Logger.info("[5c-5a]   ALL_VISIBLE  -> temporal empty:      " + verdict(emptyWhenAllVisible)
+            + "  (" + all[2] + ")");
+        Logger.info("[5c-5a]   NONE_VISIBLE -> temporal == opaque:  " + verdict(fullWhenNoneVisible)
+            + "  (" + none[2] + " of " + all[1] + ")");
+        Logger.info("[5c-5a]   EVEN + ODD   == NONE:                " + verdict(partitions)
+            + "  (" + even[2] + " + " + odd[2] + " = " + ((long) even[2] + odd[2])
+            + " vs " + none[2] + ")");
+        // ⚠ **真部分集合であること**も言う。even が 0 でも全体でも
+        // 恒等式は成立しうる (0 + 全体 = 全体)
+        boolean strict = even[2] > 0 && odd[2] > 0 && even[2] < none[2] && odd[2] < none[2];
+        Logger.info("[5c-5a]   EVEN and ODD are both strict subsets: " + verdict(strict)
+            + (strict ? "" : "  ⚠ one side is empty or everything — the identity above"
+                + " would hold even if the filter did nothing"));
+        this.temporalSamples.clear();
+    }
+
+    private static String verdict(boolean ok) { return ok ? "PASS" : "⚠ FAIL"; }
+
     /**
      * 実データのトラバーサルの内訳を出す (Phase 5c-4c)。
      *
@@ -1439,6 +1588,15 @@ public final class VkInteropProbe {
             + " (sectionCount passed to prefix=" + this.scene.lastDrawnSections() + ")"
             + (table[1] == 0 ? "  ⚠ THE TABLE IS EMPTY — the problem is at or before cmdgen"
                : table[1] < 0 ? "  ⚠ entry count is out of range" : ""));
+        // 5c-5a: temporal は不透明と**エントリ配列を共有**するので、
+        // 見るのは総 quad 数だけである。エントリ数の一致は何も主張しない
+        int[] temporal = this.scene.temporalTableTotals();
+        Logger.info("[5c-5a] visibility=" + this.scene.visibility()
+            + "  temporal table: totalQuads=" + temporal[1] + " of " + table[1] + " opaque"
+            + (this.scene.visibility()
+                    == me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility.ALL_VISIBLE
+                ? "  [ALL_VISIBLE: 0 is expected. temporal cannot be exercised in this mode —"
+                  + " use -Pvoxy5c5=cycle]" : ""));
         Logger.info("[5c-4c] GPU " + this.scene.timer().describe());
     }
 

@@ -73,6 +73,43 @@ public final class VkHierarchicalScene {
     /** GPU の区間。⚠ 名前は<b>疑う先</b>に対応させる [Phase 6]。 */
     public static final String[] SPANS = {"hiz", "traversal", "table", "draw", "resolve"};
 
+    /**
+     * <b>可視バッファを誰がどう書くか</b> (Phase 5c-5a)。
+     *
+     * <h2>なぜモードにするのか</h2>
+     * temporal に回るかどうかは <b>{@code visibilityData} の bit 31</b> だけで決まる
+     * [確認済 — {@code cmdgen.comp}: {@code renderTemporally = (dat & 0x80000000u) == 0u}]。
+     * そして本番でその bit を書くのは<b>カルパスの頂点シェーダだけ</b>である
+     * [確認済 — {@code cull_raster.vert}: {@code wasVisibleLastFrame}]。
+     *
+     * <p>⚠ したがって {@link #ALL_VISIBLE} のままでは
+     * <b>temporal は構造的に空になる</b> — 描画を繋いでも 1 quad も出ない。
+     * <b>「繋いだが何も描かれない」を PASS と読める形になる</b> [規約 11]。
+     *
+     * <p>ホストが書くモードを用意するのは、<b>期待集合を予測できる段を 1 つ挟む</b>ためである
+     * (5c-4b が合成の木で機構を確かめたのと同じ構造)。
+     */
+    public enum Visibility {
+        /** 全て「前フレームも可視」。<b>temporal は空になる</b>。5c-4c までの挙動。 */
+        ALL_VISIBLE,
+        /** 全て「今フレーム新規可視」。<b>temporal は不透明と一致する</b>はず。 */
+        NONE_VISIBLE,
+        /** 偶数 id だけ新規可視。temporal は<b>真部分集合</b>になる。 */
+        EVEN_NEW,
+        /** 奇数 id だけ新規可視。{@link #EVEN_NEW} との<b>和が全体</b>になるはず。 */
+        ODD_NEW,
+        /**
+         * ホストは<b>何も書かない</b>。カルパスが書く (Phase 5c-5b)。
+         *
+         * <p>⚠ カルパスを繋いだらこれ以外を使ってはならない —
+         * ホストが上書きすると {@code previous==(frameId-1)} が常に偽になり、
+         * <b>全セクションが temporal に回る</b>。
+         */
+        CULL
+    }
+
+    private Visibility visibility = Visibility.ALL_VISIBLE;
+
     public final VkTerrainResources res;
     private final Watcher watcher = new Watcher();
     private final BasicAsyncGeometryManager geometry;
@@ -86,6 +123,11 @@ public final class VkHierarchicalScene {
     private final VkHiZ hiz;
     private final VkMergedTableBuilder table;
     private final VkTerrainRenderer renderer;
+    /**
+     * temporal パス (Phase 5c-5a)。不透明と<b>同じ頂点シェーダ・同じエントリ配列</b>で、
+     * {@code MERGED_PREFIX_BINDING} に {@code temporalPrefix} を張ったもの。
+     */
+    private final VkTerrainRenderer temporalRenderer;
     private final VkGpuTimer timer = new VkGpuTimer(SPANS);
     private final int maxSections;
     /**
@@ -158,7 +200,15 @@ public final class VkHierarchicalScene {
         this.renderer = new VkTerrainRenderer(this.res, width, height,
             VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
             VkTerrainRenderer.Pass.OPAQUE, colourFormat);
+        this.temporalRenderer = new VkTerrainRenderer(this.res, width, height,
+            VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
+            VkTerrainRenderer.Pass.TEMPORAL, colourFormat);
     }
+
+    /** 可視バッファの書き方を選ぶ (Phase 5c-5a)。既定は 5c-4c までと同じ。 */
+    public void setVisibility(Visibility mode) { this.visibility = mode; }
+
+    public Visibility visibility() { return this.visibility; }
 
     /**
      * カメラ周辺を<b>先にメッシュ化して</b>木に入れる。
@@ -203,7 +253,7 @@ public final class VkHierarchicalScene {
     }
 
     /**
-     * <b>可視バッファを全面的に立てる</b> (Phase 5c-4c の縮小)。
+     * <b>可視バッファをホストが書く</b> (Phase 5c-4c の縮小 / 5c-5a で両極を足した)。
      *
      * <h2>⚠ なぜ要るのか</h2>
      * {@code cmdgen} は <b>{@code visibilityData[sid] == frameId}</b> でなければ
@@ -211,25 +261,53 @@ public final class VkHierarchicalScene {
      * 本番はこれを<b>カルパス</b> (ラスタ遮蔽判定) が書く。
      * 繋がないと<b>密テーブルが全部空になり、1 画素も出ない</b> — 実際にそうなった。
      *
-     * <p>⚠ <b>bit 31 も立てる。</b> 立っていないと
-     * 「今フレーム新たに見えた」扱いになり <b>temporal パス側に回されて
-     * 不透明の描画に出ない</b> [確認済 — {@code renderTemporally}]。
+     * <h2>bit 31 が temporal を決める</h2>
+     * 下位 31 bit が {@code frameId} と一致すれば<b>描く</b>。
+     * その上で <b>bit 31 が立っていなければ temporal パスへ回る</b>
+     * [確認済 — {@code cmdgen.comp}: {@code renderTemporally}]。
+     * {@link Visibility} はこの bit の書き方だけを変える —
+     * <b>どのセクションを描くかは変えない</b>ので、
+     * 不透明側の quad 数はモードによらず同じでなければならない。
      *
      * <h2>⚠ 何を捨てているか</h2>
      * これは<b>カルパスの代用ではない</b>。遮蔽で落とす仕組みを丸ごと外している。
      * <ul>
      *   <li>トラバーサルの HiZ 判定は<b>効いたまま</b> (ノード単位)</li>
      *   <li>セクション単位のラスタ遮蔽は<b>効かない</b> → <b>本番より多く描く</b></li>
-     *   <li>したがって<b>描画の時間は悲観的に出る</b>。Phase 6 で読むときに要注意</li>
+     *   <li>したがって<b>描画の時間は悲観的に出る</b>。5c-5b で取り直す</li>
      * </ul>
      */
-    private void markEverythingVisible(int frameId) {
-        int marked = (frameId & 0x7fffffff) | 0x80000000;
+    private void writeVisibility(int frameId) {
+        if (this.visibility == Visibility.CULL) return;   // カルパスが書く
         long addr = this.res.visibility.addr();
         int n = (int) (this.res.visibility.size() / 4);
         for (int i = 0; i < n; i++) {
-            org.lwjgl.system.MemoryUtil.memPutInt(addr + (long) i * 4L, marked);
+            org.lwjgl.system.MemoryUtil.memPutInt(addr + (long) i * 4L,
+                visibilityWord(this.visibility, i, frameId));
         }
+    }
+
+    /**
+     * 1 セクションぶんの可視の語 (Phase 5c-5a)。<b>装置なしで検査できるように切り出してある。</b>
+     *
+     * <p>下位 31 bit は必ず {@code frameId} — <b>どのモードでも描く</b>。
+     * 変えるのは bit 31 だけである。
+     *
+     * <p>⚠ {@link Visibility#EVEN_NEW} と {@link Visibility#ODD_NEW} は
+     * <b>互いに素で全体を覆う</b>。この性質が
+     * 「temporal の quad 数の和が全体になる」という<b>数え方に依存しない主張</b>を成立させる。
+     */
+    public static int visibilityWord(Visibility mode, int index, int frameId) {
+        int base = frameId & 0x7fffffff;
+        boolean newlyVisible = switch (mode) {
+            case ALL_VISIBLE -> false;
+            case NONE_VISIBLE -> true;
+            case EVEN_NEW -> (index & 1) == 0;
+            case ODD_NEW -> (index & 1) == 1;
+            case CULL -> throw new IllegalArgumentException(
+                "CULL means the host writes nothing; there is no word to compute");
+        };
+        return newlyVisible ? base : (base | 0x80000000);
     }
 
     /** ⚠ フレームの記録の<b>前</b>に呼ぶこと。ホスト側の書き込みを済ませる。 */
@@ -242,7 +320,7 @@ public final class VkHierarchicalScene {
         // ⚠ **reset の前に読む。** reset が描画キューの先頭を 0 にする
         this.lastDrawnSections = this.drawnSectionCount();
         this.traversal.reset(this.topLevelCount);
-        this.markEverythingVisible(frameId);
+        this.writeVisibility(frameId);
         return flushed;
     }
 
@@ -272,6 +350,10 @@ public final class VkHierarchicalScene {
         this.timer.mark(cmd, 3);
 
         this.renderer.record(cmd, target, this.maxDraws, clearColour);
+        // ⚠ **色も深度もクリアしない。** 不透明が描いた上に重ねるパスである。
+        // クリアすると不透明の絵が丸ごと消え、temporal だけが残る —
+        // temporal は不透明の部分集合なので「絵が薄くなった」ようにしか見えない
+        this.temporalRenderer.record(cmd, target, this.maxDraws, null, null);
         this.timer.mark(cmd, 4);
 
         if (depthOut != null) depthOut.resolve(cmd, target.depth);
@@ -465,6 +547,31 @@ public final class VkHierarchicalScene {
                              : "  [commands exist; if no pixels appear the draw itself is at fault]");
     }
 
+    /**
+     * <b>temporal のテーブルが何 quad ぶんを指しているか</b> (Phase 5c-5a)。
+     *
+     * <p>{@link #mergedTableTotals()} と<b>同じ形</b>で読む。
+     * 両者を並べることで {@link Visibility} の両極を数字で言える:
+     * <ul>
+     *   <li>{@link Visibility#ALL_VISIBLE} → temporal は <b>0</b></li>
+     *   <li>{@link Visibility#NONE_VISIBLE} → temporal は<b>不透明と一致</b></li>
+     *   <li>{@link Visibility#EVEN_NEW} + {@link Visibility#ODD_NEW} → <b>和が不透明</b></li>
+     * </ul>
+     *
+     * <p>⚠ エントリ数は不透明と<b>共有</b>である (temporal は quad 数だけ絞り込む)。
+     * したがってエントリ数が一致することは<b>何も主張しない</b> — 見るのは総 quad 数。
+     *
+     * @return {@code {エントリ数, 末尾の prefix = 総 quad 数}}
+     */
+    public int[] temporalTableTotals() {
+        long base = this.res.temporalPrefix.addr();
+        int entries = org.lwjgl.system.MemoryUtil.memGetInt(base);
+        int max = (int) ((this.res.temporalPrefix.size() - 4) / 4) - 1;
+        if (entries < 0 || entries > max) return new int[]{entries, -1};
+        int total = org.lwjgl.system.MemoryUtil.memGetInt(base + 4L + (long) entries * 4L);
+        return new int[]{entries, total};
+    }
+
     /** トラバーサルが選んだセクション数 (= {@code indirectLookup} の先頭)。 */
     public int drawnSectionCount() {
         return Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.res.indirectLookup.addr()),
@@ -485,6 +592,7 @@ public final class VkHierarchicalScene {
         this.freed = true;
         this.timer.free();
         this.renderer.free();
+        this.temporalRenderer.free();
         this.table.free();
         this.traversal.free();
         this.hiz.free();

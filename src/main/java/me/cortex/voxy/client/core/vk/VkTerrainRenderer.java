@@ -297,6 +297,26 @@ public class VkTerrainRenderer {
      * @param clearColour null ならクリアしない
      */
     public void record(VkCommandBuffer cmd, VkRenderTarget target, int drawCount, float[] clearColour) {
+        this.record(cmd, target, drawCount, clearColour, VkDepth.CLEAR);
+    }
+
+    /**
+     * 深度のクリア値まで指定して記録する (Phase 5c-5a)。
+     *
+     * <h2>⚠ 同じ的に 2 本目以降を描くときは <b>{@code null}</b> でなければならない</h2>
+     * temporal / 半透明は<b>不透明が描いた上に重ねる</b>パスである。
+     * ここでクリアすると<b>不透明の絵と深度が丸ごと消え</b>、
+     * 最後に描いたパスだけが残る。
+     *
+     * <p>⚠ <b>落ちない型である。</b> temporal は不透明の部分集合なので
+     * 「絵が薄くなった」ようにしか見えず、半透明は<b>水だけの画面</b>になる。
+     * どちらもバリデーションは何も言わない。
+     *
+     * @param clearDepth null ならクリアしない ({@code LOAD})。
+     *                   不透明パスだけが {@link VkDepth#CLEAR} を渡す
+     */
+    public void record(VkCommandBuffer cmd, VkRenderTarget target, int drawCount,
+                       float[] clearColour, Float clearDepth) {
         this.assertNotFreed();
         // フォーマットの食い違いは絵が微妙に狂う形で出る (R と B が入れ替わる等)。
         // バリデーションが無い実行でも確実に捕まえたいのでここで落とす
@@ -308,7 +328,7 @@ public class VkTerrainRenderer {
         this.recordUploads(cmd);
         this.hostWriteBarrier(cmd);
 
-        target.beginRendering(cmd, clearColour, VkDepth.CLEAR);
+        target.beginRendering(cmd, clearColour, clearDepth);
         this.pipeline.bind(cmd);
         this.shader.bind(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS);
         vkCmdBindIndexBuffer(cmd, this.res.index.buffer.handle, 0, VK_INDEX_TYPE_UINT32);
