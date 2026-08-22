@@ -96,7 +96,7 @@ public final class VkHierarchicalScene {
      * [確認済 — {@code SyntheticTerrain.maxFaceDrawCount} = {@code 7 + quads/capacity}]。
      * エントリ数を渡すと <b>{@code mergedDraw} を溢れさせる</b> — 最初そう書いた。
      */
-    private final int maxDraws;
+    final int maxDraws;
     private boolean freed;
 
     private int topLevelCount;
@@ -422,6 +422,34 @@ public final class VkHierarchicalScene {
             + " counts(t/ds d/u n/s w/e)=" + counts
             + " sumOfCounts=" + totalFaces
             + (totalFaces == 0 ? "  ⚠ THE SECTION METADATA HAS NO QUADS" : "");
+    }
+
+    /**
+     * <b>生成された間接描画コマンド</b>を読む (Phase 5c-4c)。
+     *
+     * <p>テーブルに quad があるのに画素が出ないとき、
+     * <b>描画コマンドが空なのか、実行されて何も出ないのか</b>を分ける。
+     * 1 コマンド = 5 uint (indexCount, instanceCount, firstIndex, vertexOffset, firstInstance)。
+     */
+    public String describeDraws() {
+        long addr = this.res.mergedDraw.addr();
+        int slots = Math.min(this.maxDraws, (int) (this.res.mergedDraw.size() / 20));
+        long totalIndices = 0;
+        int nonEmpty = 0;
+        var sb = new StringBuilder();
+        for (int i = 0; i < slots; i++) {
+            int idx = org.lwjgl.system.MemoryUtil.memGetInt(addr + (long) i * 20L);
+            int inst = org.lwjgl.system.MemoryUtil.memGetInt(addr + (long) i * 20L + 4);
+            if (idx != 0 && inst != 0) { nonEmpty++; totalIndices += idx; }
+            if (i < 8) {
+                sb.append(idx).append('x').append(inst).append(' ');
+            }
+        }
+        return "slots=" + slots + " nonEmpty=" + nonEmpty
+            + " totalIndices=" + totalIndices
+            + " first8(indexCount x instanceCount)=" + sb
+            + (nonEmpty == 0 ? "  ⚠ EVERY DRAW COMMAND IS EMPTY — the problem is in the table"
+                             : "  [commands exist; if no pixels appear the draw itself is at fault]");
     }
 
     /** トラバーサルが選んだセクション数 (= {@code indirectLookup} の先頭)。 */

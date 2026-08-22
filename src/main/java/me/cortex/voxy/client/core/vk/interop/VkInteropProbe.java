@@ -1427,6 +1427,10 @@ public final class VkInteropProbe {
         }
         // ⚠ 画素が 0 のとき、原因が**テーブルの側**か**描画の側**かを分ける
         int[] table = this.scene.mergedTableTotals();
+        if (table[1] > 0) {
+            // ⚠ テーブルに quad があるのに画素が 0 — **コマンドが空か、実行して出ないか**
+            Logger.info("[5c-4c] draws: " + this.scene.describeDraws());
+        }
         if (table[1] == 0 && this.scene.drawnSectionCount() > 0) {
             // ⚠ 空の原因は「可視の印」か「メタデータ」しかない。**読んで**決める
             Logger.info("[5c-4c] first entry: " + this.scene.describeFirstEntry());
