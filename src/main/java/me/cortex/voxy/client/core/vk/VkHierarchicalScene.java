@@ -77,6 +77,7 @@ public final class VkHierarchicalScene {
     private final Watcher watcher = new Watcher();
     private final BasicAsyncGeometryManager geometry;
     private final NodeManager nodes;
+    private final WorldEngine world;
     private final VkModelUploadTarget modelTarget;
     private final VkRealModelBakery bakery;
     private final VkRealMesher mesher;
@@ -130,6 +131,7 @@ public final class VkHierarchicalScene {
         // ⚠ ワールドの Mapper を借りる。新しく作るとブロック id が全部別物になる [5c-3b]
         this.bakery = new VkRealModelBakery(this.modelTarget, world.getMapper());
         this.mesher = new VkRealMesher(world, this.bakery);
+        this.world = world;
 
         this.geometry = new BasicAsyncGeometryManager(maxSections, (long) maxQuads * 8);
         this.nodes = new NodeManager(maxSections, this.geometry, this.watcher);
@@ -289,7 +291,18 @@ public final class VkHierarchicalScene {
      * @param maxMeshesPerCall 1 回でメッシュ化する上限。<b>止めないため</b>に要る
      * @return 新しくメッシュ化した数
      */
+    /**
+     * ⚠ ワールドがまだ生きているか。
+     *
+     * <p>Voxy は<b>使われていないワールドを閉じる</b> (アイドル回収)。
+     * 閉じたあとに {@code acquireIfExists} を呼ぶと
+     * {@code "World is not live"} で<b>フレームの途中で落ちる</b> — 実際に落ちた。
+     * シーンは古いワールドを掴んだままなので、<b>捨てて作り直す</b>のが正しい。
+     */
+    public boolean worldIsLive() { return this.world.isLive(); }
+
     public int serviceRequests(int maxMeshesPerCall) {
+        if (!this.world.isLive()) return 0;
         int count = Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.traversal.request.addr()),
             4096);
         for (int i = 0; i < count; i++) {

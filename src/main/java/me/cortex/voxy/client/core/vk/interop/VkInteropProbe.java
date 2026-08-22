@@ -673,6 +673,14 @@ public final class VkInteropProbe {
 
         // ---- 3. Vulkan ----
         if (MODE == Mode.HIERARCHICAL) {
+            // ⚠ ワールドが閉じられていたら**シーンごと捨てる**。
+            // 掴んだままだと acquireIfExists が投げてフレームの途中で落ちる
+            if (this.scene != null && !this.scene.worldIsLive()) {
+                Logger.info("[5c-4c] the world engine was closed (idle world reclaim);"
+                    + " dropping the scene and rebuilding");
+                this.scene.free();
+                this.scene = null;
+            }
             if (this.scene == null) this.buildHierarchicalScene(w, h);
             if (this.scene != null) {
                 this.writeHierarchicalUniform(projection, modelView, cameraX, cameraY, cameraZ);
