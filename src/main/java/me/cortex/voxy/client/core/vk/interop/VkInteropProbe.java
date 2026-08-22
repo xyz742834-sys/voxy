@@ -1407,18 +1407,21 @@ public final class VkInteropProbe {
             + (this.scene.drawnSectionCount() == 0
                 ? "  [drawn=0: the tree is anchored where it was populated and does NOT"
                   + " follow the camera — walk back, or restart to re-populate here]" : ""));
-        // ⚠ **選ばれた数がメッシュ化した数を超えたら、切り口ではありえない。**
-        // 推論ではなく測って言う
+        // ⚠ 描画キューの中身が正しい id かどうか。
+        //
+        // ⚠⚠ **「drawn > meshed だからおかしい」は誤りだった。**
+        // meshedSections はこちらが数えている値であって、ジオメトリ管理器が持つ
+        // セクション数ではない。**権威のないカウンタを不変条件の根拠にしない**
         int[] invalid = this.scene.countInvalidRenderIds();
-        if (invalid[0] > 0 || this.scene.drawnSectionCount() > this.scene.meshedSections()) {
+        if (invalid[0] > 0) {
             Logger.error("[5c-4c] ⚠ " + invalid[0] + " of " + invalid[1]
-                + " render-queue entries are NOT valid section ids"
-                + " (drawn=" + this.scene.drawnSectionCount()
-                + " vs meshed=" + this.scene.meshedSections() + ")."
-                + " The traversal renders nodes without a mesh: its self-render branch does not"
-                + " check hasMesh, relying on \"all leaf nodes have a mesh\", which this"
-                + " population breaks. cmdgen then reads section metadata out of range.");
+                + " render-queue entries are not valid section ids");
         }
+        // ⚠ 画素が 0 のとき、原因が**テーブルの側**か**描画の側**かを分ける
+        int[] table = this.scene.mergedTableTotals();
+        Logger.info("[5c-4c] merged table: entries=" + table[0] + " totalQuads=" + table[1]
+            + (table[1] == 0 ? "  ⚠ THE TABLE IS EMPTY — the problem is at or before cmdgen"
+               : table[1] < 0 ? "  ⚠ entry count is out of range" : ""));
         Logger.info("[5c-4c] GPU " + this.scene.timer().describe());
     }
 

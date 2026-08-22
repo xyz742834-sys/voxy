@@ -324,6 +324,26 @@ public final class VkHierarchicalScene {
         return new int[]{bad, n};
     }
 
+    /**
+     * <b>密テーブルが実際に何 quad ぶんを指しているか</b> (Phase 5c-4c)。
+     *
+     * <p>描画が空になったとき、原因が<b>テーブルの側</b>か<b>描画の側</b>かを分ける。
+     * <ul>
+     *   <li>合計が 0 → cmdgen までで空になっている (テーブルの側)</li>
+     *   <li>合計 &gt; 0 なのに画素が 0 → <b>描画が落としている</b></li>
+     * </ul>
+     *
+     * @return {@code {エントリ数, 末尾の prefix = 総 quad 数}}
+     */
+    public int[] mergedTableTotals() {
+        long base = this.res.mergedPrefix.addr();
+        int entries = org.lwjgl.system.MemoryUtil.memGetInt(base);
+        int max = (int) ((this.res.mergedPrefix.size() - 4) / 4) - 1;
+        if (entries < 0 || entries > max) return new int[]{entries, -1};
+        int total = org.lwjgl.system.MemoryUtil.memGetInt(base + 4L + (long) entries * 4L);
+        return new int[]{entries, total};
+    }
+
     /** トラバーサルが選んだセクション数 (= {@code indirectLookup} の先頭)。 */
     public int drawnSectionCount() {
         return Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.res.indirectLookup.addr()),
