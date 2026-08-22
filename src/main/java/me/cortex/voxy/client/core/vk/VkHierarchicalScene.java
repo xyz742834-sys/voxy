@@ -188,6 +188,36 @@ public final class VkHierarchicalScene {
             + Math.max(0, top - depth));
     }
 
+    /**
+     * <b>可視バッファを全面的に立てる</b> (Phase 5c-4c の縮小)。
+     *
+     * <h2>⚠ なぜ要るのか</h2>
+     * {@code cmdgen} は <b>{@code visibilityData[sid] == frameId}</b> でなければ
+     * そのセクションを 0 quad として扱う [確認済 — {@code cmdgen.comp}]。
+     * 本番はこれを<b>カルパス</b> (ラスタ遮蔽判定) が書く。
+     * 繋がないと<b>密テーブルが全部空になり、1 画素も出ない</b> — 実際にそうなった。
+     *
+     * <p>⚠ <b>bit 31 も立てる。</b> 立っていないと
+     * 「今フレーム新たに見えた」扱いになり <b>temporal パス側に回されて
+     * 不透明の描画に出ない</b> [確認済 — {@code renderTemporally}]。
+     *
+     * <h2>⚠ 何を捨てているか</h2>
+     * これは<b>カルパスの代用ではない</b>。遮蔽で落とす仕組みを丸ごと外している。
+     * <ul>
+     *   <li>トラバーサルの HiZ 判定は<b>効いたまま</b> (ノード単位)</li>
+     *   <li>セクション単位のラスタ遮蔽は<b>効かない</b> → <b>本番より多く描く</b></li>
+     *   <li>したがって<b>描画の時間は悲観的に出る</b>。Phase 6 で読むときに要注意</li>
+     * </ul>
+     */
+    private void markEverythingVisible(int frameId) {
+        int marked = (frameId & 0x7fffffff) | 0x80000000;
+        long addr = this.res.visibility.addr();
+        int n = (int) (this.res.visibility.size() / 4);
+        for (int i = 0; i < n; i++) {
+            org.lwjgl.system.MemoryUtil.memPutInt(addr + (long) i * 4L, marked);
+        }
+    }
+
     /** ⚠ フレームの記録の<b>前</b>に呼ぶこと。ホスト側の書き込みを済ませる。 */
     public VkGeometryFlush.Result prepare(Matrix4fc mvp, int[] camSection, float[] camSubPos,
                                           float minScreenSize, int frameId, float renderDistance) {
@@ -196,6 +226,7 @@ public final class VkHierarchicalScene {
         this.traversal.writeUniform(mvp, camSection, camSubPos, this.hiz.packedSize(),
             minScreenSize, VkHostViewport.frustumPlanes(mvp), frameId, renderDistance);
         this.traversal.reset(this.topLevelCount);
+        this.markEverythingVisible(frameId);
         return flushed;
     }
 
