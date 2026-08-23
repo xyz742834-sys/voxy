@@ -546,3 +546,70 @@ GL 版の `BoundRenderer` に相当するものを繋いでいない。
 
 > ⚠ 5c-4c の頃は `drawn=16213` (1%) だったので<b>見えていなかっただけ</b>の可能性がある。
 > 入口が 16 根になって初めて表に出た、という筋である。**[推測 — 未検証]**
+
+---
+
+## 13. 5c-5b1 完了 — <b>記録順を参照実装に揃え、HiZ の元を直した</b>
+
+### 13.1 ⚠ HiZ が別の空間の深度を読んでいた (本番コードの実バグ)
+
+上流を読んで確定した [確認済 — 実物]:
+
+```java
+// NormalRenderPipeline.setup
+return this.fb.getDepthTex().id;          // Voxy 自前 FB の深度
+
+// AbstractRenderPipeline.runPipeline
+int depthTexture = this.setup(...);
+rs.renderOpaque(viewport);                 // その深度に書く
+this.innerPrimaryWork(viewport, depthTexture);   // hiZBuffer.buildMipChain(depthTexture)
+```
+
+**HiZ は Voxy 自身の深度アタッチメントを、不透明パスが書いた後に読む。**
+
+5c-4c までの Vulkan 経路は <b>interop の解決済み深度</b>を読んでいた。これは
+
+| | |
+|---|---|
+| <b>再投影済み</b> | MC の投影空間。トラバーサルの MVP と<b>別の空間</b>である |
+| <b>1 フレーム古い</b> | 解決はフレームの最後に走る |
+
+⚠ **絵は出るので気付けない型**である。遮蔽判定が別空間の深度と比較していた。
+
+### 13.2 記録順
+
+```
+不透明 (前フレームのテーブル)  →  HiZ  →  traversal  →  table  →  temporal (今フレーム)
+```
+
+⚠ **不透明が先頭にあることが HiZ の前提である。** 入れ替えると HiZ が 1 フレーム
+古い深度を見て、回転で遮蔽判定がずれる。
+
+`SPANS` を `{opaque, hiz, traversal, table, temporal, resolve}` に再定義した。
+⚠ 旧 `draw` は `opaque` と `temporal` に分かれたので、<b>5c-4c の内訳とは直接比べられない</b>。
+
+### 13.3 ⚠ 装置ありで先に潰したこと
+
+**{@code VkHiZ} が深度フォーマットを読むのはこれが初めて**だった。
+読めなければ (アスペクトの取り違え等) <b>0 かゴミが返るだけで絵は出る</b>。
+
+`VkHiZDepthSourceTest` (2 件、装置あり・MC 不要):
+
+| 検査 | 主張 |
+|---|---|
+| `theHiZCanReadADepthAttachment` | クリアした深度が HiZ に届く |
+| **`adifferentDepthGivesADifferentHiZ`** | ⚠ <b>対照</b>。別の深度なら別の値。定数を返す実装を落とす |
+
+> 「0 でない」では足りない [規約 11]。**入力に追随すること**を要求する。
+
+**JUnit 266 PASS / 3 SKIP** (264 → 266)。
+
+### 13.4 進め方の訂正
+
+ちらつき / 焼き付きの追跡は <b>{@code VkInteropProbe} (5c の足場) の欠陥</b>で、
+本番経路の欠陥ではなかった。**上流の構造を先に読めば 1 回で済んだ**。
+
+以後:
+1. 装置なし / 装置ありで確かめられることは<b>こちらで確かめる</b>
+2. 実験の前に<b>上流 Voxy と MC のコードを読む</b>
+3. <b>Vulkan 移植に要るかを都度判断する</b>

@@ -682,7 +682,7 @@ public final class VkInteropProbe {
             // それが繰り返し起きて、ちらつきと「絵が戻らない」の両方になる
             if (this.scene != null) {
                 this.hierarchicalRebuilds++;
-                this.scene.resize(this.depth.texture(), w, h,
+                this.scene.resize(this.rt, w, h,
                     VkInteropImage.Kind.COLOR_BGRA8.vkFormat);
             } else {
                 this.buildHierarchicalScene(w, h);
@@ -944,10 +944,10 @@ public final class VkInteropProbe {
             }
             return;
         }
-        // ⚠ HiZ の元は **前フレームの解決済み深度**。本番は MC の深度も混ざるが、
-        // まずは Voxy 自身の遮蔽だけにする [1 変数ずつ]
+        // ⚠ HiZ の元は **Voxy 自身の深度アタッチメント** (5c-5b1 で修正)。
+        // 上流も fb.getDepthTex() を渡している [NormalRenderPipeline.setup]
         var built = new me.cortex.voxy.client.core.vk.VkHierarchicalScene(
-            world, this.depth.texture(), w, h,
+            world, this.rt, w, h,
             Integer.parseInt(System.getProperty("voxy.5c4.sections", "20000")),
             HIER_MAX_QUADS, VkInteropImage.Kind.COLOR_BGRA8.vkFormat);
         try {

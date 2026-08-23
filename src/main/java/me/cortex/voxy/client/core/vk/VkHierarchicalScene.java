@@ -146,8 +146,15 @@ public final class VkHierarchicalScene {
         return Integer.highestOneBit(v - 1) << 1;
     }
 
-    /** GPU の区間。⚠ 名前は<b>疑う先</b>に対応させる [Phase 6]。 */
-    public static final String[] SPANS = {"hiz", "traversal", "table", "draw", "resolve"};
+    /**
+     * GPU の区間。⚠ 名前は<b>疑う先</b>に対応させる [Phase 6]。
+     *
+     * <p>⚠ 5c-5b1 で<b>並びが参照実装に揃った</b>ので、5c-4c の内訳とは
+     * <b>直接比べられない</b>: 旧 {@code draw} は {@code opaque} と {@code temporal}
+     * に分かれている。
+     */
+    public static final String[] SPANS =
+        {"opaque", "hiz", "traversal", "table", "temporal", "resolve"};
 
     /**
      * <b>可視バッファを誰がどう書くか</b> (Phase 5c-5a)。
@@ -256,7 +263,7 @@ public final class VkHierarchicalScene {
      * @param depthSource 深度解決の出力 (HiZ の元)
      * @param maxSections 描画キューと密テーブルの容量。<b>選ばれうるセクション数の上限</b>
      */
-    public VkHierarchicalScene(WorldEngine world, VkTexture depthSource,
+    public VkHierarchicalScene(WorldEngine world, VkRenderTarget target,
                                int width, int height, int requestedSections, int maxQuads,
                                int colourFormat) {
         // ⚠ {@code NodeManager} も {@code AbstractSectionGeometryManager} も
@@ -284,7 +291,15 @@ public final class VkHierarchicalScene {
         this.geometry = new BasicAsyncGeometryManager(maxSections, this.geometryCapacityBytes);
         this.nodes = new NodeManager(maxSections, this.geometry, this.watcher);
 
-        this.hiz = new VkHiZ(depthSource, width, height);
+        // ⚠⚠ **HiZ は Voxy 自身の深度アタッチメントを読む** [確認済 — 上流
+        // {@code NormalRenderPipeline.setup} が {@code fb.getDepthTex()} を返し、
+        // {@code runPipeline} が {@code renderOpaque} の**後**に
+        // {@code innerPrimaryWork(viewport, depthTexture)} を呼ぶ]。
+        //
+        // ⚠ interop の解決済み深度を読んではならない。あれは**再投影済み**で
+        // MC の投影空間にあり、トラバーサルが使う MVP と**別の空間**である。
+        // しかも 1 フレーム古い。絵は出るので気付けない型の誤りだった
+        this.hiz = new VkHiZ(target.depth, width, height);
         // ⚠ 描画キューに indirectLookup をそのまま渡す。cmdgen が直接読む
         this.traversal = new VkTraversal(this.hiz.texture(), maxSections, maxSections,
             (int) ((this.res.indirectLookup.size() - 4) / 4), 4096, this.res.indirectLookup);
@@ -329,13 +344,13 @@ public final class VkHierarchicalScene {
      *
      * @param depthSource 新しい深度の元 (interop 画像が作り直されると別物になる)
      */
-    public void resize(VkTexture depthSource, int width, int height, int colourFormat) {
+    public void resize(VkRenderTarget target, int width, int height, int colourFormat) {
         this.assertNotFreed();
         this.renderer.free();
         this.temporalRenderer.free();
         this.hiz.free();
 
-        this.hiz = new VkHiZ(depthSource, width, height);
+        this.hiz = new VkHiZ(target.depth, width, height);
         // ⚠ トラバーサルは**張り替えるだけ**。ノードもキューも作り直さない
         this.traversal.rebindHiZ(this.hiz.texture());
         this.renderer = new VkTerrainRenderer(this.res, width, height,
@@ -491,8 +506,17 @@ public final class VkHierarchicalScene {
     /**
      * 1 フレームぶんを記録する。区間ごとに時刻を打つ。
      *
-     * <p>⚠ <b>順序は GL 版と同じ</b>: このフレームの描画は
-     * <b>前フレームのテーブル</b>で行われる [{@code VkMergedTableBuilder.record} の前提]。
+     * <h2>並びは参照実装そのもの (Phase 5c-5b1)</h2>
+     * <pre>
+     *   renderOpaque (前フレームのテーブル)
+     *     -&gt; innerPrimaryWork (HiZ + traversal)
+     *     -&gt; buildDrawCalls   (テーブル生成)
+     *     -&gt; renderTemporal   (今フレームのテーブル)
+     * </pre>
+     * [確認済 — {@code AbstractRenderPipeline.runPipeline}]。
+     *
+     * <p>⚠ <b>不透明が先頭にあることが HiZ の前提である。</b> 入れ替えると
+     * HiZ が 1 フレーム古い深度を見て、回転で遮蔽判定がずれる。
      */
     public void record(VkCommandBuffer cmd, VkRenderTarget target, float[] clearColour,
                        VkInteropDepth depthOut) {
@@ -505,24 +529,27 @@ public final class VkHierarchicalScene {
         // **アトラスが未初期化のまま**になる。落ちないし絵も出る — 一色になるだけである
         this.bakery.recordUploads(cmd);
 
-        this.hiz.record(cmd);
+        // ① 不透明。**前フレームのテーブル**で描き、深度を書く
+        this.renderer.record(cmd, target, this.maxDraws, clearColour);
         this.timer.mark(cmd, 1);
 
-        this.traversal.record(cmd, this.topNodes.count());
+        // ② HiZ。**①が書いた深度**から作る。順序を入れ替えると 1 フレーム古くなる
+        this.hiz.record(cmd);
         this.timer.mark(cmd, 2);
 
-        this.table.record(cmd, this.lastDrawnSections, this.maxDraws);
+        this.traversal.record(cmd, this.topNodes.count());
         this.timer.mark(cmd, 3);
 
-        this.renderer.record(cmd, target, this.maxDraws, clearColour);
-        // ⚠ **色も深度もクリアしない。** 不透明が描いた上に重ねるパスである。
-        // クリアすると不透明の絵が丸ごと消え、temporal だけが残る —
-        // temporal は不透明の部分集合なので「絵が薄くなった」ようにしか見えない
-        this.temporalRenderer.record(cmd, target, this.maxDraws, null, null);
+        this.table.record(cmd, this.lastDrawnSections, this.maxDraws);
         this.timer.mark(cmd, 4);
 
-        if (depthOut != null) depthOut.resolve(cmd, target.depth);
+        // ③ temporal。**今フレームのテーブル**で、①の取りこぼしだけを埋める。
+        // ⚠ 色も深度もクリアしない — クリアすると①の絵が丸ごと消える
+        this.temporalRenderer.record(cmd, target, this.maxDraws, null, null);
         this.timer.mark(cmd, 5);
+
+        if (depthOut != null) depthOut.resolve(cmd, target.depth);
+        this.timer.mark(cmd, 6);
     }
 
     /**
