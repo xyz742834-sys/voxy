@@ -468,6 +468,17 @@ public final class VkInteropProbe {
     private boolean warnedNoWorld;
     /** 色の読み戻し先 (Phase 5c-5a)。深度と<b>同じ提出で</b>撮る。 */
     private VkBuffer colourReadback;
+    /** 注入点で受け取った行列の総和 (Phase 5c-5a の切り分け)。 */
+    private long lastIncomingProjection, lastIncomingModelView;
+
+    /** ⚠ 16 要素すべてを見る。一部だけだと「変わっていない」を見誤る。 */
+    private static long matrixChecksum(org.joml.Matrix4fc m) {
+        float[] v = new float[16];
+        m.get(v);
+        long h = 0xcbf29ce484222325L;
+        for (float f : v) h = (h ^ (Float.floatToRawIntBits(f) & 0xffffffffL)) * 0x100000001b3L;
+        return h;
+    }
     /**
      * モードごとの直近の観測。{@code {drawn, opaqueQuads, temporalQuads}}。
      *
@@ -684,6 +695,11 @@ public final class VkInteropProbe {
         // ⚠ ensureScene はカメラを引数で受け取らないが、実ジオメトリでは
         // **どこをメッシュ化するか**にカメラが要る
         this.lastCameraX = cameraX; this.lastCameraY = cameraY; this.lastCameraZ = cameraZ;
+        // ⚠ **受け取った行列そのもの**を控える (Phase 5c-5a の切り分け)。
+        // MVP が定数だったとき、原因が「渡されたものが定数」か
+        // 「こちらの合成で回転が消える」かをここで分ける
+        this.lastIncomingProjection = matrixChecksum(projection);
+        this.lastIncomingModelView = matrixChecksum(modelView);
 
         // ⚠ `target.width/height` はレンダーターゲットの論理サイズで、
         // テクスチャの実寸と食い違いうる (Retina のバッキングスケール等)。
@@ -1871,6 +1887,8 @@ public final class VkInteropProbe {
         // それを含む範囲の総和は**毎フレーム必ず変わる** — 「何か変わっている」
         // でしかなく、MVP が更新された証拠にならない [規約 「何か入っている」は主張ではない]
         return "frame=" + this.frames
+            + " inProj=" + Long.toHexString(this.lastIncomingProjection)
+            + " inMv=" + Long.toHexString(this.lastIncomingModelView)
             + " drawMvp=" + Long.toHexString(host[0])
             + " travMvp=" + Long.toHexString(host[1])
             + " gpuSees=" + (drawSees ? "Y" : "⚠N") + (traversalSees ? "Y" : "⚠N")
