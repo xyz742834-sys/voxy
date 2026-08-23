@@ -342,9 +342,17 @@ public final class VkHierarchicalScene {
             int r = (topRadius + 1) << (top - level);
             var built = this.mesher.meshAround(cx << (top - level), cy << (top - level),
                 cz << (top - level), r, level);
+            boolean stopped = false;
             for (var b : built) {
                 // ⚠ ここも容量を超えうる。populate は一度に大量に入れるので**先に届く**
-                if (!this.acceptGeometry(b)) break;
+                if (stopped) {
+                    // ⚠ 渡さなかったものは**こちらが解放する** — 止めた後に残りを
+                    // 放置すると、落ちない代わりに黙って漏れる
+                    b.free();
+                    continue;
+                }
+                // ⚠ 断られた分は acceptGeometry が解放済みである。ここで free すると二重解放
+                if (!this.acceptGeometry(b)) { stopped = true; continue; }
                 this.meshedSections++;
             }
         }
@@ -507,6 +515,25 @@ public final class VkHierarchicalScene {
     public boolean worldIsLive() { return this.world.isLive(); }
 
     /**
+     * このセクションがジオメトリ領域から<b>何バイト取るか</b> (Phase 5c-5a)。
+     *
+     * <p>⚠ <b>空のセクションは 0 である。</b> {@code BuiltSection} は
+     * {@code geometryBuffer == null} を「空」の表現に使っており
+     * [確認済 — {@code BuiltSection.isEmpty}]、
+     * <b>空でも木には渡さなければならない</b> — {@code childExistence} を運んでいるので、
+     * 捨てると要求が満たされずトラバーサルが降りられなくなる。
+     *
+     * <p>⚠ <b>127 要素 (= 1016 バイト) 単位に切り上げられる</b>
+     * [確認済 — {@code BasicAsyncGeometryManager.createMeta} の {@code upsized}]。
+     * 切り上げを見ないと「ちょうど入る」と判断して溢れる。
+     */
+    public static long geometryBytesNeeded(
+            me.cortex.voxy.client.core.rendering.building.BuiltSection built) {
+        if (built.isEmpty()) return 0;
+        return ((built.geometryBuffer.size / 8 + 127) & ~127L) * 8;
+    }
+
+    /**
      * <b>入るなら渡す。入らないなら止める</b> (Phase 5c-5a の修正)。
      *
      * <h2>⚠ なぜ要るのか</h2>
@@ -527,9 +554,7 @@ public final class VkHierarchicalScene {
      */
     private boolean acceptGeometry(me.cortex.voxy.client.core.rendering.building.BuiltSection built) {
         long used = this.geometry.getGeometryUsedBytes();
-        // ⚠ 127 要素 (= 1016 バイト) 単位に切り上げられる [確認済 — createMeta の upsized]。
-        // 切り上げを見ないと「ちょうど入る」と判断して溢れる
-        long need = ((built.geometryBuffer.size / 8 + 127) & ~127L) * 8;
+        long need = geometryBytesNeeded(built);
         if (used + need <= this.geometryCapacityBytes) {
             this.nodes.processGeometryResult(built);   // ⚠ 所有権が移る
             return true;

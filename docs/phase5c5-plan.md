@@ -403,3 +403,32 @@ IllegalStateException: Geometry OOM. requested allocation size: 1115,
 ⚠ 既定を 16M quad に上げたのは<b>階層経路だけ</b>である。
 5c-3b はカメラ周りを一度メッシュ化するだけだが、階層経路は<b>要求に答え続ける</b>ので
 必要量が桁で違う。<b>同じ定数を共有していたのが誤りだった。</b>
+
+### 10.5 ⚠ 容量ガードの初版が<b>空のセクションで落ちた</b> (自分で踏んだ)
+
+```
+NullPointerException: Cannot read field "size" because "built.geometryBuffer" is null
+```
+
+`BuiltSection` は <b>{@code geometryBuffer == null} を「空」の表現に使っている</b>
+[確認済 — {@code BuiltSection.isEmpty}]。見積もりを 1 行で書いて踏んだ。
+
+⚠ **空でも木には渡さなければならない。** {@code childExistence} を運んでいるので、
+捨てると要求が満たされず<b>トラバーサルが降りられなくなる</b> —
+落ちない代わりに<b>遠景が粗いまま止まる</b>。
+
+**計算を {@code geometryBytesNeeded} に切り出して装置なしの検査を付けた** (`VkGeometryBudgetTest`)。
+切り上げを見ないと足りない見積もりになることも<b>対照で示した</b>。
+
+> ⚠ **ガードを足すときに新しい落ち方を作った。**
+> 「上限に当たっても落ちないようにする」変更が、<b>上限と無関係な入力で落ちた</b>。
+> 例外処理の追加は<b>正常系を通る回数のほうが多い</b>ので、
+> **異常系だけを見て書くと正常系を壊す。**
+
+### 10.6 ⚠ 直したときに二重解放を作りかけた
+
+`populate` で断られた分を解放する処理を足したが、
+<b>{@code acceptGeometry} が失敗時に既に解放していた</b>。
+所有権の移動先を<b>1 箇所に決める</b> — 断られた分は {@code acceptGeometry} が持つ。
+
+**JUnit 264 PASS / 3 SKIP** (261 → 264)。
