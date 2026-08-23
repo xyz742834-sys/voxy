@@ -1867,10 +1867,13 @@ public final class VkInteropProbe {
         long[] gpu = this.scene.echoedUniformChecksums();
         boolean drawSees = host[0] == gpu[0];
         boolean traversalSees = host[1] == gpu[1];
+        // ⚠ **MVP だけ (0..63 バイト)**。frameId はオフセット 76 にあるので、
+        // それを含む範囲の総和は**毎フレーム必ず変わる** — 「何か変わっている」
+        // でしかなく、MVP が更新された証拠にならない [規約 「何か入っている」は主張ではない]
         return "frame=" + this.frames
-            + " mvp=" + Long.toHexString(this.sceneUniformChecksum())
-            + " gpuSeesDrawMvp=" + (drawSees ? "YES" : "⚠ NO")
-            + " gpuSeesTraversalMvp=" + (traversalSees ? "YES" : "⚠ NO")
+            + " drawMvp=" + Long.toHexString(host[0])
+            + " travMvp=" + Long.toHexString(host[1])
+            + " gpuSees=" + (drawSees ? "Y" : "⚠N") + (traversalSees ? "Y" : "⚠N")
             + (drawSees && traversalSees ? "" : "  ⚠⚠ THE GPU IS READING STALE UNIFORM MEMORY")
             + "  drawn=" + drawn + " of " + texels
             + " bbox=[" + minX + "," + minY + " .. " + maxX + "," + maxY + "]"
