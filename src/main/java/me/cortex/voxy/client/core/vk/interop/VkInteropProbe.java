@@ -469,7 +469,28 @@ public final class VkInteropProbe {
     /** 色の読み戻し先 (Phase 5c-5a)。深度と<b>同じ提出で</b>撮る。 */
     private VkBuffer colourReadback;
     /** 注入点で受け取った行列の総和 (Phase 5c-5a の切り分け)。 */
-    private long lastIncomingProjection, lastIncomingModelView;
+    private long lastIncomingProjection, lastIncomingModelView, lastLiveViewRotation;
+
+    /**
+     * <b>MC のカメラから今この瞬間の視線回転を作る</b> (Phase 5c-5a の切り分け)。
+     *
+     * <h2>⚠ なぜ要るのか</h2>
+     * 注入点で受け取る {@code modelView} は
+     * <b>{@code CameraRenderState.viewRotationMatrix}</b> である
+     * [確認済 — バイトコード。{@code LevelRenderer.addMainPass} が
+     * {@code prepareChunkRenders} に渡し、Sodium の {@code LevelRendererMixin} が
+     * それを {@code ChunkRenderMatrices} の第 2 引数にしている]。
+     *
+     * <p>それが古いのかどうかは、<b>同じ経路の値どうしを比べても分からない</b> [規約 4]。
+     * {@code Camera} から<b>独立に</b>作って突き合わせる。
+     */
+    private static long liveViewRotationChecksum() {
+        var mc = net.minecraft.client.Minecraft.getInstance();
+        if (mc == null || mc.gameRenderer == null) return 0;
+        var cam = mc.gameRenderer.mainCamera();
+        if (cam == null) return 0;
+        return matrixChecksum(cam.getViewRotationMatrix(new org.joml.Matrix4f()));
+    }
 
     /** ⚠ 16 要素すべてを見る。一部だけだと「変わっていない」を見誤る。 */
     private static long matrixChecksum(org.joml.Matrix4fc m) {
@@ -700,6 +721,7 @@ public final class VkInteropProbe {
         // 「こちらの合成で回転が消える」かをここで分ける
         this.lastIncomingProjection = matrixChecksum(projection);
         this.lastIncomingModelView = matrixChecksum(modelView);
+        this.lastLiveViewRotation = liveViewRotationChecksum();
 
         // ⚠ `target.width/height` はレンダーターゲットの論理サイズで、
         // テクスチャの実寸と食い違いうる (Retina のバッキングスケール等)。
@@ -1889,6 +1911,8 @@ public final class VkInteropProbe {
         return "frame=" + this.frames
             + " inProj=" + Long.toHexString(this.lastIncomingProjection)
             + " inMv=" + Long.toHexString(this.lastIncomingModelView)
+            + " liveMv=" + Long.toHexString(this.lastLiveViewRotation)
+            + (this.lastIncomingModelView == this.lastLiveViewRotation ? " (mvFresh)" : " ⚠(mvSTALE)")
             + " drawMvp=" + Long.toHexString(host[0])
             + " travMvp=" + Long.toHexString(host[1])
             + " gpuSees=" + (drawSees ? "Y" : "⚠N") + (traversalSees ? "Y" : "⚠N")
