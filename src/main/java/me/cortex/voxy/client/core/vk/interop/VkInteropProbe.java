@@ -1855,7 +1855,9 @@ public final class VkInteropProbe {
             return "drawn=0 of " + texels + "  <-- the terrain is NOT on screen"
                 + " (placement / projection / where the camera looks)";
         }
-        return "drawn=" + drawn + " of " + texels
+        return "frame=" + this.frames
+            + " mvp=" + Long.toHexString(this.sceneUniformChecksum())
+            + "  drawn=" + drawn + " of " + texels
             + " bbox=[" + minX + "," + minY + " .. " + maxX + "," + maxY + "]"
             + " nearestDepth=" + nearest
             + "  colour=" + Long.toHexString(checksum)
@@ -1864,6 +1866,31 @@ public final class VkInteropProbe {
                 ? "  ⚠ MORE THAN A QUARTER OF THE DRAWN PIXELS ARE BLACK —"
                   + " Voxy itself is producing black, not the composite" : "")
             + "  [framebuffer rows; row 0 is the BOTTOM of the picture]";
+    }
+
+    /**
+     * <b>描画に使う MVP の総和</b> (Phase 5c-5a)。
+     *
+     * <h2>⚠ なぜ要るのか</h2>
+     * 「色が毎フレーム同じ」には<b>2 通りの意味がある</b>:
+     * <ul>
+     *   <li>入力が同じで<b>決定的に描けている</b></li>
+     *   <li><b>絵が凍っている</b> (更新されていない)</li>
+     * </ul>
+     * 色だけを見ていると区別できない [規約 11 — 「変わらない」を正しさの証拠にしない]。
+     *
+     * <p>MVP が<b>変わっているのに</b>色が変わらなければ、<b>凍っている</b>。
+     * MVP も変わっていなければ、<b>そもそも駆動されていない</b>。
+     */
+    private long sceneUniformChecksum() {
+        if (this.scene == null) return 0;
+        long addr = this.scene.res.uniform.addr();
+        long h = 0xcbf29ce484222325L;
+        // MVP (mat4) + カメラのセクション + サブ位置 まで
+        for (int i = 0; i < 24; i++) {
+            h = (h ^ (MemoryUtil.memGetInt(addr + i * 4L) & 0xffffffffL)) * 0x100000001b3L;
+        }
+        return h;
     }
 
     private static String texelString(long addr) {
