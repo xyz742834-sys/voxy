@@ -1553,7 +1553,8 @@ public final class VkInteropProbe {
         var tr = this.scene.traversal();
         Logger.info("[5c-4c] drawn=" + this.scene.drawnSectionCount()
             + " of " + this.scene.meshedSections() + " meshed"
-            + " (top-level nodes " + this.scene.topLevelCount() + ")"
+            + " (top-level nodes " + this.scene.topLevelCount()
+                + " of " + this.scene.topLevelRequested() + " requested)"
             + "  requests=" + tr.requestCount()
             + "  dropped: pushes=" + tr.droppedNodePushes()
             + " reads=" + tr.droppedNodeReads()

@@ -57,6 +57,82 @@ public final class VkHierarchicalScene {
     }
 
     /**
+     * <b>最上位ノード id のキュー</b> (Phase 5c-5a の修正)。
+     *
+     * <h2>⚠ これが無いとトラバーサルは根を 1 つも見ない</h2>
+     * トラバーサルの 0 回目は {@code topNodeIds} を<b>ソースキュー</b>として読む
+     * [確認済 — {@code VkDescriptorSetGroup} の variant 0]。
+     * <b>誰も書かなければゼロのまま</b>なので、
+     * {@code reset(topNodeCount)} が {@code n} を渡しても
+     * <b>ノード id 0 を n 回訪問する</b>だけになる。
+     *
+     * <p>⚠ <b>落ちない。</b> id 0 がたまたま実在の最上位ノードなら
+     * <b>そこから降りた分だけ絵が出る</b> — 27 個の根のうち 1 個だけで
+     * 動いているのに、動いているように見える。
+     *
+     * <h2>入れ替え方式は GL 版と同じ</h2>
+     * {@code HierarchicalOcclusionTraverser.addTLN / remTLN} をそのまま写した。
+     * 削除は<b>末尾を空いた位置へ移す</b>ので、[0, count) が常に詰まっている。
+     *
+     * <p>⚠ 空いた末尾は<b>消さない</b> (GL 版も消していない)。
+     * トラバーサルは [0, count) しか読まないので害は無いが、
+     * <b>バッファを直接覗くと古い id が残って見える</b>。
+     */
+    public static final class TopLevelNodeQueue {
+        /** 書き出し先。装置を要らなくするために切ってある。 */
+        public interface Sink { void write(int index, int nodeId); }
+
+        private final it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap id2idx =
+            new it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap();
+        private final int[] idx2id;
+        private final Sink sink;
+        private int count;
+
+        public TopLevelNodeQueue(int capacity, Sink sink) {
+            this.idx2id = new int[capacity];
+            this.sink = sink;
+            this.id2idx.defaultReturnValue(-1);
+        }
+
+        public void add(int nodeId) {
+            if (this.count >= this.idx2id.length) {
+                throw new IllegalStateException("more than " + this.idx2id.length
+                    + " top-level nodes; raise the traversal queue capacity");
+            }
+            int idx = this.count++;
+            if (this.id2idx.put(nodeId, idx) != -1) {
+                throw new IllegalStateException("node " + nodeId + " is already top-level");
+            }
+            this.idx2id[idx] = nodeId;
+            this.sink.write(idx, nodeId);
+        }
+
+        public void remove(int nodeId) {
+            int idx = this.id2idx.remove(nodeId);
+            if (idx == -1) {
+                throw new IllegalStateException("node " + nodeId + " is not top-level");
+            }
+            this.count--;
+            // 末尾そのものなら詰めるものが無い
+            if (idx == this.count) return;
+            int moved = this.idx2id[this.count];
+            this.idx2id[idx] = moved;
+            this.id2idx.put(moved, idx);
+            this.sink.write(idx, moved);
+        }
+
+        public int count() { return this.count; }
+
+        /** ⚠ [0, {@link #count()}) だけが有効である。 */
+        public int idAt(int index) {
+            if (index < 0 || index >= this.count) {
+                throw new IndexOutOfBoundsException(index + " of " + this.count);
+            }
+            return this.idx2id[index];
+        }
+    }
+
+    /**
      * <b>2 の冪へ切り上げる</b> (既に 2 の冪ならそのまま)。
      *
      * <p>⚠ {@code NodeManager} と {@code AbstractSectionGeometryManager} が
@@ -141,7 +217,18 @@ public final class VkHierarchicalScene {
     final int maxDraws;
     private boolean freed;
 
-    private int topLevelCount;
+    /**
+     * <b>要求した</b>最上位ノードの位置の数。
+     *
+     * <p>⚠ <b>実際にキューに入った数とは別物である。</b>
+     * {@code insertTopLevelNode} が作るのは<b>要求</b>で、
+     * ノード id が生まれるのはジオメトリが届いたときである
+     * [確認済 — {@code NodeManager.finishRequest}]。
+     * 2 つを 1 つの数字にすると<b>「27 個ある」と「27 個頼んだ」が区別できない</b>。
+     */
+    private int topLevelRequested;
+    /** 実際に {@code topNodeIds} に入っている最上位ノード。<b>これがトラバーサルの入口</b>。 */
+    private final TopLevelNodeQueue topNodes;
     private int meshedSections;
     /**
      * 前フレームのトラバーサルが選んだセクション数。
@@ -196,6 +283,15 @@ public final class VkHierarchicalScene {
             (int) ((this.res.indirectLookup.size() - 4) / 4), 4096, this.res.indirectLookup);
         this.nodeTarget = new VkNodeUploadTarget(this.traversal.nodeData);
 
+        // ⚠ **トラバーサルの入口を繋ぐ。** GL 版は addTLN/remTLN で同じことをしている
+        // [HierarchicalOcclusionTraverser:96]。繋がないと topNodeIds はゼロのままで、
+        // **ノード id 0 を topLevelCount 回訪問する**だけになる
+        this.topNodes = new TopLevelNodeQueue(
+            (int) (this.traversal.topNodeIds.size() / 4),
+            (idx, id) -> org.lwjgl.system.MemoryUtil.memPutInt(
+                this.traversal.topNodeIds.addr() + (long) idx * 4L, id));
+        this.nodes.setTLNCallbacks(this.topNodes::add, this.topNodes::remove);
+
         this.table = new VkMergedTableBuilder(this.res, VkTerrainRenderer.Barriers.CONSERVATIVE);
         this.renderer = new VkTerrainRenderer(this.res, width, height,
             VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
@@ -230,7 +326,7 @@ public final class VkHierarchicalScene {
                 for (int dz = -topRadius; dz <= topRadius; dz++) {
                     long pos = WorldEngine.getWorldSectionId(top, cx + dx, cy + dy, cz + dz);
                     this.nodes.insertTopLevelNode(pos);
-                    this.topLevelCount++;
+                    this.topLevelRequested++;
                 }
             }
         }
@@ -247,9 +343,17 @@ public final class VkHierarchicalScene {
             }
         }
         this.bakery.replayBiomes();
-        Logger.info("[5c-4c] populated " + this.topLevelCount + " top-level nodes (LoD " + top
+        Logger.info("[5c-4c] populated " + this.topNodes.count() + " top-level nodes of "
+            + this.topLevelRequested + " requested (LoD " + top
             + "), meshed " + this.meshedSections + " sections down to LoD "
             + Math.max(0, top - depth));
+        // ⚠ 0 の意味を 1 通りにする [規約 18] — 「頼んだが 1 つも届いていない」と
+        // 「頼んでいない」を分ける。前者ならトラバーサルは**空回りする**
+        if (this.topNodes.count() == 0 && this.topLevelRequested > 0) {
+            Logger.warn("[5c-4c] ⚠ none of the " + this.topLevelRequested
+                + " requested top-level nodes resolved to a node id yet;"
+                + " the traversal has no entry point and will draw nothing");
+        }
     }
 
     /**
@@ -319,7 +423,7 @@ public final class VkHierarchicalScene {
             minScreenSize, VkHostViewport.frustumPlanes(mvp), frameId, renderDistance);
         // ⚠ **reset の前に読む。** reset が描画キューの先頭を 0 にする
         this.lastDrawnSections = this.drawnSectionCount();
-        this.traversal.reset(this.topLevelCount);
+        this.traversal.reset(this.topNodes.count());
         this.writeVisibility(frameId);
         return flushed;
     }
@@ -343,7 +447,7 @@ public final class VkHierarchicalScene {
         this.hiz.record(cmd);
         this.timer.mark(cmd, 1);
 
-        this.traversal.record(cmd, this.topLevelCount);
+        this.traversal.record(cmd, this.topNodes.count());
         this.timer.mark(cmd, 2);
 
         this.table.record(cmd, this.lastDrawnSections, this.maxDraws);
@@ -584,7 +688,10 @@ public final class VkHierarchicalScene {
     public VkGpuTimer timer() { return this.timer; }
     public VkTraversal traversal() { return this.traversal; }
     public NodeManager nodes() { return this.nodes; }
-    public int topLevelCount() { return this.topLevelCount; }
+    /** {@code topNodeIds} に実際に入っている数 = トラバーサルの入口の数。 */
+    public int topLevelCount() { return this.topNodes.count(); }
+    /** ⚠ 要求した位置の数。入口の数とは別物である。 */
+    public int topLevelRequested() { return this.topLevelRequested; }
     public int meshedSections() { return this.meshedSections; }
 
     public void free() {

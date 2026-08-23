@@ -261,3 +261,86 @@ temporal(EVEN) + temporal(ODD) == temporal(NONE_VISIBLE) == opaque
 
 §5.2 の 8 項目を順に潰す。**4 番 (ホスト書き込みを外す) を忘れると
 `previous==(frameId-1)` が常に偽になり、全セクションが temporal に回る。**
+
+---
+
+## 9. ⚠⚠ 5c-5a の実機で見つかった — <b>トラバーサルの入口が繋がっていなかった</b>
+
+### 9.1 観測
+
+```
+[5c-5a] ALL_VISIBLE:  drawn=0 opaqueQuads=0 temporalQuads=0
+[5c-5a] NONE_VISIBLE: drawn=0 opaqueQuads=0 temporalQuads=0
+[5c-5a] EVEN_NEW:     drawn=0 opaqueQuads=0 temporalQuads=0
+[5c-5a] ODD_NEW:      drawn=0 opaqueQuads=0 temporalQuads=0
+[5c-5a] ⚠ the opaque table is empty, so every claim below holds vacuously
+[5c-4c] drawn=0 of 287 meshed (top-level nodes 27)  requests=0  dropped: pushes=0 reads=0
+```
+
+> **空虚成立のガードが偽 PASS を止めた。** 恒等式は 0+0=0 で成立するので、
+> §8.3 の 3 つ目の穴を塞いでいなければ<b>「4 項目 PASS」と読めていた</b>。
+
+### 9.2 ⚠ 原因 — <b>`topNodeIds` を書くコードが存在しない</b>
+
+トラバーサルの 0 回目は {@code topNodeIds} を<b>ソースキュー</b>として読む
+[確認済 — `VkDescriptorSetGroup` の variant 0]。
+GL 版は `NodeManager` のコールバックでこれを維持している
+[確認済 — `HierarchicalOcclusionTraverser:96` の `addTLN` / `remTLN`]。
+
+**`VkHierarchicalScene` はこれを繋いでいなかった。**
+`VkBuffer(long)` はゼロ初期化するので、バッファは<b>ゼロのまま</b>である。
+
+```
+reset(27) → 0 回目に 27 スレッド → topNodeIds[0..26] は全部 0
+          → ノード id 0 を 27 回訪問する
+```
+
+### 9.3 ⚠⚠ なぜ 5c-4c で気付かなかったのか
+
+**id 0 はたまたま実在の最上位ノードである** (最初に解決した要求が id 0 を取る)。
+したがって<b>そこから降りた分だけ絵が出る</b>。
+
+> **27 個の根のうち 1 個で動いていたのに、動いているように見えていた。**
+> `drawn=513` は<b>1 個の根から降りた結果</b>だった。
+
+今回 `drawn=0` になったのは、この世界では id 0 の根が視錐台の外だったためである
+(`requests=0` `dropped=0` と揃うのは<b>根が全部弾かれた枝しかない</b>)。
+
+### 9.4 ⚠ 5c-4c の数字は取り直しになる
+
+| 記録 | 状態 |
+|---|---|
+| `drawn=513 sections` | ⚠ <b>1 個の根から降りた数</b>。木全体ではない |
+| `hiz / traversal / table / draw / resolve` の内訳 | ⚠ <b>その状態で測った値</b> |
+
+**5c-5b で内訳を取り直すときに、この修正の後の値を基準にする。**
+
+### 9.5 直した内容
+
+| | |
+|---|---|
+| `TopLevelNodeQueue` | GL 版 `addTLN` / `remTLN` と同じ<b>末尾入れ替え</b>方式。書き出し先を切って装置なしで検査できるようにした |
+| `setTLNCallbacks` | `VkHierarchicalScene` の構築時に繋ぐ |
+| `topLevelCount` の分離 | <b>要求した位置の数</b>と<b>実際に入口になった数</b>を別々に持つ [規約 18] |
+
+⚠ **2 つの数を 1 つにしていたのが遠因である。**
+`insertTopLevelNode` が作るのは<b>要求</b>で、ノード id が生まれるのは
+ジオメトリが届いたときである [確認済 — `NodeManager.finishRequest`]。
+`this.topLevelCount++` は<b>要求の数</b>を数えていたのに、
+それを<b>入口の数</b>としてトラバーサルに渡していた。
+
+> **【規約 24】数えているものと使っているものが同じか確かめる。**
+> 「27」は正しい数だった — <b>27 個の何の数なのか</b>が違った。
+
+### 9.6 検査
+
+`VkTopLevelQueueTest` (7 件、装置不要)。主張は<b>「[0, count) が生きている集合と
+ちょうど一致し、重複が無い」</b>である。
+
+> ⚠ 「何か書かれた」では駄目である。<b>ゼロのまま</b>も<b>同じ id が並ぶ</b>も
+> 数だけなら合ってしまう。
+
+加えて実行時のガード: 要求が 0 でないのに入口が 0 なら<b>警告して名指しする</b>。
+これは今回の壊れ方 (コールバックを繋ぎ忘れる) を<b>そのまま検出する</b>。
+
+**JUnit 261 PASS / 3 SKIP** (254 → 261)。
