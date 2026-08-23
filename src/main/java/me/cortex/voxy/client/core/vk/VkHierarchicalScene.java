@@ -229,6 +229,10 @@ public final class VkHierarchicalScene {
     private int topLevelRequested;
     /** 実際に {@code topNodeIds} に入っている最上位ノード。<b>これがトラバーサルの入口</b>。 */
     private final TopLevelNodeQueue topNodes;
+    /** ジオメトリ領域の容量 (バイト)。⚠ この段では<b>回収が無いので減らない</b>。 */
+    private final long geometryCapacityBytes;
+    /** 容量に届いて<b>メッシュ化を止めた</b>か。届いたら二度と再開しない (回収が無いため)。 */
+    private boolean geometryExhausted;
     private int meshedSections;
     /**
      * 前フレームのトラバーサルが選んだセクション数。
@@ -274,7 +278,8 @@ public final class VkHierarchicalScene {
         this.mesher = new VkRealMesher(world, this.bakery);
         this.world = world;
 
-        this.geometry = new BasicAsyncGeometryManager(maxSections, (long) maxQuads * 8);
+        this.geometryCapacityBytes = (long) maxQuads * 8;
+        this.geometry = new BasicAsyncGeometryManager(maxSections, this.geometryCapacityBytes);
         this.nodes = new NodeManager(maxSections, this.geometry, this.watcher);
 
         this.hiz = new VkHiZ(depthSource, width, height);
@@ -338,8 +343,9 @@ public final class VkHierarchicalScene {
             var built = this.mesher.meshAround(cx << (top - level), cy << (top - level),
                 cz << (top - level), r, level);
             for (var b : built) {
+                // ⚠ ここも容量を超えうる。populate は一度に大量に入れるので**先に届く**
+                if (!this.acceptGeometry(b)) break;
                 this.meshedSections++;
-                this.nodes.processGeometryResult(b);   // ⚠ 所有権が移る。free しない
             }
         }
         this.bakery.replayBiomes();
@@ -500,6 +506,51 @@ public final class VkHierarchicalScene {
      */
     public boolean worldIsLive() { return this.world.isLive(); }
 
+    /**
+     * <b>入るなら渡す。入らないなら止める</b> (Phase 5c-5a の修正)。
+     *
+     * <h2>⚠ なぜ要るのか</h2>
+     * この段は <b>{@code NodeCleaner} を繋いでいない</b>ので、
+     * ジオメトリ領域は<b>増える一方</b>である。木全体を辿るようになった今、
+     * 上限に届くのは<b>時間の問題</b>であって異常ではない。
+     *
+     * <p>⚠ <b>上流は容量不足で例外を投げる</b>
+     * [確認済 — {@code BasicAsyncGeometryManager.createMeta} の "Geometry OOM"]。
+     * しかもその時点で<b>セクション id は確保済み</b>なので、
+     * 投げられた後の状態は一貫していない。<b>受け取る前に決める</b>しかない。
+     *
+     * <h2>⚠ 止めたことは必ず言う</h2>
+     * 黙って止めると<b>「描かれない」と「選ばれなかった」が区別できない</b> [規約 18]。
+     * トラバーサルは要求を出し続けるので、<b>答えていないことが見えなければならない</b>。
+     *
+     * @return 渡したなら true。<b>false なら所有権はこちらに残る</b>ので解放済みである
+     */
+    private boolean acceptGeometry(me.cortex.voxy.client.core.rendering.building.BuiltSection built) {
+        long used = this.geometry.getGeometryUsedBytes();
+        // ⚠ 127 要素 (= 1016 バイト) 単位に切り上げられる [確認済 — createMeta の upsized]。
+        // 切り上げを見ないと「ちょうど入る」と判断して溢れる
+        long need = ((built.geometryBuffer.size / 8 + 127) & ~127L) * 8;
+        if (used + need <= this.geometryCapacityBytes) {
+            this.nodes.processGeometryResult(built);   // ⚠ 所有権が移る
+            return true;
+        }
+        this.geometryExhausted = true;
+        built.free();   // ⚠ 渡していないので**こちらが解放する**
+        Logger.warn("[5c-4c] ⚠ the geometry arena is full ("
+            + (used / 1024) + " KiB of " + (this.geometryCapacityBytes / 1024)
+            + " KiB used; this section needs " + (need / 1024) + " KiB)."
+            + " Meshing stops here and will NOT resume — this stage does not connect"
+            + " NodeCleaner, so nothing is ever reclaimed."
+            + " The traversal keeps requesting nodes that will never be answered,"
+            + " so expect holes in the distance."
+            + " Raise it with -Pvoxy5c3bQuads, or descend less with a bigger"
+            + " -Pvoxy5c4Subdivision.");
+        return false;
+    }
+
+    /** ⚠ ジオメトリ領域を使い切ってメッシュ化を止めたか。<b>絵の穴の説明になる</b>。 */
+    public boolean geometryExhausted() { return this.geometryExhausted; }
+
     public int serviceRequests(int maxMeshesPerCall) {
         if (!this.world.isLive()) return 0;
         int count = Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.traversal.request.addr()),
@@ -521,6 +572,7 @@ public final class VkHierarchicalScene {
         // ⚠ NodeManager が新しく監視し始めた位置には、まだジオメトリが無い。
         // **監視集合との差分**が「メッシュ化すべきもの」である
         int meshed = 0;
+        if (this.geometryExhausted) return 0;
         for (long pos : this.watcher.watched.keySet().toLongArray()) {
             if (meshed >= maxMeshesPerCall) break;
             if (!this.pendingMesh.add(pos)) continue;   // 済み
@@ -528,7 +580,7 @@ public final class VkHierarchicalScene {
             var built = this.mesher.meshOne(lvl, WorldEngine.getX(pos),
                 WorldEngine.getY(pos), WorldEngine.getZ(pos));
             if (built == null) continue;
-            this.nodes.processGeometryResult(built);
+            if (!this.acceptGeometry(built)) break;
             this.meshedSections++;
             meshed++;
         }

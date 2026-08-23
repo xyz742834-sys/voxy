@@ -346,3 +346,60 @@ reset(27) → 0 回目に 27 スレッド → topNodeIds[0..26] は全部 0
 これは今回の壊れ方 (コールバックを繋ぎ忘れる) を<b>そのまま検出する</b>。
 
 **JUnit 261 PASS / 3 SKIP** (254 → 261)。
+
+---
+
+## 10. 修正後の実機 — <b>入口が繋がり、次の上限に届いた</b>
+
+### 10.1 修正が効いたことの数字
+
+```
+[5c-4c] populated 16 top-level nodes of 27 requested   ← 1 個 → 16 個
+[5c-4c] drawn=7 → 10 → 151   opaqueQuads=174186
+[5c-5a] ALL_VISIBLE: drawn=151 opaqueQuads=174186 temporalQuads=0
+```
+
+**§8.5 の項目 1 が空虚でなく PASS した** — 不透明が 174186 quad ある状態で
+temporal が 0 である。ガードが「何も主張していない」と言わなくなった。
+
+> ⚠ 16/27 なのは<b>正常</b>である。この世界は LoD 4 が 24/125 しか揃っていない
+> [確認済 — `meshed 24 sections ... 101 not in the world yet`]。
+> <b>要求した数と入口の数を分けたので、これが読める</b>。
+
+### 10.2 ⚠ そして落ちた — <b>ジオメトリ領域の枯渇</b>
+
+```
+IllegalStateException: Geometry OOM. requested allocation size: 1115,
+  Heap size at top remaining: 256, used elements: 1999744
+  at BasicAsyncGeometryManager.createMeta
+  at VkHierarchicalScene.serviceRequests
+```
+
+**木全体を辿るようになって初めて届いた上限である。** 1 個の根で動いていた間は届かなかった。
+
+⚠ この段は <b>{@code NodeCleaner} を繋いでいない</b>ので、領域は<b>増える一方</b>である。
+上限に届くのは<b>時間の問題</b>であって異常ではない。
+
+### 10.3 なぜ「例外を捕まえる」で済ませないのか
+
+`createMeta` が投げる時点で <b>{@code allocationSet.allocateNext()} は成功済み</b>である
+[確認済 — `uploadReplaceSection` の順序]。
+捕まえても<b>セクション id が漏れた状態</b>が残る。
+
+> **受け取る前に決めるしかない。** 切り上げ (127 要素単位) を見た上で
+> 入るかを判定し、入らなければ<b>こちらで解放して止める</b>。
+
+⚠ **止めたことは必ず言う。** トラバーサルは要求を出し続けるので、
+<b>答えていないことが見えなければ「描かれない」と「選ばれなかった」が区別できない</b> [規約 18]。
+
+### 10.4 直した内容
+
+| | |
+|---|---|
+| `acceptGeometry` | 入るなら渡す、入らないなら<b>解放して止める</b>。`populate` と `serviceRequests` の両方を通す |
+| `geometryExhausted()` | 止まったことを公開。毎フレームのログに出す |
+| `-Pvoxy5c4Quads` | 階層経路のジオメトリ容量。⚠ <b>5c-3b の既定値は動かさない</b> (あちらの測定条件) |
+
+⚠ 既定を 16M quad に上げたのは<b>階層経路だけ</b>である。
+5c-3b はカメラ周りを一度メッシュ化するだけだが、階層経路は<b>要求に答え続ける</b>ので
+必要量が桁で違う。<b>同じ定数を共有していたのが誤りだった。</b>

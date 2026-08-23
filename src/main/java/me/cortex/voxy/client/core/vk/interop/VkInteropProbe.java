@@ -468,6 +468,19 @@ public final class VkInteropProbe {
         new java.util.EnumMap<>(me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility.class);
 
     /** 実ジオメトリのジオメトリバッファ容量 (quad)。足りなければ半径を下げる。 */
+    /**
+     * 階層経路のジオメトリ容量 (Phase 5c-5a)。<b>5c-3b とは別に持つ。</b>
+     *
+     * <p>⚠ 5c-3b はカメラ周りを一度メッシュ化するだけだが、階層経路は
+     * <b>トラバーサルの要求に答え続ける</b>ので必要量が桁で違う。
+     * さらにこの段は {@code NodeCleaner} を繋いでいないので<b>減らない</b>。
+     *
+     * <p>⚠ <b>5c-3b の既定値は動かさない</b> — あちらの測定条件になっている。
+     */
+    private static final int HIER_MAX_QUADS =
+        Integer.parseInt(System.getProperty("voxy.5c4.quads",
+            System.getProperty("voxy.5c3b.quads", "16000000")));
+
     private static final int REAL_GEOMETRY_MAX_QUADS =
         Integer.parseInt(System.getProperty("voxy.5c3b.quads", "2000000"));
 
@@ -867,7 +880,7 @@ public final class VkInteropProbe {
         var built = new me.cortex.voxy.client.core.vk.VkHierarchicalScene(
             world, this.depth.texture(), w, h,
             Integer.parseInt(System.getProperty("voxy.5c4.sections", "20000")),
-            REAL_GEOMETRY_MAX_QUADS, VkInteropImage.Kind.COLOR_BGRA8.vkFormat);
+            HIER_MAX_QUADS, VkInteropImage.Kind.COLOR_BGRA8.vkFormat);
         try {
             built.populate(this.lastCameraX, this.lastCameraY, this.lastCameraZ,
                 HIER_TOP_RADIUS, HIER_DEPTH);
@@ -1555,6 +1568,8 @@ public final class VkInteropProbe {
             + " of " + this.scene.meshedSections() + " meshed"
             + " (top-level nodes " + this.scene.topLevelCount()
                 + " of " + this.scene.topLevelRequested() + " requested)"
+            + (this.scene.geometryExhausted()
+                ? "  ⚠ MESHING STOPPED — the geometry arena is full" : "")
             + "  requests=" + tr.requestCount()
             + "  dropped: pushes=" + tr.droppedNodePushes()
             + " reads=" + tr.droppedNodeReads()
