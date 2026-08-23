@@ -470,6 +470,10 @@ public final class VkInteropProbe {
     private VkBuffer colourReadback;
     /** 注入点で受け取った行列の総和 (Phase 5c-5a の切り分け)。 */
     private long lastIncomingProjection, lastIncomingModelView, lastLiveViewRotation;
+    /** 注入点が申告したサイズと、MC のカラーテクスチャの実寸 (Phase 5c-5a の切り分け)。 */
+    private int lastTargetW, lastTargetH, lastTexW, lastTexH;
+    /** サイズ依存の資源を作り直した回数。<b>増え続けるならサイズが行き来している</b>。 */
+    private int hierarchicalRebuilds;
 
     /**
      * <b>MC のカメラから今この瞬間の視線回転を作る</b> (Phase 5c-5a の切り分け)。
@@ -672,7 +676,17 @@ public final class VkInteropProbe {
             this.rt = new VkRenderTarget(w, h, this.colour.texture(),
                 VkInteropImage.Kind.COLOR_BGRA8.vkFormat);
             this.resolve = new VkDepthResolve(this.rt.depth, w, h, VOXY_PROJECTION);
-            this.buildHierarchicalScene(w, h);
+            // ⚠⚠ **シーンは作り直さない。** 上流 Voxy はサイズ依存の資源だけを
+            // resize し、ワールドの状態には触らない [Viewport.update]。
+            // 作り直すとメッシュ化した地形が全部捨てられ、サイズが行き来する構成では
+            // それが繰り返し起きて、ちらつきと「絵が戻らない」の両方になる
+            if (this.scene != null) {
+                this.hierarchicalRebuilds++;
+                this.scene.resize(this.depth.texture(), w, h,
+                    VkInteropImage.Kind.COLOR_BGRA8.vkFormat);
+            } else {
+                this.buildHierarchicalScene(w, h);
+            }
             return;
         }
         if (drawsTerrain()) {
@@ -741,6 +755,8 @@ public final class VkInteropProbe {
             org.lwjgl.opengl.GL11C.GL_TEXTURE_2D, 0, org.lwjgl.opengl.GL11C.GL_TEXTURE_HEIGHT);
         org.lwjgl.opengl.GL11C.glBindTexture(org.lwjgl.opengl.GL11C.GL_TEXTURE_2D, prevTex2d);
 
+        this.lastTargetW = w; this.lastTargetH = h;
+        this.lastTexW = texW; this.lastTexH = texH;
         if (texW > 0 && texH > 0 && (texW != w || texH != h)) {
             if (this.frames < 3) {
                 Logger.warn("[5c-1d] target says " + w + "x" + h + " but MC's colour texture is "
@@ -1909,6 +1925,10 @@ public final class VkInteropProbe {
         // それを含む範囲の総和は**毎フレーム必ず変わる** — 「何か変わっている」
         // でしかなく、MVP が更新された証拠にならない [規約 「何か入っている」は主張ではない]
         return "frame=" + this.frames
+            + " target=" + this.lastTargetW + "x" + this.lastTargetH
+            + " tex=" + this.lastTexW + "x" + this.lastTexH
+            + " ours=" + this.width + "x" + this.height
+            + " resizes=" + this.hierarchicalRebuilds
             + " inProj=" + Long.toHexString(this.lastIncomingProjection)
             + " inMv=" + Long.toHexString(this.lastIncomingModelView)
             + " liveMv=" + Long.toHexString(this.lastLiveViewRotation)

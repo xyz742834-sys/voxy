@@ -284,6 +284,19 @@ public final class VkTraversal {
         VkBarriers.computeToIndirect(cmd);
     }
 
+    /**
+     * <b>HiZ を張り替える</b> (Phase 5c-5a)。画面サイズが変わると HiZ は作り直しになるが、
+     * <b>ノードもキューも作り直す必要は無い</b>。
+     *
+     * <p>⚠ フレームの記録中に呼んではならない。in-flight = 1 なので
+     * 記録の外で呼べば GPU はアイドルである。
+     */
+    public void rebindHiZ(VkTexture hiz) {
+        if (this.freed) throw new IllegalStateException("VkTraversal was freed");
+        this.sets.sharedTexture(HIZ, hiz, VkSampler.nearestMipClamp());
+        this.sets.update();
+    }
+
     // ---------------- 結果の読み出し ----------------
 
     /** 描画キューに入ったメッシュ id。 */

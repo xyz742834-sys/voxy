@@ -196,14 +196,14 @@ public final class VkHierarchicalScene {
     private final VkRealMesher mesher;
     private final VkNodeUploadTarget nodeTarget;
     private final VkTraversal traversal;
-    private final VkHiZ hiz;
+    private VkHiZ hiz;
     private final VkMergedTableBuilder table;
-    private final VkTerrainRenderer renderer;
+    private VkTerrainRenderer renderer;
     /**
      * temporal パス (Phase 5c-5a)。不透明と<b>同じ頂点シェーダ・同じエントリ配列</b>で、
      * {@code MERGED_PREFIX_BINDING} に {@code temporalPrefix} を張ったもの。
      */
-    private final VkTerrainRenderer temporalRenderer;
+    private VkTerrainRenderer temporalRenderer;
     private final VkGpuTimer timer = new VkGpuTimer(SPANS);
     private final int maxSections;
     /**
@@ -309,6 +309,47 @@ public final class VkHierarchicalScene {
         this.temporalRenderer = new VkTerrainRenderer(this.res, width, height,
             VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
             VkTerrainRenderer.Pass.TEMPORAL, colourFormat);
+    }
+
+    /**
+     * <b>画面サイズが変わったときに、サイズ依存の資源だけを作り直す</b> (Phase 5c-5a)。
+     *
+     * <h2>⚠ シーンを作り直してはならない</h2>
+     * 上流 Voxy はサイズ依存の資源だけを {@code resize} し、
+     * <b>ワールドの状態には触らない</b> [確認済 — {@code Viewport.update} が
+     * {@code depthBoundingBuffer.resize} を呼ぶだけ。{@code NodeManager} も
+     * ジオメトリも画面サイズと独立である]。
+     *
+     * <p>作り直すと<b>メッシュ化した地形が全部捨てられ、木が組み直しになる</b>。
+     * サイズが 2 値を行き来する構成では<b>それが毎フレーム起きて</b>、
+     * ちらつきと「絵が戻らない」の両方になる。
+     *
+     * <p>⚠ <b>フレームの記録中に呼んではならない。</b> in-flight = 1 なので
+     * 記録の外なら GPU はアイドルである。
+     *
+     * @param depthSource 新しい深度の元 (interop 画像が作り直されると別物になる)
+     */
+    public void resize(VkTexture depthSource, int width, int height, int colourFormat) {
+        this.assertNotFreed();
+        this.renderer.free();
+        this.temporalRenderer.free();
+        this.hiz.free();
+
+        this.hiz = new VkHiZ(depthSource, width, height);
+        // ⚠ トラバーサルは**張り替えるだけ**。ノードもキューも作り直さない
+        this.traversal.rebindHiZ(this.hiz.texture());
+        this.renderer = new VkTerrainRenderer(this.res, width, height,
+            VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
+            VkTerrainRenderer.Pass.OPAQUE, colourFormat);
+        this.temporalRenderer = new VkTerrainRenderer(this.res, width, height,
+            VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
+            VkTerrainRenderer.Pass.TEMPORAL, colourFormat);
+        Logger.info("[5c-5a] resized the size-dependent resources to " + width + "x" + height
+            + " (the tree and its " + this.meshedSections + " meshed sections are kept)");
+    }
+
+    private void assertNotFreed() {
+        if (this.freed) throw new IllegalStateException("VkHierarchicalScene already freed");
     }
 
     /** 可視バッファの書き方を選ぶ (Phase 5c-5a)。既定は 5c-4c までと同じ。 */
