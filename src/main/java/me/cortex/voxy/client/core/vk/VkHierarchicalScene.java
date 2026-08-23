@@ -229,6 +229,8 @@ public final class VkHierarchicalScene {
     private int topLevelRequested;
     /** 実際に {@code topNodeIds} に入っている最上位ノード。<b>これがトラバーサルの入口</b>。 */
     private final TopLevelNodeQueue topNodes;
+    /** GPU が写したユニフォーム。{@code {描画用 64B, トラバーサル用 64B}}。 */
+    private final VkBuffer uniformEcho;
     /** ジオメトリ領域の容量 (バイト)。⚠ この段では<b>回収が無いので減らない</b>。 */
     private final long geometryCapacityBytes;
     /** 容量に届いて<b>メッシュ化を止めた</b>か。届いたら二度と再開しない (回収が無いため)。 */
@@ -296,6 +298,9 @@ public final class VkHierarchicalScene {
             (idx, id) -> org.lwjgl.system.MemoryUtil.memPutInt(
                 this.traversal.topNodeIds.addr() + (long) idx * 4L, id));
         this.nodes.setTLNCallbacks(this.topNodes::add, this.topNodes::remove);
+        this.uniformEcho = new VkBuffer(ECHO_BYTES * 2,
+            VkBuffer.DEFAULT_USAGE | org.lwjgl.vulkan.VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT, true)
+            .name("uniformEcho");
 
         this.table = new VkMergedTableBuilder(this.res, VkTerrainRenderer.Barriers.CONSERVATIVE);
         this.renderer = new VkTerrainRenderer(this.res, width, height,
@@ -452,6 +457,7 @@ public final class VkHierarchicalScene {
                        VkInteropDepth depthOut) {
         this.timer.reset(cmd);
         this.timer.mark(cmd, 0);
+        this.echoUniforms(cmd);
 
         // ⚠ **焼いたタイルをアトラスへ流す。** これを忘れると
         // `useExternalAtlasContent()` で合成の中身も止めているので
@@ -476,6 +482,67 @@ public final class VkHierarchicalScene {
 
         if (depthOut != null) depthOut.resolve(cmd, target.depth);
         this.timer.mark(cmd, 5);
+    }
+
+    /**
+     * <b>GPU に見えているユニフォームをそのまま写して返す</b> (Phase 5c-5a の切り分け)。
+     *
+     * <h2>⚠ 何を分けるのか</h2>
+     * ホスト側の総和が変わっているのに絵が変わらないとき、原因は 2 つある:
+     * <ul>
+     *   <li><b>GPU がホストの書き込みを見ていない</b> — ここに<b>古い値</b>が出る</li>
+     *   <li>全部生きているが<b>結果がたまたま一定</b> — ここには<b>新しい値</b>が出る</li>
+     * </ul>
+     *
+     * <p>⚠ <b>ホストのポインタを読み直すのでは駄目である。</b> それは書いた本人の記憶で、
+     * <b>GPU が何を読んだか</b>を何も主張しない [規約 4 — 予測と実装が規約を共有する]。
+     * {@code vkCmdCopyBuffer} を<b>フレームの中で</b>積み、GPU に写させる。
+     */
+    private void echoUniforms(VkCommandBuffer cmd) {
+        if (this.uniformEcho == null) return;
+        try (org.lwjgl.system.MemoryStack stack = org.lwjgl.system.MemoryStack.stackPush()) {
+            var regions = org.lwjgl.vulkan.VkBufferCopy.calloc(1, stack);
+            regions.get(0).srcOffset(0).dstOffset(0).size(ECHO_BYTES);
+            org.lwjgl.vulkan.VK10.vkCmdCopyBuffer(cmd, this.res.uniform.handle,
+                this.uniformEcho.handle, regions);
+            regions.get(0).srcOffset(0).dstOffset(ECHO_BYTES).size(ECHO_BYTES);
+            org.lwjgl.vulkan.VK10.vkCmdCopyBuffer(cmd, this.traversal.uniform.handle,
+                this.uniformEcho.handle, regions);
+        }
+    }
+
+    /** 写す長さ。MVP (mat4) だけで足りる。 */
+    private static final long ECHO_BYTES = 64;
+
+    private static long fnv(long base) {
+        long h = 0xcbf29ce484222325L;
+        for (int i = 0; i < ECHO_BYTES / 4; i++) {
+            h = (h ^ (org.lwjgl.system.MemoryUtil.memGetInt(base + i * 4L) & 0xffffffffL))
+                * 0x100000001b3L;
+        }
+        return h;
+    }
+
+    /**
+     * <b>ホストが書いた MVP の総和</b> {@code {描画用, トラバーサル用}}。
+     *
+     * <p>⚠ {@link #echoedUniformChecksums()} と<b>同じ範囲・同じ式</b>で取る。
+     * ここで式を揃えるのは意図的である — 比べたいのは<b>メモリが届いているか</b>
+     * だけなので、式が違うと差が「届いていない」以外の理由でも出てしまう。
+     */
+    public long[] hostUniformChecksums() {
+        return new long[]{fnv(this.res.uniform.addr()), fnv(this.traversal.uniform.addr())};
+    }
+
+    /**
+     * <b>GPU が写した MVP の総和</b> {@code {描画用, トラバーサル用}}。
+     *
+     * <p>⚠ この値が<b>ホスト側の総和と食い違えば、GPU は古いメモリを読んでいる</b>。
+     * 一致すれば<b>ユニフォームは届いている</b>ので、原因は選択の側にある。
+     */
+    public long[] echoedUniformChecksums() {
+        if (this.uniformEcho == null) return new long[]{0, 0};
+        return new long[]{fnv(this.uniformEcho.addr()), fnv(this.uniformEcho.addr() + ECHO_BYTES)};
     }
 
     /** 深度解決を差し替えられるようにするだけの薄い口。 */
@@ -775,6 +842,7 @@ public final class VkHierarchicalScene {
         if (this.freed) return;
         this.freed = true;
         this.timer.free();
+        this.uniformEcho.free();
         this.renderer.free();
         this.temporalRenderer.free();
         this.table.free();

@@ -1855,8 +1855,15 @@ public final class VkInteropProbe {
             return "drawn=0 of " + texels + "  <-- the terrain is NOT on screen"
                 + " (placement / projection / where the camera looks)";
         }
+        long[] host = this.scene.hostUniformChecksums();
+        long[] gpu = this.scene.echoedUniformChecksums();
+        boolean drawSees = host[0] == gpu[0];
+        boolean traversalSees = host[1] == gpu[1];
         return "frame=" + this.frames
             + " mvp=" + Long.toHexString(this.sceneUniformChecksum())
+            + " gpuSeesDrawMvp=" + (drawSees ? "YES" : "⚠ NO")
+            + " gpuSeesTraversalMvp=" + (traversalSees ? "YES" : "⚠ NO")
+            + (drawSees && traversalSees ? "" : "  ⚠⚠ THE GPU IS READING STALE UNIFORM MEMORY")
             + "  drawn=" + drawn + " of " + texels
             + " bbox=[" + minX + "," + minY + " .. " + maxX + "," + maxY + "]"
             + " nearestDepth=" + nearest
