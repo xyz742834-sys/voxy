@@ -755,7 +755,10 @@ public final class VkInteropProbe {
         switch (MODE) {
             case HIERARCHICAL -> {
                 if (this.scene != null) {
-                    this.scene.record(cmd, this.rt, TERRAIN_CLEAR,
+                    // ⚠ **切り分け用**: クリア色をフレームごとに動かす。
+                    // クリアは必ず毎フレーム実行されるので、画像全体の総和が
+                    // 変わらなければ **画像が書かれていない** と言い切れる
+                    this.scene.record(cmd, this.rt, this.probeClear(),
                         (c, d) -> this.resolve.record(c, d, this.depth));
                     this.colour.toGeneral(cmd,
                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -1829,11 +1832,16 @@ public final class VkInteropProbe {
         // ⚠ フレーム間で同じかを見るための総和。**暗号学的である必要はない** —
         // 「変わったか」だけが要る
         long checksum = 0xcbf29ce484222325L;
+        // ⚠ **描かれた画素だけでは足りない。** クリア色は「描かれていない」画素に出るので、
+        // 画像が書かれているかを見るには**全画素**を数える必要がある
+        long allChecksum = 0xcbf29ce484222325L;
         int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, maxX = -1, maxY = -1;
         float nearest = me.cortex.voxy.client.core.vk.VkDepth.FAR;
         for (int y = 0; y < this.height; y++) {
             for (int x = 0; x < this.width; x++) {
                 long i = (long) y * this.width + x;
+                allChecksum = (allChecksum ^ (MemoryUtil.memGetInt(colourBase + i * 4)
+                    & 0xffffffffL)) * 0x100000001b3L;
                 float d = MemoryUtil.memGetFloat(base + i * 4);
                 if (d == me.cortex.voxy.client.core.vk.VkDepth.CLEAR) continue;
                 drawn++;
@@ -1868,6 +1876,7 @@ public final class VkInteropProbe {
             + " bbox=[" + minX + "," + minY + " .. " + maxX + "," + maxY + "]"
             + " nearestDepth=" + nearest
             + "  colour=" + Long.toHexString(checksum)
+            + " all=" + Long.toHexString(allChecksum)
             + " black=" + blackDrawn
             + (blackDrawn * 4 > drawn
                 ? "  ⚠ MORE THAN A QUARTER OF THE DRAWN PIXELS ARE BLACK —"
@@ -1899,6 +1908,25 @@ public final class VkInteropProbe {
         }
         return h;
     }
+
+    /**
+     * <b>フレームごとに動くクリア色</b> (Phase 5c-5a の切り分け)。
+     *
+     * <p>青成分だけを {@code frames} で動かす。地形に覆われていない画素は
+     * <b>必ずこの色になる</b>ので、画像全体の総和がこれに追随しなければ
+     * <b>画像が書かれていない</b>。
+     *
+     * <p>⚠ {@code -Pvoxy5c4Clearsweep=false} で止められる。既定は<b>有効</b> —
+     * 今は切り分けの最中である。
+     */
+    private float[] probeClear() {
+        if (!CLEAR_SWEEP) return TERRAIN_CLEAR;
+        return new float[]{TERRAIN_CLEAR[0], TERRAIN_CLEAR[1],
+            ((this.frames & 31) / 31.0f), 1.0f};
+    }
+
+    private static final boolean CLEAR_SWEEP =
+        Boolean.parseBoolean(System.getProperty("voxy.5c4.clearsweep", "true"));
 
     private static String texelString(long addr) {
         return "[" + (MemoryUtil.memGetByte(addr) & 0xFF)
