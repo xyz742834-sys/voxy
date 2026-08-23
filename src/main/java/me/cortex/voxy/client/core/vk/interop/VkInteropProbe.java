@@ -434,6 +434,16 @@ public final class VkInteropProbe {
      * temporal の描画が繋がっているかどうかを<b>既定のまま確かめることはできない</b>
      * [規約 11]。
      */
+    /**
+     * 内訳と footprint を出す間隔 (フレーム)。{@code -Pvoxy5c4Interval=1} で<b>毎フレーム</b>。
+     *
+     * <p>⚠ <b>読み戻しは高い</b> (全画面 2 枚 + 1.6M 画素の走査)。
+     * 1 にすると fps が落ちるが、<b>連続フレームで変化を比べられる</b> —
+     * 120 フレーム離れた 2 点が一致しても<b>毎フレーム同じだったことにはならない</b>。
+     */
+    private static final int HIER_LOG_INTERVAL =
+        Math.max(1, Integer.parseInt(System.getProperty("voxy.5c4.interval", "120")));
+
     private static final String TEMPORAL_MODE =
         System.getProperty("voxy.5c5", "all").toLowerCase();
 
@@ -456,6 +466,8 @@ public final class VkInteropProbe {
         Double.parseDouble(System.getProperty("voxy.5c4.distance", "-1"));
     private double lastCameraX, lastCameraY, lastCameraZ;
     private boolean warnedNoWorld;
+    /** 色の読み戻し先 (Phase 5c-5a)。深度と<b>同じ提出で</b>撮る。 */
+    private VkBuffer colourReadback;
     /**
      * モードごとの直近の観測。{@code {drawn, opaqueQuads, temporalQuads}}。
      *
@@ -790,7 +802,7 @@ public final class VkInteropProbe {
         // ⚠ 5c-4c は**毎フレーム値が変わる**ので周期的に出す。
         // 初回だけだと「まだメッシュ化が終わっていない状態」の数字を見てしまう
         if (MODE == Mode.HIERARCHICAL && this.scene != null
-                && (this.frames == 2 || this.frames % 120 == 0)) {
+                && (this.frames == 2 || this.frames % HIER_LOG_INTERVAL == 0)) {
             this.logHierarchical();
             // ⚠ **画素数を出す。** 「drawn=216」は*選ばれた*数であって
             // *画面に出た*数ではない。目視で判断させると 5c-3a と同じ空振りになる
@@ -1778,9 +1790,21 @@ public final class VkInteropProbe {
         if (this.footprintReadback == null) {
             this.footprintReadback = new VkBuffer(need, VK_BUFFER_USAGE_TRANSFER_DST_BIT, true);
         }
+        // ⚠ **色も同じ提出で撮る** (Phase 5c-5a)。深度だけを見ていると
+        // 「Voxy の色が黒い」と「合成が黒くしている」が区別できない [規約 22]
+        if (this.colourReadback != null && this.colourReadback.size() < need) {
+            this.colourReadback.free();
+            this.colourReadback = null;
+        }
+        if (this.colourReadback == null) {
+            this.colourReadback = new VkBuffer(need, VK_BUFFER_USAGE_TRANSFER_DST_BIT, true);
+        }
         var tracker = VkFrameTracker.get();
         var cmd = tracker.beginFrame();
         this.depth.toGeneral(cmd,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+        this.colour.toGeneral(cmd,
             VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
         try (MemoryStack stack = stackPush()) {
@@ -1792,19 +1816,34 @@ public final class VkInteropProbe {
             region.imageExtent().set(this.width, this.height, 1);
             vkCmdCopyImageToBuffer(cmd, this.depth.imageHandle(), VK_IMAGE_LAYOUT_GENERAL,
                 this.footprintReadback.handle, region);
+            vkCmdCopyImageToBuffer(cmd, this.colour.imageHandle(), VK_IMAGE_LAYOUT_GENERAL,
+                this.colourReadback.handle, region);
         }
         tracker.endFrame();
         tracker.waitForFrame();
 
         long base = this.footprintReadback.addr();
+        long colourBase = this.colourReadback.addr();
         long drawn = 0;
+        long blackDrawn = 0;
+        // ⚠ フレーム間で同じかを見るための総和。**暗号学的である必要はない** —
+        // 「変わったか」だけが要る
+        long checksum = 0xcbf29ce484222325L;
         int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, maxX = -1, maxY = -1;
         float nearest = me.cortex.voxy.client.core.vk.VkDepth.FAR;
         for (int y = 0; y < this.height; y++) {
             for (int x = 0; x < this.width; x++) {
-                float d = MemoryUtil.memGetFloat(base + ((long) y * this.width + x) * 4);
+                long i = (long) y * this.width + x;
+                float d = MemoryUtil.memGetFloat(base + i * 4);
                 if (d == me.cortex.voxy.client.core.vk.VkDepth.CLEAR) continue;
                 drawn++;
+                int bgra = MemoryUtil.memGetInt(colourBase + i * 4);
+                checksum = (checksum ^ (bgra & 0xffffffffL)) * 0x100000001b3L;
+                // BGRA8。⚠ 8 未満を「黒」と呼ぶ — 完全な 0 だけを数えると
+                // 「ほぼ黒」を見逃す [規約 18 の系列]
+                if ((bgra & 0xFF) < 8 && ((bgra >>> 8) & 0xFF) < 8 && ((bgra >>> 16) & 0xFF) < 8) {
+                    blackDrawn++;
+                }
                 if (x < minX) minX = x;
                 if (y < minY) minY = y;
                 if (x > maxX) maxX = x;
@@ -1819,6 +1858,11 @@ public final class VkInteropProbe {
         return "drawn=" + drawn + " of " + texels
             + " bbox=[" + minX + "," + minY + " .. " + maxX + "," + maxY + "]"
             + " nearestDepth=" + nearest
+            + "  colour=" + Long.toHexString(checksum)
+            + " black=" + blackDrawn
+            + (blackDrawn * 4 > drawn
+                ? "  ⚠ MORE THAN A QUARTER OF THE DRAWN PIXELS ARE BLACK —"
+                  + " Voxy itself is producing black, not the composite" : "")
             + "  [framebuffer rows; row 0 is the BOTTOM of the picture]";
     }
 
@@ -1941,6 +1985,11 @@ public final class VkInteropProbe {
             this.footprintReadback.free();
             this.footprintReadback = null;
         }
+        // ⚠ 色の読み戻しも**画面サイズに依存する**。失敗例 18 と同じ形なので同じ場所で解放する
+        if (this.colourReadback != null) {
+            this.colourReadback.free();
+            this.colourReadback = null;
+        }
         if (this.resolve != null) { this.resolve.free(); this.resolve = null; }
         if (this.renderer != null) { this.renderer.free(); this.renderer = null; }
         if (this.rt != null) { this.rt.free(); this.rt = null; }
@@ -1964,6 +2013,7 @@ public final class VkInteropProbe {
         if (this.depthImport != null) { this.depthImport.free(); this.depthImport = null; }
         if (this.probeReadback != null) { this.probeReadback.free(); this.probeReadback = null; }
         if (this.footprintReadback != null) { this.footprintReadback.free(); this.footprintReadback = null; }
+        if (this.colourReadback != null) { this.colourReadback.free(); this.colourReadback = null; }
         if (this.compositor != null) { this.compositor.free(); this.compositor = null; }
     }
 }

@@ -565,7 +565,9 @@ tasks.named('runClient') {
      'Distance': 'distance', 'Sections': 'sections', 'Projection': 'projection',
      'MeshesPerFrame': 'meshesPerFrame',
      // ⚠ 階層経路のジオメトリ容量 (quad)。5c-3b とは別。NodeCleaner が無いので減らない
-     'Quads': 'quads'].each { k, v ->
+     'Quads': 'quads',
+     // ⚠ 内訳と footprint の間隔 (フレーム)。1 にすると毎フレーム — 連続で比べられる
+     'Interval': 'interval'].each { k, v ->
         def prop = 'voxy5c4' + k
         if (project.hasProperty(prop)) {
             jvmArgs("-Dvoxy.5c4." + v + "=" + project.property(prop))
