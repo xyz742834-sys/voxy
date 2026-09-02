@@ -141,6 +141,40 @@ Voxy は<b>ユニファイドメモリを前提に、多くのバッファへ直
 > ユニフォームが混ざるだけなので、<b>ちらつきとしてしか出ない</b>。
 > 5c-4c で踏んだ 5 件と同じ性質で、<b>検査を先に用意しなければ気付けない</b>。
 
+#### 2.4.1 <b>列挙</b> (Phase 5 完了時点、`.addr()` を使う全ファイル)
+
+⚠ <b>16 本ではなく 18 本だった</b>。5c-5 で 2 本増えている
+(`VkCullPass` / 診断の追加)。**数は作業のたびに変わるので、
+この表は「分類」を持ち帰るためのものである。**
+
+| 区分 | ファイル | 箇所 | Phase 7 での対処 |
+|---|---|---:|---|
+| **A** 毎フレーム書く<b>小</b> | `VkSceneUniform` | 1 | <b>世代ぶん二重化</b> |
+| A | `VkTraversal` (uniform / queueMeta / renderQueue 先頭 / request / limits) | 11 | 二重化。⚠ 読み出しも含む |
+| A | `VkHierarchicalScene` (visibility / topNodeIds / 各種読み戻し) | 20 | 二重化 + 読み出しは C |
+| A/B | `VkUploadStream` | 2 | リングを<b>世代ぶん</b> (§2.3) |
+| **B** 変更時に書く<b>大</b> | `VkGeometryFlush` (geometry / sectionMetadata) | 2 | <b>staging 経由</b>へ |
+| B | `VkModelUploadTarget` (model / atlas) | 10 | staging 経由へ |
+| B | `VkRealSectionUpload` (metadata) | 3 | staging 経由へ |
+| B | `VkNodeUploadTarget` (nodeData) | 1 | staging 経由へ |
+| **C** 読み出しのみ | `VkRenderTarget` (読み戻し) | 11 | <b>世代を待ってから読む</b> |
+| C | `VkDownloadStream` | 2 | スクラッチを世代ぶん (§2.3) |
+| **D** 1 回だけ / 起動時 | `VkTerrainResources` | 4 | <b>対処不要</b> |
+| D | `VkQuadIndexBuffer` | 1 | 対処不要 |
+| D | `VkCullPass` (立方体インデックス) | 1 | 対処不要 |
+| **E** 本番経路でない | `SyntheticTerrain` | 11 | 対処不要 (検査データ) |
+| E | `VkNodeTree` | 2 | 対処不要 (合成の木) |
+| E | `VkInteropProbe` | 4 | 対処不要 (5c の足場) |
+| E | `rendering/util/UploadStream` | 3 | 対処不要 (GL 参照実装) |
+| E | `rendering/util/DownloadStream` | 1 | 対処不要 (GL 参照実装) |
+
+**実際に手を入れるのは A + B + C の 10 本**である。D の 3 本と E の 5 本は触らない。
+
+> ⚠ <b>C を忘れやすい。</b> 「書き込みが壊れる」ばかりを見ていると、
+> <b>読み出しが 1 世代古いものを読む</b>ほうを落とす。
+> 5c-5a で「絵が凍っている」と「読み戻しが凍っている」を
+> 区別できずに往復したのは、まさにこの型である。
+
 ### 2.5 fence → タイムラインセマフォ
 
 Voxy は `VkFence` で待つ。MC はタイムラインセマフォ。
