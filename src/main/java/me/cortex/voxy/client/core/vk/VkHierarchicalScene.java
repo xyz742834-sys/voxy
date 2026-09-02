@@ -989,6 +989,57 @@ public final class VkHierarchicalScene {
         return (x * 31) + sum + ((long) n << 40);
     }
 
+    /**
+     * <b>選ばれたセクションの id をそのまま返す</b> (Phase 6 第一項目)。
+     *
+     * <p>⚠ 並びは {@code atomicAdd} 由来で毎フレーム変わりうる。
+     * <b>集合として</b>使うこと。
+     */
+    public int[] selectedSections() {
+        int n = this.drawnSectionCount();
+        var out = new int[Math.max(0, n)];
+        long base = this.res.indirectLookup.addr() + 4L;
+        for (int i = 0; i < out.length; i++) {
+            out[i] = org.lwjgl.system.MemoryUtil.memGetInt(base + (long) i * 4L);
+        }
+        return out;
+    }
+
+    /** LoD 段数 (0..{@code MAX_LOD_LAYER})。detail は 4 ビットなので 16 で足りる。 */
+    public static final int LOD_BUCKETS = 16;
+
+    /**
+     * <b>選ばれた集合の LoD 別の数</b> (Phase 6 第一項目)。
+     *
+     * <h2>⚠ これが A と B を分ける</h2>
+     * カメラ静止・木が固定のとき、集合が変わる原因は 2 つに絞れている:
+     * <ul>
+     *   <li><b>A: HiZ の遮蔽</b> — <b>同じ LoD の中で</b>セクションが出入りする
+     *       → ヒストグラムは<b>動かない</b></li>
+     *   <li><b>B: 降下の閾値</b> — 親と子が入れ替わる
+     *       → <b>隣り合う LoD の間で数が移る</b></li>
+     * </ul>
+     *
+     * <p>⚠ どちらも「集合が変わった」としか見えない。
+     * <b>集合の変化だけを数えても区別できない</b> [規約 22]。
+     *
+     * <p>LoD は {@code sectionMetadata} の先頭 uint の上位 4 ビットである
+     * [確認済 — {@code pos_util.glsl} の {@code getLoDLevel} = {@code packedPos.x>>28}]。
+     */
+    public int[] selectedLodHistogram() {
+        var hist = new int[LOD_BUCKETS];
+        int n = this.drawnSectionCount();
+        long lookup = this.res.indirectLookup.addr() + 4L;
+        for (int i = 0; i < n; i++) {
+            int sid = org.lwjgl.system.MemoryUtil.memGetInt(lookup + (long) i * 4L);
+            if (sid < 0 || sid >= this.maxSections) continue;
+            int packedX = org.lwjgl.system.MemoryUtil.memGetInt(
+                this.res.sectionMetadata.addr() + (long) sid * 32L);
+            hist[(packedX >>> 28) & 15]++;
+        }
+        return hist;
+    }
+
     /** トラバーサルが選んだセクション数 (= {@code indirectLookup} の先頭)。 */
     public int drawnSectionCount() {
         return Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.res.indirectLookup.addr()),

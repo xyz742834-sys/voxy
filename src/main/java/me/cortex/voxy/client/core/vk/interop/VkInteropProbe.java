@@ -482,6 +482,18 @@ public final class VkInteropProbe {
     private long prevSetSig;
     private int setChanged, sameSetSamples;
 
+    // ---------------- Phase 6 第一項目: 選択集合が何故変わるか ----------------
+    private int[] prevSelIds;
+    private int[] prevLodHist;
+    private int prevMeshed = -1;
+    /** 木が固定でカメラも静止していたサンプル数。⚠ <b>0 なら何も言えない</b>。 */
+    private int churnGated;
+    /** 集合が変わらなかった / 同じ LoD 内で入れ替わった / LoD 間で移った。 */
+    private int churnNone, churnSameLod, churnAcrossLod;
+    private final java.util.ArrayList<Integer> churnSizes = new java.util.ArrayList<>();
+    /** どの隣接 LoD の間で移ったか。{@code movedBetween[k]} = k と k+1 の間。 */
+    private final int[] movedBetween = new int[me.cortex.voxy.client.core.vk.VkHierarchicalScene.LOD_BUCKETS];
+
     /** 注入点が申告したサイズと、MC のカラーテクスチャの実寸 (Phase 5c-5a の切り分け)。 */
     private int lastTargetW, lastTargetH, lastTexW, lastTexH;
     /** サイズ依存の資源を作り直した回数。<b>増え続けるならサイズが行き来している</b>。 */
@@ -1952,6 +1964,7 @@ public final class VkInteropProbe {
             + "  drawn=" + drawn + " of " + texels
             + " bbox=[" + minX + "," + minY + " .. " + maxX + "," + maxY + "]"
             + " nearestDepth=" + nearest
+            + this.selectionChurn(host[0])
             + this.translucentFlicker(host[0], colourBase, texels)
             + "  colour=" + Long.toHexString(checksum)
             + " all=" + Long.toHexString(allChecksum)
@@ -2114,6 +2127,128 @@ public final class VkInteropProbe {
         this.prevBucketSig = sig[0];
         this.prevOrderSig = sig[1];
         return sb.toString();
+    }
+
+    /**
+     * <b>選択集合の揺れを分類する</b> (Phase 6 第一項目)。
+     *
+     * <h2>⚠ 先に候補を 3 つに絞ってある</h2>
+     * コードを読んで 3 つ消した:
+     * <ul>
+     *   <li>カルパスの帰還 — <b>構造的に不可能</b>。{@code indirectLookup} を書くのは
+     *       トラバーサルだけで、cull は {@code visibility[]} しか書かない</li>
+     *   <li>{@code lastRenderFrame} による抑制 — <b>書くだけで読んでいない</b></li>
+     *   <li>視錐台 — カメラ静止なら MVP は同一 (ここで固定している)</li>
+     * </ul>
+     *
+     * <p>残るのは <b>D: 木が育っている / A: HiZ の遮蔽 / B: 降下の閾値</b>。
+     *
+     * <h2>分ける数字</h2>
+     * <ol>
+     *   <li><b>D</b> は「メッシュ化数が増えていない」で外す。
+     *       ⚠ <b>外さずに数えると、木が育っているだけの変化を揺れと呼ぶ</b></li>
+     *   <li><b>A と B</b> は <b>LoD 別ヒストグラム</b>で分ける:
+     *       平ら → 同じ LoD 内の入れ替え (遮蔽)、動く → LoD 間の移動 (閾値)</li>
+     * </ol>
+     */
+    private String selectionChurn(long drawMvp) {
+        if (this.scene == null) return "";
+        int meshed = this.scene.meshedSections();
+        int[] ids = this.scene.selectedSections();
+        int[] hist = this.scene.selectedLodHistogram();
+        java.util.Arrays.sort(ids);
+
+        boolean treeStatic = this.prevMeshed == meshed;
+        boolean still = drawMvp == this.prevDrawMvp;   // ⚠ prevDrawMvp は下の呼び出しで更新される
+        var sb = new StringBuilder();
+
+        if (this.prevSelIds != null && treeStatic && still) {
+            this.churnGated++;
+            int changed = symmetricDifference(this.prevSelIds, ids);
+            int l1 = 0;
+            for (int i = 0; i < hist.length; i++) l1 += Math.abs(hist[i] - this.prevLodHist[i]);
+            if (changed == 0) {
+                this.churnNone++;
+            } else {
+                this.churnSizes.add(changed);
+                if (l1 == 0) {
+                    this.churnSameLod++;
+                } else {
+                    this.churnAcrossLod++;
+                    for (int k = 0; k + 1 < hist.length; k++) {
+                        if (hist[k] != this.prevLodHist[k] && hist[k + 1] != this.prevLodHist[k + 1]) {
+                            this.movedBetween[k]++;
+                        }
+                    }
+                }
+            }
+            if (this.churnGated >= 120) {
+                this.reportChurn();
+            }
+        } else if (!treeStatic) {
+            // ⚠ 木が育っている間の変化は**揺れではない**。混ぜない
+            sb.append(" [tree grew]");
+        }
+
+        this.prevSelIds = ids;
+        this.prevLodHist = hist;
+        this.prevMeshed = meshed;
+        return sb.toString();
+    }
+
+    /** 2 つのソート済み集合の対称差の大きさ。 */
+    private static int symmetricDifference(int[] a, int[] b) {
+        int i = 0, j = 0, d = 0;
+        while (i < a.length && j < b.length) {
+            if (a[i] == b[j]) { i++; j++; }
+            else if (a[i] < b[j]) { i++; d++; }
+            else { j++; d++; }
+        }
+        return d + (a.length - i) + (b.length - j);
+    }
+
+    private void reportChurn() {
+        Logger.info("[6-1] ---- why the selected set changes (camera still AND tree static,"
+            + " " + this.churnGated + " samples) ----");
+        if (this.churnSizes.isEmpty()) {
+            Logger.info("[6-1]   the set never changed. ⚠ Nothing to explain — the churn seen"
+                + " earlier was the tree growing, not the traversal.");
+        } else {
+            var sorted = new java.util.ArrayList<>(this.churnSizes);
+            java.util.Collections.sort(sorted);
+            Logger.info("[6-1]   unchanged=" + this.churnNone
+                + "  same-LoD swap=" + this.churnSameLod
+                + "  across-LoD move=" + this.churnAcrossLod);
+            Logger.info("[6-1]   sections entering/leaving per change:"
+                + " min=" + sorted.get(0)
+                + " median=" + sorted.get(sorted.size() / 2)
+                + " max=" + sorted.get(sorted.size() - 1));
+            var pairs = new StringBuilder();
+            for (int k = 0; k + 1 < this.movedBetween.length; k++) {
+                if (this.movedBetween[k] > 0) {
+                    pairs.append(" L").append(k).append("/L").append(k + 1)
+                        .append("=").append(this.movedBetween[k]);
+                }
+            }
+            Logger.info("[6-1]   adjacent LoD pairs that moved:"
+                + (pairs.length() == 0 ? " (none)" : pairs.toString()));
+            // ⚠ 名指しは**数字が片方に寄っているときだけ**
+            if (this.churnAcrossLod == 0 && this.churnSameLod > 0) {
+                Logger.info("[6-1]   -> the LoD histogram never moved: sections swap WITHIN a"
+                    + " level. That points at the HiZ occlusion test, not the descent"
+                    + " threshold.");
+            } else if (this.churnSameLod == 0 && this.churnAcrossLod > 0) {
+                Logger.info("[6-1]   -> every change moved counts BETWEEN levels: that points"
+                    + " at the descent threshold (no hysteresis), not occlusion.");
+            } else {
+                Logger.info("[6-1]   -> ⚠ both kinds occur; neither can be named yet."
+                    + " Look at which dominates and at the LoD pairs above.");
+            }
+        }
+        Logger.info("[6-1]   ⚠ this is a measurement, not a pass/fail check.");
+        this.churnGated = this.churnNone = this.churnSameLod = this.churnAcrossLod = 0;
+        this.churnSizes.clear();
+        java.util.Arrays.fill(this.movedBetween, 0);
     }
 
     private static String texelString(long addr) {
