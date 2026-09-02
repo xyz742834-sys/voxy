@@ -585,6 +585,15 @@ tasks.named('runClient') {
     //   ./gradlew runClient -Pvoxy5c4=on -Pvoxy5c5=cycle  上の 4 つを順に回して分割の恒等式を見る
     // ⚠ 片方だけでは駄目である。「空」だけを見ると「常に空」が通り、
     //   「一致」だけを見ると「常に不透明と同じ」が通る (5c-1e と同じ型)
+    // Phase 6 第二項目: 深度境界の掃引。opaque のうち断片処理が占める割合を測る
+    //   ./gradlew runClient -Pvoxy5c4=on -Pvoxy6Bound=sweep
+    //   -Pvoxy6BoundFrames=120   1 つの値を保つフレーム数
+    if (project.hasProperty('voxy6Bound')) {
+        jvmArgs("-Dvoxy.6.bound=" + project.property('voxy6Bound'))
+    }
+    if (project.hasProperty('voxy6BoundFrames')) {
+        jvmArgs("-Dvoxy.6.boundFrames=" + project.property('voxy6BoundFrames'))
+    }
     if (project.hasProperty('voxy5c5')) {
         jvmArgs("-Dvoxy.5c5=" + project.property('voxy5c5'))
     }

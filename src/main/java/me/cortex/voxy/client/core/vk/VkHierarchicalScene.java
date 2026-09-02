@@ -390,6 +390,19 @@ public final class VkHierarchicalScene {
         if (this.freed) throw new IllegalStateException("VkHierarchicalScene already freed");
     }
 
+    /**
+     * <b>深度境界を定数で埋める</b> (Phase 6 第二項目の測定用)。
+     *
+     * <p>⚠ 本番の境界は<b>画素ごとに違う</b> (上流 {@code BoundRenderer} が
+     * バニラの読み込み済みチャンクの AABB 裏面から作る)。
+     * ここで定数を入れるのは<b>払い戻しの上限を測るため</b>であって代用ではない。
+     */
+    public void setDepthBound(float value) {
+        this.renderer.setDepthBound(value);
+        this.temporalRenderer.setDepthBound(value);
+        this.translucentRenderer.setDepthBound(value);
+    }
+
     /** 可視バッファの書き方を選ぶ (Phase 5c-5a)。既定は 5c-4c までと同じ。 */
     public void setVisibility(Visibility mode) { this.visibility = mode; }
 

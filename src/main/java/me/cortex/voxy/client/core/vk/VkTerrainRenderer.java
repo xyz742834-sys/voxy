@@ -137,6 +137,19 @@ public class VkTerrainRenderer {
     private final Barriers barriers;
     private boolean uploaded;
     private boolean freed;
+    /**
+     * 深度境界の値 (Phase 6 第二項目の測定用)。
+     *
+     * <p>本番の境界は<b>画素ごとに違う</b> — 上流は
+     * {@code BoundRenderer} がバニラの読み込み済みチャンクの AABB の裏面を描いて作る
+     * [確認済 — {@code VoxyRenderSystem:301}]。
+     *
+     * <p>⚠ ここで定数を入れられるようにしたのは<b>払い戻しを測るため</b>であって、
+     * 境界の代用ではない。<b>「近景の断片を落としたら {@code opaque} がどれだけ下がるか」
+     * の上限を知る</b>のが目的である。
+     */
+    private float depthBoundValue = VkDepth.BOUND_NEUTRAL;
+    private boolean depthBoundDirty;
 
     /**
      * @param res      バインドするバッファ・テクスチャ一式
@@ -271,16 +284,21 @@ public class VkTerrainRenderer {
 
         // 深度境界を中立値で埋める = 誰も落とさない [VkDepth.BOUND_NEUTRAL]。
         // ⚠ 逆Zでは NEAR (1.0)。非逆Zの 0.0 のままにすると全部落ちる
+        this.fillDepthBound(cmd, this.depthBoundValue);
+    }
+
+    /** 深度境界を定数で埋める。 */
+    private void fillDepthBound(VkCommandBuffer cmd, float value) {
         this.depthBound.barrier(cmd, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0,
             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT);
         try (MemoryStack stack = stackPush()) {
-            var value = VkClearDepthStencilValue.calloc(stack).depth(VkDepth.BOUND_NEUTRAL).stencil(0);
+            var v = VkClearDepthStencilValue.calloc(stack).depth(value).stencil(0);
             var range = VkImageSubresourceRange.calloc(1, stack)
                 .aspectMask(VK_IMAGE_ASPECT_DEPTH_BIT)
                 .baseMipLevel(0).levelCount(1).baseArrayLayer(0).layerCount(1);
             vkCmdClearDepthStencilImage(cmd, this.depthBound.image,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, value, range);
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, v, range);
         }
         this.depthBound.barrier(cmd, 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -315,6 +333,21 @@ public class VkTerrainRenderer {
      * @param clearDepth null ならクリアしない ({@code LOAD})。
      *                   不透明パスだけが {@link VkDepth#CLEAR} を渡す
      */
+    /**
+     * 深度境界を定数で埋める (Phase 6 第二項目の測定用)。
+     *
+     * @param value 逆Zの深度。{@link VkDepth#BOUND_NEUTRAL} なら<b>誰も落とさない</b>。
+     *              小さいほど<b>手前の断片が多く落ちる</b>
+     */
+    public void setDepthBound(float value) {
+        if (this.depthBoundValue != value) {
+            this.depthBoundValue = value;
+            this.depthBoundDirty = true;
+        }
+    }
+
+    public float depthBoundValue() { return this.depthBoundValue; }
+
     public void record(VkCommandBuffer cmd, VkRenderTarget target, int drawCount,
                        float[] clearColour, Float clearDepth) {
         this.assertNotFreed();
@@ -326,6 +359,10 @@ public class VkTerrainRenderer {
                 + " does not match the pipeline's 0x" + Integer.toHexString(this.colorFormat));
         }
         this.recordUploads(cmd);
+        if (this.depthBoundDirty) {
+            this.depthBoundDirty = false;
+            this.fillDepthBound(cmd, this.depthBoundValue);
+        }
         this.hostWriteBarrier(cmd);
 
         target.beginRendering(cmd, clearColour, clearDepth);

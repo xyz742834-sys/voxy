@@ -444,6 +444,28 @@ public final class VkInteropProbe {
     private static final int HIER_LOG_INTERVAL =
         Math.max(1, Integer.parseInt(System.getProperty("voxy.5c4.interval", "120")));
 
+    /**
+     * <b>深度境界の掃引</b> (Phase 6 第二項目)。{@code -Pvoxy6Bound=sweep} で有効。
+     *
+     * <p>逆Zなので <b>1.0 = 誰も落とさない</b>、<b>0.0 = 全部落とす</b>。
+     * Voxy の断片は {@code nearestDepth} が 0.0008〜0.0014 の範囲に出ているので、
+     * この 5 点で<b>「近景を落とすと {@code opaque} がどこまで下がるか」</b>が分かる。
+     *
+     * <p>⚠ <b>0.0 の値が「断片処理を全部止めたときの床」</b>である。
+     * {@code opaque} のうち<b>どれだけが断片処理か</b>を、これで上限として知る。
+     *
+     * <p>⚠ これは境界の代用ではない。本番の境界は画素ごとに違う。
+     * <b>払い戻しの上限を測るためだけ</b>のものである。
+     */
+    private static final float[] BOUND_SWEEP = {1.0f, 0.0014f, 0.0010f, 0.0007f, 0.0f};
+
+    private static final boolean BOUND_SWEEPING =
+        "sweep".equalsIgnoreCase(System.getProperty("voxy.6.bound", "off"));
+
+    /** 1 つの境界値を保つフレーム数。 */
+    private static final int BOUND_SWEEP_FRAMES =
+        Math.max(1, Integer.parseInt(System.getProperty("voxy.6.boundFrames", "120")));
+
     private static final String TEMPORAL_MODE =
         System.getProperty("voxy.5c5", "cull").toLowerCase();
 
@@ -823,6 +845,10 @@ public final class VkInteropProbe {
             if (this.scene != null) {
                 // ⚠ **prepare より前**に決める。writeVisibility は prepare の中で走る
                 this.scene.setVisibility(this.visibilityForThisFrame());
+                if (BOUND_SWEEPING) {
+                    this.scene.setDepthBound(BOUND_SWEEP[(int)
+                        ((this.frames / BOUND_SWEEP_FRAMES) % BOUND_SWEEP.length)]);
+                }
                 this.writeHierarchicalUniform(projection, modelView, cameraX, cameraY, cameraZ);
             }
         } else if (drawsTerrain()) {
@@ -1706,7 +1732,10 @@ public final class VkInteropProbe {
                     == me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility.ALL_VISIBLE
                 ? "  [ALL_VISIBLE: 0 is expected. temporal cannot be exercised in this mode —"
                   + " use -Pvoxy5c5=cycle. The production path is -Pvoxy5c5=cull]" : ""));
-        Logger.info("[5c-4c] GPU " + this.scene.timer().describe());
+        // ⚠ 境界値を同じ行に出す。別々の行だと**どの値の測定か**が突き合わせられない
+        Logger.info("[5c-4c] GPU " + this.scene.timer().describe()
+            + (BOUND_SWEEPING ? "  bound=" + BOUND_SWEEP[(int)
+                ((this.frames / BOUND_SWEEP_FRAMES) % BOUND_SWEEP.length)] : ""));
     }
 
     /**
