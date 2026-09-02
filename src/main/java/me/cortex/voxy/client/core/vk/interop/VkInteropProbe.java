@@ -2083,11 +2083,14 @@ public final class VkInteropProbe {
                     Logger.info("[5c-5c]   with the SAME set (" + this.sameSetSamples
                         + " samples): assignment changed " + this.bucketChanged
                         + ", order-only changed " + this.orderOnlyChanged
-                        + (this.bucketChanged > 0
-                            ? "  ⚠ the assignment is distance-derived; with the same set and a"
+                        + (this.bucketChanged == 0 ? "  [as expected]"
+                            : this.bucketChanged * 4 < this.sameSetSamples
+                            ? "  [a few; ⚠ do NOT name a cause from this — meshing keeps"
+                              + " updating sectionMetadata, which moves the buckets for the"
+                              + " same set. Hold still with meshing settled to say more.]"
+                            : "  ⚠ the assignment is distance-derived; with the same set and a"
                               + " still camera it should be deterministic."
-                              + " Something other than atomicAdd is moving."
-                            : "  [as expected]"));
+                              + " Something other than atomicAdd is moving."));
                 }
                 Logger.info("[5c-5c]   ⚠ this is a recorded characteristic of this build,"
                     + " not a pass/fail check.");
