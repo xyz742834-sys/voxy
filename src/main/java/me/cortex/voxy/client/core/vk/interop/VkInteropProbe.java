@@ -478,6 +478,9 @@ public final class VkInteropProbe {
     private final java.util.ArrayList<Integer> flickerSamples = new java.util.ArrayList<>();
     /** 静止中に<b>バケット割り当て</b>が変わった回数と、<b>順序だけ</b>が変わった回数。 */
     private int bucketChanged, orderOnlyChanged, stillSamples;
+    /** 選ばれた集合そのものが変わった回数と、同じだったサンプル数。 */
+    private long prevSetSig;
+    private int setChanged, sameSetSamples;
 
     /** 注入点が申告したサイズと、MC のカラーテクスチャの実寸 (Phase 5c-5a の切り分け)。 */
     private int lastTargetW, lastTargetH, lastTexW, lastTexH;
@@ -2000,8 +2003,17 @@ public final class VkInteropProbe {
             ((this.frames & 31) / 31.0f), 1.0f};
     }
 
+    /**
+     * ⚠ <b>既定で切ってある。</b> 掃引は「画像が毎フレーム書かれているか」を
+     * 確かめるためのもので、その役目は {@code all=} が果たして終わった。
+     *
+     * <p>⚠⚠ <b>入れたままにすると揺れ幅の測定が汚染される。</b>
+     * 地形に覆われていない画素が<b>毎フレーム必ず変わる</b>ので、
+     * 「揺れた画素数」が空の面積を数えることになる。実際に 45% という
+     * 意味の無い数字を出した — <b>診断が本番の観測を壊した</b>例である。
+     */
     private static final boolean CLEAR_SWEEP =
-        Boolean.parseBoolean(System.getProperty("voxy.5c4.clearsweep", "true"));
+        Boolean.parseBoolean(System.getProperty("voxy.5c4.clearsweep", "false"));
 
     /**
      * <b>半透明の揺れ幅を記録する</b> (Phase 5c-5c)。<b>測定であって検査ではない。</b>
@@ -2038,8 +2050,19 @@ public final class VkInteropProbe {
             }
             this.flickerSamples.add(differing);
             this.stillSamples++;
-            if (sig[0] != this.prevBucketSig) this.bucketChanged++;
-            else if (sig[1] != this.prevOrderSig) this.orderOnlyChanged++;
+            // ⚠ **選ばれた集合が同じときだけ**バケットの変化を数える。
+            // 選択が変われば距離も変わるので、バケットが動くのは**当たり前**である。
+            // 分けずに数えると「割り当てが非決定的」と「トラバーサルが別の集合を選んだ」を
+            // 取り違える [規約 22]
+            long set = this.scene.selectedSetSignature();
+            if (set != this.prevSetSig) {
+                this.setChanged++;
+            } else {
+                if (sig[0] != this.prevBucketSig) this.bucketChanged++;
+                else if (sig[1] != this.prevOrderSig) this.orderOnlyChanged++;
+                this.sameSetSamples++;
+            }
+            this.prevSetSig = set;
 
             if (this.flickerSamples.size() >= 60) {
                 var sorted = new java.util.ArrayList<>(this.flickerSamples);
@@ -2050,22 +2073,32 @@ public final class VkInteropProbe {
                 Logger.info("[5c-5c]   flickering pixels: min=" + sorted.get(0)
                     + " median=" + sorted.get(n / 2) + " max=" + sorted.get(n - 1)
                     + " of " + texels);
-                Logger.info("[5c-5c]   bucket ASSIGNMENT changed: " + this.bucketChanged
-                    + " / " + this.stillSamples
-                    + (this.bucketChanged > 0
-                        ? "  ⚠ the assignment is distance-derived, so with the camera still it"
-                          + " should be deterministic. Something other than atomicAdd is moving."
-                        : "  [as expected: distance-derived and the camera did not move]"));
-                Logger.info("[5c-5c]   order-only changed:       " + this.orderOnlyChanged
-                    + " / " + this.stillSamples + "  [atomicAdd; expected]");
+                Logger.info("[5c-5c]   the SELECTED SET changed: " + this.setChanged
+                    + " / " + n + "  [traversal picked different sections;"
+                    + " buckets are allowed to move with it]");
+                if (this.sameSetSamples == 0) {
+                    Logger.info("[5c-5c]   ⚠ the set never repeated, so nothing can be said"
+                        + " about the bucket assignment. Hold still longer.");
+                } else {
+                    Logger.info("[5c-5c]   with the SAME set (" + this.sameSetSamples
+                        + " samples): assignment changed " + this.bucketChanged
+                        + ", order-only changed " + this.orderOnlyChanged
+                        + (this.bucketChanged > 0
+                            ? "  ⚠ the assignment is distance-derived; with the same set and a"
+                              + " still camera it should be deterministic."
+                              + " Something other than atomicAdd is moving."
+                            : "  [as expected]"));
+                }
                 Logger.info("[5c-5c]   ⚠ this is a recorded characteristic of this build,"
                     + " not a pass/fail check.");
                 this.flickerSamples.clear();
                 this.bucketChanged = this.orderOnlyChanged = this.stillSamples = 0;
+                this.setChanged = this.sameSetSamples = 0;
             }
         } else if (!sameSize) {
             this.flickerSamples.clear();
             this.bucketChanged = this.orderOnlyChanged = this.stillSamples = 0;
+            this.setChanged = this.sameSetSamples = 0;
         }
 
         if (this.prevColour == null || this.prevColour.length != texels) {

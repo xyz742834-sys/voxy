@@ -967,6 +967,28 @@ public final class VkHierarchicalScene {
         return new long[]{buckets, order, slots, quads};
     }
 
+    /**
+     * <b>選ばれたセクションの集合</b>の総和 (Phase 5c-5c)。
+     *
+     * <p>⚠ <b>順序に依存しない</b>ようにしてある (XOR と加算)。トラバーサルは
+     * {@code atomicAdd} で描画キューに積むので<b>並びは毎フレーム変わりうる</b>。
+     * 順序込みで比べると「集合が変わった」と「並びが変わった」を取り違える。
+     *
+     * <p>これが同じときにだけ、バケット割り当ての変化を
+     * <b>割り当ての非決定性</b>と読んでよい。
+     */
+    public long selectedSetSignature() {
+        int n = this.drawnSectionCount();
+        long x = 0, sum = 0;
+        long base = this.res.indirectLookup.addr() + 4L;
+        for (int i = 0; i < n; i++) {
+            long id = org.lwjgl.system.MemoryUtil.memGetInt(base + (long) i * 4L) & 0xffffffffL;
+            x ^= id * 0x9e3779b97f4a7c15L;
+            sum += id;
+        }
+        return (x * 31) + sum + ((long) n << 40);
+    }
+
     /** トラバーサルが選んだセクション数 (= {@code indirectLookup} の先頭)。 */
     public int drawnSectionCount() {
         return Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.res.indirectLookup.addr()),
