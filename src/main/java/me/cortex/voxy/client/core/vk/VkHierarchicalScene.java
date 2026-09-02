@@ -154,7 +154,7 @@ public final class VkHierarchicalScene {
      * に分かれている。
      */
     public static final String[] SPANS =
-        {"opaque", "hiz", "traversal", "cull", "table", "temporal", "resolve"};
+        {"opaque", "hiz", "traversal", "cull", "table", "temporal", "translucent", "resolve"};
 
     /**
      * <b>可視バッファを誰がどう書くか</b> (Phase 5c-5a)。
@@ -219,6 +219,13 @@ public final class VkHierarchicalScene {
      * {@code MERGED_PREFIX_BINDING} に {@code temporalPrefix} を張ったもの。
      */
     private VkTerrainRenderer temporalRenderer;
+    /**
+     * 半透明パス (Phase 5c-5c)。距離バケットごとの draw で、ブレンド有効。
+     *
+     * <p>⚠ 描画数は<b>バケット数</b>であってエントリ数ではない
+     * [確認済 — {@code VkTranslucentTest} が {@code TRANSLUCENT_BUCKETS} を渡している]。
+     */
+    private VkTerrainRenderer translucentRenderer;
     private final VkGpuTimer timer = new VkGpuTimer(SPANS);
     private final int maxSections;
     /**
@@ -333,6 +340,9 @@ public final class VkHierarchicalScene {
         this.temporalRenderer = new VkTerrainRenderer(this.res, width, height,
             VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
             VkTerrainRenderer.Pass.TEMPORAL, colourFormat);
+        this.translucentRenderer = new VkTerrainRenderer(this.res, width, height,
+            VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
+            VkTerrainRenderer.Pass.TRANSLUCENT, colourFormat);
     }
 
     /**
@@ -357,6 +367,7 @@ public final class VkHierarchicalScene {
         this.assertNotFreed();
         this.renderer.free();
         this.temporalRenderer.free();
+        this.translucentRenderer.free();
         this.hiz.free();
 
         this.hiz = new VkHiZ(target.depth, width, height);
@@ -368,6 +379,9 @@ public final class VkHierarchicalScene {
         this.temporalRenderer = new VkTerrainRenderer(this.res, width, height,
             VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
             VkTerrainRenderer.Pass.TEMPORAL, colourFormat);
+        this.translucentRenderer = new VkTerrainRenderer(this.res, width, height,
+            VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
+            VkTerrainRenderer.Pass.TRANSLUCENT, colourFormat);
         Logger.info("[5c-5a] resized the size-dependent resources to " + width + "x" + height
             + " (the tree and its " + this.meshedSections + " meshed sections are kept)");
     }
@@ -567,8 +581,15 @@ public final class VkHierarchicalScene {
         this.temporalRenderer.record(cmd, target, this.maxDraws, null, null);
         this.timer.mark(cmd, 6);
 
-        if (depthOut != null) depthOut.resolve(cmd, target.depth);
+        // ④ 半透明。⚠ 描画数は**バケット数**である (エントリ数ではない)。
+        // 参照実装も renderTranslucent を temporal の後に置く
+        // [確認済 — AbstractRenderPipeline.runPipeline]
+        this.translucentRenderer.record(cmd, target,
+            VkTerrainResources.TRANSLUCENT_BUCKETS, null, null);
         this.timer.mark(cmd, 7);
+
+        if (depthOut != null) depthOut.resolve(cmd, target.depth);
+        this.timer.mark(cmd, 8);
     }
 
     /**
@@ -907,6 +928,45 @@ public final class VkHierarchicalScene {
         return new int[]{entries, total};
     }
 
+    private static long fnvOver(long base, int ints) {
+        long h = 0xcbf29ce484222325L;
+        for (int i = 0; i < ints; i++) {
+            h = (h ^ (org.lwjgl.system.MemoryUtil.memGetInt(base + i * 4L) & 0xffffffffL))
+                * 0x100000001b3L;
+        }
+        return h;
+    }
+
+    /**
+     * <b>半透明の揺れを 2 つに分ける数字</b> (Phase 5c-5c)。
+     *
+     * <h2>⚠ なぜ 2 つ要るのか</h2>
+     * <ul>
+     *   <li><b>割り当て</b> — どのセクションがどの距離バケットに入るか。
+     *       <b>距離から決まるのでカメラ固定なら決定的なはず</b></li>
+     *   <li><b>順序</b> — 同じバケットの中の並び。{@code atomicAdd} 由来で<b>非決定的</b></li>
+     * </ul>
+     *
+     * <p>⚠⚠ <b>割り当てが揺れていたら、原因は {@code atomicAdd} ではない。</b>
+     * 「非決定的だから仕方ない」で片付けると<b>別の原因を見逃す</b> [規約 22]。
+     *
+     * @return {@code {バケット別個数の総和, 並びの総和, スロット数, 総 quad 数}}
+     */
+    public long[] translucentSignature() {
+        long buckets = fnvOver(this.res.translucentBucket.addr(),
+            VkTerrainResources.TRANSLUCENT_BUCKETS);
+        int listed = org.lwjgl.system.MemoryUtil.memGetInt(this.res.translucentList.addr());
+        int maxListed = (int) ((this.res.translucentList.size() - 4) / 4);
+        listed = Math.max(0, Math.min(listed, maxListed));
+        long order = fnvOver(this.res.translucentList.addr() + 4L, listed);
+        long base = this.res.translucentPrefix.addr();
+        int slots = org.lwjgl.system.MemoryUtil.memGetInt(base);
+        int maxSlots = (int) ((this.res.translucentPrefix.size() - 4) / 4) - 1;
+        long quads = (slots < 0 || slots > maxSlots) ? -1
+            : org.lwjgl.system.MemoryUtil.memGetInt(base + 4L + (long) slots * 4L);
+        return new long[]{buckets, order, slots, quads};
+    }
+
     /** トラバーサルが選んだセクション数 (= {@code indirectLookup} の先頭)。 */
     public int drawnSectionCount() {
         return Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.res.indirectLookup.addr()),
@@ -933,6 +993,7 @@ public final class VkHierarchicalScene {
         this.uniformEcho.free();
         this.renderer.free();
         this.temporalRenderer.free();
+        this.translucentRenderer.free();
         this.table.free();
         this.traversal.free();
         this.hiz.free();

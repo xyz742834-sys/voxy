@@ -470,6 +470,15 @@ public final class VkInteropProbe {
     private VkBuffer colourReadback;
     /** 注入点で受け取った行列の総和 (Phase 5c-5a の切り分け)。 */
     private long lastIncomingProjection, lastIncomingModelView, lastLiveViewRotation;
+    // ---------------- 5c-5c: 半透明の揺れ幅 (測定であって検査ではない) ----------------
+    /** 直前のサンプルの色。⚠ 画面サイズが変わったら捨てる。 */
+    private int[] prevColour;
+    private long prevDrawMvp, prevBucketSig, prevOrderSig;
+    /** カメラが静止していたサンプルの、揺れた画素数。 */
+    private final java.util.ArrayList<Integer> flickerSamples = new java.util.ArrayList<>();
+    /** 静止中に<b>バケット割り当て</b>が変わった回数と、<b>順序だけ</b>が変わった回数。 */
+    private int bucketChanged, orderOnlyChanged, stillSamples;
+
     /** 注入点が申告したサイズと、MC のカラーテクスチャの実寸 (Phase 5c-5a の切り分け)。 */
     private int lastTargetW, lastTargetH, lastTexW, lastTexH;
     /** サイズ依存の資源を作り直した回数。<b>増え続けるならサイズが行き来している</b>。 */
@@ -1940,6 +1949,7 @@ public final class VkInteropProbe {
             + "  drawn=" + drawn + " of " + texels
             + " bbox=[" + minX + "," + minY + " .. " + maxX + "," + maxY + "]"
             + " nearestDepth=" + nearest
+            + this.translucentFlicker(host[0], colourBase, texels)
             + "  colour=" + Long.toHexString(checksum)
             + " all=" + Long.toHexString(allChecksum)
             + " black=" + blackDrawn
@@ -1992,6 +2002,83 @@ public final class VkInteropProbe {
 
     private static final boolean CLEAR_SWEEP =
         Boolean.parseBoolean(System.getProperty("voxy.5c4.clearsweep", "true"));
+
+    /**
+     * <b>半透明の揺れ幅を記録する</b> (Phase 5c-5c)。<b>測定であって検査ではない。</b>
+     *
+     * <h2>⚠ 閾値を置いて自動判定にはしない</h2>
+     * 揺れ幅は<b>壊れても揺れ幅</b>なので落ちる基準を決められない。
+     * GPU の負荷やドライバの状態で偽陽性が出る。
+     *
+     * <h2>⚠ カメラが静止しているサンプルだけを集める</h2>
+     * 動いていれば画素は当然変わるので、混ぜると<b>何も主張しない数字</b>になる。
+     * 静止の判定は <b>MVP が前サンプルと同一</b>であること — 目視ではなく数字で決める。
+     *
+     * <h2>2 つを分ける</h2>
+     * <ul>
+     *   <li><b>順序だけ</b>が変わる → {@code atomicAdd} 由来。想定内</li>
+     *   <li><b>バケット割り当て</b>が変わる → ⚠ <b>距離から決まるはずのものが揺れている</b>。
+     *       原因は {@code atomicAdd} 以外にある</li>
+     * </ul>
+     */
+    private String translucentFlicker(long drawMvp, long colourBase, int texels) {
+        if (this.scene == null) return "";
+        long[] sig = this.scene.translucentSignature();
+        var sb = new StringBuilder();
+        sb.append("  tQuads=").append(sig[3]).append(" tSlots=").append(sig[2]);
+
+        boolean sameSize = this.prevColour != null && this.prevColour.length == texels;
+        boolean still = sameSize && drawMvp == this.prevDrawMvp;
+        if (still) {
+            int differing = 0;
+            for (int i = 0; i < texels; i++) {
+                if (MemoryUtil.memGetInt(colourBase + (long) i * 4) != this.prevColour[i]) {
+                    differing++;
+                }
+            }
+            this.flickerSamples.add(differing);
+            this.stillSamples++;
+            if (sig[0] != this.prevBucketSig) this.bucketChanged++;
+            else if (sig[1] != this.prevOrderSig) this.orderOnlyChanged++;
+
+            if (this.flickerSamples.size() >= 60) {
+                var sorted = new java.util.ArrayList<>(this.flickerSamples);
+                java.util.Collections.sort(sorted);
+                int n = sorted.size();
+                Logger.info("[5c-5c] ---- translucent non-determinism (camera held still,"
+                    + " " + n + " samples) ----");
+                Logger.info("[5c-5c]   flickering pixels: min=" + sorted.get(0)
+                    + " median=" + sorted.get(n / 2) + " max=" + sorted.get(n - 1)
+                    + " of " + texels);
+                Logger.info("[5c-5c]   bucket ASSIGNMENT changed: " + this.bucketChanged
+                    + " / " + this.stillSamples
+                    + (this.bucketChanged > 0
+                        ? "  ⚠ the assignment is distance-derived, so with the camera still it"
+                          + " should be deterministic. Something other than atomicAdd is moving."
+                        : "  [as expected: distance-derived and the camera did not move]"));
+                Logger.info("[5c-5c]   order-only changed:       " + this.orderOnlyChanged
+                    + " / " + this.stillSamples + "  [atomicAdd; expected]");
+                Logger.info("[5c-5c]   ⚠ this is a recorded characteristic of this build,"
+                    + " not a pass/fail check.");
+                this.flickerSamples.clear();
+                this.bucketChanged = this.orderOnlyChanged = this.stillSamples = 0;
+            }
+        } else if (!sameSize) {
+            this.flickerSamples.clear();
+            this.bucketChanged = this.orderOnlyChanged = this.stillSamples = 0;
+        }
+
+        if (this.prevColour == null || this.prevColour.length != texels) {
+            this.prevColour = new int[texels];
+        }
+        for (int i = 0; i < texels; i++) {
+            this.prevColour[i] = MemoryUtil.memGetInt(colourBase + (long) i * 4);
+        }
+        this.prevDrawMvp = drawMvp;
+        this.prevBucketSig = sig[0];
+        this.prevOrderSig = sig[1];
+        return sb.toString();
+    }
 
     private static String texelString(long addr) {
         return "[" + (MemoryUtil.memGetByte(addr) & 0xFF)

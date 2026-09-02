@@ -673,3 +673,40 @@ this.innerPrimaryWork(viewport, depthTexture);   // hiZBuffer.buildMipChain(dept
 シェーダ → バッファ → cull ラスタ → 可視の読み戻しまで、鎖全体が覆われている。
 
 **JUnit 269 PASS / 3 SKIP** (266 → 269)。
+
+---
+
+## 15. 5c-5c 実装完了 — <b>半透明を繋ぎ、揺れ幅の測定を用意した</b>
+
+### 15.1 繋いだもの
+
+```
+不透明 → HiZ → traversal → prep → cull → table → temporal → 半透明 → resolve
+```
+
+⚠ 半透明の<b>描画数はバケット数</b> ({@code TRANSLUCENT_BUCKETS} = 1024) であって
+エントリ数ではない [確認済 — {@code VkTranslucentTest} と GL 版 {@code renderTranslucent}]。
+
+⚠ temporal と同じく<b>色も深度もクリアしない</b>。
+
+### 15.2 揺れ幅の測定 — <b>測定であって検査ではない</b>
+
+閾値を置いた自動判定は<b>しない</b>。揺れ幅は壊れても揺れ幅で、落ちる基準を決められない。
+
+⚠ **カメラが静止しているサンプルだけを集める。** 判定は目視ではなく
+<b>MVP が前サンプルと同一であること</b>で行う。動いている分を混ぜると
+<b>何も主張しない数字</b>になる。
+
+出すもの:
+
+| | |
+|---|---|
+| 揺れた画素数 | 最小 / 中央 / 最大 (60 サンプル) |
+| <b>バケット割り当て</b>が変わった回数 | ⚠ 距離から決まるので<b>静止なら 0 のはず</b> |
+| <b>順序だけ</b>が変わった回数 | {@code atomicAdd} 由来。想定内 |
+
+> ⚠⚠ **割り当てが揺れていたら原因は {@code atomicAdd} ではない。**
+> 「非決定的だから仕方ない」で片付けると<b>別の原因を見逃す</b> [規約 22]。
+
+**JUnit 269 PASS / 3 SKIP** (変化なし — 半透明の描画そのものは Phase 4 の
+{@code VkTranslucentTest} が既に覆っている)。
