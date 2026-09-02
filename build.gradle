@@ -576,6 +576,8 @@ tasks.named('runClient') {
         }
     }
     // 5c-5a: temporal パスを実データで戻す。**可視の書き方が temporal を決める**
+    //   ./gradlew runClient -Pvoxy5c4=on                  既定 = cull (本番経路)
+    //   ./gradlew runClient -Pvoxy5c4=on -Pvoxy5c5=cull   カルパスが可視を書く (本番経路)
     //   ./gradlew runClient -Pvoxy5c4=on -Pvoxy5c5=all    全て前フレーム可視 -> temporal は空
     //   ./gradlew runClient -Pvoxy5c4=on -Pvoxy5c5=none   全て新規可視     -> temporal == 不透明
     //   ./gradlew runClient -Pvoxy5c4=on -Pvoxy5c5=even   偶数 id だけ新規 -> 真部分集合

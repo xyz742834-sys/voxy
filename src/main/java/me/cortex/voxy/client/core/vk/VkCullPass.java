@@ -111,6 +111,39 @@ public class VkCullPass {
     }
 
     /**
+     * <b>prep が書いた間接描画コマンド</b>でカリングを記録する (Phase 5c-5b2)。
+     *
+     * <h2>⚠ なぜホストの数を使わないのか</h2>
+     * 階層トラバーサルではセクション数を<b>GPU が決める</b>ので、ホストは
+     * <b>前フレームの数しか知らない</b>。それを渡すと:
+     * <ul>
+     *   <li>今フレームのほうが多い → <b>末尾のセクションが可視の印を貰えない</b>
+     *       → cmdgen が 0 quad 扱いにする → <b>点滅する</b></li>
+     *   <li>今フレームのほうが少ない → 範囲外の古い id に印を書く
+     *       (cmdgen は先頭 {@code sectionCount} 件しか見ないので<b>害は無い</b>)</li>
+     * </ul>
+     * 片方が「消える」側なので、<b>正確な数が要る</b>。
+     * GL 版も同じ理由で prep が {@code cullDrawIndirectCommand} を書いている。
+     *
+     * <p>⚠ 呼ぶ場所は <b>prep の後、cmdgen の前</b>である。
+     *
+     * @param indirect {@code VkTerrainResources.cullDraw} (5 uint)
+     */
+    public void recordIndirect(VkCommandBuffer cmd, VkRenderTarget target, VkBuffer indirect) {
+        this.assertNotFreed();
+        this.beforeCull(cmd);
+        target.beginRenderingDepthOnly(cmd);
+        this.pipeline.bind(cmd);
+        this.shader.bind(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS);
+        vkCmdBindIndexBuffer(cmd, cubeIndexBuffer().handle, 0, VK_INDEX_TYPE_UINT32);
+        // ⚠ instanceCount が 0 なら仕様上の no-op。ホスト側のガードは要らない
+        vkCmdDrawIndexedIndirect(cmd, indirect.handle, 0, 1,
+            SyntheticTerrain.DRAW_COMMAND_SIZE);
+        target.endRendering(cmd);
+        this.afterCull(cmd);
+    }
+
+    /**
      * カリングを記録する。<b>不透明パスの直後、テーブル生成の直前</b>に呼ぶこと。
      *
      * <p>GL 側と同じく間接描画で発行する。{@code baseInstance = 0} である必要がある —

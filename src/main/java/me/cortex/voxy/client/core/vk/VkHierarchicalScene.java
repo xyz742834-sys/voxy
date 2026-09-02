@@ -154,7 +154,7 @@ public final class VkHierarchicalScene {
      * に分かれている。
      */
     public static final String[] SPANS =
-        {"opaque", "hiz", "traversal", "table", "temporal", "resolve"};
+        {"opaque", "hiz", "traversal", "cull", "table", "temporal", "resolve"};
 
     /**
      * <b>可視バッファを誰がどう書くか</b> (Phase 5c-5a)。
@@ -182,11 +182,13 @@ public final class VkHierarchicalScene {
         /** 奇数 id だけ新規可視。{@link #EVEN_NEW} との<b>和が全体</b>になるはず。 */
         ODD_NEW,
         /**
-         * ホストは<b>何も書かない</b>。カルパスが書く (Phase 5c-5b)。
+         * ホストは<b>何も書かない</b>。カルパスが書く (Phase 5c-5b2)。<b>本番の経路</b>。
          *
-         * <p>⚠ カルパスを繋いだらこれ以外を使ってはならない —
-         * ホストが上書きすると {@code previous==(frameId-1)} が常に偽になり、
-         * <b>全セクションが temporal に回る</b>。
+         * <h2>⚠ カルパスはこのモードでしか走らない</h2>
+         * ホストの書き込みは記録の<b>前</b>、cull は記録の<b>中</b>なので、
+         * 両方走らせると<b>常に cull が勝ち</b>、ホストのモードが no-op になる。
+         * それでは 5c-5a の両極の対照が<b>黙って空虚になる</b> [規約 11]。
+         * したがって {@code CULL} 以外では cull を記録しない。
          */
         CULL
     }
@@ -205,6 +207,12 @@ public final class VkHierarchicalScene {
     private final VkTraversal traversal;
     private VkHiZ hiz;
     private final VkMergedTableBuilder table;
+    /**
+     * 遮蔽カリング (Phase 5c-5b2)。<b>可視バッファを書く唯一の本番の書き手</b>。
+     *
+     * <p>⚠ 画面サイズに依存しないので {@link #resize} で作り直す必要は無い。
+     */
+    private final VkCullPass cull;
     private VkTerrainRenderer renderer;
     /**
      * temporal パス (Phase 5c-5a)。不透明と<b>同じ頂点シェーダ・同じエントリ配列</b>で、
@@ -318,6 +326,7 @@ public final class VkHierarchicalScene {
             .name("uniformEcho");
 
         this.table = new VkMergedTableBuilder(this.res, VkTerrainRenderer.Barriers.CONSERVATIVE);
+        this.cull = new VkCullPass(this.res, VkTerrainRenderer.Barriers.CONSERVATIVE);
         this.renderer = new VkTerrainRenderer(this.res, width, height,
             VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
             VkTerrainRenderer.Pass.OPAQUE, colourFormat);
@@ -540,16 +549,26 @@ public final class VkHierarchicalScene {
         this.traversal.record(cmd, this.topNodes.count());
         this.timer.mark(cmd, 3);
 
-        this.table.record(cmd, this.lastDrawnSections, this.maxDraws);
+        // ⚠ 参照実装の並び: prep -> cull のラスタ -> cmdgen
+        // [確認済 — MDICSectionRenderer.buildDrawCalls]。
+        // cull は prep が書いた間接コマンドを使うので、セクション数が GPU 側の値になる
+        this.table.recordPrep(cmd);
+        if (this.visibility == Visibility.CULL) {
+            this.cull.recordIndirect(cmd, target, this.res.cullDraw);
+        }
+        // ⚠ 区間 "cull" は prep を含む (prep は 1 ディスパッチで無視できる)
         this.timer.mark(cmd, 4);
+
+        this.table.recordAfterPrep(cmd, this.lastDrawnSections, this.maxDraws);
+        this.timer.mark(cmd, 5);
 
         // ③ temporal。**今フレームのテーブル**で、①の取りこぼしだけを埋める。
         // ⚠ 色も深度もクリアしない — クリアすると①の絵が丸ごと消える
         this.temporalRenderer.record(cmd, target, this.maxDraws, null, null);
-        this.timer.mark(cmd, 5);
+        this.timer.mark(cmd, 6);
 
         if (depthOut != null) depthOut.resolve(cmd, target.depth);
-        this.timer.mark(cmd, 6);
+        this.timer.mark(cmd, 7);
     }
 
     /**
@@ -910,6 +929,7 @@ public final class VkHierarchicalScene {
         if (this.freed) return;
         this.freed = true;
         this.timer.free();
+        this.cull.free();
         this.uniformEcho.free();
         this.renderer.free();
         this.temporalRenderer.free();

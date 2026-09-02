@@ -136,6 +136,8 @@ public class VkTerrainResources {
     public final VkBuffer mergedPrefix;
     /** 面方向別 7 draws の間接コマンド。Stage 1 の {@link #drawCall} とは別に持つ。 */
     public final VkBuffer mergedDraw;
+    /** cull のラスタパスの間接描画コマンド (5 uint)。prep が書く。 */
+    public final VkBuffer cullDraw;
     /** {@code cmdgen} の間接ディスパッチサイズ。{@code prep} が書き、GPU が読む。 */
     public final VkBuffer mergedDispatch;
 
@@ -229,6 +231,11 @@ public class VkTerrainResources {
         long maxFaceDraws = 7L + (long) maxQuads / indexQuadCapacity;
         this.mergedDraw   = new VkBuffer(Math.max(4096L, maxFaceDraws * 20)).zero().name("mergedDraw");
         this.mergedDispatch = new VkBuffer(4096).zero().name("mergedDispatch");
+        // ⚠ cull の間接描画コマンド。**prep が GPU 側のセクション数から書く**
+        // [確認済 — GL 版 prep.comp が cullDrawIndirectCommand を書いている]。
+        // ホストが数を渡すと 1 フレーム古くなり、末尾のセクションが
+        // 「可視の印を貰えず 0 quad 扱い」で**点滅する**
+        this.cullDraw = new VkBuffer(4096).zero().name("cullDraw");
 
         // temporal: 不透明と同じ形 (エントリ配列だけ共有する)
         this.temporalPrefix = new VkBuffer(Math.max(4096L, 4L + (maxEntries + 1) * 4)).zero().name("temporalPrefix");
@@ -510,6 +517,7 @@ public class VkTerrainResources {
         this.mergedEntry.free();
         this.mergedPrefix.free();
         this.mergedDraw.free();
+        this.cullDraw.free();
         this.mergedDispatch.free();
         this.temporalPrefix.free();
         this.temporalDraw.free();

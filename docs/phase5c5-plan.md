@@ -613,3 +613,63 @@ this.innerPrimaryWork(viewport, depthTexture);   // hiZBuffer.buildMipChain(dept
 1. 装置なし / 装置ありで確かめられることは<b>こちらで確かめる</b>
 2. 実験の前に<b>上流 Voxy と MC のコードを読む</b>
 3. <b>Vulkan 移植に要るかを都度判断する</b>
+
+---
+
+## 14. 5c-5b2 完了 — <b>カルパスを繋いだ</b>
+
+### 14.1 ⚠ ホストがセクション数を渡してはならなかった
+
+参照実装は <b>prep → cull のラスタ → cmdgen</b> の順で、cull は
+<b>prep が書いた間接描画コマンド</b>を使う
+[確認済 — {@code MDICSectionRenderer.buildDrawCalls} と {@code gl46/prep.comp} の
+{@code cullDrawIndirectCommand}]。
+
+階層トラバーサルでは<b>セクション数を GPU が決める</b>ので、ホストは
+<b>前フレームの数しか知らない</b>。それを渡すと:
+
+| ずれ方 | 何が起きるか |
+|---|---|
+| 今フレームのほうが<b>多い</b> | 末尾のセクションが<b>可視の印を貰えない</b> → cmdgen が 0 quad 扱い → <b>点滅する</b> |
+| 今フレームのほうが<b>少ない</b> | 範囲外の古い id に印を書く。cmdgen は先頭 {@code sectionCount} 件しか見ないので<b>害は無い</b> |
+
+**片方が「消える」側なので、正確な数が要る。** ⚠ 当初「1 フレーム遅れは保守的だから
+許容できる」と判断しかけたが、<b>片側が消える方向だと気付いて撤回した</b>。
+
+### 14.2 直した内容
+
+| | |
+|---|---|
+| `lod/vk/prep.comp` | cull の間接描画コマンドを書く。⚠ {@code firstIndex} は GL 版と違い <b>0</b> — Vulkan は cull 専用の立方体インデックスバッファを持つ |
+| `VkTerrainResources.cullDraw` | 5 uint の間接コマンド |
+| `VkMergedTableBuilder` | {@code record} を {@code recordPrep} / {@code recordAfterPrep} に割った。cull はその間に入る |
+| `VkCullPass.recordIndirect` | ホストの数ではなく間接コマンドで描く |
+| `VkHierarchicalScene` | {@code Visibility.CULL} のときだけ cull を記録する |
+
+⚠ **ホスト書き込みと cull を同時に走らせてはならない。** ホストの書き込みは記録の
+<b>前</b>、cull は記録の<b>中</b>なので、両方走らせると<b>常に cull が勝ち</b>、
+ホストのモードが黙って no-op になる。
+
+### 14.3 記録順 (最終形)
+
+```
+不透明 → HiZ → traversal → prep → cull → cmdgen/prefix/temporal/translucent → temporal描画 → resolve
+```
+
+`SPANS` = `{opaque, hiz, traversal, cull, table, temporal, resolve}`。
+⚠ 区間 `cull` は prep を含む (prep は 1 ディスパッチなので無視できる)。
+
+### 14.4 検査 — <b>変異で噛むことを確かめた</b>
+
+`VkCullIndirectTest` (3 件、装置あり・MC 不要):
+
+| 検査 | 主張 |
+|---|---|
+| `prepWritesTheCullDrawCommand` | 5 要素の中身。⚠ {@code baseInstance} は 0 でなければならない |
+| **`theInstanceCountFollowsTheSectionCount`** | ⚠ <b>対照</b>。定数を書く実装を落とす |
+| `theIndirectCullMatchesTheDirectCullWhenTheCountIsExact` | 正確な数を渡した直接版と<b>可視集合が一致</b>。⚠ <b>対照</b>: 実際に何かが落ちていること |
+
+**変異 ({@code cullInstanceCount = 7u} 固定) で 3 件とも落ちた。**
+シェーダ → バッファ → cull ラスタ → 可視の読み戻しまで、鎖全体が覆われている。
+
+**JUnit 269 PASS / 3 SKIP** (266 → 269)。

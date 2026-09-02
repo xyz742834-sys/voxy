@@ -49,6 +49,8 @@ public class VkMergedTableBuilder {
     // ---- Stage 4d: temporal ----
     public static final int TEMPORAL_PREFIX_BINDING = 20;
     public static final int TEMPORAL_DRAW_BINDING = 21;
+    /** cull のラスタパスの間接描画コマンド。<b>prep だけが書く</b> (Phase 5c-5b2)。 */
+    public static final int CULL_DRAW_BINDING = 22;
 
     private final VkTerrainResources res;
     private final VkTerrainRenderer.Barriers barriers;
@@ -76,6 +78,7 @@ public class VkMergedTableBuilder {
         this.prepShader = VkShader.makeAuto().name("vk-merged-prep")
             .define("MERGED_PREFIX_BINDING", VkTerrainRenderer.MERGED_PREFIX_BINDING)
             .define("MERGED_DISPATCH_BINDING", MERGED_DISPATCH_BINDING)
+            .define("CULL_DRAW_BINDING", CULL_DRAW_BINDING)
             .apply(VkMergedTableBuilder::translucentDefines)
             .addSource(ShaderType.COMPUTE, VkShaderLoader.parse("voxy:lod/vk/prep.comp"))
             .compile();
@@ -176,6 +179,7 @@ public class VkMergedTableBuilder {
         ssboIfDeclared(this.prepShader, 5, this.res.indirectLookup);
         ssboIfDeclared(this.prepShader, VkTerrainRenderer.MERGED_PREFIX_BINDING, this.res.mergedPrefix);
         ssboIfDeclared(this.prepShader, MERGED_DISPATCH_BINDING, this.res.mergedDispatch);
+        ssboIfDeclared(this.prepShader, CULL_DRAW_BINDING, this.res.cullDraw);
         bindTranslucent(this.prepShader);
         bindTemporal(this.prepShader);
         requireFullyBound(this.prepShader);
@@ -253,6 +257,19 @@ public class VkMergedTableBuilder {
      *                     余ったスロットは {@code instanceCount = 0} で埋まる
      */
     public void record(VkCommandBuffer cmd, int sectionCount, int maxDraws) {
+        this.recordPrep(cmd);
+        this.recordAfterPrep(cmd, sectionCount, maxDraws);
+    }
+
+    /**
+     * <b>prep だけ</b>を記録する (Phase 5c-5b2)。
+     *
+     * <p>参照実装は <b>prep と cmdgen の間に cull のラスタパス</b>を挟む
+     * [確認済 — {@code MDICSectionRenderer.buildDrawCalls}]。
+     * cull はそこで<b>prep が書いた間接描画コマンド</b>を使うので、
+     * セクション数が GPU 側の値になる。
+     */
+    public void recordPrep(VkCommandBuffer cmd) {
         this.assertNotFreed();
 
         // ① ホスト書き込み (metadata / visibility / lookup / uniform) -> prep と cmdgen の読み。
@@ -260,15 +277,21 @@ public class VkMergedTableBuilder {
         //    ここで断ち切る。詳細は narrowBarrier のコメント
         this.beforeTableBuild(cmd);
 
-        // ② prep: ディスパッチサイズとエントリ数を書く
+        // ② prep: ディスパッチサイズとエントリ数、そして cull の間接描画コマンドを書く
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, this.prepPipeline);
         this.prepShader.bind(cmd, VK_PIPELINE_BIND_POINT_COMPUTE);
         vkCmdDispatch(cmd, 1, 1, 1);
 
-        // ③ prep が書いた内容を **間接ディスパッチの読み** と cmdgen の SSBO 読みへ。
+        // ③ prep が書いた内容を **間接ディスパッチ / 間接描画の読み** と
+        //    cmdgen の SSBO 読みへ。
         //    docs/phase4-buffer-hazards.md 10.2 の訂正 #4: 直後が間接読みなので
         //    P1 (SHADER_STORAGE のみ) では足りず INDIRECT_COMMAND_READ が要る
         this.prepToCmdgen(cmd);
+    }
+
+    /** prep の<b>後</b>を記録する。cull を挟むならこの前に積む。 */
+    public void recordAfterPrep(VkCommandBuffer cmd, int sectionCount, int maxDraws) {
+        this.assertNotFreed();
 
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, this.cmdgenPipeline);
         this.cmdgenShader.bind(cmd, VK_PIPELINE_BIND_POINT_COMPUTE);

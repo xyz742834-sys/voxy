@@ -27,6 +27,19 @@ layout(binding = MERGED_DISPATCH_BINDING, std430) writeonly restrict buffer Merg
     uint cmdGenDispatchZ;
 };
 
+// cull のラスタパスの間接描画コマンド (Phase 5c-5b2)。
+// ⚠ GL 版と同じく **ここで書く**。理由は sectionCount が GPU 側の値だからで、
+// ホストが渡すと 1 フレーム古くなり、末尾のセクションが可視の印を貰えず点滅する。
+// ⚠ firstIndex は GL 版と違って 0 である — Vulkan は cull 専用の
+// 立方体インデックスバッファを持っており、共有バッファの中の一部ではない。
+layout(binding = CULL_DRAW_BINDING, std430) writeonly restrict buffer CullDrawBuffer {
+    uint cullIndexCount;
+    uint cullInstanceCount;
+    uint cullFirstIndex;
+    int  cullVertexOffset;
+    uint cullFirstInstance;
+};
+
 layout(binding = TEMPORAL_PREFIX_BINDING, std430) writeonly restrict buffer TemporalPrefixBuffer {
     uint temporalEntryCount;
     uint temporalPrefix[];
@@ -47,6 +60,14 @@ layout(binding = TRANSLUCENT_PREFIX_BINDING, std430) writeonly restrict buffer T
 };
 
 void main() {
+    cullIndexCount = 6u * 2u * 3u;      // 立方体 6 面 x 2 三角形 x 3
+    cullInstanceCount = sectionCount;
+    cullFirstIndex = 0u;
+    cullVertexOffset = 0;
+    // ⚠ **0 でなければならない。** 頂点シェーダが gl_InstanceIndex を
+    // indirectLookup の添字にそのまま使う [docs/phase2-glsl-compat.md 3.1]
+    cullFirstInstance = 0u;
+
     cmdGenDispatchX = (sectionCount + 127u) / 128u;
     cmdGenDispatchY = 1u;
     cmdGenDispatchZ = 1u;

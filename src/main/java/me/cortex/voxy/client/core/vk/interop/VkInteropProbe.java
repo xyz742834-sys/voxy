@@ -445,7 +445,7 @@ public final class VkInteropProbe {
         Math.max(1, Integer.parseInt(System.getProperty("voxy.5c4.interval", "120")));
 
     private static final String TEMPORAL_MODE =
-        System.getProperty("voxy.5c5", "all").toLowerCase();
+        System.getProperty("voxy.5c5", "cull").toLowerCase();
 
     /** {@code cycle} のとき 1 モードを保つフレーム数。系が落ち着くのを待つ [規約 23]。 */
     private static final int TEMPORAL_CYCLE_FRAMES =
@@ -1681,7 +1681,7 @@ public final class VkInteropProbe {
             + (this.scene.visibility()
                     == me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility.ALL_VISIBLE
                 ? "  [ALL_VISIBLE: 0 is expected. temporal cannot be exercised in this mode —"
-                  + " use -Pvoxy5c5=cycle]" : ""));
+                  + " use -Pvoxy5c5=cycle. The production path is -Pvoxy5c5=cull]" : ""));
         Logger.info("[5c-4c] GPU " + this.scene.timer().describe());
     }
 
