@@ -845,10 +845,7 @@ public final class VkInteropProbe {
             if (this.scene != null) {
                 // ⚠ **prepare より前**に決める。writeVisibility は prepare の中で走る
                 this.scene.setVisibility(this.visibilityForThisFrame());
-                if (BOUND_SWEEPING) {
-                    this.scene.setDepthBound(BOUND_SWEEP[(int)
-                        ((this.frames / BOUND_SWEEP_FRAMES) % BOUND_SWEEP.length)]);
-                }
+                if (BOUND_SWEEPING) this.scene.setDepthBound(BOUND_SWEEP[this.boundIndex()]);
                 this.writeHierarchicalUniform(projection, modelView, cameraX, cameraY, cameraZ);
             }
         } else if (drawsTerrain()) {
@@ -900,6 +897,11 @@ public final class VkInteropProbe {
         // 「描けていない」場合が**区別できない**
         if (this.frames < 3 || (MODE == Mode.TRIPLE && this.frames % 300 == 0)) {
             this.logDiagnostics(mcColourTexture, mcDepthTexture, w, h);
+        }
+        // ⚠ 境界の掃引は**毎フレーム**集める。内訳のログ (既定 120 フレーム間隔) に
+        // 頼ると 1 つの境界値につき 1 サンプルしか取れず、何も言えない [規約 23]
+        if (BOUND_SWEEPING && MODE == Mode.HIERARCHICAL && this.scene != null) {
+            this.accumulateBoundSweep();
         }
         // ⚠ トラバーサルの要求に答える。**フレームの完了後**でなければ
         // 要求キューの中身が確定していない
@@ -1732,10 +1734,7 @@ public final class VkInteropProbe {
                     == me.cortex.voxy.client.core.vk.VkHierarchicalScene.Visibility.ALL_VISIBLE
                 ? "  [ALL_VISIBLE: 0 is expected. temporal cannot be exercised in this mode —"
                   + " use -Pvoxy5c5=cycle. The production path is -Pvoxy5c5=cull]" : ""));
-        // ⚠ 境界値を同じ行に出す。別々の行だと**どの値の測定か**が突き合わせられない
-        Logger.info("[5c-4c] GPU " + this.scene.timer().describe()
-            + (BOUND_SWEEPING ? "  bound=" + BOUND_SWEEP[(int)
-                ((this.frames / BOUND_SWEEP_FRAMES) % BOUND_SWEEP.length)] : ""));
+        Logger.info("[5c-4c] GPU " + this.scene.timer().describe());
     }
 
     /**
@@ -2278,6 +2277,80 @@ public final class VkInteropProbe {
         this.churnGated = this.churnNone = this.churnSameLod = this.churnAcrossLod = 0;
         this.churnSizes.clear();
         java.util.Arrays.fill(this.movedBetween, 0);
+    }
+
+    private int boundIndex() {
+        return (int) ((this.frames / BOUND_SWEEP_FRAMES) % BOUND_SWEEP.length);
+    }
+
+    /** 境界値ごとの {@code opaque} のサンプル。 */
+    private final java.util.List<java.util.ArrayList<Double>> boundSamples =
+        new java.util.ArrayList<>();
+    private int boundCycles;
+
+    /**
+     * <b>境界値ごとの {@code opaque} を毎フレーム集める</b> (Phase 6 第二項目)。
+     *
+     * <p>⚠ 内訳のログ (既定 120 フレーム間隔) に頼ると、1 つの境界値につき
+     * <b>1 サンプルしか取れない</b>。実際にそうなって何も言えなかった [規約 23]。
+     *
+     * <p>⚠ <b>境界を変えた直後の数フレームは捨てる。</b> 境界の再クリアが
+     * そのフレームに入るので、<b>測りたいものと違う仕事が混ざる</b>。
+     */
+    private void accumulateBoundSweep() {
+        while (this.boundSamples.size() < BOUND_SWEEP.length) {
+            this.boundSamples.add(new java.util.ArrayList<>());
+        }
+        long inPhase = this.frames % BOUND_SWEEP_FRAMES;
+        if (inPhase < 8) return;   // 境界を変えた直後は捨てる
+        var ms = this.scene.timer().readMillis();
+        if (ms == null || ms.length < 1) return;
+        double opaque = ms[0];     // SPANS[0] = "opaque"
+        if (opaque <= 0) return;
+        this.boundSamples.get(this.boundIndex()).add(opaque);
+
+        // 1 周したら報告する
+        if (this.boundIndex() == BOUND_SWEEP.length - 1
+                && inPhase == BOUND_SWEEP_FRAMES - 1) {
+            this.boundCycles++;
+            this.reportBoundSweep();
+        }
+    }
+
+    private void reportBoundSweep() {
+        Logger.info("[6-2] ---- depth bound sweep (cycle " + this.boundCycles
+            + ", drawn=" + this.scene.drawnSectionCount() + ") ----");
+        Double neutral = null, floor = null;
+        for (int i = 0; i < BOUND_SWEEP.length; i++) {
+            var v = new java.util.ArrayList<>(this.boundSamples.get(i));
+            if (v.isEmpty()) continue;
+            java.util.Collections.sort(v);
+            double med = v.get(v.size() / 2);
+            Logger.info(String.format("[6-2]   bound=%-8s n=%-4d opaque min=%.3f med=%.3f max=%.3f",
+                fmt(BOUND_SWEEP[i]), v.size(), v.get(0), med, v.get(v.size() - 1)));
+            if (BOUND_SWEEP[i] >= 1.0f) neutral = med;
+            if (BOUND_SWEEP[i] <= 0.0f) floor = med;
+        }
+        if (neutral != null && floor != null && neutral > 0) {
+            double cut = (neutral - floor) / neutral * 100.0;
+            Logger.info(String.format(
+                "[6-2]   discarding EVERY fragment changes opaque by %.1f%% (%.3f -> %.3f ms)",
+                cut, neutral, floor));
+            Logger.info("[6-2]   -> " + (cut < 15
+                ? "⚠ opaque is NOT dominated by fragment work past the discard point."
+                  + " Porting the depth bound would buy little. Look at vertex/geometry"
+                  + " and at the driver side instead."
+                : "the fragment side is worth " + Math.round(cut) + "% of opaque;"
+                  + " porting the depth bound has a real payoff."));
+            Logger.info("[6-2]   ⚠ this is an UPPER bound: the real per-pixel bound discards"
+                + " less than 'everything'. And discard runs INSIDE the fragment shader,"
+                + " so the work before it is still paid.");
+        }
+        for (var v : this.boundSamples) v.clear();
+    }
+
+    private static String fmt(float f) {
+        return f == 0.0f ? "0" : f >= 1.0f ? "1.0" : String.format("%.5f", f);
     }
 
     private static String texelString(long addr) {
