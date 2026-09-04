@@ -2336,15 +2336,23 @@ public final class VkInteropProbe {
             Logger.info(String.format(
                 "[6-2]   discarding EVERY fragment changes opaque by %.1f%% (%.3f -> %.3f ms)",
                 cut, neutral, floor));
-            Logger.info("[6-2]   -> " + (cut < 15
-                ? "⚠ opaque is NOT dominated by fragment work past the discard point."
-                  + " Porting the depth bound would buy little. Look at vertex/geometry"
-                  + " and at the driver side instead."
-                : "the fragment side is worth " + Math.round(cut) + "% of opaque;"
-                  + " porting the depth bound has a real payoff."));
-            Logger.info("[6-2]   ⚠ this is an UPPER bound: the real per-pixel bound discards"
-                + " less than 'everything'. And discard runs INSIDE the fragment shader,"
-                + " so the work before it is still paid.");
+            if (cut < 0) {
+                // ⚠⚠ **この実験は交絡している。** 数字を額面どおり読ませない
+                Logger.warn("[6-2]   ⚠⚠ DISCARDING MADE IT SLOWER. This experiment is"
+                    + " CONFOUNDED and cannot answer 'how much of opaque is fragment work'.");
+                Logger.warn("[6-2]      A discarded fragment writes NO depth, so it can no"
+                    + " longer occlude the fragments behind it. Discarding everything removes"
+                    + " ALL depth-test occlusion among Voxy's own overlapping geometry, and"
+                    + " every triangle gets shaded.");
+                Logger.warn("[6-2]      What this DOES show: depth-test occlusion inside the"
+                    + " opaque pass is worth about " + Math.round(-cut) + "% of it.");
+            } else {
+                Logger.info("[6-2]   -> " + (cut < 15
+                    ? "⚠ opaque is NOT dominated by fragment work past the discard point."
+                    : "the fragment side is worth " + Math.round(cut) + "% of opaque."));
+                Logger.info("[6-2]   ⚠ upper bound only: the real per-pixel bound discards"
+                    + " less than 'everything', and discard runs INSIDE the fragment shader.");
+            }
         }
         for (var v : this.boundSamples) v.clear();
     }
