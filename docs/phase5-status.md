@@ -272,6 +272,23 @@ Phase 5 の `42/60` は<b>木が育っている間</b>の測定だった。
 効いていない**。本番では MC が描く近景の画素を落とすはずのものが落ちていない。
 <b>フラグメント負荷に直接効く可能性がある</b>。
 
+> **⚠⚠ 訂正/確定 (Phase 6): 中立値なのは実験の都合ではなく、実装そのものが無い。**
+> コードを読んで確定させた [実機不要 — `VkHierarchicalScene.setDepthBound` と
+> `VkTerrainRenderer` の javadoc]。GL 版の `BoundRenderer` は
+> Sodium の可視チャンク列挙 (`MixinVisibleChunkCollector` 等が
+> `StreamedBoundStore.put(pos)` を毎フレーム呼ぶ) から実際の AABB 裏面を描いて
+> 画素ごとの境界を作る。Vulkan 側にはこの<b>生成経路が丸ごと存在せず</b>、
+> `VkHierarchicalScene.setDepthBound(float)` は<b>画面全体を 1 定数で埋めるだけ</b>
+> (Phase 6 第二項目の払い戻し測定用に作った)。つまり本番相当の discard は
+> 一度も走ったことがない — 実験の交絡ではなく<b>未実装</b>。
+>
+> **今すぐ移植しない。** 理由: `visbleSectionStream` を書き込むのは Sodium mixin 経由で
+> `VoxyRenderSystem` (GL 側の唯一のインスタンス) に直接届く。今の Vulkan 経路は
+> 独立したシーン/プローブ (`VkInteropProbe` 他) であり、Phase 7 の「デバイス借用」で
+> 本番の入口に差し替わるまでは<b>本物の毎フレーム可視チャンク列を受け取る先が無い</b>。
+> 先に作っても検証できるのは合成データだけで、他の保留項目 (§7.4 の push constant 未移行等)
+> と同じ「今動いている経路に不要」に該当する。<b>Phase 7 の引き継ぎ項目として §8 に記録した。</b>
+
 ### 7.3 🥈 第三項目: `hiz` の 0.07 〜 1.24 ms (16 倍の振れ幅)
 
 フレームによって何かが違う。他の区間は 1.5 倍程度の振れなので、**これだけ異質**。
@@ -329,3 +346,27 @@ survey §2.4.1 に**全 18 ファイルを A〜E に分類して列挙した**
 ### 8.3 ⚠ 比較の基準は §2 の数字
 
 **5c-4c の数字を参照点にしてはならない** (§2.1)。
+
+### 8.4 `BoundRenderer` (深度境界の実体) の移植 — §7.2 から
+
+GL 版 `BoundRenderer` (`me.cortex.voxy.client.core.rendering.bounding`) は
+Sodium mixin (`MixinVisibleChunkCollector`/`MixinFallbackVisibleChunkCollector`/
+`MixinRenderSectionManager`) が毎フレーム流し込む可視チャンク位置から
+AABB 裏面をラスタライズし、`depthBound` テクスチャへ画素ごとの遮蔽境界を書く。
+Vulkan 側にはこの経路が無く、`setDepthBound` は定数埋めのみ (§7.2 訂正)。
+
+- データ源 (`StreamedBoundStore`) は単純: CPU 配列 (`int[] visibleSections`) に
+  `put(long pos)` で詰めて GL SSBO へ毎フレームアップロードするだけ
+  [確認済 — `StreamedBoundStore.java`]。GL/Vulkan 間の外部メモリ共有は要らない —
+  Vulkan 版バッファへ同じ配列を書けばよい
+- シェーダは `chunkoutline/outline.vsh` + `outline.fsh` (インスタンス描画、
+  深度のみ、カラー出力無し) — 小さく、移植コストは低い
+- ⚠ <b>今は移植しない理由</b>: `put()` を呼ぶ mixin は `VoxyRenderSystem`
+  (GL 側の唯一のインスタンス) に直接届く配線になっている。今の Vulkan シーンは
+  独立したプローブ/テストシーンで、本番の毎フレーム可視チャンク列を
+  受け取る先がまだ無い。Phase 7 でデバイス借用に切り替わり、
+  Vulkan が本番の入口を持ってから配線するのが筋
+- Phase 7 着手時の見積もり: 新規ファイル 2〜3 本
+  (`VkBoundRenderer` + Vulkan 用 `outline.vert/frag`)、
+  `VkHierarchicalScene` への `depthBound` 差し込み口 (既存の
+  `setDepthBound` を置き換える) — GL 版が 144 行程度なので同程度
