@@ -304,10 +304,21 @@ Phase 5 の `42/60` は<b>木が育っている間</b>の測定だった。
   非 descriptor 区分の検出を回復。descriptor 経由の SSBO は未解決のまま (レイヤ側の制約)
 - Xcode Metal Frame Capture でのバリア確認 — descriptor 経由の SSBO 区分は
   引き続きこれが主な手段
-- HSR と discard の分離 (`quads.frag` が opaque で discard を使うか要確認)
+- ✅ **HSR と discard の分離** — 確認済み。`quads.frag` は opaque で discard を
+  <b>使っている</b> (`useDiscard()` によるアルファ判定 + §7.2 の境界判定の両方)。
+  分離すべき別問題は無く、§7.2 の訂正がこの項目そのものだった
 - 保守的バリアの絞り込み (D 区分 4 箇所) — ⚠ <b>descriptor 経由の SSBO は
   同期バリデーションで検証できないので、絞る場合は結果比較とセットで行う</b>
-- 密テーブル (2.2MB) を詰める設計に変えるか
+- ⛔ **見送り: 密テーブル (mergedEntry/mergedPrefix/temporalPrefix、合計数 MB) を
+  詰める設計に変えるか** — コードを読んで判断。今の設計は
+  {@code maxSections × 7 面} 分を<b>密に固定割当</b>し atomic を使わない、
+  それが CPU 参照 (`SyntheticTerrain.mergedTable`) とバイト単位一致する
+  決定性の根拠になっている [確認済 — `VkMergedTableBuilder` javadoc]。
+  詰める (可変長化) には scatter 用の atomic が要り、<b>この決定性を壊す</b>。
+  節約できるのは数 MB (実測基準の `maxSections` で 2〜4MB 程度) で、
+  同じシーンが確保するアトラス (実寸で 402〜534MB) に対して無視できる規模。
+  <b>性能上のボトルネックだという測定も無い</b> (§7.1/§7.2 のどちらにも現れていない)。
+  リスクに見合わないので<b>着手しない</b>
 - SSAO の Vulkan 移行 (`ssao.comp` の location 4 重複が未確定)。
   ⚠ 着手時に push constant の limit 差 (`phase6-sync-validation.md` §8) を先に決める
 - `Mode.PER_SECTION` の削除
