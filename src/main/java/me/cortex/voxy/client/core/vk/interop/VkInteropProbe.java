@@ -1689,8 +1689,11 @@ public final class VkInteropProbe {
             + " of " + this.scene.meshedSections() + " meshed"
             + " (top-level nodes " + this.scene.topLevelCount()
                 + " of " + this.scene.topLevelRequested() + " requested)"
+            // ⚠ totalReclaimed を出さないと「回収が効いた」と「容量に一度も届かず
+            // 回収が走っていないだけ」が totalReclaimed=0 で区別できない [規約 18]
+            + "  reclaimed=" + this.scene.totalReclaimed()
             + (this.scene.geometryExhausted()
-                ? "  ⚠ MESHING STOPPED — the geometry arena is full" : "")
+                ? "  ⚠ MESHING STOPPED — the geometry arena is full even after reclaiming" : "")
             + "  requests=" + tr.requestCount()
             + "  dropped: pushes=" + tr.droppedNodePushes()
             + " reads=" + tr.droppedNodeReads()
