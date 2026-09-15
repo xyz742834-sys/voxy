@@ -514,7 +514,14 @@ public class VkContext {
                         SUPPRESSED_MESSAGES.add(raw);
                         return VK_FALSE;
                     }
-                    String msg = "[vk-validation] " + raw;
+                    // ⚠ 構造化 ID (pMessageIdName) を先頭に残す。
+                    // 自由文の {@code pMessageString} は VVL のバージョンで言い回しが変わる
+                    // ("SYNC-HAZARD-..." ではなく "WRITE_AFTER_WRITE hazard detected" 等) が、
+                    // ID 名のほうは安定している [規約 9 — ホスト側の規約は確かめてから選ぶ。
+                    // ここで確かめずに自由文へ部分一致していたのが後述のバグだった]
+                    String idName = data.pMessageIdNameString();
+                    String msg = "[vk-validation] "
+                        + (idName != null && !idName.isEmpty() ? "[" + idName + "] " : "") + raw;
                     VALIDATION_MESSAGES.add(msg);
                     if ((severity & org.lwjgl.vulkan.EXTDebugUtils.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) != 0) {
                         Logger.error(msg);

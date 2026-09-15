@@ -181,11 +181,22 @@ with the SAME set: assignment changed 1, order-only changed 41 / 17 / 10
 
 ## 5. 未解決の問題
 
-### 5.1 🔴 同期バリデーションがこの環境で機能しない (Phase 3 から継続)
+### 5.1 🟡 同期バリデーション — Phase 6 で調査完了、<b>部分的に解決</b>
 
-「指摘ゼロ」は安全の証拠にならない。**バリアの検査は「呼び出しを消す」までしか
-捕まえられない** — 中身を空にすると素通りする (5c-4b で実測)。
-<b>Lavapipe が唯一の解</b>。
+Lavapipe (Mesa の swrast ICD) に切り替えて切り分けた結果、
+「機能していない」は 2 つの別問題だった:
+
+1. **メッセージ分類バグ (直した)。** `VkContext` が指摘の自由文だけを見ていて、
+   同期系の識別子が乗る構造化フィールド (`pMessageIdName`) を見ていなかった。
+   直した結果、<b>descriptor を介さないバッファ/画像ハザード
+   (fill/copy/blit、`VkTexture` のレイアウト遷移) は実際に検出される</b>ことを確認した。
+2. **descriptor 経由の SSBO 書き込みは追跡されない (レイヤ側の既知の制約。直せない)。**
+   GPU-Assisted Validation を足しても、ICD を Lavapipe に替えても変わらなかった。
+   Voxy 自身の compute バリアの大半はこの区分にあるため、
+   <b>「バリアの検査は『呼び出しを消す』までしか捕まえられない」という制約は
+   この区分について今も有効</b> (5c-4b で実測のとおり)。
+
+詳細: [`phase6-sync-validation.md`](phase6-sync-validation.md)。
 
 ### 5.2 🔴 選択集合がカメラ静止でも 7〜8 割のフレームで変わる
 
@@ -272,12 +283,16 @@ Phase 5 の `42/60` は<b>木が育っている間</b>の測定だった。
 
 ### 7.4 その他 (既存リスト)
 
-- **Lavapipe での同期バリデーション** — この環境で唯一未解決の問題 (§5.1)
-- Xcode Metal Frame Capture でのバリア確認
+- ✅ **Lavapipe での同期バリデーション** — 調査完了 (§5.1)。メッセージ分類バグを修正し
+  非 descriptor 区分の検出を回復。descriptor 経由の SSBO は未解決のまま (レイヤ側の制約)
+- Xcode Metal Frame Capture でのバリア確認 — descriptor 経由の SSBO 区分は
+  引き続きこれが主な手段
 - HSR と discard の分離 (`quads.frag` が opaque で discard を使うか要確認)
-- 保守的バリアの絞り込み (D 区分 4 箇所) — ⚠ Lavapipe の<b>後</b>
+- 保守的バリアの絞り込み (D 区分 4 箇所) — ⚠ <b>descriptor 経由の SSBO は
+  同期バリデーションで検証できないので、絞る場合は結果比較とセットで行う</b>
 - 密テーブル (2.2MB) を詰める設計に変えるか
-- SSAO の Vulkan 移行 (`ssao.comp` の location 4 重複が未確定)
+- SSAO の Vulkan 移行 (`ssao.comp` の location 4 重複が未確定)。
+  ⚠ 着手時に push constant の limit 差 (`phase6-sync-validation.md` §8) を先に決める
 - `Mode.PER_SECTION` の削除
 - push constant 未移行 6 ファイル
 - `AsyncNodeManager` / `NodeCleaner` の接続

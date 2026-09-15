@@ -31,6 +31,22 @@ brew install vulkan-loader vulkan-validationlayers
 | `VK_LAYER_PATH` | `.../vulkan-validationlayers/share/vulkan/explicit_layer.d` | レイヤマニフェストの場所 |
 | `DYLD_LIBRARY_PATH` | `.../vulkan-validationlayers/lib` | §2.2 参照 |
 
+### 1.1 任意: 別 ICD で同じテストを走らせる (`-PvkIcd`)
+
+「この挙動は MoltenVK 固有か、それともレイヤ/コード側か」を切り分けたいときだけ使う
+(§7.5 の実例)。恒常的には使わない。
+
+```bash
+brew install mesa   # macOS にも Lavapipe (swrast) の Vulkan ICD が同梱される
+./gradlew test \
+  -PvkLibname=/opt/homebrew/lib/libvulkan.dylib \
+  -PvkIcd=/opt/homebrew/Cellar/mesa/<version>/share/vulkan/icd.d/lvp_icd.aarch64.json \
+  -PvkValidation=true -PvkSyncEnv=true
+```
+
+`-PvkIcd` は `VK_ICD_FILENAMES` を設定し、ローダーにそのファイルの ICD だけを
+見せる (MoltenVK は候補から外れる)。パスの `<version>` は `brew info mesa` で確認する。
+
 ---
 
 ## 2. 導入時に踏んだ 3 つの問題 [確認済]
@@ -235,3 +251,57 @@ MoltenVK / portability 環境での制約と考えられる [推測 — レイ�
 
 **D 区分 (意図不明の 4 箇所) を「削って様子を見る」方針は、
 この状況では成立しない。** 削って壊れても検出できない。
+
+### 7.5 ⚠⚠ 訂正 (Phase 6): 「機能していない」は 2 つの別問題だった [確認済]
+
+上の §7.1〜7.4 は**観測は正しいが診断が誤っていた**。当時の対照
+(descriptor 経由の SSBO への compute read-modify-write) 1 種類だけで
+「同期バリデーション全体が機能しない」と結論したのが誤り。
+
+**実際には 2 つの独立した問題が重なっていた:**
+
+1. **メッセージの分類バグ (このプロジェクト側。直した)。**
+   `VkContext` は指摘メッセージの本文 (`pMessageString`) に
+   リテラル `"SYNC-HAZARD"` が含まれるかで判定していたが、
+   そのリテラルは本文ではなく**構造化フィールド** (`pMessageIdName`、
+   例: `"SYNC-HAZARD-WRITE-AFTER-WRITE"`) にしか無かった。
+   本文の言い回し (`"WRITE_AFTER_WRITE hazard detected"`) には
+   `"SYNC-HAZARD"` という文字列が<b>そもそも出てこない</b>。
+   `createDebugMessenger` で ID 名を本文の前に埋め込むよう直した結果、
+   **descriptor を介さないバッファ/画像ハザード (fill/copy/blit、レイアウト遷移) は
+   実際に検出されることを確認した** (`VkBarriersTest.plainBufferHazardIsNowDetected`)。
+
+2. **descriptor 経由の SSBO 書き込みは追跡されない (レイヤ側の既知の制約。直せない)。**
+   分類バグを直した<b>後も</b>、`missingBarrierIsDetected` (ふつうの
+   `VkDescriptorSet` で束縛した SSBO への書き込み) はメッセージが 1 件も来ない。
+   GPU-Assisted Validation を同時に有効化しても変わらなかった [確認済]。
+   Khronos の公式ドキュメントもこれを既知の制約として述べている。
+
+**切り分けの決め手は ICD を変えたこと** [規約 4 — 規約に依存しない外部の事実]。
+Mesa の Lavapipe (ソフトウェアラスタライザの Vulkan ICD、`brew install mesa` で
+macOS にも入る。ドライバ名は `swrast`) をローダーに直結させ、
+<b>同じバリデーションレイヤ・同じ 2 つのテストケース</b>を走らせたところ、
+**MoltenVK と完全に同じ結果**になった (分類バグ修正前は両方 0 件、
+修正後は両方とも fill/copy 系だけ検出・descriptor 系だけ 0 件)。
+
+> **ICD を変えても同じ症状 = 症状の原因は ICD 側ではなくレイヤ側 (またはこちらの読み方) にある。**
+> 「MoltenVK / portability 環境の制約」という当初の推測 [未検証] は、これで反証された。
+
+#### 7.5.1 実務上の帰結 (訂正後)
+
+| 区分 | 検出できるか | 該当する本番コードの例 |
+|---|---|---|
+| **非 descriptor**: バッファ/画像コピー・fill・blit、画像レイアウト遷移 | ✅ **できる** (直った) | `VkTexture.barrier` によるレイアウト遷移全般 |
+| **descriptor 経由**: `VkDescriptorSet` で束縛した SSBO/UBO への読み書き | ❌ **できない** (レイヤの制約) | `VkBarriers.computeToCompute` 等、compute 間の SSBO 依存の大半 |
+
+**Phase 3〜5 の「指摘ゼロ」は、区分によって重みが違う。**
+`VkTexture` のレイアウト遷移に関する「指摘ゼロ」は<b>今なら本物の証拠</b>である。
+compute 間の SSBO 依存 (D 区分を含む) に関する「指摘ゼロ」は<b>今も弱い証拠のまま</b> —
+検出できない区分なので、削っても壊れたことが分からないのは変わらない。
+
+**Lavapipe は恒常的な検証環境として採用しない。** 切り分けの道具として 1 回使えば
+目的は果たせる — subgroupSize が 4 (Apple GPU は 32) など、出荷対象でない環境固有の
+差分がノイズとして混ざるだけで、追加の価値が無い。`-PvkIcd=<icd.json>` は
+今後また同じ形の切り分けが要ったときのために残す。
+
+詳細と実験ログは [`phase6-sync-validation.md`](phase6-sync-validation.md)。

@@ -189,6 +189,13 @@ Phase 2 で「Phase 4/5 で再検討」としていたが、
 
 → MoltenVK / portability 環境の制約と推測 [未検証]。
 
+> **⚠⚠ 訂正 (Phase 6):** この推測は誤りだった。Lavapipe (別 ICD) に替えても
+> 同一の症状が再現し、原因は ICD 側ではなくこちらのメッセージ分類コードにあった
+> (指摘の識別子は自由文ではなく構造化フィールドにしか乗っていなかった)。
+> 直した結果、descriptor を介さないハザードは実際に検出できる。
+> descriptor 経由の SSBO はレイヤ側の既知の制約として今も検出できない。
+> 詳細: [`phase6-sync-validation.md`](phase6-sync-validation.md)。
+
 **途中で自分側のバグも発見した**: `VK_EXT_validation_features` は
 **レイヤが提供する**拡張であり `vkEnumerateInstanceExtensionProperties(null, ...)` に現れない。
 `null` 列挙で検査していたため常に false となり、

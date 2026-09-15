@@ -445,6 +445,15 @@ test {
     if (project.hasProperty("vkLibname")) {
         systemProperty("org.lwjgl.vulkan.libname", project.property("vkLibname"))
     }
+    // Lavapipe (Mesa の swrast Vulkan ICD、ソフトウェアラスタライザ) だけを
+    // ローダーに見せる (Phase 6)。同期バリデーションが MoltenVK 上で機能しない
+    // 問題の切り分けに使う — 同じテストを別 ICD 上で走らせて挙動を比べる。
+    //   ./gradlew test -PvkLibname=/opt/homebrew/lib/libvulkan.dylib \
+    //     -PvkIcd=/opt/homebrew/Cellar/mesa/26.2.2/share/vulkan/icd.d/lvp_icd.aarch64.json \
+    //     -PvkValidation=true -PvkSyncEnv=true
+    if (project.hasProperty("vkIcd")) {
+        environment("VK_ICD_FILENAMES", project.property("vkIcd"))
+    }
     if (project.hasProperty("vkValidation")) {
         systemProperty("voxy.vk.validation", project.property("vkValidation"))
         // brew の vulkan-validationlayers はマニフェストを Cellar 側に置くため、
