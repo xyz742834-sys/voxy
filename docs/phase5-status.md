@@ -295,7 +295,9 @@ Phase 5 の `42/60` は<b>木が育っている間</b>の測定だった。
   ⚠ 着手時に push constant の limit 差 (`phase6-sync-validation.md` §8) を先に決める
 - `Mode.PER_SECTION` の削除
 - push constant 未移行 6 ファイル
-- `AsyncNodeManager` / `NodeCleaner` の接続
+- ✅ **ジオメトリの回収** — 完了。詳細は [`phase6-geometry-reclaim.md`](phase6-geometry-reclaim.md)。
+  {@code AsyncNodeManager} は移植せず、{@code NodeManager} を直接使う<b>同期</b>版
+  ({@code GeometryReclaimer}) を新設した
 
 ---
 

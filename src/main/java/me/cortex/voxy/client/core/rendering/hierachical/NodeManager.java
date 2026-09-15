@@ -181,6 +181,18 @@ public class NodeManager {
         return this.topLevelNodeIds;
     }
 
+    /**
+     * ノード id から今の世界位置を読む (Vulkan の回収に使う)。
+     *
+     * <p>⚠ {@code nodeId} が<b>確保済みであることを呼び出し側が保証すること</b> —
+     * 範囲外は無警告で配列外に触る。{@link ICleaner#alloc} / {@link ICleaner#free} で
+     * 生死を追跡している側 (回収の候補選びなど) から呼ぶ想定であり、
+     * その追跡自体がこのクラスの唯一の正の情報源である。
+     */
+    public long positionOf(int nodeId) {
+        return this.nodeData.nodePosition(nodeId);
+    }
+
     //==================================================================================================================
 
     public void processGeometryResult(BuiltSection sectionResult) {

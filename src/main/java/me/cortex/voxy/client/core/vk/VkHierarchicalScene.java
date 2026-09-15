@@ -1,5 +1,6 @@
 package me.cortex.voxy.client.core.vk;
 
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import me.cortex.voxy.client.core.rendering.ISectionWatcher;
 import me.cortex.voxy.client.core.rendering.hierachical.NodeManager;
@@ -8,6 +9,8 @@ import me.cortex.voxy.common.Logger;
 import me.cortex.voxy.common.world.WorldEngine;
 import org.joml.Matrix4fc;
 import org.lwjgl.vulkan.VkCommandBuffer;
+
+import java.util.function.BooleanSupplier;
 
 /**
  * Phase 5c-4c — <b>実データの階層トラバーサル</b>。Voxy の本質が初めて動く段。
@@ -130,6 +133,127 @@ public final class VkHierarchicalScene {
             }
             return this.idx2id[index];
         }
+
+        /**
+         * この id は今トップレベルか ({@link GeometryReclaimer} が候補から除外するのに使う)。
+         *
+         * <p>⚠ {@code NodeManager.removeNodeGeometry} 自身のトップレベル防御は
+         * <b>{@code NODE_TYPE_LEAF} のときにしか効かない</b> [確認済 — 装置なしテストで
+         * 実際に例外を踏んで見つけた]。子ができて {@code NODE_TYPE_INNER} になった
+         * トップレベルノードは<b>その防御を素通りする</b>。候補選びの時点で
+         * 除外しなければならない — GL 版 {@code sort_visibility.comp} の
+         * {@code shouldSortId} が {@code node.lodLevel == 4} を弾いているのと同じ理由。
+         */
+        public boolean contains(int nodeId) { return this.id2idx.containsKey(nodeId); }
+    }
+
+    /**
+     * <b>ジオメトリの回収</b> (Phase 6)。GL 版 {@code NodeCleaner} +
+     * {@code AsyncNodeManager} の Vulkan 版だが、<b>形は別物</b>である
+     * [規約 21 — どう違うかを式で書く]。
+     *
+     * <h2>基準は「確保からの経過フレーム」であって「最近描かれたか」ではない</h2>
+     * GL 版を読んで確認した — {@code NodeCleaner.visibilityBuffer} は
+     * {@code ICleaner.alloc} でリセットされるだけで、描画選択の
+     * {@code lastRenderFrame} (Vulkan では {@code VkTraversal.renderTracker}) とは
+     * <b>別物</b>である。したがって<b>GPU 側の render tracker を読み返す必要は無い</b> —
+     * {@link NodeManager#setClear} の alloc/free イベントだけで足りる。
+     *
+     * <h2>⚠⚠ トップレベルノードは<b>候補選びの時点で除外する</b> [規約 11 の訂正]</h2>
+     * 当初「{@code NodeManager.removeNodeGeometry} 自身がトップレベルへの適用を拒否
+     * するので、候補選びで除外しなくても安全」と考えたが<b>誤りだった</b> —
+     * その防御は<b>{@code NODE_TYPE_LEAF} のときにしか効かない</b> [確認済 —
+     * 装置なしテストで、子ができて {@code NODE_TYPE_INNER} になったトップレベル
+     * ノードを候補にしたら {@code clearGeometryInternal} が実際に例外を投げた]。
+     * <b>「壊れなかった」対照 (最初の版の {@code topLevelNodesAreSelectedButSurvive})
+     * 1 つで安全と判断したのが甘かった</b> — 葉のままのトップレベルでしか
+     * 確かめていなかった。今の対照は {@code VkGeometryReclaimTest} の
+     * {@code topLevelNodesAreNeverAttemptedEvenWhenTheyAreOldest}。
+     *
+     * <p>GL 版 {@code sort_visibility.comp} の {@code shouldSortId} が
+     * {@code node.lodLevel == 4} (最上位 LoD) を<b>候補の時点で</b>弾いているのは
+     * これが理由だったと今なら分かる。同じ形で弾く — {@link TopLevelNodeQueue} が
+     * 既に追跡している集合をそのまま使う (二重に持たない)。
+     *
+     * <h2>⚠ 何を単純化したか</h2>
+     * GL 版は GPU 上のロックフリー近似ソートで<b>256 件を 1 回</b>で選ぶ
+     * (CAS リトライの上限つき — Phase 0 の GPU リセットの教訓が詰まっている)。
+     * こちらは<b>1 件ずつ</b>線形走査で最古を選ぶ。回収が要るのは容量が逼迫した
+     * 稀なフレームだけで、ノード数は高々数万なので、線形走査でも無視できるコストである。
+     * GPU 並列ソートの複雑さを Vulkan 側で再現する理由が無い。
+     */
+    public static final class GeometryReclaimer implements NodeManager.ICleaner {
+        private final NodeManager nodes;
+        /** どの id が今トップレベルか。候補選びで除外するために問い合わせる。 */
+        private final java.util.function.IntPredicate isTopLevel;
+        /**
+         * id → 確保された時点のフレーム。<b>生きている id の集合そのもの</b>も兼ねる —
+         * このマップに無い id は<b>この機構にとって存在しない</b>。
+         */
+        private final Int2IntOpenHashMap allocFrame = new Int2IntOpenHashMap();
+        private int currentFrame;
+        private long totalReclaimed;
+
+        public GeometryReclaimer(NodeManager nodes, java.util.function.IntPredicate isTopLevel) {
+            this.nodes = nodes;
+            this.isTopLevel = isTopLevel;
+        }
+
+        /** {@code alloc} の刻印に使うフレーム番号。毎フレーム更新すること。 */
+        public void setCurrentFrame(int frame) { this.currentFrame = frame; }
+
+        @Override public void alloc(int id) { this.allocFrame.put(id, this.currentFrame); }
+        // ⚠ move は**意図的に no-op**。GL 版 AsyncNodeManager 自身が同じ判断をしている
+        // ({@code move(from,to) { //noop (sorry :( ... }})。追わないと移動先の刻印が
+        // 古いまま残るが、害は「回収の優先順位が少し狂う」だけで安全性には効かない —
+        // 存在しない id を回収することはない (free で確実に allocFrame から外れる)。
+        @Override public void move(int from, int to) { }
+        @Override public void free(int id) { this.allocFrame.remove(id); }
+
+        /**
+         * <b>{@code full} が真である間、最も古い<b>非トップレベル</b>ノードから順に回収する。</b>
+         *
+         * @param full         まだ足りないか。毎回の回収の後に再評価される
+         * @param maxEvictions 1 回の呼び出しで許す最大回収回数 (無限ループの上限)
+         * @return 実際に回収を試みた回数 (⚠ トップレベルは<b>候補にすら挙げない</b>ので、
+         *         この回数は常に「非トップレベルの実 {@code removeNodeGeometry} 呼び出し」)
+         */
+        public int reclaimWhile(BooleanSupplier full, int maxEvictions) {
+            int attempts = 0;
+            for (; attempts < maxEvictions; attempts++) {
+                if (!full.getAsBoolean()) break;
+
+                int oldestId = -1, oldestFrame = 0;
+                for (var it = this.allocFrame.int2IntEntrySet().iterator(); it.hasNext(); ) {
+                    var e = it.next();
+                    if (this.isTopLevel.test(e.getIntKey())) continue;   // ⚠ 候補にすら挙げない
+                    if (oldestId == -1 || e.getIntValue() < oldestFrame) {
+                        oldestId = e.getIntKey();
+                        oldestFrame = e.getIntValue();
+                    }
+                }
+                if (oldestId == -1) break;   // 非トップレベルの確保が無い
+                this.lastAttemptedId = oldestId;   // ⚠ テスト用
+
+                long pos = this.nodes.positionOf(oldestId);
+                // ⚠ 結果に関わらず刻印を進める — removeNodeGeometry が no-op でも
+                // 次回また同じ id を最古として選び続けるのを防ぐ
+                this.allocFrame.put(oldestId, this.currentFrame);
+                this.nodes.removeNodeGeometry(pos);
+            }
+            this.totalReclaimed += attempts;
+            return attempts;
+        }
+
+        /** 起動からの回収の試行回数。⚠ 0 のままなら回収は一度も起きていない。 */
+        public long totalReclaimed() { return this.totalReclaimed; }
+
+        /** ⚠ テスト用。生きていると追跡している id の数。 */
+        public int trackedCount() { return this.allocFrame.size(); }
+
+        /** ⚠ テスト用。直近で「最古」として選ばれた id (-1 なら一度も選ばれていない)。 */
+        private int lastAttemptedId = -1;
+        public int lastAttemptedId() { return this.lastAttemptedId; }
     }
 
     /**
@@ -253,10 +377,18 @@ public final class VkHierarchicalScene {
     private final TopLevelNodeQueue topNodes;
     /** GPU が写したユニフォーム。{@code {描画用 64B, トラバーサル用 64B}}。 */
     private final VkBuffer uniformEcho;
-    /** ジオメトリ領域の容量 (バイト)。⚠ この段では<b>回収が無いので減らない</b>。 */
+    /** ジオメトリ領域の容量 (バイト)。 */
     private final long geometryCapacityBytes;
-    /** 容量に届いて<b>メッシュ化を止めた</b>か。届いたら二度と再開しない (回収が無いため)。 */
+    /**
+     * 容量に届いて<b>メッシュ化を止めた</b>か。
+     *
+     * <p>⚠ Phase 6 で回収 ({@link GeometryReclaimer}) を足したので、
+     * <b>止まったままとは限らない</b> — 回収できた分だけ再開する。
+     * 回収しても入らない (top-level しか残っていない等) ときだけ<b>本当に止まる</b>。
+     */
     private boolean geometryExhausted;
+    /** ジオメトリの回収。詳細は {@link GeometryReclaimer} の javadoc。 */
+    private final GeometryReclaimer reclaimer;
     private int meshedSections;
     /**
      * 前フレームのトラバーサルが選んだセクション数。
@@ -328,6 +460,10 @@ public final class VkHierarchicalScene {
             (idx, id) -> org.lwjgl.system.MemoryUtil.memPutInt(
                 this.traversal.topNodeIds.addr() + (long) idx * 4L, id));
         this.nodes.setTLNCallbacks(this.topNodes::add, this.topNodes::remove);
+        // ⚠ **回収の入口はこれだけ。** 詳細は GeometryReclaimer の javadoc。
+        // トップレベル判定は topNodes (既に追跡済みの集合) をそのまま問い合わせる
+        this.reclaimer = new GeometryReclaimer(this.nodes, this.topNodes::contains);
+        this.nodes.setClear(this.reclaimer);
         this.uniformEcho = new VkBuffer(ECHO_BYTES * 2,
             VkBuffer.DEFAULT_USAGE | org.lwjgl.vulkan.VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT, true)
             .name("uniformEcho");
@@ -528,6 +664,11 @@ public final class VkHierarchicalScene {
     /** ⚠ フレームの記録の<b>前</b>に呼ぶこと。ホスト側の書き込みを済ませる。 */
     public VkGeometryFlush.Result prepare(Matrix4fc mvp, int[] camSection, float[] camSubPos,
                                           float minScreenSize, int frameId, float renderDistance) {
+        // ⚠ serviceRequests (alloc が実際に起きる側) は毎回このフレームの record より
+        // 前に呼ばれるので、ここで更新しておけば alloc の刻印は常に最新になる。
+        // populate() 由来の初期確保だけは 0 のまま (既定値) だが、それは
+        // <b>最初に確保された = 最も古い</b>という意味でむしろ正しい
+        this.reclaimer.setCurrentFrame(frameId);
         this.nodes.writeChanges(this.nodeTarget);
         var flushed = VkGeometryFlush.flush(this.geometry, this.res.geometry, this.res.sectionMetadata);
         this.traversal.writeUniform(mvp, camSection, camSubPos, this.hiz.packedSize(),
@@ -722,44 +863,60 @@ public final class VkHierarchicalScene {
     }
 
     /**
-     * <b>入るなら渡す。入らないなら止める</b> (Phase 5c-5a の修正)。
+     * <b>入るなら渡す。入らなければ古いノードを回収してから入れ直す</b>
+     * (Phase 5c-5a で止める版 → Phase 6 で回収を足した)。
      *
      * <h2>⚠ なぜ要るのか</h2>
-     * この段は <b>{@code NodeCleaner} を繋いでいない</b>ので、
-     * ジオメトリ領域は<b>増える一方</b>である。木全体を辿るようになった今、
-     * 上限に届くのは<b>時間の問題</b>であって異常ではない。
-     *
-     * <p>⚠ <b>上流は容量不足で例外を投げる</b>
+     * 木全体を辿るようになると、ジオメトリ領域はいずれ埋まる。
+     * <b>上流は容量不足で例外を投げる</b>
      * [確認済 — {@code BasicAsyncGeometryManager.createMeta} の "Geometry OOM"]。
      * しかもその時点で<b>セクション id は確保済み</b>なので、
      * 投げられた後の状態は一貫していない。<b>受け取る前に決める</b>しかない。
      *
      * <h2>⚠ 止めたことは必ず言う</h2>
-     * 黙って止めると<b>「描かれない」と「選ばれなかった」が区別できない</b> [規約 18]。
-     * トラバーサルは要求を出し続けるので、<b>答えていないことが見えなければならない</b>。
+     * 回収しても入らなければ<b>本当に止める</b>。黙って止めると
+     * <b>「描かれない」と「選ばれなかった」が区別できない</b> [規約 18]。
      *
      * @return 渡したなら true。<b>false なら所有権はこちらに残る</b>ので解放済みである
      */
     private boolean acceptGeometry(me.cortex.voxy.client.core.rendering.building.BuiltSection built) {
-        long used = this.geometry.getGeometryUsedBytes();
         long need = geometryBytesNeeded(built);
+        if (this.geometry.getGeometryUsedBytes() + need > this.geometryCapacityBytes) {
+            int attempts = this.reclaimer.reclaimWhile(
+                () -> this.geometry.getGeometryUsedBytes() + need > this.geometryCapacityBytes,
+                RECLAIM_MAX_EVICTIONS);
+            if (attempts >= RECLAIM_MAX_EVICTIONS) {
+                Logger.warn("[6] ⚠ reclaim hit its cap (" + RECLAIM_MAX_EVICTIONS
+                    + " evictions) without freeing enough space; candidates may be mostly"
+                    + " top-level nodes or in-flight requests that removeNodeGeometry safely"
+                    + " skips. totalReclaimed=" + this.reclaimer.totalReclaimed());
+            }
+        }
+        long used = this.geometry.getGeometryUsedBytes();
         if (used + need <= this.geometryCapacityBytes) {
+            this.geometryExhausted = false;
             this.nodes.processGeometryResult(built);   // ⚠ 所有権が移る
             return true;
         }
         this.geometryExhausted = true;
         built.free();   // ⚠ 渡していないので**こちらが解放する**
-        Logger.warn("[5c-4c] ⚠ the geometry arena is full ("
+        Logger.warn("[5c-4c] ⚠ the geometry arena is full even after reclaiming ("
             + (used / 1024) + " KiB of " + (this.geometryCapacityBytes / 1024)
             + " KiB used; this section needs " + (need / 1024) + " KiB)."
-            + " Meshing stops here and will NOT resume — this stage does not connect"
-            + " NodeCleaner, so nothing is ever reclaimed."
+            + " Only top-level nodes and pending requests remain, or the reclaim cap"
+            + " (" + RECLAIM_MAX_EVICTIONS + " evictions) was reached."
             + " The traversal keeps requesting nodes that will never be answered,"
             + " so expect holes in the distance."
             + " Raise it with -Pvoxy5c3bQuads, or descend less with a bigger"
             + " -Pvoxy5c4Subdivision.");
         return false;
     }
+
+    /** 1 回の {@link GeometryReclaimer#reclaimWhile} で許す最大回収回数。無限ループの上限。 */
+    private static final int RECLAIM_MAX_EVICTIONS = 64;
+
+    /** 起動からの回収の試行回数。⚠ 0 のままなら回収は一度も起きていない。 */
+    public long totalReclaimed() { return this.reclaimer.totalReclaimed(); }
 
     /** ⚠ ジオメトリ領域を使い切ってメッシュ化を止めたか。<b>絵の穴の説明になる</b>。 */
     public boolean geometryExhausted() { return this.geometryExhausted; }
