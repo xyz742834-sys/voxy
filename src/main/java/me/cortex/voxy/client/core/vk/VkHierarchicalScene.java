@@ -890,13 +890,21 @@ public final class VkHierarchicalScene {
      * 回収しても入らなければ<b>本当に止める</b>。黙って止めると
      * <b>「描かれない」と「選ばれなかった」が区別できない</b> [規約 18]。
      *
-     * @return 渡したなら true。<b>false なら所有権はこちらに残る</b>ので解放済みである
+     * <h2>⚠⚠ 実機クラッシュ (2026-09-22) の訂正: 合計バイト比較では足りなかった</h2>
+     * 当初は {@code getGeometryUsedBytes() + need <= capacity} という素朴な合計
+     * チェックで判定していたが、これは断片化を見ない。{@code allocationHeap} は
+     * 「size 以上の<b>連続</b>空きブロックが1つ要る」方式なので、合計は
+     * 足りていても<b>要求サイズの連続ブロックが無ければ実際の確保は失敗する</b>
+     * — 実機の "Geometry OOM" はまさにこれで落ちた (合計は空いていたが、回収で
+     * できた穴が断片化していて要求サイズの連続ブロックが1つも無かった)。
+     * {@link BasicAsyncGeometryManager#canFit} (実際に確保を試みず判定する)
+     * に置き換えた。
      */
     private boolean acceptGeometry(me.cortex.voxy.client.core.rendering.building.BuiltSection built) {
         long need = geometryBytesNeeded(built);
-        if (this.geometry.getGeometryUsedBytes() + need > this.geometryCapacityBytes) {
+        if (!this.geometry.canFit(need)) {
             int attempts = this.reclaimer.reclaimWhile(
-                () -> this.geometry.getGeometryUsedBytes() + need > this.geometryCapacityBytes,
+                () -> !this.geometry.canFit(need),
                 RECLAIM_MAX_EVICTIONS);
             if (attempts >= RECLAIM_MAX_EVICTIONS) {
                 Logger.warn("[6] ⚠ reclaim hit its cap (" + RECLAIM_MAX_EVICTIONS
@@ -906,7 +914,7 @@ public final class VkHierarchicalScene {
             }
         }
         long used = this.geometry.getGeometryUsedBytes();
-        if (used + need <= this.geometryCapacityBytes) {
+        if (this.geometry.canFit(need)) {
             this.geometryExhausted = false;
             this.nodes.processGeometryResult(built);   // ⚠ 所有権が移る
             return true;

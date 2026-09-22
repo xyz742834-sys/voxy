@@ -146,6 +146,25 @@ public class BasicAsyncGeometryManager implements IGeometryManager {
         return this.usedCapacity * GEOMETRY_ELEMENT_SIZE;
     }
 
+    /**
+     * {@code bytesNeeded} 分を<b>実際に</b>確保できるか、確保せずに調べる
+     * (Vulkan の回収判定に使う — 実機クラッシュ 2026-09-22 の修正)。
+     *
+     * <p>⚠ {@code getGeometryUsedBytes() + need <= capacity} という素朴な合計
+     * チェックは断片化を無視する。{@code createMeta} の
+     * {@code allocationHeap.alloc(upsized)} は「size 以上の連続空きブロックが
+     * 1つ要る」のであって「空き容量の合計」ではないので、合計チェックが通っても
+     * 実際の確保は失敗しうる — 実機の "Geometry OOM" はまさにこれで落ちた
+     * (合計は 2080 要素分空いていたが、断片化した小さい穴ばかりで
+     * 要求の 2048 要素連続ブロックが1つも無かった)。
+     */
+    public boolean canFit(long bytesNeeded) {
+        if (bytesNeeded == 0) return true;
+        int size = (int) (bytesNeeded / GEOMETRY_ELEMENT_SIZE);
+        int upsized = (size + 127) & ~127;
+        return this.allocationHeap.canAlloc(upsized);
+    }
+
     public IntOpenHashSet getUpdateIds() {
         return this.invalidatedIds;
     }

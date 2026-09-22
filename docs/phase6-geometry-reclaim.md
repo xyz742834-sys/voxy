@@ -1,7 +1,7 @@
 # Phase 6 — ジオメトリの回収
 
-**状態**: 完了。装置なしテスト 6 件 (変異で確認済み)。実機クラッシュ 1 件を
-発見・修正済み (§6)、修正後の実機再確認は未実施。
+**状態**: 完了。装置なしテスト 9 件 (変異で確認済み)。実機クラッシュ 2 件を
+発見・修正済み (§6, §7)、修正後の実機再確認は未実施。
 
 ---
 
@@ -213,3 +213,80 @@ in-flight ではなくなるので、2 周目以降で選ばれるのは正し�
 ### 6.5 まだ未確認のこと
 
 - **修正後の実機での動作は未確認。** 6.1 の手順をもう一度実機で回す必要がある
+
+---
+
+## 7. ⚠⚠ 実機クラッシュ第2弾 (2026-09-22) — "Geometry OOM"、断片化
+
+§6 の修正後、同じ手順 (`-Pvoxy5c4Quads=500000` で動き回る) で
+<b>別の</b>クラッシュが発生した。
+
+### 7.1 症状
+
+```
+java.lang.IllegalStateException: Geometry OOM. requested allocation size
+    (in elements): 2028, Heap size at top remaining: 160, used elements: 497920
+	at BasicAsyncGeometryManager.createMeta(BasicAsyncGeometryManager.java:116)
+	at BasicAsyncGeometryManager.uploadReplaceSection(...)
+	at NodeManager.processGeometryResult(...)
+	at VkHierarchicalScene.acceptGeometry(VkHierarchicalScene.java:911)
+```
+
+### 7.2 原因: 合計バイトの比較は断片化を見ない
+
+`acceptGeometry` は `getGeometryUsedBytes() + need <= geometryCapacityBytes`
+という<b>合計バイトの比較だけ</b>で「入るか」を判定していた。しかし
+`BasicAsyncGeometryManager` が内部で使う `AllocationArena`
+(`common/util/AllocationArena.java`) は<b>size 以上の単一の連続空きブロックが
+1 つ要る</b>方式のアロケータで、「空き容量の合計」では動かない。
+
+`GeometryReclaimer` は最古のノードから<b>順に</b>消すだけで、それらが
+ヒープ上で隣接している保証は無い。容量ぎりぎりまで使われた状態で回収すると、
+<b>断片化した小さい穴</b>ばかりができうる — 実際の数字がそれを示している:
+容量 500000 要素のうち使用 497920、残り 2080 要素<b>の合計</b>はあった
+(要求は 2028→2048 要素に切り上げ) が、`AllocationArena` の空きブロックの
+どれ一つとして 2048 要素に届かなかった。
+
+### 7.3 修正: 実際に確保を試みず判定する `canAlloc`/`canFit`
+
+`AllocationArena.alloc()` と<b>同じ分岐</b>を辿るが状態を変えない
+`canAlloc(int size)` を新設し、`BasicAsyncGeometryManager.canFit(long bytes)`
+(127 要素単位への切り上げも含めて同じ計算をする) を経由して
+`VkHierarchicalScene.acceptGeometry` の判定をこちらに差し替えた:
+
+```java
+// Before (合計バイトのみ — 断片化を見ない)
+if (this.geometry.getGeometryUsedBytes() + need > this.geometryCapacityBytes) { ... }
+
+// After (実際に確保できるかを問い合わせる)
+if (!this.geometry.canFit(need)) { ... }
+```
+
+これで回収ループの継続条件・最終判定の両方が「本当に入るか」を正しく
+反映するようになった。回収の上限 (`RECLAIM_MAX_EVICTIONS=64`) に達しても
+断片化が解消しない場合は、クラッシュではなく既存の
+`geometryExhausted=true` (グレースフルな「止める」) 経路に落ちる。
+
+### 7.4 検査 (装置なし、変異で確認済み)
+
+`VkGeometryFragmentationTest` (3 件、`AllocationArena` と
+`BasicAsyncGeometryManager` の両レベル):
+
+| 検査 | 主張 |
+|---|---|
+| **`fragmentedFreeSpaceCanFailEvenWhenTheAggregateIsEnough`** | ⚠⚠ 本命。孤立した穴 4 個 (合計は足りる) で、`canFit` は false、実際の確保も同じ例外で失敗する。素朴な合計チェックはここで誤って「入る」と判定することも対照として示す |
+| `adjacentFreesMergeAndBecomeFittable` | 隣接した空きは併合される。併合後は `canFit` が true になり、実際の確保も成功する |
+| `allocationArenaCanAllocMatchesActualAllocOutcome` | `AllocationArena` 単体でも `canAlloc` の予測と実際の `alloc()` 結果が一致する |
+
+**変異で確かめた**: `canAlloc` を「合計だけ見る」実装に戻すと、
+3 件中 2 件が正しく落ちた。
+
+### 7.5 まだ未確認のこと
+
+- **修正後の実機での動作は未確認。** §6.1/§7.1 の手順をもう一度実機で
+  回す必要がある。今回は容量をかなり切り詰めた設定 (`-Pvoxy5c4Quads=500000`)
+  で踏んだので、同じ条件で確認すること
+- 回収が断片化を<b>解消する</b>手段は無い (最古から消すだけで、併合を
+  狙って隣接ノードを選ぶような工夫はしていない)。上限に達しても
+  断片化が解消しなければ `geometryExhausted` に落ちて描画が止まる —
+  クラッシュはしないが、実運用でどのくらいの頻度で起きるかは未測定

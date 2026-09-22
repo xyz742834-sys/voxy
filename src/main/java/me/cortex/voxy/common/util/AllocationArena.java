@@ -59,6 +59,24 @@ public class AllocationArena {
 
     }*/
 
+    /**
+     * {@code alloc(size)} が<b>今すぐ、状態を変えずに</b>成功するか調べる
+     * (Vulkan のジオメトリ回収の判定に使う — 実機クラッシュ 2026-09-22 の修正)。
+     *
+     * <p>⚠ 「空き容量の合計が足りるか」ではない。この方式は
+     * <b>size 以上の単一の連続ブロック</b>を要求するので、それが無ければ
+     * 合計がいくら足りていても失敗する ({@code createMeta} の "Geometry OOM" は
+     * まさにこれで落ちた: 断片化した小さい穴の合計は足りていたが、
+     * 要求サイズの連続ブロックが1つも無かった)。判定は {@link #alloc} と
+     * 同じ分岐をそのまま真似ている。
+     */
+    public boolean canAlloc(int size) {
+        if (size == 0) return true;
+        var iter = this.FREE.iterator(((long) size << ADDR_BITS)-1);
+        if (iter.hasNext()) return true;
+        return this.totalSize + size <= this.sizeLimit;
+    }
+
     public long alloc(int size) {//TODO: add alignment support
         if (size == 0) throw new IllegalArgumentException();
         //This is stupid, iterator is not inclusive
