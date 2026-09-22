@@ -6,30 +6,35 @@ expectations, and GPU-object lifetime assumptions for the Vulkan path
 mirrored on both the Java-writer side and every shader that reads it, and often on the
 GL-side equivalent too (see [constraints.md](constraints.md)).
 
-Verified against current source at `vulkan-macos` @ `ad54dd8d`, 2026-09-22. When in
-doubt, the source anchors listed under each section are the ground truth — this doc
-summarizes them.
+Verified against current source at `vulkan-macos` @ `ad54dd8d`, 2026-09-22, and
+corrected the same day per [context-review.md](context-review.md) (source anchors,
+barrier-control naming, frame-order preconditions). When in doubt, the source anchors
+listed under each section are the ground truth — this doc summarizes them.
 
 ## Java ↔ shader buffer layouts
 
 | Structure | Layout | Source |
 |---|---|---|
-| Terrain scene UBO | `mat4 MVP` @0 (64B, column-major) · `ivec3 baseSectionPos` @64 · `uint frameId` @76 · `vec3 cameraSubPos` @80. Written span (`VkSceneUniform.SIZE`) = **92 bytes**; a conventional std140-rounded footprint would be 96 — the buffer is allocated large enough, but don't assume the extra 4 bytes are meaningful. | `VkSceneUniform.write`, `bindings.glsl` |
+| Terrain scene UBO | `mat4 MVP` @0 (64B, column-major) · `ivec3 baseSectionPos` @64 · `uint frameId` @76 · `vec3 cameraSubPos` @80. Written span (`VkSceneUniform.SIZE`) = **92 bytes**; descriptors bind range 92. `VkTerrainResources` allocates 1024 bytes for the buffer — that padding is not evidence of a 96-byte std140 descriptor range; don't assume bytes past 92 are meaningful. | `VkSceneUniform.write`, `lod/gl46/bindings.glsl` |
 | Traversal UBO | 208 bytes total: MVP @0, section origin @64, packed HiZ dimensions @76, camera @80, minimum screen size @92, six `vec4` frustum planes @96..191, render-queue limit @192, frame @196, request limit @200, distance @204. | `VkTraversal.writeUniform`/`reset` |
 | Packed quad | 8 bytes/quad. Shared format between GL and Vulkan. Geometry offsets are **element indices** — multiply by 8 to get byte offsets for uploads. | `quad_format.glsl`, mesher |
 | Section metadata | 32 bytes = two `uvec4`. First: packed position, AABB, geometry start. Second: eight packed 16-bit run counts, in this order: translucent, double-sided, down, up, north, south, west, east. | `BasicAsyncGeometryManager.writeMetadata`, `section.glsl` |
 | Block model | 64 bytes: six face words, flags, tint, custom ID, seven padding words. Model color table entries are 4 bytes each. | `block_model.glsl` |
 | Node | 16-byte `uvec4`. Packed position in `xy`; 24-bit mesh pointer and 24-bit child pointer in `z`/`w`, with flags packed into the high byte of each. Sentinel values `0xFFFFFF` (null geometry) and `0xFFFFFE` (empty geometry) must stay consistent between `NodeStore` (Java) and `node.glsl`/`VkNodeTree` (GPU-side packing). | `NodeStore.writeNode` (`SENTINEL_NULL_GEOMETRY_ID`/`SENTINEL_EMPTY_GEOMETRY_ID`), `VkNodeTree`, `node.glsl` |
-| Queue metadata | Five 16-byte records: `xyz` = indirect dispatch dimensions, `w` = count. Top-level/source/sink node IDs are 4 bytes each. | `queue.glsl` |
-| Requests / render queue | Requests: 8-byte header + 8-byte packed position. Render queue / indirect lookup: 4-byte count followed by 4-byte section IDs. **World-key word order and GPU-position word order differ** — don't assume they're interchangeable. | `queue.glsl` |
-| Merged entries / prefix | Entry = 8 bytes `(quadStart, drawId)`; dense, face-major, `7 * sectionCount` slots. Prefix buffer = 4-byte entry count + 4-byte exclusive offsets + terminal sentinel. Empty runs legitimately produce equal adjacent prefix values — **do not** re-add a strict-monotonicity check; that was an earlier design, deliberately replaced (see [current-state.md](current-state.md) superseded-decisions note in the audit). | `VkGeometryFlush.flush`, `merged_prefix.comp` |
+| Queue metadata | Five 16-byte records: `xyz` = indirect dispatch dimensions, `w` = count. Top-level/source/sink node IDs are 4 bytes each. | `hierarchical/queue.glsl` (`NodeQueueMeta`/`NodeQueueSource`/`NodeQueueSink`), `VkTraversal` |
+| Requests / render queue | Requests: 8-byte header (`uvec2 requestQueueIndex`) + 8-byte packed positions. Render queue / indirect lookup: 4-byte count followed by 4-byte section IDs. **World-key word order and GPU-position word order differ** — don't assume they're interchangeable. | Declared in `hierarchical/traversal_dev.comp` (`requestQueueStruct`, `renderQueueStruct`), **not** in `queue.glsl`; written by `VkTraversal` |
+| Merged entries / prefix | Entry = 8 bytes `(quadStart, drawId)`; dense, face-major, `7 * sectionCount` slots. Prefix buffer = 4-byte entry count + 4-byte exclusive offsets + terminal sentinel. Empty runs legitimately produce equal adjacent prefix values — **do not** re-add a strict-monotonicity check; that was an earlier design, deliberately replaced (see [current-state.md](current-state.md) superseded-decisions note in the audit). | Generated on the GPU by `vk/cmdgen.comp` (entries/counts) and `vk/merged_prefix.comp` (in-place prefix); sized/allocated by `VkTerrainResources`/`VkMergedTableBuilder`. `VkGeometryFlush.flush` uploads geometry and section metadata, not merged entries. |
 | Indirect commands | Indexed draw = 20 bytes: index count, instance count, first index, signed vertex offset, first instance. Compute dispatch = 12 bytes. Shared quad-index buffer capacity defaults to `1<<20`; opaque/temporal draws split beyond that. | `quad_index.glsl`, `cmdgen.comp` |
 | Visibility / translucent | Visibility = 4 bytes/section: low 31 bits = frame, high bit = previous visibility. 1024 translucent buckets; slot list has a count header; stats track max bucket-quad count and clamped-bucket count. | `VkTerrainResources`, `translucent_gen.comp` |
 
-Texture atlas: real atlas is 12288×8192, 4 allocated mip levels, 256×256 model tiles, six
-16×16 face cells/model (~534MB decimal RGBA mip storage). Synthetic test atlas is
-768×512. `ModelAtlasLayout` (Java) centralizes these numbers, but shader-side constants
-are a **separate ABI surface** — a dimension change must be checked in both places.
+Texture atlas: the real atlas is a **256×256 grid of model tiles; each tile is 48×32
+texels at mip 0** (six 16×16 face cells laid out 3×2 per model), giving 12288×8192 with
+4 allocated mip levels (~534MB decimal RGBA mip storage, consistent with those four
+levels). Synthetic test atlas is 768×512 (same 256×256 grid, 1-texel face cells).
+`ModelAtlasLayout` (Java) centralizes these numbers (`TILES`, `FACE_COLS`/`FACE_ROWS`,
+`FACE_TEXELS`), but the shader-side `1.0/256.0` constant is a **separate ABI surface** —
+a dimension change must be checked in both places. Note the production comment names a
+`ModelAtlasLayoutTest` that does not exist; related atlas tests do.
 
 **Verify by reflection, not by trusting the Java constant.** `VkShader`/`SpirvReflect`
 reflect descriptor types/counts/stage visibility from the compiled SPIR-V, but do
@@ -75,7 +80,7 @@ is the one place that contract is currently broken.
 | Merged opaque/temporal prefix | 12 bytes: section count @0, quad capacity @4, max draw slots @8. |
 | Translucent prefix | 4 bytes: quad capacity @0. |
 | Depth reprojection variant | 128 bytes: inverse source MVP @0, destination MVP @64. The non-reprojecting variant needs neither. |
-| Index probe (test-only) | Small dedicated push block; not a rendering dependency. |
+| Index probe (test-only, `vk/index_probe.comp`) | Exactly 4 bytes: `uint totalQuads` @0. Not a rendering dependency. |
 
 Device limit observed on this host (bundled and loader paths both): **4096 bytes**.
 `VkContextTest` currently asserts this exact value (and subgroup size 32) — treat that
@@ -125,12 +130,23 @@ diagnostics** with `-PvkValidation=true -PvkSyncEnv=true` — see
 - **D3** — `VkRenderTarget.beginRendering(cmd, null, clearDepth)` treats a null color
   attachment as LOAD but only transitions for `COLOR_ATTACHMENT_WRITE`, not the
   `_READ` access LOAD actually requires → `SYNC-HAZARD-READ-AFTER-WRITE` ×3 in
-  `VkHiZDepthSourceTest`.
-- **Descriptor-SSBO negative control** currently produces **zero** hazard messages —
-  it is not proving what it's meant to. Don't treat that silence as a positive result.
+  `VkHiZDepthSourceTest`. **Depth has the same edge**: `clearDepth == null` selects
+  depth LOAD, but the depth transition advertises only
+  `DEPTH_STENCIL_ATTACHMENT_WRITE`. That is a source-level contract gap with no
+  reproduced diagnostic yet — include it in any D3 fix and its verification.
+- **Descriptor-SSBO negative control** (`VkBarriersTest.missingBarrierIsDetected`)
+  produces **zero** validation messages on this stack and is **skipped** via an
+  unconditional `Assumptions.abort` — including with validation enabled. It is not
+  proving what it's meant to. Don't treat that silence as a positive result.
 - A deliberately-missing fill-buffer barrier **is** correctly caught by sync
-  validation (`VkBarriersTest.missingBarrierIsDetected`) — this is the one working
-  negative control confirming validation is actually active, not silently disabled.
+  validation (`VkBarriersTest.plainBufferHazardIsNowDetected`, two unsynchronized
+  `vkCmdFillBuffer` calls → WAW hazard asserted) — this is the one working negative
+  control confirming validation is actually active, not silently disabled.
+- The standalone `interopCompositeCheck` validated run emits one unsuppressed
+  `UNASSIGNED-VkDescriptorImageInfo-BoundResourceFreedMemoryAccess` diagnostic (C11
+  depth-visualization path) while reporting `ALL CHECKS PASSED` — see
+  [testing.md](testing.md#4-interop-checks-macos-glvulkan-offscreen). Root cause
+  unproven.
 
 Additional source-level risks not yet runtime-verified (see
 [current-state.md](current-state.md) and [testing.md](testing.md) for what test
@@ -154,12 +170,33 @@ coverage would close each):
 ## GPU lifetime assumptions
 
 - **Single command buffer, single fence, single frame in flight.** `VkFrameTracker`
-  owns exactly one command buffer + fence and explicitly waits after submission before
-  reusing resources. Code that assumes multiple frames can be in flight simultaneously
-  is assuming something the current implementation does not provide — see
-  `phase6-device-sharing-survey.md` for the (still-unimplemented) analysis of what
-  multi-frame-in-flight would actually require (mainly resource-ownership/host-write
-  ordering, not per-mip layout-tracking replacement).
+  owns exactly one command buffer + fence. Code that assumes multiple frames can be in
+  flight simultaneously is assuming something the current implementation does not
+  provide — see `phase6-device-sharing-survey.md` for the (still-unimplemented)
+  analysis of what multi-frame-in-flight would actually require (mainly
+  resource-ownership/host-write ordering, not per-mip layout-tracking replacement).
+  "Single frame in flight" is **not** automatic protection for every host write; the
+  exact preconditions are:
+  - `endFrame()` submits with the fence and **returns without waiting**.
+    `beginFrame()` waits on the fence before resetting/reusing the command buffer, then
+    runs frame-begin hooks and drains deferred frees. `waitForFrame()` is a separate,
+    explicit caller action (the interop probe calls it right after `endFrame()`).
+  - Deferred frees (`freeAtFrameEnd`) are drained only at the **next `beginFrame()`**
+    or by `waitIdle()` — not by `endFrame()` and not by `waitForFrame()`.
+  - The interop probe writes uniforms and prepares geometry **before** `beginFrame()`
+    of the frame that consumes them. That is safe only because the *previous* frame's
+    explicit `waitForFrame()` already completed; a caller that skips that wait (or
+    writes host memory between `endFrame()` and the next wait) is racing the GPU.
+  - Actual per-frame order in `VkInteropProbe.composite()` (HIERARCHICAL mode):
+    scene liveness check / uniform + visibility setup → `beginFrame()` → record
+    (hierarchical scene, depth resolve, color→GENERAL) → `endFrame()` →
+    `waitForFrame()` → diagnostics and `serviceRequests()` (CPU meshing, which reads
+    the now-complete request queue) → GL composite of the shared color/depth. CPU
+    request servicing happens **before** the GL composite, not after it.
+  - Imported (GL-written) depth must be primed `UNDEFINED → GENERAL` **before GL first
+    writes it**; otherwise the first frame's GL write is discarded.
+    `VkInteropImage.primeLayout()` submits its own frame and waits, and **throws if
+    called while a frame is recording** — call it at allocation, as the probe does.
 - **Previous-frame draw table + current-frame reclamation is a live hazard, not
   handled by fences.** See the "logical references" point above.
 - **`VkInteropProbe` is a singleton with no confirmed `shutdown()` caller.** Engine
@@ -181,7 +218,12 @@ coverage would close each):
 ## Source anchors
 
 `VkSceneUniform.write`, `VkTraversal.writeUniform`/`reset`, `NodeStore.writeNode`,
-`BasicAsyncGeometryManager.writeMetadata`, `VkGeometryFlush.flush`,
-`VkTerrainResources`, `VkMergedTableBuilder`, `VkHierarchicalScene`; shader files
-`bindings.glsl`, `section.glsl`, `block_model.glsl`, `node.glsl`, `queue.glsl`,
-`quad_index.glsl`. See [repo-map.md](repo-map.md) for full paths.
+`BasicAsyncGeometryManager.writeMetadata`, `VkGeometryFlush.flush` (geometry + section
+metadata upload), `VkTerrainResources`, `VkMergedTableBuilder`, `VkHierarchicalScene`,
+`VkFrameTracker`, `VkInteropProbe.composite`, `VkInteropImage.primeLayout`,
+`VkRenderTarget.beginRendering`; shader files `lod/gl46/bindings.glsl`,
+`lod/section.glsl`, `lod/block_model.glsl`, `lod/hierarchical/node.glsl`,
+`lod/hierarchical/queue.glsl`, `lod/hierarchical/traversal_dev.comp` (request/render
+queue declarations), `lod/vk/cmdgen.comp` + `lod/vk/merged_prefix.comp` (merged
+entries/prefix), `lod/vk/quad_index.glsl`, `lod/vk/index_probe.comp`. See
+[repo-map.md](repo-map.md) for full paths.

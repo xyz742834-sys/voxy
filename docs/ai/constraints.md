@@ -78,17 +78,21 @@ whether the skip is really "no supported GPU here" before trusting it.
 Per [testing.md](testing.md), there is currently no automated multi-frame hierarchy
 test exercising changing section counts (the exact shape of defect D1), no
 disconnect/reconnect or world-identity test (D5's territory), and the
-descriptor-SSBO negative control is a known no-op (produces no hazard, so it "passes"
-without proving anything). Don't cite passing tests in these areas as evidence of
-correctness — they're not exercising the failure mode.
+descriptor-SSBO negative control (`VkBarriersTest.missingBarrierIsDetected`) produces
+no hazard on this stack and is **skipped** via `Assumptions.abort`, even with validation
+on — only the fill-buffer control (`plainBufferHazardIsNowDetected`) actually passes.
+Don't cite passing or skipped tests in these areas as evidence of correctness — they're
+not exercising the failure mode.
 
 ## Do not treat "Gradle build succeeded" as "Vulkan validated"
 
-CI (`.github/workflows/`) runs on `ubuntu-latest` with no Vulkan-capable GPU. A green CI
-run proves compilation and the GPU-independent unit tests, nothing about
-Vulkan/interop correctness. Vulkan validation only happens when someone runs the test
-suite locally with `-PvkLibname=... -PvkValidation=true -PvkSyncEnv=true` on real
-(or Lavapipe) Vulkan hardware — see [testing.md](testing.md).
+CI (`.github/workflows/`) runs on `ubuntu-latest` with no configured GPU/validation
+lane. A green CI run proves compilation and the GPU-independent unit tests, nothing
+about Vulkan/interop correctness. Vulkan validation only happens when someone runs the
+test suite locally with `-PvkLibname=... -PvkValidation=true -PvkSyncEnv=true` on real
+(or Lavapipe) Vulkan hardware — see [testing.md](testing.md). Even then, "BUILD
+SUCCESSFUL" or "ALL CHECKS PASSED" is not "clean validation": both the JUnit suite and
+`interopCompositeCheck` currently pass while emitting unsuppressed diagnostics (D6).
 
 ## Don't promote a historical report's opening claim without reading its corrections
 

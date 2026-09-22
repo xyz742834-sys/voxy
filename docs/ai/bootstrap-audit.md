@@ -4,6 +4,8 @@
 **Baseline:** branch `vulkan-macos`, commit `4d955b0a4b6f4cfe6ce0b352e75076e4004b919c`  
 **Scope:** baseline inspection and verification before a Claude Code + Codex + OrcaADE workflow migration. No fixes, production-source changes, historical-report edits, or workflow migration were performed.
 
+> **Corrections applied 2026-09-22** after the independent [context-review.md](context-review.md) (reviewed at `d476f559`). The original audit text is preserved; superseding notes are marked **Correction (context review)** inline at the affected statements (validated interop result, device-feature/version wording, frame-order diagram, atlas dimensions). No finding was removed or weakened.
+
 ## Current repository state
 
 The repository builds and executes Vulkan rendering tests on this Apple Silicon host. It contains a substantial Vulkan implementation, but **the Minecraft Vulkan integration remains a diagnostic/prototype path, not a feature-complete replacement for the established OpenGL renderer**. Default Vulkan fallback displays a synthetic pair scene; real hierarchical rendering requires an explicit launch property.
@@ -93,7 +95,11 @@ Shared world data -> synchronous model bake/mesh -> NodeManager/geometry allocat
 
 This describes intended/current ordering, not a certification that all cross-stage values agree; see D1 below.
 
+**Correction (context review):** the last two diagram lines are in the wrong order. Source order in `VkInteropProbe.composite()` is Vulkan submit (`endFrame`) → explicit `waitForFrame()` → diagnostics and `serviceRequests()` → GL color/depth composite. CPU request servicing precedes the GL composite. Uniform/visibility preparation happens before `beginFrame()`, relying on the previous frame's explicit wait; deferred frees drain at the next `beginFrame()`/`waitIdle()`; the imported depth image is primed `UNDEFINED → GENERAL` once at allocation via `primeLayout()`, which submits and waits and rejects calls during recording. See [gpu-contracts.md](gpu-contracts.md#gpu-lifetime-assumptions).
+
 `VkContext` creates its own instance/device, chooses the first physical device, and creates a graphics/compute queue and command pool. It requests Vulkan 1.4 plus the needed rendering/synchronization and shader/indirect/fragment-storage features. `SpirvCompiler` targets Vulkan 1.2 shader output; that lower shader target is separate from the runtime device requirement.
+
+**Correction (context review):** "requests Vulkan 1.4" is imprecise. The instance requests `min(queryInstanceVersion(), 1.4)` — a fallback, not an enforced device requirement, and not evidence of portability to lower-version devices. Enabled features are Vulkan 1.1 `shaderDrawParameters`, Vulkan 1.3 `dynamicRendering`/`synchronization2`, and the base indirect/int64/fragment-storage features. Timeline semaphores are **not** enabled (only mentioned in comments); submission uses a fence. Queue selection checks `VK_QUEUE_GRAPHICS_BIT` only. The observed host is API 1.4.357.
 
 `VkFrameTracker` owns one command buffer and fence, submission generations and deferred-free/hooks. The interop path explicitly waits after submission. `VkBuffer` allocates individually, maps persistently, and requires DEVICE_LOCAL + HOST_VISIBLE + HOST_COHERENT memory. This is an Apple/unified-memory-oriented implementation, not a generic discrete-GPU allocator. Optimal-tiled images still require staging/copy operations.
 
@@ -137,6 +143,8 @@ Color sharing is BGRA8; depth sharing is R32F after resolving from D32. Current 
 Source anchors: `VkSceneUniform.write`, `VkTraversal.writeUniform/reset`, `NodeStore.writeNode`, `BasicAsyncGeometryManager.writeMetadata`, `VkGeometryFlush.flush`, `VkTerrainResources`, and shader files `bindings.glsl`, `section.glsl`, `block_model.glsl`, `node.glsl`, `queue.glsl`, `quad_index.glsl`.
 
 The real atlas is 12288×8192 with four allocated mip levels, 256×256 model tiles, six 16×16 face cells per model. It consumes roughly 534 MB decimal for RGBA mip storage. Synthetic atlas dimensions are 768×512. `ModelAtlasLayout` centralizes Java calculations, but shader constants still constitute another ABI surface.
+
+**Correction (context review):** read "256×256 model tiles" as *a 256×256 grid of model tiles, each tile 48×32 texels at mip 0* (3×2 face cells of 16×16). The dimensions and mip count above are correct.
 
 ### Push constants
 
@@ -343,7 +351,7 @@ All runs used the baseline source. The initial sandboxed build could not write t
 | `./gradlew build --offline --rerun-tasks` | **SUCCESS**, 9 tasks executed; 282 tests: **278 pass, 4 skip, 0 failures/errors**. Includes Java compilation, JUnit and access-widener validation; jar produced. |
 | `./gradlew test --offline --rerun-tasks -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true` | **SUCCESS**, 282 tests: **281 pass, 1 skip**, but **7 unexpected validation diagnostics** described in D2/D3. |
 | `./gradlew interopCompositeCheck --offline` | **45 checks passed**. GL/Vulkan offscreen integration available. |
-| `./gradlew interopCompositeCheck --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true` | **45 checks passed**, 28 narrowly suppressed interop metadata messages reported; no unsuppressed validation error lines observed. |
+| `./gradlew interopCompositeCheck --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true` | **45 checks passed**, 28 narrowly suppressed interop metadata messages reported; no unsuppressed validation error lines observed. **Correction (context review):** this is a prior observation, superseded — the same command run twice during the 2026-09-22 context review emitted **one unsuppressed** `UNASSIGNED-VkDescriptorImageInfo-BoundResourceFreedMemoryAccess` diagnostic (C11 depth-visualization path) while still printing `ALL CHECKS PASSED`. The checker's result depends only on `failures`. Treat the validated interop run as **not clean**; see [testing.md](testing.md). |
 | Temporary count probe | Matching 9→9 control emits 1134 indices; 0→9 stale-count case emits 0 for the same 189 generated quads. |
 
 Bundled-path runtime: Apple M4 Pro, Vulkan 1.4, subgroup 32, 4096-byte push constants. Loader-path log: Apple M4 Pro, API 1.4.357, driver 0.2.2210, `metalObjects=true`, `validation=true`, `syncValidation=true`. Thus the validation suite actually ran GPU code; it did not succeed by skipping the GPU tests.

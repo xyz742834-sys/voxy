@@ -17,6 +17,8 @@ AI-agent context lives under `docs/ai/` — read it before making non-trivial ch
   and what each one does/doesn't prove.
 - [docs/ai/gpu-contracts.md](docs/ai/gpu-contracts.md) — Java↔shader buffer layouts,
   descriptor bindings, push constants, barrier chains, GPU-lifetime assumptions.
+- [docs/ai/context-review.md](docs/ai/context-review.md) — independent review of the
+  above (2026-09-22); its corrections have been applied to the living docs.
 
 `docs/*.md` (45 files, outside `docs/ai/`) are historical phase reports — evidence and
 rationale, not current specs. Never edit them; see

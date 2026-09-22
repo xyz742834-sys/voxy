@@ -85,9 +85,17 @@ shared world data
   -> prep.comp -> raster cull -> cmdgen.comp / prefix -> translucent table build
   -> temporal opaque render -> translucent render
   -> depth resolve/reprojection into Minecraft's projection space
-  -> Vulkan fence wait -> GL color/depth composite via IOSurface
-  -> CPU services newly-requested meshes after the Vulkan submission completes
+  -> Vulkan submit (VkFrameTracker.endFrame) -> explicit fence wait (waitForFrame)
+  -> diagnostics + CPU services newly-requested meshes (scene.serviceRequests)
+  -> GL color/depth composite via IOSurface
 ```
+
+Uniform/visibility setup for a frame happens **before** `beginFrame()`; CPU request
+servicing happens after the fence wait and **before** the GL composite (source order in
+`VkInteropProbe.composite()`). See
+[gpu-contracts.md](gpu-contracts.md#gpu-lifetime-assumptions) for why that ordering,
+plus the one-time `primeLayout()` of the imported depth image, are correctness
+preconditions rather than incidental details.
 
 This is the *intended* stage ordering, not a certified guarantee that every
 cross-stage value agrees on frame N — see D1 in
@@ -97,15 +105,33 @@ doesn't (a stale host-side section count reaches the prefix/dispatch stage).
 ### Context and resource model
 
 `VkContext` creates its own Vulkan instance and logical device (does not share with
-Minecraft), picks the first physical device, and opens one combined graphics+compute
-queue and command pool. It requests Vulkan 1.4 core (dynamic rendering,
-synchronization2, timeline semaphores) plus indirect/fragment-storage features.
+Minecraft), picks the first physical device, and opens one queue and command pool from
+the first queue family advertising `VK_QUEUE_GRAPHICS_BIT`. That queue is also used for
+compute, but no explicit combined graphics+compute capability check is implemented.
+
+Initialization policy (source: `VkContext` constructor and its feature chain) — keep
+this separate from what was *observed* on the development host:
+
+- Instance API version = `min(queryInstanceVersion(), VK_MAKE_VERSION(1, 4, 0))`. This
+  is a fallback expression, **not** an enforced "Vulkan 1.4 required"; equally, it does
+  not establish that lower-version devices work — that is untested.
+- Enabled features: Vulkan 1.1 `shaderDrawParameters`; Vulkan 1.3 `dynamicRendering`
+  and `synchronization2`; base `multiDrawIndirect`, `drawIndirectFirstInstance`,
+  `shaderInt64`, `fragmentStoresAndAtomics`, `vertexPipelineStoresAndAtomics`.
+  `VK_KHR_portability_subset` is enabled when present (MoltenVK).
+- **Timeline semaphores are not enabled** and not used — source comments naming them
+  are aspirational; `VkFrameTracker` submits with a fence.
+- Observed host (2026-09-22): device API 1.4.357, driver 0.2.2210, subgroup size 32,
+  push-constant limit 4096.
+
 `SpirvCompiler` targets SPIR-V for Vulkan **1.2** — the shader target version is
-independent of, and lower than, the runtime device requirement.
+independent of, and lower than, the instance version actually negotiated.
 
 `VkFrameTracker` owns one command buffer, one fence, and submission-generation
-bookkeeping with deferred-free hooks; the interop path explicitly waits after
-submission (single-frame-in-flight design — see
+bookkeeping with deferred-free hooks. `endFrame()` submits without waiting;
+`beginFrame()` waits before reusing the command buffer; the interop path additionally
+calls `waitForFrame()` right after submission (single-frame-in-flight design — the
+exact preconditions are in
 [gpu-contracts.md](gpu-contracts.md#gpu-lifetime-assumptions)).
 
 `VkBuffer` allocates each buffer individually and maps it persistently, requiring
