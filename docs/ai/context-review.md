@@ -2,6 +2,131 @@
 
 **Verdict: PASS_WITH_CORRECTIONS**
 
+Re-reviewed on 2026-09-22 at `d6955b697c27595c85b4defbe78e2eac1f1e3a15`
+(`docs: apply context-review corrections to AI context`). Initial working tree clean.
+Read `CLAUDE.md` and all eight `docs/ai/` documents named in the request, including
+this review and the bootstrap audit. Only `docs/ai/context-review.md` was updated;
+production source, tests, build files, other context documents, and historical reports
+were not modified.
+
+The substantial corrections are supported by source and retained execution evidence.
+Three documentation corrections remain below: a contradictory pipeline summary,
+an unsupported categorical CI-skip claim, and an inaccurate directory label. These
+are documentation findings, not newly discovered production defects. D1–D6 remain
+open; the verdict does not certify renderer correctness or production readiness.
+
+## Re-review verification and limits
+
+- `git diff d476f559 HEAD -- src build.gradle settings.gradle gradle.properties gradle .github init.gradle`
+  is empty. Production code, tests, build configuration and workflows are unchanged
+  since the original review. The corrections are documentation-only.
+- Re-read the relevant Java/GLSL control flow and declarations, workflow commands,
+  and test assertions rather than relying on comments or correction wording.
+  Inventory still contains 257 main Java files, 52 test Java files, and 45 root
+  `docs/*.md` historical reports.
+- Re-inspected the original review's retained `/tmp` evidence. Validation XML totals
+  are 282 tests, 1 skipped, zero failures/errors: 281 passed. The visualizer XML has
+  four `VUID-vkCmdDraw-imageLayout-00344` diagnostics; the HiZ-depth-source XML has
+  three `SYNC-HAZARD-READ-AFTER-WRITE` diagnostics. Both validated interop logs contain
+  the unsuppressed `UNASSIGNED-VkDescriptorImageInfo-BoundResourceFreedMemoryAccess`
+  message, 28 suppressed messages, and `ALL CHECKS PASSED`. The count-probe log
+  retains 1134 indices for supplied count 9 and zero indices for supplied count 0,
+  with the same 63 entries / 189 quads.
+- **No new build, GPU test, or Minecraft execution was performed in this re-review.**
+  Runtime counts are prior observations whose retained artifacts were checked again,
+  not fresh runs. Unchanged source and available evidence make another full GPU run
+  unnecessary for verifying these documentation corrections. No CI execution logs,
+  alternate-device results, live-world parity or lifecycle evidence were added.
+
+## Disposition of the original corrections
+
+| Original finding | Re-review result and source evidence |
+|---|---|
+| R1 — Interop validation | Applied in `testing.md` §4, `current-state.md` D6 and the inline bootstrap correction. Retained logs confirm the diagnostic twice. `InteropCompositeCheck.java:279–289` bases success on `failures`; `VkContext.java:436–440` suppresses only three other VUIDs. C11 records the visualizer at `InteropCompositeCheck.java:520–527`. Root cause correctly remains unproven. |
+| R2 — Synchronization controls | Applied across current state, testing, constraints and GPU contracts. `VkBarriersTest.java:129–158` unconditionally aborts the descriptor-SSBO control after dispatch/readback; `:175–195` asserts the fill-buffer hazard. Retained XML confirms the sole validated-run skip. |
+| R3 — Device/version claims | Applied. `VkContext.java:134–136` selects the minimum instance version; `:245` checks the graphics queue bit; `:256–284` enables the documented base, Vulkan 1.1 and Vulkan 1.3 features. No timeline-semaphore feature is enabled. `VkFrameTracker.java:147–157` submits with a fence. |
+| R4 — CI attribution | Workflow attribution is fixed in repo map, testing and current integration status: push uses `-I init.gradle`; PR/manual use plain `build`. The separate portability bullet still overstates skip behavior; see RR2. |
+| R5 — Frame/lifetime preconditions | Applied in the architecture frame diagram, bootstrap inline correction and GPU lifetime section. `VkInteropProbe.java:845–857,887–946` prepares before `beginFrame`, then submits, waits, services requests and composites. `VkFrameTracker.java:115–170,210–214` confirms submit/wait/free-drain distinctions. `VkInteropImage.java:202` implements priming outside recording; the probe calls it at `:713`. `VkRenderTarget.java:105–128` confirms both color and depth LOAD/read concerns. A contradictory summary remains in current state; see RR1. |
+| R6 — Atlas and layout anchors | Applied. `ModelAtlasLayout.java:35–60` gives a 256×256 tile grid, 3×2 cells per tile, 16 texels per real face and four mips. `traversal_dev.comp:28–37` declares request/render queues. `cmdgen.comp` and `merged_prefix.comp` generate the merged table; `VkGeometryFlush.flush` uploads geometry/metadata. The scene UBO anchor now names `lod/gl46/bindings.glsl`. |
+| R7 — Minecraft evidence | Applied in `testing.md` §5. Neither original audit nor original review claimed an actual Minecraft run in its execution record. Live-world verification is explicitly outstanding. |
+
+The clarified 92-byte scene-UBO span and exact four-byte index-probe push block also
+match `VkSceneUniform.write` and `vk/index_probe.comp`. The inline bootstrap notes
+clearly supersede the preserved original statements; those intentionally retained
+statements are not counted as unresolved corrections. The original review below is
+historical evidence, not a second current list of required changes.
+
+## Remaining corrections
+
+### RR1 — Current-state summary still gives the wrong GPU pass order (medium)
+
+**Exact location:** [current-state.md](current-state.md#what-works) → “What works” →
+“Vulkan hierarchical rendering pipeline”, lines 30–33.
+
+The arrow chain says traversal → cull → table generation → opaque/temporal/translucent
+→ HiZ. This contradicts both the corrected architecture diagram and executable
+source. HiZ is built after the previous-table opaque pass and before current traversal;
+it does not follow the temporal/translucent draws. This order matters when diagnosing
+D1 and temporal visibility.
+
+**Required replacement:** “Previous-table opaque draw → current Voxy-depth HiZ →
+hierarchy traversal → prep → raster cull (CULL mode) → merged/temporal/translucent table
+generation → temporal opaque draw → translucent draw → depth resolve/reprojection →
+GL composite through IOSurface.” Alternatively list the implemented components
+without ordering arrows and link the architecture frame sequence.
+
+**Source evidence:** [VkHierarchicalScene.java](../../src/main/java/me/cortex/voxy/client/core/vk/VkHierarchicalScene.java#L723):
+opaque at line 723, HiZ 727, traversal 730, prep/cull 736–738, table build 743,
+temporal 748, translucent 754, resolve 758. This is source-confirmed, not a new
+runtime finding.
+
+### RR2 — CI skips are still stated as unconditional (low; original R4 partially open)
+
+**Exact location:** [current-state.md](current-state.md#whats-incomplete) → “What's
+incomplete” → “Portability is Apple-shaped by design”, lines 70–75, specifically
+“Vulkan-dependent tests skip there via `requireVulkan()`, so CI provides no GPU/interop
+coverage.”
+
+The repository establishes no required GPU/validation lane. It does not establish
+that all Vulkan-dependent tests necessarily skip on every Ubuntu runner.
+
+**Required replacement:** “The Ubuntu workflows configure no required GPU/validation
+lane. Vulkan-dependent tests can skip when initialization fails, so a green build
+does not establish that GPU tests executed or that Vulkan/interop is correct.”
+
+**Source evidence:** [VulkanTestSupport.java](../../src/test/java/me/cortex/voxy/vk/VulkanTestSupport.java#L20),
+lines 20–33, tries `VkContext.init()` and skips only when the cached availability is
+false after an initialization exception; there is no unconditional Ubuntu/Linux skip.
+[Push workflow](../../.github/workflows/check-does-build.yml#L32),
+[PR workflow](../../.github/workflows/check-does-build-pr.yml#L25), and
+[manual workflow](../../.github/workflows/manual-artifact.yml#L25) configure build
+commands, not required GPU execution. No CI runtime evidence was inspected here.
+
+### RR3 — Layering box mislocates the OpenGL renderer (low)
+
+**Exact location:** [architecture.md](architecture.md#layering) → “Layering”, line 18:
+`client/core/gl/ OpenGL renderer (established path)`.
+
+The first review noted this shorthand, but the source-navigation box should agree
+with `repo-map.md` without requiring readers to reinterpret it.
+
+**Required replacement:** Label `client/core/gl/` as “OpenGL object/shader wrappers”
+and add `client/core/` / `client/core/rendering/` for the render system, pipelines,
+section rendering and hierarchy (with shared CPU components as already documented).
+
+**Source evidence:** [RenderPipelineFactory.java](../../src/main/java/me/cortex/voxy/client/core/RenderPipelineFactory.java#L9)
+and [NormalRenderPipeline.java](../../src/main/java/me/cortex/voxy/client/core/NormalRenderPipeline.java#L22)
+are in `client/core/`; [VoxyRenderSystem.java](../../src/main/java/me/cortex/voxy/client/core/VoxyRenderSystem.java#L56)
+is there too. [GlBuffer.java](../../src/main/java/me/cortex/voxy/client/core/gl/GlBuffer.java#L13)
+illustrates the wrappers in `client/core/gl/`. The existing repo-map OpenGL table is
+accurate.
+
+## Original review record — 2026-09-22 at d476f559
+
+The following is the preserved first review. Its R1–R7 findings and execution
+results describe that earlier revision; the disposition table and RR1–RR3 above
+are the current re-review result.
+
 Reviewed on 2026-09-22 at `d476f559e2648ad7fbf1c325059f2b9914e80c29`.
 The initial working tree was clean. Reviewed `CLAUDE.md`, all six linked context
 documents, and `docs/ai/bootstrap-audit.md` against Java, GLSL, Gradle, workflows,
