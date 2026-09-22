@@ -193,6 +193,43 @@ public class NodeManager {
         return this.nodeData.nodePosition(nodeId);
     }
 
+    /**
+     * ノードがこの瞬間に {@link #removeNodeGeometry} で安全に回収できるか
+     * (Vulkan の回収に使う)。
+     *
+     * <h2>⚠⚠ 実機クラッシュ (2026-09-21) の根本原因が確定したので、
+     * {@code NODE_TYPE_INNER} 丸ごと除外は撤回した</h2>
+     * 途中経過では「{@code NODE_TYPE_INNER} は原因不明のまま安全側に倒して
+     * 丸ごと除外する」としていたが、根本原因は{@code NODE_TYPE_INNER} 自体ではなく
+     * {@code VkHierarchicalScene.Watcher.unwatch} が<b>常に {@code true} を返していた</b>
+     * ことだった [確認済 — {@code SectionUpdateRouter.unwatch} は
+     * {@code removed = (現在値==0)} を返す契約なのに、Vulkan 版はその判定をせず
+     * 無条件で {@code true} を返していた]。{@code clearGeometryInternal} は
+     * この戻り値を「部分アンウォッチのはずが全消去になった = 異常」の検出に使うため、
+     * 常に {@code true} だと {@code NODE_TYPE_INNER} を 1 回でも回収しようとした
+     * 瞬間に必ず落ちていた。{@code Watcher.unwatch} を修正した結果、
+     * {@code VkGeometryReclaimTest.reclaimingANonTopLevelInnerNodeDirectly}
+     * (in-flight な要求が無い、素直な非トップレベル {@code NODE_TYPE_INNER} を直接
+     * {@link #removeNodeGeometry} する) は例外を出さずに通るようになった
+     * [ミューテーションテストで確認済み — {@code unwatch} を元の「常に true」に戻すと
+     * このテストだけが失敗する]。
+     *
+     * <p>残る除外は {@code NODE_TYPE_INNER} が
+     * {@link #updateChildSectionsInner} 経由で<b>自分のメッシュを有効なまま
+     * 新しい子ノードの要求を追加できる</b>ことへの対応 — GL 参照
+     * {@code sort_visibility.comp} の {@code shouldSortId} が持つ
+     * {@code hasRequested} 相当の除外と同じ。こちらは実際にクラッシュを
+     * 再現できていて ({@code nodesWithAnInFlightChildRequestAreNeverAttempted})、
+     * 今も本物の必要条件である。
+     */
+    public boolean isSafeToReclaimGeometry(int nodeId) {
+        int geo = this.nodeData.getNodeGeometry(nodeId);
+        if (geo == NULL_GEOMETRY_ID || geo == EMPTY_GEOMETRY_ID) {
+            return false;
+        }
+        return !this.nodeData.isNodeRequestInFlight(nodeId);
+    }
+
     //==================================================================================================================
 
     public void processGeometryResult(BuiltSection sectionResult) {

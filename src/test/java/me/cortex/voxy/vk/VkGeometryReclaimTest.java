@@ -42,7 +42,11 @@ public class VkGeometryReclaimTest {
         @Override public boolean unwatch(long position, int types) {
             int v = this.watched.get(position) & ~types;
             if (v == 0) this.watched.remove(position); else this.watched.put(position, v);
-            return true;
+            // ⚠ VkHierarchicalScene.Watcher と同じ契約 (SectionUpdateRouter.unwatch と揃える):
+            // 「全ビットが消えたか」を返す。常に true だと clearGeometryInternal の
+            // 「resulted in full removal」判定が常に発火してしまう — これが実機クラッシュの
+            // 原因の1つだった。ここも同じバグのコピーだったので合わせて直す
+            return v == 0;
         }
         @Override public int get(long position) { return this.watched.get(position); }
     }
@@ -178,6 +182,105 @@ public class VkGeometryReclaimTest {
         assertEquals(tBytes, h.geometry().getGeometryUsedBytes(),
             "C must actually have been freed, dropping usage back to just T's bytes");
         assertEquals(1, h.reclaimer().trackedCount(), "only T should still be tracked as allocated");
+    }
+
+    /**
+     * ⚠⚠ 実機クラッシュの再現用スクラッチ (2026-09-21)。
+     *
+     * <p>クラッシュ: {@code NodeManager.clearGeometryInternal} が
+     * "Unwatching position for geometry removal at: 3@[-3, 0, 0] resulted in
+     * full removal" で落ちた。トップレベルの除外は効いていた
+     * ({@link #topLevelNodesAreNeverAttemptedEvenWhenTheyAreOldest} で確認済み)ので、
+     * <b>非トップレベルの INNER ノード</b>で同じことが起きるか試す —
+     * T の子 C を、さらに INNER にしてから直接 {@code removeNodeGeometry} する。
+     */
+    @Test
+    void reclaimingANonTopLevelInnerNodeDirectly() {
+        var h = harness();
+        long t = topPos(0, 0, 0);
+        h.nodes().insertTopLevelNode(t);
+        h.nodes().processGeometryResult(section(t, 1, (byte) 1));
+        h.nodes().processRequest(t);   // T -> INNER, 子 C ができる
+
+        long c = childPos(t, 0);
+        h.nodes().processGeometryResult(section(c, 1, (byte) 1));   // C は葉、さらに孫を持てるようにする
+        h.nodes().processRequest(c);   // C -> INNER (非トップレベル)
+
+        long gc = childPos(c, 0);
+        h.nodes().processGeometryResult(section(gc, 1));   // 孫
+
+        // ここが本題: 非トップレベルの INNER を直接 removeNodeGeometry する
+        h.nodes().removeNodeGeometry(c);
+    }
+
+    /**
+     * ⚠⚠ 実機クラッシュの回帰対照 (2026-09-21)。
+     *
+     * <h2>実機で何が起きたか</h2>
+     * {@code NODE_TYPE_INNER} は {@code updateChildSectionsInner} 経由で、
+     * <b>自分のメッシュを有効なまま</b>新しい子ノードの要求を追加できる。
+     * この最中に {@code GeometryReclaimer} がそのノードを候補に選んで
+     * {@code removeNodeGeometry} を呼び、{@code clearGeometryInternal} が
+     * {@code IllegalStateException("...resulted in full removal")} を投げて
+     * クラッシュした [確認済 — crash-2026-09-21_02.04.39-client.txt,
+     * pos 3@[-3, 0, 0]]。GL 参照 {@code shouldSortId} の {@code hasRequested}
+     * 相当 ({@code isNodeRequestInFlight}) の除外を見落としていた。
+     *
+     * <p>T (top) → C0 (T の子、自身も子を持てるよう宣言) → C00 (C0 の子) の
+     * 3 段を組み、C0 を INNER に昇格させたあとで<b>もう 1 個子を追加要求</b>する。
+     * C0 は T より新しいが C00 より古いので、除外が効いていなければ
+     * 「非トップレベルの最古」として C0 が選ばれてしまう。
+     */
+    @Test
+    void nodesWithAnInFlightChildRequestAreNeverAttempted() {
+        var h = harness();
+        long t = topPos(0, 0, 0);
+        h.reclaimer().setCurrentFrame(1);
+        h.nodes().insertTopLevelNode(t);
+        h.nodes().processGeometryResult(section(t, 3, (byte) 1));
+        h.nodes().processRequest(t);   // T: 子 (C0) の要求を開始
+
+        long c0 = childPos(t, 0);
+        h.reclaimer().setCurrentFrame(2);
+        // C0 も子を 1 つ宣言しておく (後で INNER に昇格させるため)
+        h.nodes().processGeometryResult(section(c0, 1, (byte) 1));   // T の要求が完了 -> T は INNER、C0 は LEAF
+
+        h.reclaimer().setCurrentFrame(3);
+        h.nodes().processRequest(c0);   // C0: 子 (C00) の要求を開始
+
+        long c00 = childPos(c0, 0);
+        h.reclaimer().setCurrentFrame(4);
+        h.nodes().processGeometryResult(section(c00, 1));   // C0 の要求が完了 -> C0 は INNER (自分のメッシュは維持)
+
+        assertEquals(3, h.reclaimer().trackedCount(), "T, C0, C00 が追跡されているはず");
+
+        // C0 に新しい子 (bit 1) を追加要求する。C0 は INNER のまま、
+        // 自分のメッシュは有効なまま isNodeRequestInFlight が真になる
+        // [確認済 — NodeManager.updateChildSectionsInner の add 分岐]
+        h.nodes().processChildChange(c0, (byte) 3);   // 既存 bit0 + 新規 bit1
+
+        // id 1 が C0 のはず [確認済 — NodeStore.allocate() は空集合から 0,1,2... と
+        // 順に払い出す。T=0 が最初、C0 は T の子として次に確保される]
+        int c0Id = 1;
+        assertFalse(h.nodes().isSafeToReclaimGeometry(c0Id),
+            "C0 は in-flight のはずなので isSafeToReclaimGeometry は false を返すはず");
+
+        // ⚠⚠ maxEvictions=1 でなければならない。C00 (LEAF) を回収すると
+        // processLeafGeometryRemoval がその<b>同じ呼び出しの中で即座に</b>
+        // 親 C0 を「全ての子がまた LEAF になった」と見て INNER→LEAF に畳み込み、
+        // 副作用で C0 の in-flight リクエストごとキャンセルする [確認済 —
+        // NodeManager._recurseRemoveNode の onlyRemoveChildren 分岐、
+        // unmarkRequestInFlight — 実際に 1 回の reclaimWhile(1) 後で
+        // isSafeToReclaimGeometry(c0Id) が true に変わることを確認した]。
+        // 畳み込み後の C0 は本当にもう in-flight ではなくなる (LEAF として
+        // 安全に回収してよい) ので、maxEvictions を大きくして 2 周目で
+        // C0 が選ばれても<b>それは正しい</b>。ここで確かめたいのは
+        // 「in-flight の<b>その瞬間</b>に候補から外れるか」なので 1 回だけで見る
+        int attempts = h.reclaimer().reclaimWhile(() -> true, 1);
+
+        assertEquals(1, attempts, "C00 は安全な候補のはずなので、1 件は試みられる");
+        assertNotEquals(c0Id, h.reclaimer().lastAttemptedId(),
+            "C0 は子の要求が in-flight なので、除外が効いていれば絶対に選ばれない");
     }
 
     /**

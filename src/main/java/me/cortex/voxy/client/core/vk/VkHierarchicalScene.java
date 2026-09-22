@@ -54,7 +54,14 @@ public final class VkHierarchicalScene {
         @Override public boolean unwatch(long position, int types) {
             int v = this.watched.get(position) & ~types;
             if (v == 0) this.watched.remove(position); else this.watched.put(position, v);
-            return true;
+            // ⚠⚠ 実機クラッシュの原因 (2026-09-21): ここが常に true を返していた。
+            // NodeManager.clearGeometryInternal は「unwatch(BLOCK_BIT だけ) が true =
+            // 他のビット (CHILD_EXISTENCE_BIT) まで巻き込んで全消去された = 異常」と読む
+            // [確認済 — SectionUpdateRouter.unwatch の同じ契約: removed = (current==0)]。
+            // 常に true だと INNER ノードの reclaim が 1 回でも起きた瞬間に必ず落ちる —
+            // GeometryReclaimer 導入で初めてこの部分区分の unwatch 呼び出しが実際に
+            // 起きるようになるまで、この既存バグは踏まれていなかった。
+            return v == 0;
         }
         @Override public int get(long position) { return this.watched.get(position); }
     }
@@ -227,6 +234,12 @@ public final class VkHierarchicalScene {
                 for (var it = this.allocFrame.int2IntEntrySet().iterator(); it.hasNext(); ) {
                     var e = it.next();
                     if (this.isTopLevel.test(e.getIntKey())) continue;   // ⚠ 候補にすら挙げない
+                    // ⚠⚠ 実機クラッシュの原因 (2026-09-21): GL 参照の shouldSortId の
+                    // hasRequested 相当を素通りしていた。NODE_TYPE_INNER は
+                    // updateChildSectionsInner 経由で自分のメッシュが有効なまま
+                    // 新しい子を要求できる — その最中に removeNodeGeometry を呼ぶと
+                    // clearGeometryInternal が例外を投げる [NodeManager.isSafeToReclaimGeometry の javadoc]
+                    if (!this.nodes.isSafeToReclaimGeometry(e.getIntKey())) continue;
                     if (oldestId == -1 || e.getIntValue() < oldestFrame) {
                         oldestId = e.getIntKey();
                         oldestFrame = e.getIntValue();
