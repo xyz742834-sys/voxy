@@ -1,6 +1,94 @@
 # Independent review of repository AI context
 
-**Verdict: PASS_WITH_CORRECTIONS**
+**Verdict: PASS**
+
+Re-reviewed on 2026-09-22 at `5a78f0d83d034afa4ebd981e02a0cb720f42a94d`
+(`docs: apply re-review corrections RR1–RR3 to AI context`). Initial working tree
+clean. Read `CLAUDE.md`, `bootstrap-audit.md`, `context-review.md`, `current-state.md`,
+`architecture.md`, `repo-map.md`, `constraints.md`, `testing.md`, and `gpu-contracts.md`.
+Only this review was updated; production source, tests, build configuration, other
+context documents, and historical phase reports were not modified.
+
+**No remaining documentation corrections were found in this re-review.** RR1–RR3
+are resolved, and the earlier R1–R7 corrections remain supported. This verdict covers
+the corrected AI development context. D1–D6 and the documented runtime uncertainties
+remain open; it does not certify renderer correctness or production readiness.
+
+## Current verification — 5a78f0d8
+
+### Latest corrections
+
+| Finding / corrected location | Source verification | Result |
+|---|---|---|
+| RR1 — `current-state.md` → What works → Vulkan hierarchical rendering pipeline | [VkHierarchicalScene.record](../../src/main/java/me/cortex/voxy/client/core/vk/VkHierarchicalScene.java#L723): previous-table opaque 723 → HiZ 727 → traversal 730 → prep 736 → conditional CULL 737–738 → table build 743 → temporal 748 → translucent 754 → resolve 758. The subsequent GL composite is in [VkInteropProbe.composite](../../src/main/java/me/cortex/voxy/client/core/vk/interop/VkInteropProbe.java#L887), after submission, fence wait and request servicing. The corrected summary and architecture sequence agree with these two methods. | Resolved |
+| RR2 — `current-state.md` → What's incomplete → Portability | [VulkanTestSupport.requireVulkan](../../src/test/java/me/cortex/voxy/vk/VulkanTestSupport.java#L20) attempts initialization, catches any `Throwable`, caches availability and conditionally skips. There is no unconditional Linux/Ubuntu skip. The [push](../../.github/workflows/check-does-build.yml#L32), [PR](../../.github/workflows/check-does-build-pr.yml#L25) and [manual](../../.github/workflows/manual-artifact.yml#L25) workflow commands match the corrected descriptions and configure no required GPU/validation lane. No CI runtime logs were inspected. | Resolved |
+| RR3 — `architecture.md` → Layering | [VoxyRenderSystem](../../src/main/java/me/cortex/voxy/client/core/VoxyRenderSystem.java#L56), [NormalRenderPipeline](../../src/main/java/me/cortex/voxy/client/core/NormalRenderPipeline.java#L22) and [RenderPipelineFactory](../../src/main/java/me/cortex/voxy/client/core/RenderPipelineFactory.java#L9) reside in `client/core/`; section rendering/hierarchy reside in `client/core/rendering/`; [GlBuffer](../../src/main/java/me/cortex/voxy/client/core/gl/GlBuffer.java#L13) exemplifies the object wrappers in `client/core/gl/`. The corrected box agrees with the source tree and repo map. | Resolved |
+
+### Earlier corrections checked again
+
+- **R1 / interop evidence:** `testing.md` §4, current-state D6 and the bootstrap
+  inline correction retain the unsuppressed diagnostic. Both retained validated
+  interop logs contain `UNASSIGNED-VkDescriptorImageInfo-BoundResourceFreedMemoryAccess`,
+  28 suppressed messages and `ALL CHECKS PASSED`. The checker uses only `failures`
+  for its result (`InteropCompositeCheck.java:279–289`), records the C11 visualizer
+  at lines 520–527, and the three suppression IDs at `VkContext.java:436–440` do
+  not include this diagnostic. Root cause remains unproven.
+- **R2 / synchronization controls:** `VkBarriersTest.java:129–158` retains the
+  unconditional assumption abort after the descriptor-SSBO dispatch/readback;
+  lines 175–195 assert detection of the deliberately unsynchronized fill-buffer
+  hazard. Current state, constraints, testing and GPU contracts distinguish them.
+- **R3 / device features:** `VkContext.java:134–136,245,256–284` confirms the minimum
+  instance-version expression, graphics-bit queue selection, base features and
+  Vulkan 1.1/1.3 feature chain. No timeline semaphore is enabled; submission uses
+  a fence (`VkFrameTracker.java:147–157`).
+- **R4 / CI attribution:** push uses `-I init.gradle`; PR/manual use plain `build`.
+  The workflow descriptions and the conditional-skip warning agree with source.
+- **R5 / frame and lifetime:** `VkInteropProbe.java:845–857,887–946` prepares before
+  frame begin, submits, waits, services requests and then composites.
+  `VkFrameTracker.java:115–170,210–214` distinguishes submit, wait and deferred-free
+  draining. `VkInteropImage.java:202–216` primes outside recording and waits; the
+  probe calls it at line 713. Both color and depth LOAD/read concerns remain
+  documented and match `VkRenderTarget.java:105–128`.
+- **R6 / atlas and ABI anchors:** `ModelAtlasLayout.java:35–60` confirms the 256×256
+  tile grid, 48×32 real tiles and four mip levels. Request/render queues are in
+  `hierarchical/traversal_dev.comp:28–37`. `vk/cmdgen.comp:78–79` writes merged
+  entries; `vk/merged_prefix.comp` constructs their prefix. `VkGeometryFlush.flush`
+  uploads geometry/metadata. The scene UBO declaration in `lod/gl46/bindings.glsl`
+  matches `VkSceneUniform.write`; terrain/table descriptors use its 92-byte range.
+  `vk/index_probe.comp` declares one four-byte push-constant member.
+- **R7 / Minecraft provenance:** testing §5 explicitly leaves live-world verification
+  outstanding, consistent with the audit and original review execution records.
+  No new Minecraft evidence is claimed.
+
+### Verification scope and retained evidence
+
+- `git diff d476f559 HEAD -- src build.gradle settings.gradle gradle.properties gradle .github init.gradle`
+  is empty. The reviewed corrections did not change production code, tests or build
+  configuration. The latest commit changes only three context documents.
+- Inventory checked from tracked files: 257 main Java files, 52 test Java files and
+  45 root `docs/*.md` reports. Local Markdown link targets in all nine requested
+  documents exist (fragment anchors were not automatically validated).
+- Re-read the retained `/tmp/voxy-context-review-validation-tests/` XML: 49 reports,
+  282 tests, one skipped, zero failures/errors, hence 281 passed. Counted diagnostic
+  records, not repeated identifier text: four visualizer image-layout diagnostics
+  and three HiZ-depth-source read-after-write diagnostics. Both retained
+  `/tmp/voxy-context-review-interop-validation{,-repeat}.log` files confirm the
+  interop result above. `/tmp/voxy-context-review-count-probe.log` still records
+  1134 indices with supplied count 9 versus zero with supplied count 0, for the
+  same 63 entries / 189 quads.
+- **No new build, GPU test, CI run or Minecraft execution was performed.** Runtime
+  numbers above are prior observations rechecked in retained artifacts, not fresh
+  executions. Source comparison is sufficient for these documentation corrections;
+  it is not exhaustive ABI reflection or an additional runtime correctness gate.
+
+## Historical re-review record — d6955b69
+
+Everything below records earlier revisions. Its verdicts, “remaining”/“required”
+corrections and present-tense conclusions describe those revisions; they are
+superseded by the current verification above. Retained bootstrap statements with
+explicit inline corrections likewise remain historical evidence.
+
+**Historical verdict: PASS_WITH_CORRECTIONS**
 
 Re-reviewed on 2026-09-22 at `d6955b697c27595c85b4defbe78e2eac1f1e3a15`
 (`docs: apply context-review corrections to AI context`). Initial working tree clean.
