@@ -6,8 +6,9 @@ phase reports, which are frozen evidence (see [repo-map.md](repo-map.md)).
 Last verified: 2026-09-22, on `vulkan-macos` @ `ad54dd8d` (macOS arm64, Apple M4 Pro,
 observed device API 1.4.357, driver 0.2.2210). See [testing.md](testing.md) for exact
 commands. Corrected 2026-09-22 against the independent
-[context-review.md](context-review.md) (reviewed at `d476f559`): interop validation
-result, barrier-control naming, device-feature claims, CI attribution, frame order.
+[context-review.md](context-review.md) (reviewed at `d476f559`, re-reviewed at
+`d6955b69`): interop validation result, barrier-control naming, device-feature claims,
+CI attribution, frame order, CI-skip wording (RR1/RR2 applied after the re-review).
 
 ## What works
 
@@ -27,9 +28,14 @@ result, barrier-control naming, device-feature claims, CI attribution, frame ord
   `SpirvCompiler`/`VkShader` compile and reflect shaderc-built SPIR-V (Vulkan 1.2
   target). Builds and passes tests on this host; behavior on lower-version devices is
   unverified.
-- **Vulkan hierarchical rendering pipeline**, end to end: hierarchy traversal → raster
-  cull → merged-table command generation → opaque/temporal/translucent draws → HiZ →
-  depth resolve/reprojection → GL/Vulkan composite through IOSurface. Runs as a
+- **Vulkan hierarchical rendering pipeline**, end to end, in the recorded order of
+  `VkHierarchicalScene.record()`: previous-table opaque draw → current Voxy-depth HiZ
+  → hierarchy traversal → prep → raster cull (CULL mode only) → merged/temporal/
+  translucent table generation → temporal opaque draw → translucent draw → depth
+  resolve/reprojection → GL composite through IOSurface. HiZ is built from the
+  previous-table opaque pass *before* traversal, not after the temporal/translucent
+  draws (source order; see the frame sequence in
+  [architecture.md](architecture.md#frame-sequence-hierarchical-mode)). Runs as a
   synthetic-scene / diagnostic path, not the default renderer — see gaps below.
 - **GL↔Vulkan interop**: IOSurface-backed color (BGRA8) and depth (R32F) sharing,
   fence-based Vulkan→GL synchronization, GL state-preserving composite. 45
@@ -69,10 +75,12 @@ result, barrier-control naming, device-feature claims, CI attribution, frame ord
   (drop excess quads) rather than split.
 - **Portability is Apple-shaped by design**, not yet generalized: first-physical-device
   selection, unified-memory (`DEVICE_LOCAL|HOST_VISIBLE|HOST_COHERENT`) buffer
-  allocation, Metal/IOSurface interop, and subgroup-size-32 assumptions. Ubuntu CI
-  builds and unit-tests the code with no configured GPU/validation lane in
-  `.github/workflows/`; Vulkan-dependent tests skip there via `requireVulkan()`, so CI
-  provides no GPU/interop coverage.
+  allocation, Metal/IOSurface interop, and subgroup-size-32 assumptions. The Ubuntu
+  workflows in `.github/workflows/` configure no required GPU/validation lane.
+  Vulkan-dependent tests can skip when `VkContext.init()` fails inside
+  `VulkanTestSupport.requireVulkan()` (there is no unconditional Linux/Ubuntu skip),
+  so a green build does not establish that GPU tests executed or that Vulkan/interop
+  is correct. No CI runtime logs have been inspected to confirm either outcome.
 - **GPU object lifecycle/diagnostics are thin**: buffer/texture debug naming is TODO;
   shutdown/reload/session teardown is unproven (see D5).
 

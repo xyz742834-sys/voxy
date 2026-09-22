@@ -13,9 +13,16 @@ backends. This doc describes the major paths as implemented; see
 common/            world ingestion, persistence, compression, storage backends,
                     threading/allocators — GPU-API-agnostic
 commonImpl/         mod/world lifecycle, world identifiers, importers
+client/core/         render system + pipelines (VoxyRenderSystem,
+                     NormalRenderPipeline, RenderPipelineFactory, SSAO) — the
+                     established OpenGL path lives HERE, not under gl/
 client/core/model/   shared CPU model bakery, atlas layout, upload boundary
                      (used by BOTH backends)
-client/core/gl/      OpenGL renderer (established path)
+client/core/rendering/ section rendering (MDIC backend), hierarchy management
+                     (hierachical/ — NodeManager etc., shared with Vulkan), geometry
+                     building (RenderDataFactory, shared), viewports, bounds
+client/core/gl/      OpenGL object/shader wrappers only (GlBuffer, GlTexture,
+                     GlFramebuffer, shader loader) — not the renderer itself
 client/core/vk/      Vulkan renderer (Apple/macOS-oriented, diagnostic-scope)
 client/mixin/        Fabric Mixins into Minecraft/Sodium/Iris/Flashback/Nvidium
 ```

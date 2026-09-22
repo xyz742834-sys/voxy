@@ -58,6 +58,13 @@ historical evidence, not a second current list of required changes.
 
 ## Remaining corrections
 
+> **Resolution note (2026-09-22, after `d480dbb5`):** RR1–RR3 were applied to
+> `current-state.md` (pipeline order, CI-skip wording) and `architecture.md` (layering
+> box), each re-verified against `VkHierarchicalScene.record()`,
+> `VulkanTestSupport.requireVulkan()`, the three workflow files, and the `client/core/`
+> directory tree. No build, GPU test, or CI run was performed for that change; the
+> findings below are preserved as written.
+
 ### RR1 — Current-state summary still gives the wrong GPU pass order (medium)
 
 **Exact location:** [current-state.md](current-state.md#what-works) → “What works” →
