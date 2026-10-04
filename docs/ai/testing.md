@@ -106,10 +106,20 @@ These remain useful for development, but only the runner aggregates all validati
 output and required execution into a strict exit status. Standard CI has no required
 GPU lane, and `VulkanTestSupport` catches any initialization Throwable as a skip.
 
-The normal offline build also passes (294 pass / 4 validation-only skips), and the
+The normal offline build also passes (302 pass / 4 validation-only skips), and the
 produced jar excludes the harness mod.
 
-The latest validation GPU run has 298 cases: 297 pass / 1 known skip, with no
+Fresh required run: `build/harness/20261004T031025-163862Z/summary.json`.
+All executed gates passed with no source changes during the run: 305/306 JUnit
+cases passed (one documented descriptor-sync blind spot), 45 interop checks, and
+eleven checkpoints each in the diagnostic and Minecraft-native environment modes,
+with 30 seconds per scenario. Native instance/device validation layer insertion,
+Minecraft debugging enabled, native images and clean shutdown diagnostics were
+observed. Native Voxy LoD remained disabled. The aggregate correctly reports
+`INCOMPLETE`, not native integration acceptance. Its directory also retains the
+22 passing Python gate tests and normal build/jar exclusion result.
+
+The latest validation GPU run has 306 cases: 305 pass / 1 known skip, with no
 unexpected diagnostics. Offscreen interop has 45 passing checks and clean validation
 following explicit IOSurface image memory binding. Consult the run's JSON and logs
 for precise revision/source hashes. The live scenario after update-ingestion integration passes all eleven checkpoints,

@@ -43,6 +43,14 @@ reflect descriptor types/counts/stage visibility from the compiled SPIR-V, but d
 passing build does not prove a Java writer and a GLSL reader agree on byte layout —
 only a passing runtime test with actual data does.
 
+`ShaderMemoryLayoutTest` now independently decodes real compiled SPIR-V decorations
+for terrain/traversal uniforms, node/request/render arrays, and shared
+DrawCommand/SectionMeta/BlockModel layouts. Its four passing tests include a changed
+shader-member control. This verifies the listed shader offsets/strides against the
+host packing contract; it does not instrument every host writer or cover every
+buffer in this document. The analytic GPU pixel/recovery tests separately exercise
+actual terrain data through the production upload and draw path.
+
 ## Descriptor binding rules
 
 - **Binding numbers are pipeline-local**, not a global resource-ID space. The same

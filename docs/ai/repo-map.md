@@ -89,6 +89,12 @@ current source; historical reports are evidence/rationale only (see note at the 
 
 ## Tests
 
+`ShaderMemoryLayoutTest.java` independently checks actual SPIR-V member offsets and
+array/matrix strides, including a changed-member rejection control. Native lifecycle
+observations use the development-only `src/harness/.../LiveWorldHarness.java` in
+native mode and `client/core/vk/mcnative/McNativeVulkanProbe.java`; these observe
+Minecraft's own device/attachments and do not implement a Voxy native LoD connection.
+
 All Vulkan JUnit tests live under `src/test/java/me/cortex/voxy/vk/` (55 files, one
 package — not split by subsystem). `VulkanTestSupport.requireVulkan()` is the shared
 skip-if-no-GPU guard; note it catches **any** `Throwable`, not just missing-hardware
