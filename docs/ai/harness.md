@@ -82,3 +82,35 @@ The implementation now allocates/binds memory and releases it with the image.
 MoltenVK's [image implementation](https://github.com/KhronosGroup/MoltenVK/blob/main/MoltenVK/MoltenVK/GPUObjects/MVKImage.mm)
 keeps the IOSurface texture as backing when memory is bound; the existing interop
 image-equivalence tests verify that sharing still works on this host.
+
+## Two harnesses, and which one is the spine
+
+There are two separate automation systems. They are not interchangeable, and only
+one of them lives on this branch.
+
+| | `scripts/verify.py` (this branch) | `scripts/agent/` (branch `xyz742834-sys/build-agent-harness`) |
+|---|---|---|
+| What it is | verification runner: GPU gates plus a real Minecraft scenario, driven by the development-only `src/harness/` mod | autonomous multi-agent development loop: dispatches an implementing worker and an independent verifying worker through Orca, then reconciles their claims against machine-written gate records |
+| What it can prove | offscreen Vulkan tests, interop checks, visual/pixel oracles, live checkpoints in a real client | that a candidate commit's gates actually ran, on that exact commit, with no weakened test, suppression or diagnostic allowance |
+| Human in the loop | the agent reads `summary.json` and repairs; the runner never edits source | none during a run; the owner sets the objective and the gate policy |
+| Status | the strict gate for this branch | frozen at `39dfece1`, certified by an independent Codex acceptance (round 17); not merged here and not a dependency of this branch |
+
+**Decision (2026-10-04).** `scripts/verify.py` is the verification spine. The agent
+harness stays on its own branch and is not developed further unless an autonomous
+loop is wanted again, because the defect backlog it was built to grind (D1-D6) is
+closed. Nothing on this branch imports it, and it must not be merged here as a
+side effect of unrelated work.
+
+If an autonomous loop is wanted again, the one change worth making is to let it
+call this runner. The agent harness kept `minecraft` as a **manual** gate purely
+because it had no way to drive a real client; `scripts/verify.py --only live` is
+exactly that driver. Its own Gradle gates then become redundant with this runner's
+GPU stage.
+
+One structural limitation of the agent harness is recorded for that day, in
+`docs/ai/runs/round18-javaexec-attribution.md` on its branch: it attributes
+validation diagnostics through JUnit XML, so a Gradle `JavaExec` gate such as
+`interopCompositeCheck` has nothing to attribute against and every diagnostic in
+it fails closed — which made the policy's own allowance for the (now fixed) D6
+interop diagnostic unsatisfiable. This runner does not have that limitation: it
+scans interop and live output directly.
