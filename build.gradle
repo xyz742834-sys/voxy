@@ -567,6 +567,11 @@ loom {
             if (project.hasProperty('harnessNativeFeatures')) {
                 vmArg '-Dvoxy.native.features=true'
             }
+            // Adopt Minecraft's device into Voxy's VkContext. Off by default; Voxy's renderer
+            // stays disabled either way until the GL-free renderer path exists.
+            if (project.hasProperty('harnessNativeAdopt')) {
+                vmArg '-Dvoxy.native.adopt=true'
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')

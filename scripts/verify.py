@@ -260,11 +260,23 @@ def native_marker_result(output, checkpoints):
         # The shader writes (255, 0, 255) but Minecraft's final composition darkens it
         # (measured: (235, 0, 235)), so the check is a bounded neighbourhood of the drawn
         # colour rather than equality, and the values actually found are recorded.
-        def is_marker(px):
+        far = tuple(report.get("farRgb") or (0, 255, 255))
+        rejected = tuple(report.get("rejectedRgb") or (255, 255, 0))
+
+        def near(px):
             return px[0] >= 200 and px[1] <= 60 and px[2] >= 200
-        found, colours, skipped = {}, {}, {}
+
+        def is_far(px):
+            return px[0] <= 60 and px[1] >= 200 and px[2] >= 200
+
+        def is_rejected(px):
+            return px[0] >= 200 and px[1] >= 200 and px[2] <= 60
+
+        is_marker = near
+        found, colours, skipped, depth_proof = {}, {}, {}, {}
         result["marker_pixels"], result["marker_colour_in_frame"] = found, colours
         result["frames_without_level_content"] = skipped
+        result["depth_proof"] = depth_proof
         for case in checkpoints:
             png = output / (case["stage"] + ".png")
             width, height = png_size(png)
@@ -276,17 +288,33 @@ def native_marker_result(output, checkpoints):
             if decoded_size != (width, height) or len(rows) <= y1:
                 raise ValueError(f"{case['stage']}: decoded {len(rows)} rows of {decoded_size}, need {y1 + 1}")
             hits, sample, brightest = 0, None, 0
+            far_hits, rejected_hits = 0, 0
             for y in range(y0, y1):
                 for x in range(x0, x1):
                     px = rows[y][x]
                     brightest = max(brightest, px[0] + px[1] + px[2])
-                    if is_marker(px):
+                    if near(px):
                         hits += 1
                         sample = px
+                    elif is_far(px):
+                        far_hits += 1
+                    elif is_rejected(px):
+                        rejected_hits += 1
             box = max(1, (x1 - x0) * (y1 - y0))
             found[case["stage"]] = hits
             colours[case["stage"]] = list(sample) if sample else None
+            depth_proof[case["stage"]] = {"near": hits, "far": far_hits, "rejected": rejected_hits}
+            # The depth proof is deterministic and scene-independent: a base quad is written with
+            # compare ALWAYS, a nearer quad covers 60% of the box with compare LESS, and a third
+            # quad is then drawn FARTHER with compare LESS. The third must be rejected everywhere,
+            # so a single pixel of its colour means depth testing did not happen.
+            if report.get("depthAttached") and rejected_hits:
+                raise ValueError(f"{case['stage']}: {rejected_hits} pixels of the colour that depth"
+                                 f" testing must reject are present, so depth is not working")
             if hits >= box // 4:
+                if report.get("depthAttached") and far_hits == 0 and brightest > 30:
+                    raise ValueError(f"{case['stage']}: the farther base quad is nowhere to be seen,"
+                                     f" so the near quad is not being depth-tested against it")
                 continue
             # The draw only happens on frames where the level is actually rendered. A
             # checkpoint captured during a dimension change lands on an essentially black
@@ -418,7 +446,7 @@ def main():
                 f"-PharnessOutput={native_output}", f"-PharnessRunDir={game}",
                 f"-PharnessSeconds={args.seconds}", "-PharnessNative=true",
                 "-PharnessGraphicsBackend=vulkan", "-PharnessNativeMarker=true",
-                "-PharnessNativeFeatures=true"], output, args.timeout)
+                "-PharnessNativeFeatures=true", "-PharnessNativeAdopt=true"], output, args.timeout)
             result["gate"] = native_environment_result(native_output)
             result["success"] &= result["gate"]["success"]
             result["marker"] = native_marker_result(native_output, result["gate"].get("checkpoints") or [])

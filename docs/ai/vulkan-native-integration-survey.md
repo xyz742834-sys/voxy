@@ -260,6 +260,56 @@ So Voxy's shader feature requirements can be satisfied on Minecraft's device, an
 remaining work for terrain is Voxy's own: `VkContext` must be able to adopt an external
 instance/device/queues/allocator instead of creating them.
 
+## Adoption, depth and the queue split, measured (2026-10-04)
+
+`VkContext` can now be handed an external instance/physical device/device/queue instead of
+creating its own (`VkContext.initAdopted`, `adopted = true`). The borrowed objects are
+never destroyed: `destroy()` frees only the command pool it created, and skips
+`vkDestroyDevice`/`vkDestroyInstance` — destroying either would kill Minecraft's own
+renderer. Derived state (limits, memory properties, subgroup size, timestamp bits, unified
+memory type, device extensions) is re-queried from the given physical device, so Voxy's
+existing `VkBuffer`/`VkTexture`/shader/pipeline code behaves the same in both modes.
+`McNativeVkContext` wires this up behind `-Dvoxy.native.adopt=true`, from the head of
+`VoxyClient.initVoxyClient` so it lands before Voxy would create a device of its own.
+
+**Queue choice.** Adoption takes Minecraft's **graphics** queue (family 0 here) and the
+constructor verifies that family has both GRAPHICS and COMPUTE. A graphics-capable family
+must support compute, so Voxy's traversal/cull/table-generation passes can share the one
+queue and no cross-family ownership transfer is needed — which matters here, because this
+host's compute queue is a *different* family (3).
+
+**Proof that Voxy's own layers work on Minecraft's device**
+(`build/harness/20261004T144320-209089Z`): a Voxy `VkBuffer` (persistently mapped through
+`VkContext.findMemoryType`), a compute shader from Voxy's own `SpirvCompiler`, and Voxy's
+own command pool and queue — wrote and read back `0x0123456789abcdef`
+(`provenByVoxyBufferAndShader: true`). That is the buffer layer, the shader layer and the
+queue/pool layer all running on Minecraft's device.
+
+**Depth.** The marker draw now attaches Minecraft's depth view (`D32_SFLOAT`, format 126)
+to the pass it opens through Minecraft's API, and proves depth test *and* depth write
+without assuming anything about Minecraft's scene-depth convention:
+
+1. a base quad over the whole box with compare `ALWAYS` + depth write (cyan, z = 0.6);
+2. a nearer quad over the left 60% with compare `LESS` (magenta, z = 0.3) — must pass;
+3. a farther quad over the whole box with compare `LESS` (yellow, z = 0.9) — must be
+   rejected everywhere.
+
+Measured across the lifecycle: near ≈ 9200 px, far 5888 px (a 60/40 split, as the geometry
+says), and **rejected 0 px in every checkpoint**. A single pixel of the third colour would
+mean depth testing did not happen, so the gate fails on it.
+
+**Lifetime, corrected.** The first adopted run ended with a *correct* validation complaint:
+"All child objects created on device must have been destroyed ... prior to destroying
+device". In adopted mode the device belongs to Minecraft, so Voxy's own command pool and
+pipelines must go first; `ClientLifecycleEvents.CLIENT_STOPPING` now calls
+`McNativeVkContext.releaseAdopted()`, and the run is clean (zero diagnostics).
+
+**One more y-orientation trap.** The quad rectangle constants hold the sign the measurement
+established, and an early version negated y *again* inside the draw call — putting the box
+back at the bottom of the image where the gate was not looking, with everything else
+working. The depth proof was in fact already correct in that run (near 9730 / far 6528 /
+rejected 0 at y ≈ 854). The negation now happens in exactly one place.
+
 ## What is NOT answered yet, and must be measured on hardware
 
 1. **Image-state ownership** — partly answered. Opening the pass through Minecraft's

@@ -291,6 +291,9 @@ public final class McNativeVulkanProbe {
                 var compute = McNativeComputeProbe.runOnce(device);
                 writeFile("native-compute-probe.json", McNativeComputeProbe.json(compute));
                 writeFile("native-device-features.json", featuresJson());
+                // Voxy の GPU 層そのものが MC の device 上で動くか。
+                writeFile("native-adopted-context.json",
+                    McNativeVkContext.json(McNativeVkContext.proveOnce()));
             }
         } catch (Throwable t) {
             Logger.warn("[native-vk] the device feature audit failed: " + t);

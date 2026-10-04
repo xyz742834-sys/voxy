@@ -64,6 +64,12 @@ public class VoxyClient implements ClientModInitializer {
     }
 
     public static void initVoxyClient() {
+        // ⚠ Capabilities / VkContext より先に。MC の Vulkan device を採用する場合、
+        // Voxy 自前の device を作る前に VkContext を埋めておかなければならない
+        // (vulkanIsUsable() の VkContext.init() は初期化済みなら何もしない)
+        // [docs/ai/vulkan-native-integration-survey.md]。既定では何もしない。
+        me.cortex.voxy.client.core.vk.mcnative.McNativeVkContext.adoptIfRequested();
+
         Capabilities.init();//Ensure clinit is called
 
         if (Capabilities.INSTANCE.hasBrokenDepthSampler) {
@@ -158,6 +164,12 @@ public class VoxyClient implements ClientModInitializer {
         // [docs/ai/project-goal.md / docs/ai/vulkan-native-integration-survey.md]。
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK
             .register(client -> me.cortex.voxy.client.core.vk.mcnative.McNativeVulkanProbe.probeOnce());
+
+        // ⚠ 採用モードでは device は Minecraft のものなので、Minecraft がそれを壊す前に
+        // Voxy が作った子オブジェクト (コマンドプール・パイプライン) を手放さなければ
+        // 「device 破棄前に子を全て破棄せよ」と検証レイヤが正しく指摘する。
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents.CLIENT_STOPPING
+            .register(client -> me.cortex.voxy.client.core.vk.mcnative.McNativeVkContext.releaseAdopted());
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             if (VoxyCommon.isAvailable()) {

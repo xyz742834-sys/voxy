@@ -51,6 +51,13 @@ public class VkContext {
      */
     public final boolean hasMetalObjects;
 
+    /**
+     * <b>この context が instance/device を所有しているか</b>。
+     * 採用モード (Minecraft の device を借りている) では false で、
+     * {@link #shutdown()} はそれらを破棄しない。
+     */
+    public final boolean adopted;
+
     public static VkContext get() {
         if (INSTANCE == null) throw new IllegalStateException("VkContext not initialised");
         return INSTANCE;
@@ -60,6 +67,34 @@ public class VkContext {
         if (INSTANCE != null) return;
         INSTANCE = new VkContext();
     }
+
+    /**
+     * <b>外部 (Minecraft 自身の Vulkan バックエンド) の device を採用する</b>。
+     *
+     * <p>instance / physical device / device / queue は<b>借り物</b>で、ここでは作らず壊さない。
+     * 自分で作るのはコマンドプールだけ。派生情報 (limits, memory properties, subgroup,
+     * timestamp, unified memory type, device 拡張) は渡された physical device から
+     * そのまま問い直すので、{@code VkBuffer} / {@code VkShader} など既存の資産は
+     * どちらのモードでも同じように動く。
+     *
+     * <p>⚠ Voxy のシェーダが要る device 機能 ({@code shaderInt64} など) は
+     * <b>device を作った側</b>が有効化していなければならない。MC の device では
+     * {@code me.cortex.voxy.client.core.vk.mcnative.McNativeDeviceFeatures} が
+     * その役を担う [docs/ai/vulkan-native-integration-survey.md]。
+     *
+     * @param queueFamily {@code queue} のファミリ。グラフィクス対応のファミリは
+     *                    仕様上 compute も必ず対応するので、Voxy の compute も同じ queue に流せる。
+     */
+    public static void initAdopted(VkInstance instance, VkPhysicalDevice physical, VkDevice device,
+                                   VkQueue queue, int queueFamily,
+                                   boolean validationEnabled, boolean syncValidationEnabled) {
+        if (INSTANCE != null) return;
+        INSTANCE = new VkContext(instance, physical, device, queue, queueFamily,
+            validationEnabled, syncValidationEnabled);
+    }
+
+    /** 採用モードか (instance/device を所有していない)。 */
+    public static boolean isAdopted() { return INSTANCE != null && INSTANCE.adopted; }
 
     public static void shutdown() {
         if (INSTANCE == null) return;
@@ -125,6 +160,7 @@ public class VkContext {
     }
 
     private VkContext() {
+        this.adopted = false;
         try (MemoryStack stack = stackPush()) {
             // Vulkan 1.4 を要求する。dynamic_rendering / synchronization2 / timeline_semaphore を
             // 拡張ではなくコア機能として使うため。
@@ -352,6 +388,102 @@ public class VkContext {
         }
     }
 
+    /**
+     * <b>採用モードの構築</b>。instance / physical / device / queue は外部のもので、
+     * ここでは作らない。派生情報は渡された physical device から問い直し、
+     * コマンドプールだけ自分で作る。
+     *
+     * @see #initAdopted
+     */
+    private VkContext(VkInstance instance, VkPhysicalDevice physical, VkDevice device,
+                      VkQueue queue, int queueFamily,
+                      boolean validationEnabled, boolean syncValidationEnabled) {
+        this.adopted = true;
+        this.instance = instance;
+        this.physical = physical;
+        this.device = device;
+        this.queue = queue;
+        this.queueFamily = queueFamily;
+        this.validationEnabled = validationEnabled;
+        this.syncValidationEnabled = syncValidationEnabled;
+        this.instanceApiVersion = queryInstanceVersion();
+
+        try (MemoryStack stack = stackPush()) {
+            VkPhysicalDeviceSubgroupProperties subgroupProps =
+                VkPhysicalDeviceSubgroupProperties.calloc(stack).sType$Default();
+            VkPhysicalDeviceProperties2 props2 = VkPhysicalDeviceProperties2.calloc(stack)
+                .sType$Default().pNext(subgroupProps.address());
+            vkGetPhysicalDeviceProperties2(physical, props2);
+            VkPhysicalDeviceProperties props = props2.properties();
+            this.timestampPeriod = props.limits().timestampPeriod();
+            this.maxPushConstantsSize = props.limits().maxPushConstantsSize();
+            this.subgroupSize = subgroupProps.subgroupSize();
+            this.hasSubgroup = this.subgroupSize > 1;
+            this.minStorageBufferOffsetAlignment = props.limits().minStorageBufferOffsetAlignment();
+            this.minUniformBufferOffsetAlignment = props.limits().minUniformBufferOffsetAlignment();
+
+            this.memProps = VkPhysicalDeviceMemoryProperties.calloc();
+            vkGetPhysicalDeviceMemoryProperties(physical, this.memProps);
+
+            IntBuffer count = stack.mallocInt(1);
+            vkGetPhysicalDeviceQueueFamilyProperties(physical, count, null);
+            VkQueueFamilyProperties.Buffer qfp = VkQueueFamilyProperties.calloc(count.get(0), stack);
+            vkGetPhysicalDeviceQueueFamilyProperties(physical, count, qfp);
+            if (queueFamily < 0 || queueFamily >= qfp.capacity()) {
+                throw new IllegalArgumentException("adopted queue family " + queueFamily
+                    + " is outside the device's " + qfp.capacity() + " families");
+            }
+            var family = qfp.get(queueFamily);
+            if ((family.queueFlags() & VK_QUEUE_GRAPHICS_BIT) == 0) {
+                throw new IllegalArgumentException("adopted queue family " + queueFamily
+                    + " has no graphics support (flags 0x" + Integer.toHexString(family.queueFlags()) + ")");
+            }
+            // ⚠ グラフィクス対応ファミリは仕様上 compute も対応する。これを確かめておくのは、
+            // Voxy が traversal/cull/table 生成を同じ queue に流すため。
+            if ((family.queueFlags() & VK_QUEUE_COMPUTE_BIT) == 0) {
+                throw new IllegalArgumentException("adopted queue family " + queueFamily
+                    + " has no compute support, so Voxy's compute passes cannot share it");
+            }
+            this.timestampValidBits = family.timestampValidBits();
+
+            // ⚠ IOSurface interop は device を作った側が拡張を有効にしていないと使えない。
+            // MC の device は VK_EXT_metal_objects を有効にしないので、採用モードでは
+            // この経路が自動的に無効になる (ネイティブ目標では使わない)。
+            this.hasMetalObjects = enumerateDeviceExtensions(stack, physical)
+                .contains("VK_EXT_metal_objects");
+
+            VkCommandPoolCreateInfo pci = VkCommandPoolCreateInfo.calloc(stack)
+                .sType$Default()
+                .flags(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
+                .queueFamilyIndex(queueFamily);
+            long[] pPool = new long[1];
+            check(vkCreateCommandPool(device, pci, null, pPool), "vkCreateCommandPool(adopted)");
+            this.commandPool = pPool[0];
+
+            this.unifiedMemoryType = findMemoryType(~0,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+              | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+              | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+            this.driverIdentity = props.deviceNameString()
+                + " api=" + verStr(props.apiVersion())
+                + " driver=" + verStr(props.driverVersion())
+                + " vendorID=0x" + Integer.toHexString(props.vendorID())
+                + " deviceID=0x" + Integer.toHexString(props.deviceID())
+                + " (adopted)";
+            Logger.info("Vulkan (adopted from the host application): " + this.driverIdentity
+                + " queueFamily=" + queueFamily
+                + " subgroupSize=" + this.subgroupSize
+                + " timestampBits=" + this.timestampValidBits
+                + " maxPushConstants=" + this.maxPushConstantsSize
+                + " minSsboOffsetAlign=" + this.minStorageBufferOffsetAlignment
+                + " unifiedMemType=" + this.unifiedMemoryType
+                + " metalObjects=" + this.hasMetalObjects
+                + " validation=" + this.validationEnabled
+                + " syncValidation=" + this.syncValidationEnabled);
+        }
+    }
+
     private static java.util.Set<String> enumerateInstanceLayers(MemoryStack stack) {
         var out = new java.util.HashSet<String>();
         IntBuffer count = stack.mallocInt(1);
@@ -552,13 +684,20 @@ public class VkContext {
     }
 
     private void destroy() {
+        // 作ったものだけ壊す。採用モードでは instance/device/queue は借り物なので触らない
+        // (壊すと Minecraft 自身のレンダラを殺すことになる)。
         vkDestroyCommandPool(device, commandPool, null);
-        vkDestroyDevice(device, null);
-        memProps.free();
         if (this.debugMessenger != VK_NULL_HANDLE) {
             org.lwjgl.vulkan.EXTDebugUtils.vkDestroyDebugUtilsMessengerEXT(instance, this.debugMessenger, null);
+            this.debugMessenger = VK_NULL_HANDLE;
         }
-        vkDestroyInstance(instance, null);
+        if (!this.adopted) {
+            vkDestroyDevice(device, null);
+        }
+        memProps.free();
+        if (!this.adopted) {
+            vkDestroyInstance(instance, null);
+        }
     }
 
     private static String verStr(int v) {
