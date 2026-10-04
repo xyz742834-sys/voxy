@@ -115,6 +115,46 @@ back:
   native, which also means its validation-layer setup, queue selection and memory
   allocation paths become MC's.
 
+## Measured on this host (2026-10-04)
+
+`McNativeVulkanProbe` reports from inside the client what Minecraft actually ran, and
+`scripts/verify.py --only native` drives it through the eleven-checkpoint lifecycle.
+Two results so far:
+
+1. **A preference is not a backend.** With `options.txt` containing
+   `preferredGraphicsBackend:"vulkan"`, Minecraft ran
+   `com.mojang.blaze3d.opengl.GlDevice` ("Using graphics backend OpenGL, using drivers:
+   4.1 Metal - 91.7") and rewrote the file back to `"default"`. This is exactly the
+   failure mode project-goal.md warns about, and the probe caught it rather than letting
+   the setting stand in for proof.
+2. **Minecraft's launch argument is what decides.** `net.minecraft.client.main.Main`
+   accepts `--graphicsBackend <default|opengl|vulkan>` and `--vulkanValidation`, and it
+   says so at runtime: "Graphics backend forced to vulkan by launch argument, in-game
+   preferred graphics backend setting is ignored". With that argument Minecraft ran
+   **"graphics backend Vulkan, using drivers: 1.2.357 MoltenVK 1.4.2"** and enabled its
+   own validation layers, and the probe reported:
+
+   - backend `com.mojang.blaze3d.vulkan.VulkanDevice` on **Apple M4 Pro** (vendor APPLE);
+   - non-zero `VkInstance`, `VkDevice` and VMA allocator handles;
+   - queue families **graphics=0, compute=3, transfer=3** — the graphics and compute
+     queues are *different families*, which matters for any compute work Voxy submits
+     alongside Minecraft's graphics work (queue family ownership transfers, or the
+     compute queue's own submission);
+   - main render target colour `Main / Color` **RGBA8_UNORM** 1708x960, depth
+     `Main / Depth` **D32_FLOAT** 1708x960, both with non-zero `VkImage`/`VkImageView`
+     and usage `0xf`;
+   - no notes, i.e. nothing had to be guessed or skipped.
+
+So the device and its targets are reachable with no OpenGL context involved. What is
+still absent is any Voxy rendering: Voxy disables itself on this backend (it logs that
+it needs a GL context to composite through), which is the next piece of work, not a
+property of the environment.
+
+`PreferredGraphicsApi.VULKAN.getBackendsToTry()` returns `[VulkanBackend, GlBackend]`,
+so Vulkan is tried first and OpenGL remains the fallback; `VulkanBackend.checkBackendAvailable()`
+rejects the backend when the Vulkan loader library is missing or
+`glfwVulkanSupported()` is false, before it ever creates an instance.
+
 ## What is NOT answered yet, and must be measured on hardware
 
 1. **Image-state ownership.** `VulkanGpuTexture` tracks no layout field; all
@@ -129,9 +169,10 @@ back:
    push descriptors) and of Voxy's own indirect/compute usage on MC's device.
 4. **Descriptor interplay** between Voxy's own layouts and MC's push-descriptor
    usage inside the same pass.
-5. Whether `Prefer Vulkan` actually selects this backend on this host, and what
-   `getBackendDescription()` reports when it does — the evidence requirement in
-   project-goal.md.
+5. ~~Whether the preference actually selects this backend on this host~~ — answered
+   above: only the launch argument does, and `getBackendDescription()` reports the LWJGL
+   version rather than the API, so the backend's identity must come from the device
+   class (as the probe does), never from that string.
 
 ## Proposed first step (bounded, evidence-first)
 
