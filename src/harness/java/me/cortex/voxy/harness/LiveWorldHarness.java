@@ -32,6 +32,8 @@ public final class LiveWorldHarness implements ClientModInitializer {
                               String dimension, double x, double y, double z,
                               long editMeshVersion, long priorEditMeshVersion) {}
     private final List<Checkpoint> checkpoints = new ArrayList<>();
+    private final List<Object> nativeCheckpoints = new ArrayList<>();
+    private final boolean nativeMode = Boolean.getBoolean("voxy.harness.native");
     private final List<String> failures = java.util.Collections.synchronizedList(new ArrayList<>());
     private Path output;
     private int stage;
@@ -77,13 +79,14 @@ public final class LiveWorldHarness implements ClientModInitializer {
             if (stage == 0 && !entered && !(mc.isGameLoadFinished() && mc.gui.screen() instanceof TitleScreen)) return;
             if (!entered) {
                 entered = true;
-                var d = VkInteropProbe.diagnostics(false);
+                var d = nativeMode ? null : VkInteropProbe.diagnostics(false);
                 frameStart = d == null ? 0 : d.frames();
                 enter(mc);
                 return;
             }
             if (stage == 0) {
                 if (!inWorld(mc)) return;
+                if (nativeMode) { advance(); return; }
                 if (VoxyClient.backend() != VoxyClient.Backend.VULKAN) {
                     failures.add("expected Vulkan renderer; selected=" + VoxyClient.backend());
                     finish(mc);
@@ -113,9 +116,10 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 mc.player.setYRot(0);
                 mc.player.setXRot(30);
             }
-            var d = VkInteropProbe.diagnostics(false);
-            if (elapsed < dwell + (stage == 2 ? 1 : 0) || d == null || d.frames() - frameStart < 20) return;
-            checkpoint(mc);
+            var d = nativeMode ? null : VkInteropProbe.diagnostics(false);
+            if (elapsed < dwell + (stage == 2 ? 1 : 0)
+                || (!nativeMode && (d == null || d.frames() - frameStart < 20))) return;
+            if (nativeMode) nativeCheckpoint(mc); else checkpoint(mc);
             if (stage == STAGES.length - 1) {
                 if (screenshotsPending.get() != 0) return;
                 finish(mc);
@@ -158,11 +162,11 @@ public final class LiveWorldHarness implements ClientModInitializer {
             case 3 -> command(mc, "tp @s 768 120 0 0 30");
             case 4 -> command(mc, "tp @s 0 120 0 0 30");
             case 5 -> {
-                editVersion = VkInteropProbe.meshVersionAt(0, 104, 24);
+                if (!nativeMode) editVersion = VkInteropProbe.meshVersionAt(0, 104, 24);
                 command(mc, "fill -8 100 20 8 108 28 minecraft:glass");
             }
             case 6 -> {
-                editVersion = VkInteropProbe.meshVersionAt(0, 104, 24);
+                if (!nativeMode) editVersion = VkInteropProbe.meshVersionAt(0, 104, 24);
                 command(mc, "fill -8 100 20 8 108 28 minecraft:air");
             }
             case 7 -> mc.getWindow().setWindowed(960, 540);
@@ -180,9 +184,9 @@ public final class LiveWorldHarness implements ClientModInitializer {
             case 1, 4, 10 -> mc.level.dimension() == Level.OVERWORLD && near(mc, 0, 120, 0);
             case 3 -> near(mc, 768, 120, 0);
             case 5 -> mc.level.getBlockState(new BlockPos(0, 104, 24)).is(Blocks.GLASS)
-                && VkInteropProbe.meshVersionAt(0, 104, 24) > editVersion;
+                && (nativeMode || VkInteropProbe.meshVersionAt(0, 104, 24) > editVersion);
             case 6 -> mc.level.getBlockState(new BlockPos(0, 104, 24)).isAir()
-                && VkInteropProbe.meshVersionAt(0, 104, 24) > editVersion;
+                && (nativeMode || VkInteropProbe.meshVersionAt(0, 104, 24) > editVersion);
             case 7 -> mc.getWindow().getScreenWidth() == 960 && mc.getWindow().getScreenHeight() == 540;
             case 8 -> {
                 if (reload.isCompletedExceptionally()) reload.join();
@@ -222,9 +226,36 @@ public final class LiveWorldHarness implements ClientModInitializer {
         stageStarted = System.nanoTime();
     }
 
+    private void nativeCheckpoint(Minecraft mc) {
+        String name = STAGES[stage];
+        if (nativeCheckpoints.stream().anyMatch(c -> ((java.util.Map<?, ?>) c).get("stage").equals(name))) return;
+        var report = me.cortex.voxy.client.core.vk.mcnative.McNativeVulkanProbe.probe();
+        if (!report.mcUsesVulkan() || report.vkDevice() == 0 || report.vkInstance() == 0
+            || report.colour() == null || report.depth() == null
+            || report.colour().vkImage() == 0 || report.colour().vkImageView() == 0
+            || report.depth().vkImage() == 0 || report.depth().vkImageView() == 0
+            || !report.notes().isEmpty()) failures.add(name + ": incomplete Minecraft-native Vulkan observation");
+        var entry = new java.util.LinkedHashMap<String, Object>();
+        entry.put("stage", name);
+        entry.put("renderer", report);
+        entry.put("voxyBackend", String.valueOf(VoxyClient.backend()));
+        entry.put("dimension", mc.level.dimension().toString());
+        entry.put("seconds", (System.nanoTime() - started) / 1e9);
+        entry.put("deviceDebuggingEnabled", com.mojang.blaze3d.systems.RenderSystem.getDevice().isDebuggingEnabled());
+        entry.put("deviceDebugMessages", com.mojang.blaze3d.systems.RenderSystem.getDevice().getLastDebugMessages());
+        nativeCheckpoints.add(entry);
+        screenshotsPending.incrementAndGet();
+        Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image -> {
+            try (image) { image.writeToFile(output.resolve(name + ".png")); }
+            catch (Exception e) { failures.add(name + ": screenshot failed: " + e); }
+            finally { screenshotsPending.decrementAndGet(); }
+        });
+        writeResult(false);
+    }
+
     private void finish(Minecraft mc) {
         done = true;
-        failures.addAll(VkContext.validationMessages());
+        if (!nativeMode) failures.addAll(VkContext.validationMessages());
         writeResult(true);
         System.out.println("[voxy-harness] finished failures=" + failures.size());
         mc.stop();
@@ -236,10 +267,12 @@ public final class LiveWorldHarness implements ClientModInitializer {
             result.put("complete", complete);
             result.put("success", complete && failures.isEmpty());
             result.put("stage", STAGES[stage]);
-            result.put("checkpoints", checkpoints);
+            result.put("checkpoints", nativeMode ? nativeCheckpoints : checkpoints);
             result.put("failures", List.copyOf(failures));
-            result.put("scope", "Live Vulkan liveness, world identity, geometry IDs, depth coverage and mesh regeneration after edits; pixel-level visual parity is not asserted");
-            Files.writeString(output.resolve("live-result.json"), new GsonBuilder().setPrettyPrinting().create().toJson(result));
+            result.put("scope", nativeMode ? "Minecraft-native Vulkan environment and lifecycle observations; Voxy LoD integration is not implemented"
+                : "Live Vulkan liveness, world identity, geometry IDs, depth coverage and mesh regeneration after edits; pixel-level visual parity is not asserted");
+            if (nativeMode) result.put("voxyIntegrationStatus", "BLOCKED_UNIMPLEMENTED");
+            Files.writeString(output.resolve(nativeMode ? "native-result.json" : "live-result.json"), new GsonBuilder().setPrettyPrinting().create().toJson(result));
         } catch (Exception e) { throw new IllegalStateException("cannot save harness result", e); }
     }
 

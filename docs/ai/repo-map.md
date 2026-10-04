@@ -89,7 +89,7 @@ current source; historical reports are evidence/rationale only (see note at the 
 
 ## Tests
 
-All Vulkan JUnit tests live under `src/test/java/me/cortex/voxy/vk/` (53 files, one
+All Vulkan JUnit tests live under `src/test/java/me/cortex/voxy/vk/` (55 files, one
 package — not split by subsystem). `VulkanTestSupport.requireVulkan()` is the shared
 skip-if-no-GPU guard; note it catches **any** `Throwable`, not just missing-hardware
 errors (see [testing.md](testing.md)). Three automation components now supplement the suite: `scripts/verify.py` is the

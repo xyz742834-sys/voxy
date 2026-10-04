@@ -68,6 +68,14 @@ gate. It does not expand GL-hosted integration or certify native/live-world reco
 
 ## Limits
 
+The native environment mode (`--only native`) drives the same isolated world lifecycle
+without entering `VkInteropProbe` or initializing Voxy's private context. It records
+Minecraft's actual Vulkan device and attachment image/view handles at eleven points,
+including resize, resource reload, dimensions and reconnect. Voxy LoD integration
+remains `BLOCKED_UNIMPLEMENTED`; screenshots depict Minecraft's renderer. The
+`--only required` aggregate always reports `INCOMPLETE` until native LoD, independent
+live native pixel/depth reference and native pressure/lifetime requirements are met.
+
 The live harness tests the diagnostic Vulkan path on macOS. CPU meshing remains
 synchronous, the camera region is rebuilt when left, and the full GL async streaming
 architecture is not ported. Eleven screenshot checkpoints and renderer assertions

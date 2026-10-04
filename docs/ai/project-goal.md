@@ -69,6 +69,10 @@ the minimal connection and its acceptance evidence are future implementation wor
   Minecraft-native-Vulkan integration results separately scoped. Passing any of
   the first three does not complete the fourth.
 
-The current runner writes `preferredGraphicsBackend:"default"` and checks Voxy's
-backend/diagnostic probe. It supplies GL-hosted diagnostic evidence, not the required
-native integration gate. See [testing.md](testing.md) and [harness.md](harness.md).
+The runner's usual live stage writes `preferredGraphicsBackend:"default"` and checks
+Voxy's diagnostic probe. Its `--only native` stage instead observes Minecraft's actual
+Vulkan device and native image/view handles through an isolated world lifecycle,
+while Voxy remains disabled. These are environment observations, not native LoD
+integration acceptance. `--only required` retains an explicit `INCOMPLETE` verdict
+for the missing native rendering, reference pixels/depth and pressure/lifetime
+requirements. See [testing.md](testing.md) and [harness.md](harness.md).

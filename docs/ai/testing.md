@@ -15,7 +15,24 @@ that enum describes Voxy's renderer, not Minecraft's actual graphics backend.
 The existing production selection requires Minecraft GL for this probe route.
 Thus even a full runner PASS does not mean the native integration target works.
 
-A future native acceptance run must record Minecraft's actual Vulkan backend/device,
+The development harness also has an environment-only native lifecycle mode:
+`python3 scripts/verify.py --only native`. It requests Minecraft Vulkan and verifies
+the actual `VulkanDevice`, device/instance/VMA handles and native color/depth image
+views at all eleven lifecycle checkpoints, retaining screenshots. It forces Khronos
+validation and synchronization validation through the loader environment and requires
+loader evidence that the validation layer was inserted. It never creates Voxy's
+private Vulkan context or calls the GL interop probe in this mode. Voxy currently
+disables itself; this environment gate cannot certify Voxy native LoD rendering.
+
+`python3 scripts/verify.py --only required --seconds 30 --timeout 1800` runs the GPU,
+interop, existing diagnostic live scenario and native environment scenario in order.
+It reports `INCOMPLETE` and exits nonzero while the required native Voxy connection,
+native live-world pixel/depth reference and live pressure/lifetime acceptance remain
+unimplemented. Passing executed gates is separately recorded as
+`executed_gates_success`; these prerequisites cannot be converted to a green result.
+`--wait-lock` queues behind an existing runner instead of competing with its build.
+
+A native LoD acceptance run must record Minecraft's actual Vulkan backend/device,
 the Voxy connection route and candidate, and reject fallback to Minecraft OpenGL.
 Preserve existing evidence for comparison without expanding GL-specific integration
 as a delivery milestone. Native integration remains unimplemented.
@@ -89,10 +106,10 @@ These remain useful for development, but only the runner aggregates all validati
 output and required execution into a strict exit status. Standard CI has no required
 GPU lane, and `VulkanTestSupport` catches any initialization Throwable as a skip.
 
-The normal offline build also passes (285 pass / 4 validation-only skips), and the
+The normal offline build also passes (294 pass / 4 validation-only skips), and the
 produced jar excludes the harness mod.
 
-The latest validation GPU run has 289 cases: 288 pass / 1 known skip, with no
+The latest validation GPU run has 298 cases: 297 pass / 1 known skip, with no
 unexpected diagnostics. Offscreen interop has 45 passing checks and clean validation
 following explicit IOSurface image memory binding. Consult the run's JSON and logs
 for precise revision/source hashes. The live scenario after update-ingestion integration passes all eleven checkpoints,
@@ -100,6 +117,14 @@ including newer mesh versions after placement/removal. The generated result is
 authoritative runtime evidence; a final run also checks application error output.
 
 ## Standalone analytic image and arena recovery gates
+
+`ShaderMemoryLayoutTest` independently decodes actual shaderc-generated SPIR-V
+member offsets, matrix stride and runtime array stride. Four tests cover the real
+terrain uniform, real traversal uniform/node/request/render queues, shared
+DrawCommand/SectionMeta/BlockModel declarations, and an injected member that must
+break the contract. Terrain data occupies 92 bytes; that is distinct from its
+96-byte std140 rounded struct alignment. This is ABI evidence, not native device
+ownership or multi-frame lifetime evidence.
 
 `VkVisualRecoveryTest` adds six required GPU tests. A single known UP quad has a
 literal 256×192 reference: framebuffer rectangle x=[64,128), y=[96,144),
@@ -173,4 +198,14 @@ Additional combined evidence (2026-10-04):
 cases, four effective negative controls, three recovery cycles, 46 hashed visual
 artifacts, 45 interop checks and 11 live checkpoints. No unexpected validation or
 live Voxy application errors. The runner's source snapshot/fingerprints bind the
-working source candidate; commits made concurrently do not change that scope.
+working source candidate; that run certifies its saved source snapshot, not later concurrent source edits.
+
+Latest source-bound combined verdict after concurrent D2/D3/D6 regressions:
+`build/harness/20261004T024238-672252Z/combined-verdict.json` — PASS on identical
+source fingerprints across the GPU run, complete live rerun and final worktree;
+298 cases (297 pass / one known skip), all six visual/recovery tests, three pressure
+cycles, 45 interop checks, 11 live checkpoints and normal offline build/JAR checks.
+The first live launch from `20261004T024025-344875Z` failed with
+`NoClassDefFoundError: FlashbackCompat`; its failed verdict remains retained. A full
+live rerun on identical source succeeded. Concurrent editing/builds were observed,
+but the exact cause of the transient class-loading failure remains unestablished.

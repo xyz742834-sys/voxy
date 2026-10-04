@@ -121,7 +121,7 @@ A mechanical translation of GL barrier bits does not prove any of these edges â€
 they've been individually reasoned about and partially validation-tested.
 
 **Current verification and remaining blind spot** (2026-10-04): the validation-enabled
-suite has 289 cases, 288 pass / 1 documented skip, with no unexpected diagnostics.
+suite has 298 cases, 297 pass / 1 documented skip, with no unexpected diagnostics.
 The 45 offscreen interop checks also pass with clean validation. `scripts/verify.py`
 adds a strict output gate and independent analytic PNG/raw-depth checks; plain Gradle tasks still check validation selectively.
 
