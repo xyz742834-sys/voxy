@@ -276,20 +276,62 @@ public final class McNativeVulkanProbe {
         } catch (Throwable t) {
             Logger.warn("[native-vk] the native Vulkan probe failed: " + t);
         }
+        // 機能の突き合わせは独立した問い (Voxy のシェーダが MC の device で動くか) なので
+        // 別ファイルに残す。失敗しても probe の結果は捨てない。
+        try {
+            var device = McNativeVulkan.device();
+            if (device != null) {
+                var audit = McNativeFeatureAudit.audit(device);
+                Logger.info("[native-vk] Voxy requires " + McNativeFeatureAudit.VOXY_REQUIRES.size()
+                    + " device features; supported-but-not-enabled-by-Minecraft="
+                    + audit.missingEnabled() + " unsupported=" + audit.unsupported()
+                    + " zZeroToOne=" + audit.zZeroToOne());
+                writeFile("native-feature-audit.json", McNativeFeatureAudit.json(audit));
+                // 要求を足したかどうかではなく「効いたか」を測る。
+                var compute = McNativeComputeProbe.runOnce(device);
+                writeFile("native-compute-probe.json", McNativeComputeProbe.json(compute));
+                writeFile("native-device-features.json", featuresJson());
+            }
+        } catch (Throwable t) {
+            Logger.warn("[native-vk] the device feature audit failed: " + t);
+        }
     }
 
     /** 直近の測定結果。まだ測っていなければ null。 */
     public static Report last() { return last; }
 
     private static void writeEvidence(Report r) {
+        writeFile("native-vulkan-probe.json", json(r));
+    }
+
+    /** {@link McNativeDeviceFeatures} が何を足したか。 */
+    private static String featuresJson() {
+        var status = McNativeDeviceFeatures.status();
+        var sb = new StringBuilder("{\n");
+        sb.append("  \"enabled\": ").append(status.enabled()).append(",\n");
+        sb.append("  \"attempted\": ").append(status.attempted()).append(",\n");
+        sb.append("  \"added\": [");
+        for (int i = 0; i < status.added().size(); i++) {
+            sb.append(i == 0 ? "" : ", ").append(quote(status.added().get(i)));
+        }
+        sb.append("],\n  \"notes\": [");
+        for (int i = 0; i < status.notes().size(); i++) {
+            sb.append(i == 0 ? "\n    " : ",\n    ").append(quote(status.notes().get(i)));
+        }
+        sb.append(status.notes().isEmpty() ? "]\n}" : "\n  ]\n}");
+        return sb.toString();
+    }
+
+    /** 証跡ディレクトリ ({@code -Dvoxy.harness.output}) が指定されていればそこへ書く。 */
+    static void writeFile(String name, String content) {
         String dir = System.getProperty("voxy.harness.output");
         if (dir == null || dir.isBlank()) return;
         try {
             Path out = Path.of(dir);
             Files.createDirectories(out);
-            Files.writeString(out.resolve("native-vulkan-probe.json"), json(r), StandardCharsets.UTF_8);
+            Files.writeString(out.resolve(name), content, StandardCharsets.UTF_8);
         } catch (Throwable t) {
-            Logger.warn("[native-vk] could not write the probe evidence: " + t);
+            Logger.warn("[native-vk] could not write " + name + ": " + t);
         }
     }
 

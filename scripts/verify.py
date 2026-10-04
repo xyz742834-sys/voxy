@@ -417,7 +417,8 @@ def main():
             result = run_stage("native", ["runHarnessClient", *native_common,
                 f"-PharnessOutput={native_output}", f"-PharnessRunDir={game}",
                 f"-PharnessSeconds={args.seconds}", "-PharnessNative=true",
-                "-PharnessGraphicsBackend=vulkan", "-PharnessNativeMarker=true"], output, args.timeout)
+                "-PharnessGraphicsBackend=vulkan", "-PharnessNativeMarker=true",
+                "-PharnessNativeFeatures=true"], output, args.timeout)
             result["gate"] = native_environment_result(native_output)
             result["success"] &= result["gate"]["success"]
             result["marker"] = native_marker_result(native_output, result["gate"].get("checkpoints") or [])

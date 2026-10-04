@@ -202,6 +202,64 @@ What this does NOT show: any Voxy terrain. The draw is a marker, chosen so that 
 command reach Minecraft's frame" is answerable without dragging in depth conventions,
 descriptors or the terrain pipeline. Depth is deliberately not attached.
 
+## Can Voxy's shaders run on Minecraft's device? Measured (2026-10-04)
+
+This is the question that decides whether the renderer can be adopted onto Minecraft's
+device at all, so it was measured before writing any adoption code.
+
+`McNativeFeatureAudit` asks two separate questions per feature `VkContext` requests —
+does the physical device support it, and did Minecraft enable it — because the answers
+have different consequences. Result on this host
+(`build/harness/20261004T073531-523575Z`):
+
+- **nothing Voxy needs is unsupported.** MoltenVK 1.4.2 on Apple M4 Pro supports all
+  eight: `multiDrawIndirect`, `drawIndirectFirstInstance`, `shaderInt64`,
+  `fragmentStoresAndAtomics`, `vertexPipelineStoresAndAtomics`, `shaderDrawParameters`,
+  `synchronization2`, `dynamicRendering`.
+- **Minecraft enables only half of them.** Its `REQUIRED_DEVICE_FEATURES` are
+  `multiDrawIndirect`, `fillModeNonSolid`, `samplerAnisotropy`, `shaderDrawParameters`,
+  `timelineSemaphore`, `hostQueryReset`, `synchronization2`, `dynamicRendering`,
+  `vertexAttributeInstanceRateDivisor`, `multiDraw`; its device extensions are
+  `VK_KHR_dynamic_rendering`, `VK_KHR_push_descriptor`, `VK_KHR_synchronization2`,
+  `VK_EXT_vertex_attribute_divisor`, `VK_KHR_swapchain` — note that
+  `VK_EXT_metal_objects` is **not** among them, so the native path has no IOSurface
+  import available and does not need one.
+- So `drawIndirectFirstInstance`, `shaderInt64`, `fragmentStoresAndAtomics` and
+  `vertexPipelineStoresAndAtomics` are supported-but-not-requested. That gap is in
+  Minecraft's device creation, not in the hardware.
+- `DeviceInfo.isZZeroToOne()` is **true**, matching Voxy's `USE_ZERO_ONE_DEPTH`.
+
+`MixinVulkanBackend` closes the gap by adding those four to the feature set Minecraft
+passes to `vkCreateDevice`, behind `-Dvoxy.native.features=true` so a normal game's
+device creation is untouched, and with `require = 0` so a changed internal does not
+crash the game.
+
+**A warning worth keeping.** The first implementation derived the feature offsets
+arithmetically from one of Minecraft's own features. `VulkanFeature`'s offset turned out
+to be relative to the `features` member of `VkPhysicalDeviceFeatures2`, not to the struct
+start, and Minecraft's own numbers read correctly under *either* interpretation — so the
+derivation looked sound and was wrong by 16 bytes. It requested `depthBounds`,
+`shaderStorageImageMultisample` and `sparseBinding`, which MoltenVK does not support, and
+**Minecraft refused to start** (`VK_ERROR_FEATURE_NOT_PRESENT`, "vkCreateDevice(): the
+15th flag ... is not available"). The offsets are now resolved by experiment: each
+candidate is written into a scratch `VkPhysicalDeviceFeatures2` and read back through
+LWJGL's own accessor, and a feature is only added if exactly the intended field became
+set. A feature whose offset cannot be verified is not added.
+
+**The proof that the features are actually enabled.** Vulkan has no API for "which
+features are enabled on this device", so requesting them is not evidence. A minimal
+compute shader — `uint64_t` written into an SSBO, which needs both `shaderInt64` and
+compute storage writes — is compiled by Voxy's own `SpirvCompiler`, built into a pipeline
+on Minecraft's `VkDevice`, dispatched on Minecraft's **compute queue** (family 3 here,
+separate from graphics family 0) from Voxy's own command pool, waited on with a fence, and
+read back: `0x0123456789abcdef` written, `0x0123456789abcdef` read. In the same run the
+eleven-checkpoint lifecycle, the marker draw and the environment gate all pass with zero
+validation diagnostics.
+
+So Voxy's shader feature requirements can be satisfied on Minecraft's device, and the
+remaining work for terrain is Voxy's own: `VkContext` must be able to adopt an external
+instance/device/queues/allocator instead of creating them.
+
 ## What is NOT answered yet, and must be measured on hardware
 
 1. **Image-state ownership** — partly answered. Opening the pass through Minecraft's
