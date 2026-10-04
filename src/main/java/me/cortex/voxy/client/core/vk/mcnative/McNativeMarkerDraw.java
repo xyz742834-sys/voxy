@@ -473,6 +473,17 @@ public final class McNativeMarkerDraw implements Destroyable {
         if (device != null) retire(draw, device); else draw.destroy();
     }
 
+    /**
+     * <b>いま壊す</b>。クライアント終了時はこれ以上提出が無いので、
+     * {@code queueForDestroy} に預けても<b>誰も処理しない</b> — 預けたままだと
+     * Minecraft が device を壊すときに「子オブジェクトが残っている」と正しく指摘される。
+     */
+    public static void shutdownImmediate() {
+        var draw = instance;
+        instance = null;
+        if (draw != null) draw.destroy();
+    }
+
     private static void note(String note) {
         synchronized (NOTES) {
             if (NOTES.size() < 32 && !NOTES.contains(note)) NOTES.add(note);

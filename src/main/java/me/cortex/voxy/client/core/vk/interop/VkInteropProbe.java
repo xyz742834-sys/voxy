@@ -1,4 +1,5 @@
 package me.cortex.voxy.client.core.vk.interop;
+import me.cortex.voxy.client.core.vk.VkCmd;
 
 import me.cortex.voxy.client.core.vk.SyntheticTerrain;
 import me.cortex.voxy.client.core.vk.VkBuffer;
@@ -23,8 +24,6 @@ import org.lwjgl.vulkan.VkViewport;
 
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.vulkan.VK10.*;
-import static org.lwjgl.vulkan.VK13.vkCmdBeginRendering;
-import static org.lwjgl.vulkan.VK13.vkCmdEndRendering;
 
 /**
  * Phase 5c-1b / 5c-1c — <b>Vulkan と Minecraft の間で絵が正しい向きで往復するか</b>を確かめる探り。
@@ -2448,7 +2447,7 @@ public final class VkInteropProbe {
                 .layerCount(1).pColorAttachments(att);
             ri.renderArea().offset().set(0, 0);
             ri.renderArea().extent().set(width, height);
-            vkCmdBeginRendering(cmd, ri);
+            VkCmd.beginRendering(cmd, ri);
 
             var vp = VkViewport.calloc(1, stack)
                 .x(0).y(0).width(width).height(height).minDepth(0).maxDepth(1);
@@ -2462,7 +2461,7 @@ public final class VkInteropProbe {
             clearRect(cmd, stack, BAND, 0, bandStartRow(height), width, height - bandStartRow(height));
             recordCornerMarker(cmd, width, height);
 
-            vkCmdEndRendering(cmd);
+            VkCmd.endRendering(cmd);
         }
 
         // GL に渡す

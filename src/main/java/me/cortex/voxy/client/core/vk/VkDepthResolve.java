@@ -14,8 +14,6 @@ import org.lwjgl.vulkan.VkViewport;
 
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.vulkan.VK10.*;
-import static org.lwjgl.vulkan.VK13.vkCmdBeginRendering;
-import static org.lwjgl.vulkan.VK13.vkCmdEndRendering;
 
 /**
  * Vulkan の深度アタッチメント (D32_SFLOAT) を <b>interop の R32F 画像</b>へ写すパス。
@@ -163,7 +161,7 @@ public class VkDepthResolve {
                 .layerCount(1).pColorAttachments(att);
             ri.renderArea().offset().set(0, 0);
             ri.renderArea().extent().set(this.width, this.height);
-            vkCmdBeginRendering(cmd, ri);
+            VkCmd.beginRendering(cmd, ri);
 
             var vp = VkViewport.calloc(1, stack)
                 .x(0).y(0).width(this.width).height(this.height).minDepth(0).maxDepth(1);
@@ -178,7 +176,7 @@ public class VkDepthResolve {
             if (this.reproject) this.shader.flushPushConstants(cmd);
             vkCmdDraw(cmd, 3, 1, 0, 0);
         }
-        vkCmdEndRendering(cmd);
+        VkCmd.endRendering(cmd);
 
         // GL に渡す。GL 側との順序は Vulkan のバリアでは表現できず、
         // CPU 側の同期でしか担保できない [Phase 5a §4]

@@ -14,8 +14,6 @@ import org.lwjgl.vulkan.VkViewport;
 
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.vulkan.VK10.*;
-import static org.lwjgl.vulkan.VK13.vkCmdBeginRendering;
-import static org.lwjgl.vulkan.VK13.vkCmdEndRendering;
 
 /**
  * Phase 5c-4a — <b>階層 Z バッファ (HiZ)</b> をミップ連鎖として作る。
@@ -157,7 +155,7 @@ public final class VkHiZ {
                     .layerCount(1).pColorAttachments(att);
                 ri.renderArea().offset().set(0, 0);
                 ri.renderArea().extent().set(w, h);
-                vkCmdBeginRendering(cmd, ri);
+                VkCmd.beginRendering(cmd, ri);
 
                 var vp = VkViewport.calloc(1, stack)
                     .x(0).y(0).width(w).height(h).minDepth(0).maxDepth(1);
@@ -171,7 +169,7 @@ public final class VkHiZ {
                 this.sets.bind(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, level);
                 vkCmdDraw(cmd, 3, 1, 0, 0);
             }
-            vkCmdEndRendering(cmd);
+            VkCmd.endRendering(cmd);
 
             w = Math.max(w / 2, 1);
             h = Math.max(h / 2, 1);

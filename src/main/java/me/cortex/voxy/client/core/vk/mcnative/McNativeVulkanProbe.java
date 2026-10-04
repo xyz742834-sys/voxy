@@ -294,6 +294,9 @@ public final class McNativeVulkanProbe {
                 // Voxy の GPU 層そのものが MC の device 上で動くか。
                 writeFile("native-adopted-context.json",
                     McNativeVkContext.json(McNativeVkContext.proveOnce()));
+                // 本番のシェーダ読み込み・記述子自動束縛・フレーム管理まで通す。
+                writeFile("native-real-shader.json",
+                    McNativeRealShaderProbe.json(McNativeRealShaderProbe.runOnce()));
             }
         } catch (Throwable t) {
             Logger.warn("[native-vk] the device feature audit failed: " + t);

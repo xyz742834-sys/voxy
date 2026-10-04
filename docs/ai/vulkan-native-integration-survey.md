@@ -310,6 +310,54 @@ back at the bottom of the image where the gate was not looking, with everything 
 working. The depth proof was in fact already correct in that run (near 9730 / far 6528 /
 rejected 0 at y ≈ 854). The negation now happens in exactly one place.
 
+## Voxy's real shader stack on Minecraft's device, measured (2026-10-04)
+
+The earlier proofs used pipelines assembled on the spot. This one runs **Voxy's production
+machinery**: `VkShaderLoader.parse` (including `#import <voxy:lod/vk/quad_index.glsl>`
+resolution and define injection), `VkAutoBindingShader` (descriptor sets derived from the
+SPIR-V's own bindings), `VkFrameTracker` (Voxy's frame and command-buffer management),
+`VkBarriers` (synchronization2 translation), and `VkBuffer`/`VkTerrainResources`/
+`SyntheticTerrain`. The shader is `index_probe.comp`, a real one that calls the *same*
+`resolveQuad` the vertex shader uses, for every quad ordinal.
+
+Result (`build/harness/20261004T150924-204694Z`, OVERALL true,
+`changed_sources_during_run: []`, **zero validation diagnostics**): **189 quad ordinals
+resolved on Minecraft's device, every one matching the CPU linear-search reference**, with
+the adoption proof, the marker draw, the depth proof and the eleven-checkpoint lifecycle all
+green in the same run.
+
+Getting there required three fixes, each a real finding rather than a slip:
+
+**1. Core 1.3 entry points are not the same as the KHR ones.** synchronization2 and
+dynamic rendering became core in Vulkan 1.3, but Minecraft's device is 1.2 with
+`VK_KHR_synchronization2` and `VK_KHR_dynamic_rendering`. Functionally identical, *different
+function pointers* — the core ones are null there, and LWJGL's `Checks.check` throws
+`NullPointerException` rather than anything that names the cause. Voxy called the core
+entries directly, so its barrier layer died the moment it ran on Minecraft's device. The new
+`VkCmd` picks core or KHR from the command buffer's own device capabilities for the three
+commands involved (`vkCmdPipelineBarrier2`, `vkCmdBeginRendering`, `vkCmdEndRendering`; 22
+call sites). Structs and `sType` values are shared between core and KHR, so nothing else
+changes, and Voxy's own 1.4 device still takes the core path — the 313-test suite is
+unchanged. **Any new native-path code will hit this, which is why the choice lives in one
+place.**
+
+**2. Destruction order belongs to whoever owns the device.** In adopted mode Minecraft owns
+it, so everything Voxy created must go first, and it must go *after* Minecraft's last frame
+has retired. Two separate validation complaints, both correct, taught this: pipelines
+destroyed while submitted commands still referenced them, and child objects outliving the
+device. `releaseAdopted()` now waits for the device to idle (safe at client stop), destroys
+the marker draw immediately rather than deferring it to `queueForDestroy` — which nothing
+would ever process at shutdown — and empties Voxy's static GPU caches (`VkCullPass`,
+`VkUploadStream`, `VkDownloadStream`, `VkSampler`, `VkQuadIndexBuffer`, `VkFrameTracker`),
+exactly the list the Vulkan tests tear down.
+
+**3. The probe needed to be runnable without Minecraft.** The first in-game attempt threw an
+NPE whose cause was invisible from the outside, and each diagnosis cost a full client launch.
+`McNativeRealShaderProbe.runAgainstCurrentContext()` is therefore callable against *any*
+`VkContext`, and `McNativeRealShaderProbeTest` runs it against Voxy's own device in the
+ordinary suite. That separates "the probe is wrong" from "Minecraft's device is different",
+and it is what located the KHR problem in one iteration instead of several.
+
 ## What is NOT answered yet, and must be measured on hardware
 
 1. **Image-state ownership** — partly answered. Opening the pass through Minecraft's

@@ -261,12 +261,40 @@ public final class McNativeVkContext {
      * 「device 破棄前に子オブジェクトを全て破棄せよ」と正しく指摘する。
      */
     public static void releaseAdopted() {
+        // ⚠ Minecraft の最終フレームがまだ実行中のことがある。そのフレームが参照している
+        // パイプラインを壊すと検証レイヤが正しく指摘する ("All submitted commands that
+        // refer to pipeline must have completed execution")。終了時なので待って構わない。
         try {
-            McNativeMarkerDraw.shutdown();
+            var device = McNativeVulkan.device();
+            if (device != null) vkDeviceWaitIdle(device.vkDevice());
+        } catch (Throwable t) {
+            Logger.warn("[native-vk] could not wait for Minecraft's device to go idle: " + t);
+        }
+        try {
+            // ⚠ queueForDestroy ではなく即破棄。終了時はもう誰も提出しないので、
+            // 預けたままだと device 破棄時に子オブジェクトが残る。
+            McNativeMarkerDraw.shutdownImmediate();
         } catch (Throwable t) {
             Logger.warn("[native-vk] could not release the marker draw: " + t);
         }
         if (!VkContext.isAdopted()) return;
+        // ⚠ Voxy の静的キャッシュは device オブジェクトを握っている。採用モードでは
+        // device は Minecraft のものなので、MC がそれを壊す前にこちらを空にしないと
+        // 「device 破棄前に子オブジェクトを全て破棄せよ」と正しく指摘される
+        // (Vk テストの teardown が落としているものと同じ一覧)。
+        for (Runnable cache : new Runnable[] {
+                me.cortex.voxy.client.core.vk.VkCullPass::shutdown,
+                me.cortex.voxy.client.core.vk.VkUploadStream::shutdown,
+                me.cortex.voxy.client.core.vk.VkDownloadStream::shutdown,
+                me.cortex.voxy.client.core.vk.VkSampler::shutdown,
+                me.cortex.voxy.client.core.vk.VkQuadIndexBuffer::shutdown,
+                me.cortex.voxy.client.core.vk.VkFrameTracker::shutdown}) {
+            try {
+                cache.run();
+            } catch (Throwable t) {
+                Logger.warn("[native-vk] could not release a Voxy GPU cache: " + t);
+            }
+        }
         try {
             VkContext.shutdown();
             Logger.info("[native-vk] released Minecraft's device from VkContext"

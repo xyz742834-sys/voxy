@@ -106,7 +106,7 @@ public final class VkBarriers {
             var dep = VkDependencyInfo.calloc(stack)
                 .sType$Default()
                 .pMemoryBarriers(b);
-            vkCmdPipelineBarrier2(cmd, dep);
+            VkCmd.pipelineBarrier2(cmd, dep);
         }
     }
 }

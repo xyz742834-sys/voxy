@@ -14,8 +14,6 @@ import org.lwjgl.vulkan.VkViewport;
 
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.vulkan.VK10.*;
-import static org.lwjgl.vulkan.VK13.vkCmdBeginRendering;
-import static org.lwjgl.vulkan.VK13.vkCmdEndRendering;
 
 /**
  * Phase 5c-1c — <b>Minecraft の深度を Vulkan が受け取り、色に変換して返す</b>パス。
@@ -175,7 +173,7 @@ public class VkDepthVisualise {
                 .layerCount(1).pColorAttachments(att);
             ri.renderArea().offset().set(0, 0);
             ri.renderArea().extent().set(this.width, this.height);
-            vkCmdBeginRendering(cmd, ri);
+            VkCmd.beginRendering(cmd, ri);
 
             var vp = VkViewport.calloc(1, stack)
                 .x(0).y(0).width(this.width).height(this.height).minDepth(0).maxDepth(1);
@@ -191,7 +189,7 @@ public class VkDepthVisualise {
 
             if (overlay != null) overlay.run();
 
-            vkCmdEndRendering(cmd);
+            VkCmd.endRendering(cmd);
         }
 
         // GL に渡す

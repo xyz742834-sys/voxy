@@ -143,7 +143,7 @@ public class VkRenderTarget {
             ri.renderArea().offset().set(0, 0);
             ri.renderArea().extent().set(this.width, this.height);
 
-            vkCmdBeginRendering(cmd, ri);
+            VkCmd.beginRendering(cmd, ri);
 
             // dynamic_rendering ではビューポート/シザーは動的に指定する
             var vp = VkViewport.calloc(1, stack)
@@ -182,7 +182,7 @@ public class VkRenderTarget {
                 .pDepthAttachment(depthAtt);
             ri.renderArea().offset().set(0, 0);
             ri.renderArea().extent().set(this.width, this.height);
-            vkCmdBeginRendering(cmd, ri);
+            VkCmd.beginRendering(cmd, ri);
 
             var vp = VkViewport.calloc(1, stack)
                 .x(0).y(0).width(this.width).height(this.height).minDepth(0).maxDepth(1);
@@ -195,7 +195,7 @@ public class VkRenderTarget {
     }
 
     public void endRendering(VkCommandBuffer cmd) {
-        vkCmdEndRendering(cmd);
+        VkCmd.endRendering(cmd);
     }
 
     // ---------------- readback ----------------
