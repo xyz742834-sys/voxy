@@ -1,0 +1,23 @@
+---
+description: Voxy Vulkan/macOS completion target and prohibition on new GL-dependent integration
+alwaysApply: true
+---
+
+# Voxy Vulkan integration direction
+
+Owner decision, 2026-10-04: complete Voxy on Minecraft's own Vulkan backend
+(`Prefer Vulkan`), using MoltenVK on macOS. Read `docs/ai/project-goal.md` before
+planning Vulkan work; it defines scope, priority and acceptance evidence.
+
+- New Vulkan integration must not require a GL context, GL texture IDs/casts,
+  or IOSurface/CGL-to-GL composition. Do not expand/productize the GL diagnostic
+  route as the next milestone or introduce a GL fallback requirement.
+- Reuse shared CPU/model/meshing and Vulkan rendering logic. Preserve the existing
+  OpenGL backend, shared shaders and historical evidence; do not delete GL code
+  just because the Vulkan target is changing its integration route.
+- Prioritize a minimal draw connected to Minecraft's Vulkan device, color/depth
+  targets and submission/resource lifetimes before expanding diagnostic features.
+- Verify the actual Minecraft backend. A Voxy Vulkan enum, preference setting,
+  offscreen pass or GL-hosted live pass does not prove native integration.
+- Keep implemented state and intended architecture distinct. Follow `AGENTS.md`
+  and `docs/ai/constraints.md` for the remaining repository rules.
