@@ -58,7 +58,7 @@ current source; historical reports are evidence/rationale only (see note at the 
 | Cull pass | `VkCullPass.java` + `shaders/lod/vk/cull_raster.{vert,frag}` | phase4-stage4-completion |
 | Terrain rendering / resources | `VkTerrainRenderer.java`, `VkTerrainResources.java` + `shaders/lod/vk/quads3.vert` | phase4-completion |
 | Depth resolve / reprojection / reverse-Z | `VkDepthResolve.java`, `VkDepth.java` + `shaders/lod/vk/depth_resolve.*` | phase5c-reverse-z, phase5c-y-orientation |
-| Depth visualizer (has D2 defect) | `VkDepthVisualise.java` + `shaders/lod/vk/depth_visualise.*` | phase5c1c-completion, phase6-sync-validation |
+| Depth visualizer (D2 layout mismatch fixed 2026-10-04) | `VkDepthVisualise.java` + `shaders/lod/vk/depth_visualise.*` | phase5c1c-completion, phase6-sync-validation |
 | Barriers | `VkBarriers.java` | phase3-barrier-survey, phase4-buffer-hazards |
 | Geometry upload / reclamation | `VkGeometryFlush.java` (uploads geometry + section metadata; does not build merged tables), `VkModelUploadTarget.java`, `VkNodeUploadTarget.java` | phase6-geometry-reclaim |
 | Real meshing / model bakery adapter | `VkRealMesher.java`, `VkRealModelBakery.java`, `VkRealSectionUpload.java` | phase5c2a-completion, phase5c2b-boundary |
@@ -89,13 +89,23 @@ current source; historical reports are evidence/rationale only (see note at the 
 
 ## Tests
 
-All Vulkan JUnit tests live under `src/test/java/me/cortex/voxy/vk/` (52 files, one
+All Vulkan JUnit tests live under `src/test/java/me/cortex/voxy/vk/` (53 files, one
 package — not split by subsystem). `VulkanTestSupport.requireVulkan()` is the shared
 skip-if-no-GPU guard; note it catches **any** `Throwable`, not just missing-hardware
-errors (see [testing.md](testing.md)). Two bench/manual entry points live under
+errors (see [testing.md](testing.md)). Three automation components now supplement the suite: `scripts/verify.py` is the
+strict gate/runner (including independent `pixel_oracle.py` PNG/raw-depth checks), `src/harness/` is a development-only Fabric mod with the live
+scenario, and `scripts/tests/` checks gate classification. See [harness.md](harness.md).
+`VkVisualRecoveryTest.java` produces analytic pixel controls and three real arena
+recovery cycles through `VkGeometryAdmission.java`, also used by the hierarchical
+scene. This standalone evidence is separate from the live smoke and native target.
+`VulkanWorldUpdates.java` handles coalesced client-side block ingestion; the
+hierarchical scene forwards world events through the shared update router.
+
+Two bench/manual entry points live under
 `vk/bench/`: `GlToVkSyncBench.java`, `InteropCompositeCheck.java` (the
 `interopCompositeCheck` Gradle task; its pass/fail depends only on its own `failures`
-list, not on the validation-message stream — see [testing.md](testing.md)).
+list, not on the validation-message stream; the strict runner additionally checks output
+and rejects diagnostics — see [testing.md](testing.md)).
 
 ## Historical reports (`docs/*.md`, 45 files)
 

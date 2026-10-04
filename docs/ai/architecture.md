@@ -7,6 +7,18 @@ backends. This doc describes the major paths as implemented; see
 [gpu-contracts.md](gpu-contracts.md) for exact binary layouts and binding numbers, and
 [current-state.md](current-state.md) for what's actually wired up end to end today.
 
+## Target architecture (owner decision, 2026-10-04)
+
+The delivery target is **Minecraft Vulkan + Voxy Vulkan → MoltenVK → Metal** on
+macOS. Integrate with Minecraft's Vulkan device, render targets and submission/
+resource lifetimes; no GL context, GL texture IDs or GL composition may be required.
+See [project-goal.md](project-goal.md) for scope and completion evidence.
+
+That connection is not implemented. The backend selection, frame sequence and
+IOSurface/GL composition described below document the current diagnostic path.
+Preserve them as evidence while directing new integration work toward the target;
+do not expand that GL-hosted path as the delivery milestone.
+
 ## Layering
 
 ```
@@ -97,6 +109,10 @@ shared world data
   -> GL color/depth composite via IOSurface
 ```
 
+The probe waits for prior GL work before every Vulkan write to shared images, and
+before shared-image destruction/reallocation. `VkInteropImage` now explicitly binds
+Vulkan memory while retaining IOSurface backing.
+
 Uniform/visibility setup for a frame happens **before** `beginFrame()`; CPU request
 servicing happens after the fence wait and **before** the GL composite (source order in
 `VkInteropProbe.composite()`). See
@@ -104,10 +120,29 @@ servicing happens after the fence wait and **before** the GL composite (source o
 plus the one-time `primeLayout()` of the imported depth image, are correctness
 preconditions rather than incidental details.
 
-This is the *intended* stage ordering, not a certified guarantee that every
-cross-stage value agrees on frame N — see D1 in
-[current-state.md](current-state.md#known-defects) for a concrete case where it
-doesn't (a stale host-side section count reaches the prefix/dispatch stage).
+Table sizing now derives from prep's current GPU counts, including prefix face
+boundaries and translucent indirect dispatch. The 2026-10-04 changing-count GPU
+regression covers growth/shrink across dispatch boundaries. This does not establish
+all hierarchy or resource-lifetime invariants; see [current-state.md](current-state.md).
+
+### Diagnostic world updates and lifecycle
+
+`VulkanWorldUpdates` coalesces client block packets into section snapshots (64 per
+tick maximum). Ingested data is forwarded through the shared `SectionUpdateRouter`;
+callbacks enqueue keys rather than modifying node/GPU state on ingestion threads.
+`VkHierarchicalScene.serviceRequests()` drains bounded update queues, applies child
+changes and synchronously remeshes dirtied watched sections after the GPU fence.
+Missing sections and failed allocation remain retryable. `VkGeometryAdmission`
+encapsulates the real allocator/reclaimer/NodeManager admission policy; standalone
+GPU tests exercise rejection, capacity release and re-request through this same code. Unwatching geometry clears
+its accepted-mesh marker.
+
+The probe checks active-engine identity and whether the camera remains within its
+populated top-level region. A changed engine or departed region frees and rebuilds
+the diagnostic scene. Session end shuts down the probe before the Voxy instance.
+This is bounded diagnostic integration; the full async GL streaming architecture
+is not ported. `WorldEngine` publishes callback replacement through a volatile
+field and captures it once before invocation, avoiding a detach race.
 
 ### Context and resource model
 

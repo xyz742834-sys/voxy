@@ -1,169 +1,168 @@
 # Testing
 
-Verification levels, current commands, and what each one actually proves. Numbers below
-were re-verified on 2026-09-22 (macOS arm64, Apple M4 Pro, Vulkan 1.4, loader API
-1.4.357, driver 0.2.2210) and independently re-run the same day by
-[context-review.md](context-review.md) — re-run the commands yourself before trusting
-exact counts on a different host or after source changes.
+Updated 2026-10-04. Use the strict runner for GPU/live verification. The 2026-09-22
+results in the audit/context-review are historical baselines, not the current gate.
 
-## Levels
+## Scope relative to the project goal
 
-### 1. Compile / package
+The target in [project-goal.md](project-goal.md) requires Minecraft itself to use
+Vulkan. The commands below verify the current offscreen/GL-hosted diagnostic path;
+none currently supplies Minecraft-native-Vulkan integration acceptance.
 
+`scripts/verify.py` writes `preferredGraphicsBackend:"default"` for the live run.
+The live harness checks `VoxyClient.Backend.VULKAN` and `VkInteropProbe` metrics;
+that enum describes Voxy's renderer, not Minecraft's actual graphics backend.
+The existing production selection requires Minecraft GL for this probe route.
+Thus even a full runner PASS does not mean the native integration target works.
+
+A future native acceptance run must record Minecraft's actual Vulkan backend/device,
+the Voxy connection route and candidate, and reject fallback to Minecraft OpenGL.
+Preserve existing evidence for comparison without expanding GL-specific integration
+as a delivery milestone. Native integration remains unimplemented.
+
+## One-command verification (current diagnostic path)
+
+```sh
+python3 scripts/verify.py
 ```
-./gradlew build
+
+Runs all stages sequentially with validation and synchronization validation enabled:
+
+1. JUnit, rerunning tasks and collecting fresh per-test XML.
+2. macOS GL↔Vulkan offscreen composite checks.
+3. Real Minecraft: create a fresh fixed-seed world → warmup → camera turns →
+   travel 768 blocks → return → place/remove glass → resize → resource reload →
+   Nether → Overworld → disconnect → reconnect → stop.
+
+Every run uses a unique `build/harness/<UTC timestamp>/` directory. Logs, live
+screenshots, JUnit XML, GPU images, source hashes, tracked patch and `summary.json`
+are retained, including on failure. Existing `run/` saves/options are never used.
+A directory marker and absence of existing saves are checked before live actions.
+
+The runner rejects unexpected validation warnings/errors, unexpected skips, Voxy application ERROR lines, missing
+GPU execution, a missing synchronization negative control, missing result/image
+files, stage timeouts and nonzero subprocess exit codes. It continues independent
+stages after a failed GPU stage, so one invocation captures multiple failure causes.
+A checkout lock prevents two runner invocations from racing Gradle/Loom outputs.
+Do not concurrently run another Gradle invocation in the same checkout.
+
+Only `VkBarriersTest.plainBufferHazardIsNowDetected` may emit its exact intentional
+fill-buffer WAW diagnostic. The descriptor-SSBO `missingBarrierIsDetected` skip
+remains visible as `known_gaps`; it cannot pass on this stack and is not evidence.
+Setup/teardown diagnostics are checked as well. The existing narrow interop
+suppression is not expanded.
+
+## Targeted runs and longer scenarios
+
+```sh
+python3 scripts/verify.py --only gpu
+python3 scripts/verify.py --only live
+python3 scripts/verify.py --seconds 60 --timeout 1800
+python3 scripts/verify.py --online
+python3 -m unittest discover -s scripts/tests -v
 ```
 
-Runs Java compilation, the default (non-validation) JUnit suite, access-widener
-validation, and produces the jar. This is what CI (`.github/workflows/`) runs on
-`ubuntu-latest`: the push workflow (`check-does-build.yml`) as
-`./gradlew -I init.gradle build`, the PR and manual-artifact workflows as plain
-`./gradlew build`. No workflow configures a GPU/validation lane, so this level says
-nothing about Vulkan/GPU correctness, only that the code compiles and GPU-independent
-logic passes. (The produced jar has no root license file — `from("LICENSE")` vs.
-tracked `LICENSE.md`.)
+Default is offline, 10 seconds per live scenario, 1200 seconds maximum per Gradle
+stage. `--seconds` increases dwell time; `--timeout` must cover the whole client
+scenario plus startup. `--online` permits dependency downloads. Loader path can be
+set with `--vk-lib`; default `/opt/homebrew/lib/libvulkan.dylib`.
 
-### 2. Default JUnit run (GPU required, no validation layer)
+Live runs require a macOS graphical login session, a supported Vulkan device,
+Khronos loader/layers and the Minecraft asset/dependency cache (or online mode).
+No GUI automation app is required. A Voxy backend mismatch or absent validation
+fails rather than falling back to a successful GL-only test. The development-only
+`src/harness` mod is on the custom run classpath and excluded from the shipped jar.
 
-```
+## Ordinary Gradle commands
+
+```sh
+./gradlew build --offline
 ./gradlew test --offline --rerun-tasks
-```
-
-282 tests total. Last verified: 278 pass, 4 skip, 0 fail/error. The 4 skips are
-`VkBarriersTest.{computeToComputeSilencesTheHazard, missingBarrierIsDetected,
-conservativeBarrierAlsoCovers, plainBufferHazardIsNowDetected}` — these specifically
-need the validation layer to mean anything and are gated on it being present.
-
-### 3. Validation-layer run (the actually meaningful GPU gate)
-
-```
 ./gradlew test --offline --rerun-tasks \
   -PvkLibname=/opt/homebrew/lib/libvulkan.dylib \
   -PvkValidation=true -PvkSyncEnv=true
+./gradlew interopCompositeCheck --offline \
+  -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
 ```
 
-Last verified (bootstrap audit and independent context review, both 2026-09-22):
-**281 pass, 1 skip, 0 fail/error**. The one remaining skip is
-`VkBarriersTest.missingBarrierIsDetected`. The two synchronization controls in
-`VkBarriersTest` are different tests and must not be conflated:
+These remain useful for development, but only the runner aggregates all validation
+output and required execution into a strict exit status. Standard CI has no required
+GPU lane, and `VulkanTestSupport` catches any initialization Throwable as a skip.
 
-- `missingBarrierIsDetected()` issues two unsynchronized **descriptor-bound SSBO**
-  dispatches, receives zero validation messages on this stack, and then calls
-  `Assumptions.abort` unconditionally after the dispatch/readback. It is **skipped
-  even with validation enabled**, and cannot pass even if a future stack starts
-  reporting the hazard. Its silence is a documented layer limitation, not evidence.
-- `plainBufferHazardIsNowDetected()` issues two unsynchronized `vkCmdFillBuffer`
-  calls on the same range and **passes by asserting their WAW hazard is reported**.
-  This is the positive control proving the sync-validation layer is actually active.
-  Its deliberate hazard message is *not* one of the 7 unexpected diagnostics below.
+The normal offline build also passes (285 pass / 4 validation-only skips), and the
+produced jar excludes the harness mod.
 
-**This run is not clean** despite reporting `BUILD SUCCESSFUL`: it emits **7 unexpected
-validation diagnostics**, all attributable to two known defects:
+The latest validation GPU run has 289 cases: 288 pass / 1 known skip, with no
+unexpected diagnostics. Offscreen interop has 45 passing checks and clean validation
+following explicit IOSurface image memory binding. Consult the run's JSON and logs
+for precise revision/source hashes. The live scenario after update-ingestion integration passes all eleven checkpoints,
+including newer mesh versions after placement/removal. The generated result is
+authoritative runtime evidence; a final run also checks application error output.
 
-- **D2**: `VUID-vkCmdDraw-imageLayout-00344` ×4, from `VkDepthVisualiseTest` — the
-  visualizer's depth source is bound as read-only-optimal but kept in `GENERAL` for
-  interop.
-- **D3**: `SYNC-HAZARD-READ-AFTER-WRITE` ×3, from `VkHiZDepthSourceTest` — the shared
-  `VkRenderTarget.beginRendering(..., null, ...)` helper's LOAD-attachment transition
-  omits the required `COLOR_ATTACHMENT_READ` access.
+## Standalone analytic image and arena recovery gates
 
-**Do not treat "BUILD SUCCESSFUL" or "N passed" as "clean validation."** Tests check
-validation messages selectively (each test scopes its own expected messages), so an
-unrelated case can print a diagnostic without failing. See D6 in
-[current-state.md](current-state.md#known-defects).
+`VkVisualRecoveryTest` adds six required GPU tests. A single known UP quad has a
+literal 256×192 reference: framebuffer rectangle x=[64,128), y=[96,144),
+RGBA=(192,0,55,65), reverse-Z depth=0.1; all other pixels are black with depth zero.
+The reference is independent of the produced image and projection helpers. All
+49,152 pixels are compared, including background and encoded alpha. Four deliberate
+controls change horizontal placement, omit the draw, change atlas color, or change
+only depth; each must be rejected by the reference while its JUnit control passes.
 
-**Known blind spot**: sync validation on this stack does not report hazards for
-descriptor-bound SSBO writes (that is why `missingBarrierIsDetected` aborts as
-skipped rather than passing). A zero-message result for any descriptor-bound buffer
-access is weak evidence, not confirmation of barrier correctness.
+A real 3 KiB `BasicAsyncGeometryManager` arena is filled with two protected roots
+and a child. A 2 KiB child demand cannot fit; production `VkGeometryAdmission`
+reclaims the child (usage 3072→2048) and rejects the demand. Releasing the other
+root gives usage 1024; an actual `NodeManager` re-request then accepts the same
+2 KiB demand. Uploads, GPU-generated tables and rendering must recover the exact
+analytic image. Three cycles exercise pointer/ID reuse and release all allocations.
+This tests arena exhaustion, not OS-wide or Vulkan-device out-of-memory handling.
 
-### 4. Interop checks (macOS GL↔Vulkan offscreen)
+The strict runner requires all six tests to execute and pass, three complete
+pressure cycles, and fresh evidence under `visual-recovery/`. It independently
+checks PNG CRCs/scanlines, literal RGB pixels and raw little-endian float depth;
+missing, truncated, inconsistent or skipped evidence fails. Each fixture retains
+expected/actual/diff PNGs, raw depth and JSON metrics, fingerprinted in the summary.
+These reusable Vulkan gates require no Minecraft or OpenGL context. They do not
+certify live-world visual parity, real lighting/meshing, historical draw references
+under pressure, or Minecraft-native integration. Fifteen Python gate tests also
+check diagnostic classification and rejection of corrupted/missing evidence.
 
-```
-./gradlew interopCompositeCheck --offline
-./gradlew interopCompositeCheck --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
-```
+## What live checks prove
 
-45/45 checks pass both ways. With validation, 28 interop-metadata messages are reported
-and narrowly suppressed (`VkContext.INTEROP_NOISE_VUIDS`: three IOSurface-related
-VUIDs, only for registered interop image handles). **The validated run is not clean**:
-it also emits **one unsuppressed validation diagnostic** while still printing
-`ALL CHECKS PASSED` (observed twice by the 2026-09-22 context review; the bootstrap
-audit's earlier "no unsuppressed validation error lines observed" is superseded):
+Each checkpoint requires at least 20 new Vulkan frames, nonzero meshed/selected
+geometry and depth coverage, zero invalid render IDs, no stuck geometry exhaustion,
+and the current world-engine identity. Position, dimension, block-state, resize and
+reload acknowledgements are checked before capture. Placement/removal also waits
+for a newer completed mesh version at an ancestor of the edited location.
 
-```text
-[UNASSIGNED-VkDescriptorImageInfo-BoundResourceFreedMemoryAccess]
-vkUpdateDescriptorSets(): pDescriptorWrites[0].pImageInfo[0].image
-VkImage 0x750000000075 used with no memory bound.
-...
-suppressed 28 known interop validation messages
-ALL CHECKS PASSED
-```
+The harness stabilizes the camera before testing coverage after a turn. Looking away
+from terrain during the sweep is valid; only the final known view must contain terrain.
+Screenshots are evidence, not a pixel-parity oracle. A checkpoint is not repeated
+while asynchronous screenshot saving completes; all eleven PNGs are required.
 
-It appears during the C11 depth-visualization path (`InteropCompositeCheck` records
-`VkDepthVisualise` against the imported depth image), not the deliberate
-missing-depth-attachment control. The checker's exit status depends only on its
-`failures` list, not on the validation-message stream — the same selective-checking gap
-as D6. The root cause (possibly another external-memory metadata limitation, since
-IOSurface-backed images never call `vkBindImageMemory`) is **unproven**; do not
-broaden the suppression list to hide it. These are **offscreen, single-operation**
-checks; they don't prove multi-frame image reuse/reallocation safety across queued GL
-work (see gaps below).
+## Remaining gaps
 
-### 5. Minecraft smoke/soak (manual, not automated)
+- Minecraft-native-Vulkan integration and its acceptance gate (the delivery target
+  in [project-goal.md](project-goal.md)); current GL-hosted results do not cover it.
+- Pixel-level live GL/Vulkan parity, lighting/fog/SSAO comparisons and expected-image
+  assertions after edits. A newer mesh version proves regeneration, not pixel accuracy.
+- Mandatory low-memory reclaim→re-request and exhaustion→recovery live scenarios.
+- Full multi-frame hierarchy/traversal correctness against an independent reference;
+  the new changing-count regression checks table generation across dispatch boundaries.
+- Shader member offsets/strides against real SPIR-V reflection.
+- Long-session resource lifetime, close without disconnect, rapid travel/edit load and
+  resource-pack content changes. The current run is a bounded smoke scenario.
+- Storage corruption/migration/failure tests and fresh-cache/native-packaging matrices.
+- Descriptor-bound SSBO sync-validation blind spot.
 
-`runClient` launches a real Minecraft client. Available tools:
-`glToVkSyncBench`, `interopCompositeCheck` (as a Gradle task or standalone), the
-installed Khronos loader/validation layer, and a Lavapipe software ICD for
-non-hardware-accelerated coverage. **No automated harness drives this** — a real-world
-run (travel, edits, world switches, reclamation under load) has to be done by hand and
-its results captured manually (logs/screenshots with hardware and launch properties).
-**Neither the 2026-09-22 bootstrap audit nor the context review ran Minecraft** — no
-world was opened; the automated tests are offscreen or isolated fixtures. Live-world
-evidence is therefore still outstanding (including post-fix verification of the latest
-geometry-reclamation crash fixes). Not run as part of routine verification; do it when
-a change plausibly affects streaming, world lifecycle, or long-session GPU-resource
-lifetime.
+Historical manual `TestNodeManager.main()` methods are not JUnit tests. New Vulkan
+JUnit tests belong under `src/test/java/me/cortex/voxy/vk/`. Add expected-error rules
+only for narrowly scoped negative controls and preserve positive execution checks.
 
-## What's covered
-
-Capabilities-without-GL; buffer/texture/context/frame/stream lifecycle; shader
-guards/bindings/push-constant reflection; model/node upload and atlas scaling; packed
-geometry/position invariants; CPU/GPU merged-table equivalence (synthetic fixtures);
-index splitting; temporal visibility; translucent buckets; cull; HiZ/depth/
-orientation/projection; traversal queue bounds; GPU timing; allocator
-budget/fragmentation/reclamation (isolated, not full request→evict→request cycles).
-
-## What's NOT covered (don't assume these are safe because CI is green)
-
-- Full multi-frame hierarchy→table→draw sequence with a **changing** section count —
-  this is exactly defect D1's shape (0→nonzero, growth, shrink across dispatch
-  boundaries, rapid camera turns).
-- Request→evict→re-request lifecycle in a running world; exhaustion→recovery (D4).
-- Active-world identity across disconnect/reconnect, dimension switches, resource
-  reload, resize (D5's territory).
-- Automated per-test validation-message assertions with scoped expected-error lists
-  (currently manual/selective — this is what causes D6).
-- Reflected Java↔shader member offsets/strides/array lengths against real SPIR-V
-  reflection (current guards check type/count/visibility, not byte layout).
-- Cross-API multi-frame image reuse under **queued** GL load (only offscreen
-  single-shot equivalence is tested).
-- Real-world color/lighting/fog/SSAO/GL-parity comparison on a live scene.
-- Persistence/storage: malformed or corrupted data, importer edge cases, mapper
-  migration, concurrent ingestion/save/service-failure paths.
-- Fresh-dependency-cache builds and the installed mod/loader/native-packaging matrix
-  (offline/cached builds only prove the current local cache resolves).
-
-## Adding a test
-
-- Vulkan-dependent tests go under `src/test/java/me/cortex/voxy/vk/` and should use
-  `VulkanTestSupport.requireVulkan()` to skip when no GPU is available — but see the
-  [constraints.md](constraints.md) note that this catches *any* `Throwable`, not just
-  missing hardware, so a genuine regression can masquerade as a skip.
-- If a test intentionally provokes a validation-layer hazard as a negative control,
-  scope its message-check narrowly (see existing `VkBarriersTest` negative controls) —
-  a blanket "no validation messages" assertion would break every deliberate negative
-  control in the suite.
-- `TestNodeManager` (in `src/main/java/.../hierachical/`) has manual `main()` methods
-  and is **not** part of the automated JUnit suite despite living under `src/main` —
-  don't assume it runs in CI.
+Final combined evidence (2026-10-04):
+`build/harness/20261004T021038-528738Z/summary.json` — all three stages passed;
+11 live PNGs, no unexpected validation diagnostics, no Voxy application ERROR lines.
+This evidence is ignored build output and is not a checked-in baseline image suite.
+The captured ocean travel scene shows horizontal bands; the current liveness gate
+has no live-world pixel-accuracy oracle to classify that visual artifact or establish its cause.
+The new analytic fixture does not establish that the ocean bands are correct.

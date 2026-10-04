@@ -3,6 +3,20 @@
 Invariants and rules an agent working in this repo must not accidentally violate. Each
 entry says *why*, so you can judge edge cases rather than pattern-match the rule.
 
+## Vulkan delivery must use Minecraft's Vulkan backend
+
+The owner's 2026-10-04 decision in [project-goal.md](project-goal.md) governs future
+Vulkan work: Minecraft and Voxy must both run Vulkan, through MoltenVK on macOS.
+New integration must not require a GL context, GL texture IDs/casts or GL composition.
+Do not expand/productize the IOSurface/CGL diagnostic route or add a GL fallback
+requirement as a completion path. Existing GL-hosted passes are not native acceptance.
+
+Preserve the established GL renderer, shared CPU/shader invariants and diagnostic
+evidence. Reusable CPU/Vulkan correctness work remains relevant; do not interpret
+this direction as a ban on shared code or permission to delete all GL-related files.
+The first integration priority is a minimal draw on Minecraft's Vulkan device with
+correct color/depth, submission ordering and resource ownership.
+
 ## Historical reports are immutable
 
 `docs/*.md` phase reports (45 files) are a chronological record — several already
@@ -34,6 +48,10 @@ every buffer), picks the **first** physical device with no selection logic, and 
 whole interop layer (`client/core/vk/interop/`) is IOSurface/CGL-specific, i.e.
 macOS-only. Do not "generalize" these without an explicit task to do so — they are
 current, intentional scope limits, not oversights waiting to be cleaned up.
+These describe the diagnostic implementation, not a requirement to retain an
+independently created device or IOSurface/GL interop when connecting to Minecraft's
+Vulkan backend. Device borrowing and direct Vulkan composition follow the project
+goal; unrelated cross-platform generalization remains outside that goal.
 
 ## Binding numbers are pipeline-local
 
@@ -62,8 +80,8 @@ fragment visibility writes→compute, prefix writes→indirect/vertex reads, dep
 attachment→HiZ, HiZ mip→mip, HiZ→traversal, resolve→interop) is the thing that must stay
 correct. **Do not relax or remove a `CONSERVATIVE`/broad barrier to "clean up" or chase
 performance without validation-layer evidence that a narrower barrier is sufficient.**
-The codebase already has one open synchronization-validation gap (D3, and the
-descriptor-SSBO blind spot noted in [testing.md](testing.md)) — don't add more by
+D3's attachment LOAD transitions were fixed on 2026-10-04, but the
+descriptor-SSBO blind spot noted in [testing.md](testing.md) remains — don't add more by
 assumption.
 
 ## `VulkanTestSupport.requireVulkan()` swallows more than "no GPU"
@@ -75,14 +93,15 @@ whether the skip is really "no supported GPU here" before trusting it.
 
 ## Test coverage gaps are real, not incidental
 
-Per [testing.md](testing.md), there is currently no automated multi-frame hierarchy
-test exercising changing section counts (the exact shape of defect D1), no
-disconnect/reconnect or world-identity test (D5's territory), and the
-descriptor-SSBO negative control (`VkBarriersTest.missingBarrierIsDetected`) produces
-no hazard on this stack and is **skipped** via `Assumptions.abort`, even with validation
-on — only the fill-buffer control (`plainBufferHazardIsNowDetected`) actually passes.
-Don't cite passing or skipped tests in these areas as evidence of correctness — they're
-not exercising the failure mode.
+The 2026-10-04 runner drives a real-world smoke scenario and the new table regression
+covers changing GPU section counts against stale host counts. These do not prove
+full hierarchy correctness, live pixel parity, or live forced-reclaim/exhaustion recovery.
+The additional standalone analytic color/depth and 3 KiB arena recovery gates cover
+their explicit opaque fixture and admission policy, not the missing native integration
+or arbitrary live-world scenes. Keep these evidence scopes separate.
+The descriptor-SSBO negative control still aborts as skipped; only the fill-buffer
+control proves synchronization validation is active. The runner reports the blind
+spot and rejects other skips. See [testing.md](testing.md).
 
 ## Do not treat "Gradle build succeeded" as "Vulkan validated"
 
@@ -90,9 +109,10 @@ CI (`.github/workflows/`) runs on `ubuntu-latest` with no configured GPU/validat
 lane. A green CI run proves compilation and the GPU-independent unit tests, nothing
 about Vulkan/interop correctness. Vulkan validation only happens when someone runs the
 test suite locally with `-PvkLibname=... -PvkValidation=true -PvkSyncEnv=true` on real
-(or Lavapipe) Vulkan hardware — see [testing.md](testing.md). Even then, "BUILD
-SUCCESSFUL" or "ALL CHECKS PASSED" is not "clean validation": both the JUnit suite and
-`interopCompositeCheck` currently pass while emitting unsuppressed diagnostics (D6).
+(or Lavapipe) Vulkan hardware — see [testing.md](testing.md). "BUILD SUCCESSFUL" or "ALL CHECKS PASSED" alone is not a strict validation gate:
+plain tasks still check selectively. The unexpected baseline diagnostics were fixed
+on 2026-10-04; `scripts/verify.py` now rejects unexpected per-test/setup/teardown and
+interop/live diagnostics. Use it to prevent D6-style false-green outcomes.
 
 ## Don't promote a historical report's opening claim without reading its corrections
 
@@ -109,3 +129,12 @@ If asked to do another audit-like pass: match the existing convention of
 fixes into an audit-only change, and don't overwrite `/tmp` evidence claims as if they
 were reproducible from the repo alone (some historical benchmark numbers came from
 external tooling not in this repo — flag that rather than re-deriving them).
+
+## Diagnostic update ownership
+
+The active Vulkan scene owns its engine's dirty callback and detaches it at teardown.
+Callbacks may run on ingestion threads: they must only forward events/enqueue keys.
+Node mutation, remeshing and uploads remain in bounded post-fence request service.
+Do not install a second renderer's callback on the same engine or touch the local
+watch-enumeration map from producer threads. `WorldEngine.markDirty` captures the
+volatile callback once to avoid a concurrent detach null-dereference.

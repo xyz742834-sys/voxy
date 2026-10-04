@@ -9,7 +9,8 @@ GL-side equivalent too (see [constraints.md](constraints.md)).
 Verified against current source at `vulkan-macos` @ `ad54dd8d`, 2026-09-22, and
 corrected the same day per [context-review.md](context-review.md) (source anchors,
 barrier-control naming, frame-order preconditions). When in doubt, the source anchors
-listed under each section are the ground truth — this doc summarizes them.
+listed under each section are the ground truth — this doc summarizes them. Updated 2026-10-04 for table sizing,
+attachment LOAD barriers, shared-image memory binding and diagnostic lifecycle.
 
 ## Java ↔ shader buffer layouts
 
@@ -65,19 +66,17 @@ descriptors between recorded dispatches; submission-generation checks reject man
 in-flight descriptor updates. `unboundBindings()` exists as a diagnostic but is **not**
 automatically asserted inside `bind()` — call it explicitly if you need the check.
 
-**Known contract violation**: `VkDepthVisualise` binds its source via
-`VkAutoBindingShader.texture()`, which advertises `SHADER_READ_ONLY_OPTIMAL`, but
-`record()` keeps the actual image in `GENERAL` for interop reasons — this is defect D2
-(see [current-state.md](current-state.md#known-defects)). Image descriptors generally
-advertise a fixed read-only layout; **actual image state is caller-managed**, and this
-is the one place that contract is currently broken.
+`VkDepthVisualise` now uses an explicit GENERAL sampled-image descriptor layout,
+matching its externally shared source. Other callers keep the default read-only
+layout. Descriptor declarations do not perform transitions; actual image state is
+still caller-managed. This fixes baseline D2 without changing GL/shared shaders.
 
 ## Push constants
 
 | Shader path | Bytes / layout |
 |---|---|
 | Traversal queue index | 4 bytes @0, flushed once per traversal iteration. |
-| Merged opaque/temporal prefix | 12 bytes: section count @0, quad capacity @4, max draw slots @8. |
+| Merged opaque/temporal prefix | 12 bytes: legacy/reserved host count @0, quad capacity @4, max draw slots @8. Current section count is derived from prep's GPU entry count / 7; the host slot is ignored. |
 | Translucent prefix | 4 bytes: quad capacity @0. |
 | Depth reprojection variant | 128 bytes: inverse source MVP @0, destination MVP @64. The non-reprojecting variant needs neither. |
 | Index probe (test-only, `vk/index_probe.comp`) | Exactly 4 bytes: `uint totalQuads` @0. Not a rendering dependency. |
@@ -121,32 +120,23 @@ resolve                         -> interop consumption
 A mechanical translation of GL barrier bits does not prove any of these edges —
 they've been individually reasoned about and partially validation-tested.
 
-**Confirmed gaps** (re-verified this session, 281 pass / 1 skip / **7 unexpected
-diagnostics** with `-PvkValidation=true -PvkSyncEnv=true` — see
-[testing.md](testing.md)):
+**Current verification and remaining blind spot** (2026-10-04): the validation-enabled
+suite has 289 cases, 288 pass / 1 documented skip, with no unexpected diagnostics.
+The 45 offscreen interop checks also pass with clean validation. `scripts/verify.py`
+adds a strict output gate and independent analytic PNG/raw-depth checks; plain Gradle tasks still check validation selectively.
 
-- **D2** — `VkDepthVisualise` layout mismatch above → `VUID-vkCmdDraw-imageLayout-00344`
-  ×4.
-- **D3** — `VkRenderTarget.beginRendering(cmd, null, clearDepth)` treats a null color
-  attachment as LOAD but only transitions for `COLOR_ATTACHMENT_WRITE`, not the
-  `_READ` access LOAD actually requires → `SYNC-HAZARD-READ-AFTER-WRITE` ×3 in
-  `VkHiZDepthSourceTest`. **Depth has the same edge**: `clearDepth == null` selects
-  depth LOAD, but the depth transition advertises only
-  `DEPTH_STENCIL_ATTACHMENT_WRITE`. That is a source-level contract gap with no
-  reproduced diagnostic yet — include it in any D3 fix and its verification.
-- **Descriptor-SSBO negative control** (`VkBarriersTest.missingBarrierIsDetected`)
-  produces **zero** validation messages on this stack and is **skipped** via an
-  unconditional `Assumptions.abort` — including with validation enabled. It is not
-  proving what it's meant to. Don't treat that silence as a positive result.
-- A deliberately-missing fill-buffer barrier **is** correctly caught by sync
-  validation (`VkBarriersTest.plainBufferHazardIsNowDetected`, two unsynchronized
-  `vkCmdFillBuffer` calls → WAW hazard asserted) — this is the one working negative
-  control confirming validation is actually active, not silently disabled.
-- The standalone `interopCompositeCheck` validated run emits one unsuppressed
-  `UNASSIGNED-VkDescriptorImageInfo-BoundResourceFreedMemoryAccess` diagnostic (C11
-  depth-visualization path) while reporting `ALL CHECKS PASSED` — see
-  [testing.md](testing.md#4-interop-checks-macos-glvulkan-offscreen). Root cause
-  unproven.
+- Baseline D2 was fixed by declaring GENERAL for the visualizer's depth source.
+- D3 was fixed with attachment READ access, previous-write visibility for LOAD, and
+  both early/late depth stages. Clear operations retain execution ordering for WAR.
+- D1 was fixed by deriving opaque/temporal face boundaries from prep's GPU entry
+  count and using its indirect dispatch for the translucent subset. The new test
+  spans growth/shrink and the 128-thread dispatch boundary with stale host counts.
+- The interop unbound-image diagnostic was fixed with actual Vulkan memory allocation
+  and binding. IOSurface backing remains shared; the equality tests continue to pass.
+  Existing narrow suppressions were not expanded.
+- Descriptor-bound SSBO hazards remain invisible on this stack. The corresponding
+  negative control skips and is reported as a known gap; the deliberate fill-buffer
+  WAW control must execute and detect its hazard. Zero SSBO messages is weak evidence.
 
 Additional source-level risks not yet runtime-verified (see
 [current-state.md](current-state.md) and [testing.md](testing.md) for what test
@@ -155,10 +145,9 @@ coverage would close each):
 - `VkHiZ.record()` transitions intermediate mip levels for fragment reads, but only
   the *final* mip explicitly includes the compute consumer — visibility of every mip
   to traversal needs checking, especially without a surrounding broad barrier.
-- The terrain interop path waits Vulkan→GL, but `GlVkSync.waitForGl()` (explicit
-  GL-completion wait) is only used in DEPTH mode — no confirmed wait exists for a
-  previous GL composite's read completing before the next Vulkan write/reallocation of
-  the same shared image. Driver serialization may currently be masking this.
+- GL completion is now awaited before shared-image writes/destruction/reallocation
+  in every probe mode. Long queued-load stress is still not established by the bounded
+  live smoke scenario.
 - Fence completion protects execution lifetime but not **logical** references — next
   frame's opaque pass draws from the *previous* frame's table, which can reference
   geometry that CPU reclamation has since changed. This needs multi-frame eviction
@@ -168,6 +157,13 @@ coverage would close each):
   of correctness here, not a removable performance detail.
 
 ## GPU lifetime assumptions
+
+These are the **current diagnostic path's** assumptions. The target in
+[project-goal.md](project-goal.md) uses Minecraft's Vulkan submission/resource
+ownership. Do not carry the probe's single-frame explicit-wait or GL interop
+contracts into native integration by assumption. Recheck host writes, descriptor
+reuse, image ownership, readback and destruction against actual submissions before
+enabling overlap; native integration is not implemented here yet.
 
 - **Single command buffer, single fence, single frame in flight.** `VkFrameTracker`
   owns exactly one command buffer + fence. Code that assumes multiple frames can be in
@@ -199,21 +195,24 @@ coverage would close each):
     called while a frame is recording** — call it at allocation, as the probe does.
 - **Previous-frame draw table + current-frame reclamation is a live hazard, not
   handled by fences.** See the "logical references" point above.
-- **`VkInteropProbe` is a singleton with no confirmed `shutdown()` caller.** Engine
-  liveness is checked via `worldIsLive()` only, not engine identity — a stale engine
-  can outlive a world/dimension switch (defect D5). Don't assume world-switch or
-  disconnect cleanly tears down Vulkan scene state.
+- **`VkInteropProbe` remains a singleton**, but session end now calls shutdown and
+  rendering checks active-engine identity. Leaving the populated camera region
+  rebuilds the diagnostic scene. These fixes are exercised by the automated live
+  scenario; application close without disconnect and resource-pack replacement
+  still need dedicated lifetime assertions.
 - **Buffers are individually allocated and persistently mapped**, requiring
   `DEVICE_LOCAL | HOST_VISIBLE | HOST_COHERENT` memory (`VkBuffer`). This is a
   unified-memory assumption; optimally-tiled images still need staging/copy. Don't
   assume a suballocator or a staging-buffer path exists where one doesn't.
-- **Host-side section counts can go stale relative to GPU-side counts within a single
-  frame** — this is exactly defect D1 (`VkHierarchicalScene.prepare()` reads
-  `lastDrawnSections` before resetting traversal; downstream prefix/dispatch stages
-  consume that stale value while `prep.comp`/`cmdgen.comp` use the current GPU count).
-  Any new consumer of "how many sections are selected this frame" must get that number
-  from the same place `prep.comp`/`cmdgen.comp` do, not from a host-tracked field that
-  may lag by one stage.
+- **Host-side section counts can still lag.** `lastDrawnSections` and the reserved
+  push-constant slot are diagnostic/compatibility fields; prefix sizing and dispatch
+  now use prep's GPU count. New current-frame consumers must use that same source.
+- The scene owns the engine dirty callback. Producers only enqueue keys through the
+  shared update router; child changes/remeshing/geometry uploads run after fence
+  completion. Disposal detaches the callback before freeing GPU objects. Callback
+  publication is volatile and invocation captures one reference, so concurrent
+  detach cannot null-dereference. This is synchronous diagnostic servicing, not the
+  full async GL render-generation service.
 
 ## Source anchors
 
