@@ -225,6 +225,28 @@ public class VkDepthVisualiseTest {
     }
 
     /**
+     * <b>D2: descriptor の宣言レイアウトと描画時の実レイアウトが一致していること。</b>
+     *
+     * <p>読み元は interop の規約どおり {@code GENERAL} に据え置かれるので、
+     * descriptor も {@code GENERAL} を宣言していなければならない。食い違うと
+     * バリデーション有効時に {@code VUID-vkCmdDraw-imageLayout-00344} が出る。
+     * この検査はバリデーションを有効にして走らせたときに意味がある
+     * (無効時はメッセージが無いので空虚に通る — docs/ai/testing.md level 3)。
+     */
+    @Test
+    void drawsWithoutALayoutMismatchDiagnostic() {
+        VkContext.clearValidationMessages();
+        visualise(pattern());
+        var all = VkContext.validationMessages();
+        System.out.println("[vk] VkDepthVisualiseTest: validation=" + VkContext.get().validationEnabled
+            + " messages=" + all.size());
+        assertEquals(java.util.List.of(),
+            all.stream().filter(m -> m.contains("VUID-vkCmdDraw-imageLayout-00344")).toList(),
+            "D2: the depth source is declared in a layout other than the one it is in at draw time");
+        assertEquals(java.util.List.of(), all, "the depth-visualise pass must be validation-clean");
+    }
+
+    /**
      * <b>行が入れ替わっていないこと。</b>
      *
      * <p>値の集合だけを見ると、行を並べ替えても通ってしまう。

@@ -10,6 +10,7 @@ import org.lwjgl.vulkan.VkImageCreateInfo;
 import org.lwjgl.vulkan.VkImportMetalIOSurfaceInfoEXT;
 import org.lwjgl.vulkan.VkMemoryRequirements;
 import org.lwjgl.vulkan.VkMemoryAllocateInfo;
+import org.lwjgl.vulkan.VkMemoryDedicatedAllocateInfo;
 
 import java.lang.foreign.MemorySegment;
 
@@ -92,6 +93,15 @@ public final class VkInteropImage extends TrackedObject {
     public final long memoryRequirementSize;
     /** IOSurface 側の確保サイズ。 */
     public final long allocSize;
+    /** {@link #memory} の memory type。{@link #memoryPropertyFlags} と対。 */
+    public final int memoryTypeIndex;
+    /**
+     * {@link #memory} の property flags。
+     * <b>{@code DEVICE_LOCAL} を含み {@code HOST_VISIBLE} を含まないこと</b>が
+     * IOSurface の内容を守る条件 — host visible なメモリをバインドすると
+     * MoltenVK の {@code bindDeviceMemory -> flushToDevice} が IOSurface を上書きする。
+     */
+    public final int memoryPropertyFlags;
 
     private int glTexture = 0;
 
@@ -136,9 +146,17 @@ public final class VkInteropImage extends TrackedObject {
             VkMemoryRequirements req = VkMemoryRequirements.calloc(stack);
             vkGetImageMemoryRequirements(ctx.device, this.image, req);
             this.memoryRequirementSize = req.size();
+            // ⚠ DEVICE_LOCAL だけで選ぶと、Apple Silicon の統合メモリでは
+            // HOST_VISIBLE な型が先に当たる。その型をバインドすると
+            // bindDeviceMemory -> flushToDevice が IOSurface の内容を上書きする。
+            this.memoryTypeIndex = privateMemoryType(ctx, req.memoryTypeBits());
+            this.memoryPropertyFlags = ctx.memProps.memoryTypes(this.memoryTypeIndex).propertyFlags();
+            var dedicated = VkMemoryDedicatedAllocateInfo.calloc(stack).sType$Default()
+                .image(this.image);
             var allocation = VkMemoryAllocateInfo.calloc(stack).sType$Default()
+                .pNext(dedicated.address())
                 .allocationSize(req.size())
-                .memoryTypeIndex(ctx.findMemoryType(req.memoryTypeBits(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT));
+                .memoryTypeIndex(this.memoryTypeIndex);
             int allocated = vkAllocateMemory(ctx.device, allocation, null, p);
             if (allocated != VK_SUCCESS) {
                 vkDestroyImage(ctx.device, this.image, null);
@@ -166,6 +184,26 @@ public final class VkInteropImage extends TrackedObject {
     public VkTexture texture() { return this.texture; }
 
     public long imageHandle() { return this.image; }
+
+    /** バインドした {@code VkDeviceMemory}。{@code VK_NULL_HANDLE} なら未バインド。 */
+    public long memoryHandle() { return this.memory; }
+
+    /**
+     * IOSurface 画像にバインドして安全な memory type。
+     * {@code DEVICE_LOCAL} で、かつ {@code HOST_VISIBLE} / {@code LAZILY_ALLOCATED} でないもの。
+     */
+    static int privateMemoryType(VkContext ctx, int typeBits) {
+        int forbidden = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT;
+        for (int i = 0; i < ctx.memProps.memoryTypeCount(); i++) {
+            if ((typeBits & (1 << i)) == 0) continue;
+            int flags = ctx.memProps.memoryTypes(i).propertyFlags();
+            if ((flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == 0) continue;
+            if ((flags & forbidden) != 0) continue;
+            return i;
+        }
+        throw new IllegalStateException("no DEVICE_LOCAL, non-HOST_VISIBLE memory type for an interop image"
+            + " (typeBits=0x" + Integer.toHexString(typeBits) + ")");
+    }
 
     public MemorySegment ioSurface() { return this.iosurface; }
 
