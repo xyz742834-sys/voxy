@@ -102,12 +102,16 @@ public class VkRenderTarget {
         // TOP_OF_PIPE を src に置くと「何も待たない」意味になり、この依存が張られない。
         // WAR は実行依存だけで足りるので srcAccess は 0 のままでよい
         // (可視化は不要。キャッシュフラッシュを増やさない) [確認済 — 仕様ベース]。
+        // LOAD additionally reads prior attachment contents (RAW), so it must make
+        // previous writes visible. Depth testing and color blending also read attachments.
         this.color.barrier(cmd, 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0,
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, clearColor == null ? VK_ACCESS_MEMORY_WRITE_BIT : 0,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
         this.depth.barrier(cmd, 0, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0,
-            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, clearDepth == null ? VK_ACCESS_MEMORY_WRITE_BIT : 0,
+            VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT);
 
         try (MemoryStack stack = stackPush()) {
             var colorAtt = VkRenderingAttachmentInfo.calloc(1, stack)

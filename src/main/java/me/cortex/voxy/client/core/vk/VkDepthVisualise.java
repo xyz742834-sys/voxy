@@ -102,7 +102,7 @@ public class VkDepthVisualise {
                 .define("DEPTH_VIS_SKY", SKY_GLSL))
             .compile();
 
-        this.shader.texture(0, srcDepth, VkSampler.nearestClamp());
+        this.shader.texture(0, srcDepth, VkSampler.nearestClamp(), VK_IMAGE_LAYOUT_GENERAL);
         var missing = this.shader.unboundBindings();
         if (!missing.isEmpty()) {
             throw new IllegalStateException("depth visualise has unbound descriptors: " + missing);

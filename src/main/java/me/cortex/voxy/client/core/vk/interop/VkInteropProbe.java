@@ -266,6 +266,34 @@ public final class VkInteropProbe {
         if (INSTANCE != null) { INSTANCE.free(); INSTANCE = null; }
     }
 
+    /** Render-thread observation only. Does not create a probe or alter its scene. */
+    public record Diagnostics(long frames, int width, int height, int meshed,
+                              int selected, int invalidIds, long reclaimed,
+                              boolean exhausted, boolean currentWorld, long depthPixels) {}
+
+    public static Diagnostics diagnostics(boolean readDepth) {
+        var p = INSTANCE;
+        if (p == null || p.scene == null || p.frames == 0) return null;
+        var level = net.minecraft.client.Minecraft.getInstance().level;
+        var world = level == null ? null : me.cortex.voxy.commonImpl.WorldIdentifier.ofEngineNullable(level);
+        long drawn = -1;
+        if (readDepth) {
+            p.screenFootprint(); // existing fenced image readback; no scene recreation
+            drawn = 0;
+            long base = p.footprintReadback.addr();
+            for (long i = 0, n = (long) p.width * p.height; i < n; i++) {
+                if (MemoryUtil.memGetFloat(base + i * 4) != me.cortex.voxy.client.core.vk.VkDepth.CLEAR) drawn++;
+            }
+        }
+        return new Diagnostics(p.frames, p.width, p.height, p.scene.meshedSections(),
+            p.scene.drawnSectionCount(), p.scene.countInvalidRenderIds()[0],
+            p.scene.totalReclaimed(), p.scene.geometryExhausted(), p.scene.usesWorld(world), drawn);
+    }
+
+    public static long meshVersionAt(int x, int y, int z) {
+        return INSTANCE == null || INSTANCE.scene == null ? 0 : INSTANCE.scene.meshVersionAt(x, y, z);
+    }
+
     private VkInteropImage colour;
     private VkInteropImage depth;
     private GlInteropCompositor compositor;
@@ -828,16 +856,19 @@ public final class VkInteropProbe {
         if (MODE == Mode.DEPTH) {
             this.depthImport.record(mcDepthTexture, this.depth);
             // ---- 2. GL -> Vulkan。GL の書き込み順序はバリアで表現できない ----
-            GlVkSync.waitForGl();
         }
+        // The previous GL composite may still be reading these shared images.
+        GlVkSync.waitForGl();
 
         // ---- 3. Vulkan ----
         if (MODE == Mode.HIERARCHICAL) {
             // ⚠ ワールドが閉じられていたら**シーンごと捨てる**。
             // 掴んだままだと acquireIfExists が投げてフレームの途中で落ちる
-            if (this.scene != null && !this.scene.worldIsLive()) {
-                Logger.info("[5c-4c] the world engine was closed (idle world reclaim);"
-                    + " dropping the scene and rebuilding");
+            var level = net.minecraft.client.Minecraft.getInstance().level;
+            var world = level == null ? null : me.cortex.voxy.commonImpl.WorldIdentifier.ofEngineNullable(level);
+            if (this.scene != null && (!this.scene.worldIsLive() || !this.scene.usesWorld(world)
+                    || !this.scene.coversCamera(cameraX, cameraY, cameraZ))) {
+                Logger.info("[5c-4c] world or camera region changed; rebuilding the diagnostic scene");
                 this.scene.free();
                 this.scene = null;
             }
@@ -2479,6 +2510,7 @@ public final class VkInteropProbe {
      * リサイズで JVM ごと落とした]。
      */
     private void freeSizeDependent() {
+        if (this.colour != null) GlVkSync.waitForGl();
         if (this.footprintReadback != null) {
             this.footprintReadback.free();
             this.footprintReadback = null;

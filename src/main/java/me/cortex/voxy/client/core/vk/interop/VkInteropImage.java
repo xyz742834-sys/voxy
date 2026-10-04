@@ -9,6 +9,7 @@ import org.lwjgl.vulkan.VkCommandBuffer;
 import org.lwjgl.vulkan.VkImageCreateInfo;
 import org.lwjgl.vulkan.VkImportMetalIOSurfaceInfoEXT;
 import org.lwjgl.vulkan.VkMemoryRequirements;
+import org.lwjgl.vulkan.VkMemoryAllocateInfo;
 
 import java.lang.foreign.MemorySegment;
 
@@ -80,6 +81,7 @@ public final class VkInteropImage extends TrackedObject {
 
     private final MemorySegment iosurface;
     private final long image;
+    private final long memory;
     private final VkTexture texture;
 
     /**
@@ -127,11 +129,30 @@ public final class VkInteropImage extends TrackedObject {
             VkContext.check(vkCreateImage(ctx.device, ici, null, p), "vkCreateImage(IOSurface)");
             this.image = p[0];
 
-            // IOSurface backed の場合メモリは既に紐づいており vkBindImageMemory は不要
-            // (MoltenVK が内部で処理する)。要求サイズだけ記録しておく。
+            // IOSurface import supplies the Metal texture's storage, but unlike
+            // VkImportMetalTextureInfoEXT it does not establish Vulkan memory binding.
+            // MoltenVK retains the IOSurface texture when memory is bound; keep both
+            // the driver and validation layer's resource-lifetime contracts satisfied.
             VkMemoryRequirements req = VkMemoryRequirements.calloc(stack);
             vkGetImageMemoryRequirements(ctx.device, this.image, req);
             this.memoryRequirementSize = req.size();
+            var allocation = VkMemoryAllocateInfo.calloc(stack).sType$Default()
+                .allocationSize(req.size())
+                .memoryTypeIndex(ctx.findMemoryType(req.memoryTypeBits(), VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT));
+            int allocated = vkAllocateMemory(ctx.device, allocation, null, p);
+            if (allocated != VK_SUCCESS) {
+                vkDestroyImage(ctx.device, this.image, null);
+                IOSurf.release(this.iosurface);
+                VkContext.check(allocated, "vkAllocateMemory(IOSurface)");
+            }
+            this.memory = p[0];
+            int bound = vkBindImageMemory(ctx.device, this.image, this.memory, 0);
+            if (bound != VK_SUCCESS) {
+                vkDestroyImage(ctx.device, this.image, null);
+                vkFreeMemory(ctx.device, this.memory, null);
+                IOSurf.release(this.iosurface);
+                VkContext.check(bound, "vkBindImageMemory(IOSurface)");
+            }
         }
 
         // ビューを作る前に登録する。VkImageView の生成自体が
@@ -238,6 +259,7 @@ public final class VkInteropImage extends TrackedObject {
         this.free0();
         this.texture.free();                                  // 1. VkImageView
         vkDestroyImage(VkContext.get().device, this.image, null); // 1. VkImage
+        vkFreeMemory(VkContext.get().device, this.memory, null);
         // ハンドルは再利用されうるので、破棄したら必ず外す。
         // 残したままにすると別の資源に対する本物の指摘が黙る
         VkContext.unregisterInteropImage(this.image);

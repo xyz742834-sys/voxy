@@ -49,7 +49,7 @@ layout(binding = MERGED_DRAW_BINDING, std430) writeonly restrict buffer MergedDr
 };
 
 layout(push_constant) uniform MergedPrefixPushConstants {
-    uint sectionCountPC;
+    uint reservedSectionCountPC; // legacy ABI slot; current count is mergedEntryCount / 7
     // 共有インデックスバッファが覆う quad 数 (T)。1 draw の上限になる
     uint quadCapacityPC;
     // 間接描画に渡す draw 本数。余りは instanceCount=0 で埋める
@@ -61,6 +61,8 @@ shared uint sCarry;
 
 void main() {
     uint n = mergedEntryCount;
+    // prep owns the current-frame count. The host push value can lag traversal.
+    uint sectionCount = n / 7u;
     uint tid = gl_LocalInvocationID.x;
 
     if (tid == 0u) {
@@ -122,8 +124,8 @@ void main() {
         uint chosenFace = 7u;
         uint chunkIndex = 0u;
         for (uint f = 0u; f < 7u; f++) {
-            uint s = mergedPrefix[f * sectionCountPC];
-            uint e = mergedPrefix[(f + 1u) * sectionCountPC];
+            uint s = mergedPrefix[f * sectionCount];
+            uint e = mergedPrefix[(f + 1u) * sectionCount];
             // 空の面も 1 本出す (no-op)。面と draw の対応をデータ非依存に保つため
             uint chunks = max(1u, (e - s + quadCapacityPC - 1u) / quadCapacityPC);
             if (slot < acc + chunks) {
@@ -143,8 +145,8 @@ void main() {
             cmd.instanceCount = 0u;
             cmd.baseVertex = 0;
         } else {
-            uint s = mergedPrefix[chosenFace * sectionCountPC];
-            uint e = mergedPrefix[(chosenFace + 1u) * sectionCountPC];
+            uint s = mergedPrefix[chosenFace * sectionCount];
+            uint e = mergedPrefix[(chosenFace + 1u) * sectionCount];
             uint o = s + chunkIndex * quadCapacityPC;
             uint count = (o < e) ? min(e - o, quadCapacityPC) : 0u;
             cmd.count = count * 6u;

@@ -250,8 +250,8 @@ public class VkMergedTableBuilder {
      * ({@code renderOpaque}) は<b>これより前</b>に、前フレームのテーブルで行われる。
      * その順序が {@code docs/phase4-buffer-hazards.md} の WAR を生む。
      *
-     * @param sectionCount {@code indirectLookup} に入っているセクション数。
-     *                     prefix シェーダが面の区間を切り出すのに要る
+     * @param sectionCount legacy host count, retained for source compatibility;
+     *                     shaders and dispatch sizes use prep's current GPU count
      * @param maxDraws     間接描画に渡す draw 本数。面が T を超えると分割されるので
      *                     {@code SyntheticTerrain.maxFaceDrawCount} の上限を渡す。
      *                     余ったスロットは {@code instanceCount = 0} で埋まる
@@ -327,7 +327,8 @@ public class VkMergedTableBuilder {
         this.cmdgenToPrefix(cmd);
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, this.translucentGenPipeline);
         this.translucentGenShader.bind(cmd, VK_PIPELINE_BIND_POINT_COMPUTE);
-        vkCmdDispatch(cmd, (sectionCount + 127) / 128, 1, 1);
+        // prep's current GPU count bounds the translucent subset as well.
+        vkCmdDispatchIndirect(cmd, this.res.mergedDispatch.handle, 0);
 
         this.cmdgenToPrefix(cmd);
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, this.translucentPrefixPipeline);

@@ -130,8 +130,16 @@ public class VkAutoBindingShader extends VkShader {
      * ここでは記録時点のレイアウトが読み取り可能かどうかだけ検査する。
      */
     public VkAutoBindingShader texture(int index, VkTexture texture, VkSampler sampler) {
+        return this.texture(index, texture, sampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
+
+    /** Explicit layout for externally shared images which must stay in GENERAL. */
+    public VkAutoBindingShader texture(int index, VkTexture texture, VkSampler sampler, int layout) {
+        if (layout != VK_IMAGE_LAYOUT_GENERAL && layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            throw new IllegalArgumentException("unsupported sampled-image layout: " + layout);
+        }
         return this.image(index, texture.view(), sampler,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+            layout, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     }
 
     public VkAutoBindingShader texture(String define, VkTexture texture, VkSampler sampler) {

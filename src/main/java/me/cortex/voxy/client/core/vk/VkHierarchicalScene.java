@@ -3,6 +3,7 @@ package me.cortex.voxy.client.core.vk;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import me.cortex.voxy.client.core.rendering.ISectionWatcher;
+import me.cortex.voxy.client.core.rendering.SectionUpdateRouter;
 import me.cortex.voxy.client.core.rendering.hierachical.NodeManager;
 import me.cortex.voxy.client.core.rendering.section.geometry.BasicAsyncGeometryManager;
 import me.cortex.voxy.common.Logger;
@@ -44,16 +45,18 @@ import java.util.function.BooleanSupplier;
  * {@code maxSections} を描画キューの容量以上にしておくこと。
  */
 public final class VkHierarchicalScene {
-    /** 監視状態だけを持つ最小の実装。回収しないので減ることはない。 */
-    private static final class Watcher implements ISectionWatcher {
+    /** Render-thread watch enumeration backed by the shared, thread-safe update router. */
+    private final class Watcher implements ISectionWatcher {
         private final Long2IntOpenHashMap watched = new Long2IntOpenHashMap();
+        private final SectionUpdateRouter router = new SectionUpdateRouter();
         @Override public boolean watch(long position, int types) {
             this.watched.put(position, this.watched.get(position) | types);
-            return true;
+            return router.watch(position, types);
         }
         @Override public boolean unwatch(long position, int types) {
             int v = this.watched.get(position) & ~types;
             if (v == 0) this.watched.remove(position); else this.watched.put(position, v);
+            if ((v & WorldEngine.UPDATE_TYPE_BLOCK_BIT) == 0) pendingMesh.remove(position);
             // ⚠⚠ 実機クラッシュの原因 (2026-09-21): ここが常に true を返していた。
             // NodeManager.clearGeometryInternal は「unwatch(BLOCK_BIT だけ) が true =
             // 他のビット (CHILD_EXISTENCE_BIT) まで巻き込んで全消去された = 異常」と読む
@@ -61,10 +64,16 @@ public final class VkHierarchicalScene {
             // 常に true だと INNER ノードの reclaim が 1 回でも起きた瞬間に必ず落ちる —
             // GeometryReclaimer 導入で初めてこの部分区分の unwatch 呼び出しが実際に
             // 起きるようになるまで、この既存バグは踏まれていなかった。
-            return v == 0;
+            return router.unwatch(position, types);
         }
-        @Override public int get(long position) { return this.watched.get(position); }
+        @Override public int get(long position) { return router.get(position); }
     }
+
+    private final java.util.concurrent.ConcurrentLinkedQueue<Long> meshUpdates = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private final java.util.concurrent.ConcurrentLinkedQueue<Long> childUpdates = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private final it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap meshVersions = new it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap();
+    private long meshVersion;
+    private static final int[][] NEIGHBOR_OFFSETS = {{0,-1,0}, {0,1,0}, {-1,0,0}, {1,0,0}, {0,0,-1}, {0,0,1}};
 
     /**
      * <b>最上位ノード id のキュー</b> (Phase 5c-5a の修正)。
@@ -399,7 +408,7 @@ public final class VkHierarchicalScene {
      * <b>止まったままとは限らない</b> — 回収できた分だけ再開する。
      * 回収しても入らない (top-level しか残っていない等) ときだけ<b>本当に止まる</b>。
      */
-    private boolean geometryExhausted;
+    private final VkGeometryAdmission admission;
     /** ジオメトリの回収。詳細は {@link GeometryReclaimer} の javadoc。 */
     private final GeometryReclaimer reclaimer;
     private int meshedSections;
@@ -449,6 +458,8 @@ public final class VkHierarchicalScene {
 
         this.geometryCapacityBytes = (long) maxQuads * 8;
         this.geometry = new BasicAsyncGeometryManager(maxSections, this.geometryCapacityBytes);
+        this.watcher.router.setCallbacks(this.meshUpdates::add, this.meshUpdates::add,
+            section -> this.childUpdates.add(section.key));
         this.nodes = new NodeManager(maxSections, this.geometry, this.watcher);
 
         // ⚠⚠ **HiZ は Voxy 自身の深度アタッチメントを読む** [確認済 — 上流
@@ -477,6 +488,7 @@ public final class VkHierarchicalScene {
         // トップレベル判定は topNodes (既に追跡済みの集合) をそのまま問い合わせる
         this.reclaimer = new GeometryReclaimer(this.nodes, this.topNodes::contains);
         this.nodes.setClear(this.reclaimer);
+        this.admission = new VkGeometryAdmission(this.geometry, this.reclaimer, this.nodes, RECLAIM_MAX_EVICTIONS);
         this.uniformEcho = new VkBuffer(ECHO_BYTES * 2,
             VkBuffer.DEFAULT_USAGE | org.lwjgl.vulkan.VK10.VK_BUFFER_USAGE_TRANSFER_DST_BIT, true)
             .name("uniformEcho");
@@ -492,6 +504,18 @@ public final class VkHierarchicalScene {
         this.translucentRenderer = new VkTerrainRenderer(this.res, width, height,
             VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
             VkTerrainRenderer.Pass.TRANSLUCENT, colourFormat);
+        // Ingestion threads only enqueue keys. Nodes, meshing and GPU uploads remain
+        // confined to serviceRequests, after the previous GPU frame has completed.
+        world.setDirtyCallback((section, flags, neighbors) -> {
+            this.watcher.router.forwardEvent(section, flags);
+            for (int i = 0; i < NEIGHBOR_OFFSETS.length; i++) {
+                if ((neighbors & (1 << i)) != 0) {
+                    var d = NEIGHBOR_OFFSETS[i];
+                    this.watcher.router.triggerRemesh(WorldEngine.getWorldSectionId(section.lvl,
+                        section.x + d[0], section.y + d[1], section.z + d[2]));
+                }
+            }
+        });
     }
 
     /**
@@ -571,6 +595,8 @@ public final class VkHierarchicalScene {
         int cx = VkHostViewport.sectionOf(camX) >> top;
         int cy = VkHostViewport.sectionOf(camY) >> top;
         int cz = VkHostViewport.sectionOf(camZ) >> top;
+        this.populatedX = cx; this.populatedY = cy; this.populatedZ = cz;
+        this.populatedRadius = topRadius;
 
         for (int dx = -topRadius; dx <= topRadius; dx++) {
             for (int dy = -topRadius; dy <= topRadius; dy++) {
@@ -856,6 +882,18 @@ public final class VkHierarchicalScene {
      */
     public boolean worldIsLive() { return this.world.isLive(); }
 
+    public boolean usesWorld(WorldEngine world) { return this.world == world; }
+
+    private int populatedX, populatedY, populatedZ, populatedRadius;
+
+    /** The diagnostic scene has a bounded region; rebuild it when the camera leaves. */
+    public boolean coversCamera(double x, double y, double z) {
+        int top = WorldEngine.MAX_LOD_LAYER;
+        return Math.abs((VkHostViewport.sectionOf(x) >> top) - populatedX) <= populatedRadius
+            && Math.abs((VkHostViewport.sectionOf(y) >> top) - populatedY) <= populatedRadius
+            && Math.abs((VkHostViewport.sectionOf(z) >> top) - populatedZ) <= populatedRadius;
+    }
+
     /**
      * このセクションがジオメトリ領域から<b>何バイト取るか</b> (Phase 5c-5a)。
      *
@@ -902,25 +940,12 @@ public final class VkHierarchicalScene {
      */
     private boolean acceptGeometry(me.cortex.voxy.client.core.rendering.building.BuiltSection built) {
         long need = geometryBytesNeeded(built);
-        if (!this.geometry.canFit(need)) {
-            int attempts = this.reclaimer.reclaimWhile(
-                () -> !this.geometry.canFit(need),
-                RECLAIM_MAX_EVICTIONS);
-            if (attempts >= RECLAIM_MAX_EVICTIONS) {
-                Logger.warn("[6] ⚠ reclaim hit its cap (" + RECLAIM_MAX_EVICTIONS
-                    + " evictions) without freeing enough space; candidates may be mostly"
-                    + " top-level nodes or in-flight requests that removeNodeGeometry safely"
-                    + " skips. totalReclaimed=" + this.reclaimer.totalReclaimed());
-            }
+        if (this.admission.accept(built)) return true;
+        if (this.admission.reclaimAttempts() >= RECLAIM_MAX_EVICTIONS) {
+            Logger.warn("[6] reclaim hit its cap (" + RECLAIM_MAX_EVICTIONS
+                + " attempts) without freeing enough space; totalReclaimed=" + this.reclaimer.totalReclaimed());
         }
         long used = this.geometry.getGeometryUsedBytes();
-        if (this.geometry.canFit(need)) {
-            this.geometryExhausted = false;
-            this.nodes.processGeometryResult(built);   // ⚠ 所有権が移る
-            return true;
-        }
-        this.geometryExhausted = true;
-        built.free();   // ⚠ 渡していないので**こちらが解放する**
         Logger.warn("[5c-4c] ⚠ the geometry arena is full even after reclaiming ("
             + (used / 1024) + " KiB of " + (this.geometryCapacityBytes / 1024)
             + " KiB used; this section needs " + (need / 1024) + " KiB)."
@@ -940,10 +965,25 @@ public final class VkHierarchicalScene {
     public long totalReclaimed() { return this.reclaimer.totalReclaimed(); }
 
     /** ⚠ ジオメトリ領域を使い切ってメッシュ化を止めたか。<b>絵の穴の説明になる</b>。 */
-    public boolean geometryExhausted() { return this.geometryExhausted; }
+    public boolean geometryExhausted() { return this.admission.exhausted(); }
 
     public int serviceRequests(int maxMeshesPerCall) {
         if (!this.world.isLive()) return 0;
+        for (int i = 0; i < 4096; i++) {
+            Long pos = this.childUpdates.poll();
+            if (pos == null) break;
+            if ((this.watcher.get(pos) & WorldEngine.UPDATE_TYPE_CHILD_EXISTENCE_BIT) == 0) continue;
+            var section = this.world.acquireIfExists(pos);
+            if (section != null) {
+                try { this.nodes.processChildChange(pos, section.getNonEmptyChildren()); }
+                finally { section.release(); }
+            }
+        }
+        for (int i = 0; i < 4096; i++) {
+            Long pos = this.meshUpdates.poll();
+            if (pos == null) break;
+            this.pendingMesh.remove(pos);
+        }
         int count = Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.traversal.request.addr()),
             4096);
         for (int i = 0; i < count; i++) {
@@ -963,15 +1003,17 @@ public final class VkHierarchicalScene {
         // ⚠ NodeManager が新しく監視し始めた位置には、まだジオメトリが無い。
         // **監視集合との差分**が「メッシュ化すべきもの」である
         int meshed = 0;
-        if (this.geometryExhausted) return 0;
         for (long pos : this.watcher.watched.keySet().toLongArray()) {
             if (meshed >= maxMeshesPerCall) break;
-            if (!this.pendingMesh.add(pos)) continue;   // 済み
+            if ((this.watcher.get(pos) & WorldEngine.UPDATE_TYPE_BLOCK_BIT) == 0) continue;
+            if (this.pendingMesh.contains(pos)) continue;   // already accepted
             int lvl = WorldEngine.getLevel(pos);
             var built = this.mesher.meshOne(lvl, WorldEngine.getX(pos),
                 WorldEngine.getY(pos), WorldEngine.getZ(pos));
             if (built == null) continue;
             if (!this.acceptGeometry(built)) break;
+            this.pendingMesh.add(pos);
+            this.meshVersions.put(pos, ++this.meshVersion);
             this.meshedSections++;
             meshed++;
         }
@@ -1237,7 +1279,7 @@ public final class VkHierarchicalScene {
             this.maxSections);
     }
 
-    /** 前フレームの選択数 ({@code merged_prefix} に渡した値)。 */
+    /** Previous-frame selection count, retained for diagnostics; GPU sizing does not use it. */
     public int lastDrawnSections() { return this.lastDrawnSections; }
 
     public VkGpuTimer timer() { return this.timer; }
@@ -1249,9 +1291,20 @@ public final class VkHierarchicalScene {
     public int topLevelRequested() { return this.topLevelRequested; }
     public int meshedSections() { return this.meshedSections; }
 
+    /** Last completed mesh revision at any ancestor of a block (diagnostic only). */
+    public long meshVersionAt(int x, int y, int z) {
+        long version = 0;
+        for (int level = 0; level <= WorldEngine.MAX_LOD_LAYER; level++) {
+            version = Math.max(version, this.meshVersions.get(WorldEngine.getWorldSectionId(level,
+                (x >> 5) >> level, (y >> 5) >> level, (z >> 5) >> level)));
+        }
+        return version;
+    }
+
     public void free() {
         if (this.freed) return;
         this.freed = true;
+        this.world.setDirtyCallback(null);
         this.timer.free();
         this.cull.free();
         this.uniformEcho.free();

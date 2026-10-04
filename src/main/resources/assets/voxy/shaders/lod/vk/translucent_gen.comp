@@ -53,8 +53,8 @@ void main() {
     if (gid >= translucentSectionCount) {
         return;
     }
-    // 後段が走査する要素数を知る必要がある。全スレッドが同じ値を書く
-    translucentSlotCount = translucentSectionCount;
+    // One writer; identical concurrent non-atomic writes are still a data race.
+    if (gid == 0u) translucentSlotCount = translucentSectionCount;
 
     uint drawId = translucentSections[gid];
     SectionMeta meta = sectionData[indirectLookup[drawId]];

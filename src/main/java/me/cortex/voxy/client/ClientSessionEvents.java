@@ -24,6 +24,9 @@ public class ClientSessionEvents {
         if (!inSession) throw new IllegalStateException("Cannot end a session while not in a session");
         inSession = false;
 
+        if (VoxyClient.backend() == VoxyClient.Backend.VULKAN) {
+            me.cortex.voxy.client.core.vk.interop.VkInteropProbe.shutdown();
+        }
         VoxyCommon.shutdownInstance();
     }
 }

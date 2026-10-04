@@ -96,8 +96,11 @@ public class Serialization {
         Map<Class<?>, GsonConfigSerialization<?>> serializers = new HashMap<>();
 
         Set<String> clazzs = new LinkedHashSet<>();
-        var path = FabricLoader.getInstance().getModContainer("voxy").get().getRootPaths().get(0);
-        clazzs.addAll(collectAllClasses(path, BASE_SEARCH_PACKAGE));
+        // Development mods can span separate class/resource roots. A resource-only
+        // first root must not leave all polymorphic storage config types unregistered.
+        for (var path : FabricLoader.getInstance().getModContainer("voxy").get().getRootPaths()) {
+            clazzs.addAll(collectAllClasses(path, BASE_SEARCH_PACKAGE));
+        }
         clazzs.addAll(collectAllClasses(BASE_SEARCH_PACKAGE));
         int count = 0;
         outer:

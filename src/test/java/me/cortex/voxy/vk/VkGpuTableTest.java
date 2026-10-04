@@ -107,6 +107,45 @@ public class VkGpuTableTest {
         t.waitForFrame();
     }
 
+    @Test
+    void currentGpuCountsWinAcrossGrowthShrinkAndDispatchBoundaries() {
+        var terrain = new SyntheticTerrain();
+        for (int i = 0; i < 140; i++) {
+            terrain.add(new SyntheticTerrain.Section(i % 10, 0, i / 10, 0)
+                .face(SyntheticTerrain.Face.DOUBLE_SIDED, 2).translucent(1));
+        }
+        try (var scene = build(terrain, null)) {
+            var builder = new VkMergedTableBuilder(scene.res(), Barriers.CONSERVATIVE);
+            try {
+                writeUniform(scene, closeUpMvp());
+                int previous = 0;
+                for (int count : new int[]{0, 1, 128, 129, 140, 7, 0, 140}) {
+                    MemoryUtil.memPutInt(scene.res().indirectLookup.addr(), count);
+                    // All opaque quads are newly visible, so temporal must match opaque.
+                    terrain.writeVisibility(scene.res().visibility, FRAME_ID, null, new boolean[140]);
+                    var tracker = VkFrameTracker.get();
+                    var cmd = tracker.beginFrame();
+                    builder.record(cmd, previous, maxDraws(scene));
+                    tracker.endFrame();
+                    tracker.waitForFrame();
+                    assertEquals(count * 7, MemoryUtil.memGetInt(scene.res().mergedPrefix.addr()));
+                    assertEquals(count * 2, MemoryUtil.memGetInt(scene.res().mergedPrefix.addr() + 4L + count * 7L * 4));
+                    assertEquals(count * 2, MemoryUtil.memGetInt(scene.res().temporalPrefix.addr() + 4L + count * 7L * 4));
+                    int opaque = 0, temporal = 0;
+                    for (int slot = 0; slot < maxDraws(scene); slot++) {
+                        opaque += MemoryUtil.memGetInt(scene.res().mergedDraw.addr() + slot * 20L);
+                        temporal += MemoryUtil.memGetInt(scene.res().temporalDraw.addr() + slot * 20L);
+                    }
+                    assertEquals(count * 12, opaque, "opaque commands must use frame's GPU count, previous=" + previous);
+                    assertEquals(opaque, temporal, "temporal commands must share the current count");
+                    assertEquals(count, MemoryUtil.memGetInt(scene.res().translucentPrefix.addr()), "translucent dispatch must cover growth");
+                    assertEquals(count, MemoryUtil.memGetInt(scene.res().translucentPrefix.addr() + 4L + count * 4L));
+                    previous = count;
+                }
+            } finally { builder.free(); }
+        }
+    }
+
     // ---------------- 1: テーブルのバイト比較 ----------------
 
     /**
