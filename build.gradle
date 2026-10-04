@@ -434,6 +434,11 @@ dependencies {
 
 test {
     useJUnitPlatform()
+    reports.junitXml.outputPerTestCase = true
+    if (project.hasProperty('harnessOutput')) {
+        reports.junitXml.outputLocation = file(project.property('harnessOutput') + '/junit')
+        systemProperty('voxy.test.evidence', file(project.property('harnessOutput')).absolutePath)
+    }
     // LWJGL 3.4 / JDK 25 では native アクセスに明示的な許可が要る
     jvmArgs("--enable-native-access=ALL-UNNAMED")
     // Vulkan 系テストは MoltenVK natives がある macOS arm64 でのみ動く。
@@ -510,6 +515,48 @@ glVkTask("glToVkSyncBench", "me.cortex.voxy.vk.bench.GlToVkSyncBench",
     "Phase 5a: measure the GL -> Vulkan synchronisation cost")
 glVkTask("interopCompositeCheck", "me.cortex.voxy.vk.bench.InteropCompositeCheck",
     "Phase 5b: verify the interop composite matches the Phase 4 offscreen output")
+
+// Only this development run includes the automation mod; it is never packaged.
+sourceSets {
+    harness {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+loom {
+    if (gradle.startParameter.taskNames.any { it.tokenize(':').last() == 'runHarnessClient' }) {
+        mods {
+            voxy { sourceSet sourceSets.main }
+            voxy_harness { sourceSet sourceSets.harness }
+        }
+    }
+    runs {
+        harnessClient {
+            client()
+            source sourceSets.harness
+            runDir project.relativePath(project.findProperty('harnessRunDir') ?: 'build/harness/manual/game')
+            vmArg '-Dvoxy.harness=true'
+            vmArg '-Dvoxy.5c4=on'
+            vmArg '-Dvoxy.5c4.depth=4'
+            vmArg '-Dvoxy.5c4.radius=0'
+            vmArg '-Dvoxy.5c4.interval=120'
+            vmArg '-Dvoxy.5c4.clearsweep=false'
+            vmArg '-Dvoxy.harness.output=' + file(project.findProperty('harnessOutput') ?: 'build/harness/manual').absolutePath
+            vmArg '-Dvoxy.harness.seconds=' + (project.findProperty('harnessSeconds') ?: '10')
+            if (project.hasProperty('vkLibname')) {
+                vmArg '-Dorg.lwjgl.vulkan.libname=' + project.property('vkLibname')
+            }
+            vmArg '-Dvoxy.vk.validation=true'
+            def layerRoot = '/opt/homebrew/opt/vulkan-validationlayers'
+            if (file("$layerRoot/share/vulkan/explicit_layer.d").exists()) {
+                environmentVariable 'VK_LAYER_PATH', "$layerRoot/share/vulkan/explicit_layer.d"
+                environmentVariable 'DYLD_LIBRARY_PATH', "$layerRoot/lib"
+            }
+            environmentVariable 'VK_LAYER_ENABLES', 'VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT'
+            ideConfigGenerated false
+        }
+    }
+}
 
 /*
 if (!isInGHA) {
