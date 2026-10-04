@@ -334,7 +334,7 @@ public final class McNativeVulkanProbe {
 
     private static String hex(long v) { return "0x" + Long.toHexString(v); }
 
-    private static String quote(String s) {
+    static String quote(String s) {
         if (s == null) return "null";
         var sb = new StringBuilder("\"");
         for (int i = 0; i < s.length(); i++) {

@@ -34,6 +34,19 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
     @Inject(method = "close", at = @At("HEAD"))
     private void voxy$injectClose(CallbackInfo ci) {
         this.voxy$shutdownRenderer();
+        me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.shutdown();
+    }
+
+    /**
+     * ⚠ レベル描画の<b>末尾</b>で、MC が開いたレンダーパスがすべて閉じた後に呼ぶ。
+     * ここで初めて自前のパスを開けるし、MC のコマンドバッファへ積んでも
+     * パスの入れ子にならない。既定では何もしない
+     * ({@code -Dvoxy.native.marker=true} のときだけ描く)
+     * [docs/ai/vulkan-native-integration-survey.md]。
+     */
+    @Inject(method = "render", at = @At("TAIL"))
+    private void voxy$injectNativeMarker(CallbackInfo ci) {
+        me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.renderIfEnabled();
     }
 
     @Override

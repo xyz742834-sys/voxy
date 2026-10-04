@@ -557,6 +557,11 @@ loom {
             // ("Graphics backend forced to {} by launch argument, in-game preferred graphics backend
             // setting is ignored"), so forcing the backend here is the only reliable way to ask for
             // Minecraft's native Vulkan backend. --vulkanValidation is Minecraft's own flag for it.
+            // The bounded native marker draw is off unless asked for; it must never appear
+            // in a normal game. docs/ai/vulkan-native-integration-survey.md
+            if (project.hasProperty('harnessNativeMarker')) {
+                vmArg '-Dvoxy.native.marker=true'
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')

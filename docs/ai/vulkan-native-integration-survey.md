@@ -155,12 +155,60 @@ so Vulkan is tried first and OpenGL remains the fallback; `VulkanBackend.checkBa
 rejects the backend when the Vulkan loader library is missing or
 `glfwVulkanSupported()` is false, before it ever creates an instance.
 
+## The bounded draw, measured (2026-10-04)
+
+`McNativeMarkerDraw` records one bounded draw — a small magenta quad, no descriptors, no
+push constants, no vertex buffers — using a pipeline Voxy builds **on Minecraft's own
+device**, into the command buffer of a render pass opened through **Minecraft's own**
+`CommandEncoder.createRenderPass`, so every layout transition and barrier for the colour
+attachment stays Minecraft's. Destruction goes to `queueForDestroy`. It is off unless
+`-Dvoxy.native.marker=true`.
+
+What the run shows (`scripts/verify.py --only native`, Minecraft's own validation layers
+enabled through `--vulkanValidation`; evidence
+`build/harness/20261004T064301-067161Z/summary.json`, which passed with
+`changed_sources_during_run: []`, so the sources it fingerprinted are the ones measured):
+
+- the pipeline is created on Minecraft's device for its actual colour format
+  (`VK_FORMAT_R8G8B8A8_UNORM`, 37) and stays live across the whole lifecycle;
+- **4800 draws** recorded into Minecraft's command buffers over the eleven-checkpoint
+  scenario, with **zero validation diagnostics** and no notes — recording raw `vkCmd*` into
+  Minecraft's pass, and leaving the barriers to Minecraft, is accepted by the validation
+  layer on MoltenVK;
+- the marker is **present in the captured frames**: ten of eleven checkpoints show the full
+  box (15088 pixels at 1708x960, 19136 at 1920x1080), the eleventh being a frame with no
+  level content (below);
+- the whole stage — environment gate, marker gate, zero diagnostics, validation-layer loader
+  evidence — passes as one run, and still reports `voxy_integration_status:
+  BLOCKED_UNIMPLEMENTED`, because a marker is not terrain.
+
+Three facts that must not be assumed, each measured rather than reasoned:
+
+1. **The composed frame is y-flipped relative to Vulkan NDC.** A quad at NDC y = -0.98,
+   which is the top in plain Vulkan, appeared at y ≈ 854 of a 960-pixel image — the bottom.
+   The shader's y sign is therefore chosen from this measurement, not from the convention.
+2. **Minecraft's composition does not preserve colour exactly.** The shader writes
+   (255, 0, 255); the screenshots show (255, 0, 255) in most scenes but (239, 0, 239),
+   (242, 0, 242) and (253, 0, 253) in others. An exact-colour pixel oracle on Minecraft's
+   composed frame is therefore invalid; the gate checks a bounded neighbourhood and records
+   the value it actually found.
+3. **Not every captured frame contains a rendered level.** The nether checkpoint's frame was
+   essentially black (the whole marker box was (5, 2, 2)); the level simply was not rendered
+   on the frame that was captured, so the hook never ran. The gate records such a frame as
+   "no level content" instead of counting it for or against the draw, and separately requires
+   most checkpoints to be real so a run cannot pass by calling every frame empty.
+
+What this does NOT show: any Voxy terrain. The draw is a marker, chosen so that "did our
+command reach Minecraft's frame" is answerable without dragging in depth conventions,
+descriptors or the terrain pipeline. Depth is deliberately not attached.
+
 ## What is NOT answered yet, and must be measured on hardware
 
-1. **Image-state ownership.** `VulkanGpuTexture` tracks no layout field; all
-   transitions live inside the encoder and render pass (`vkCmdPipelineBarrier2KHR`).
-   The layout Minecraft leaves colour/depth in at the chosen hook point, and
-   whether Voxy must restore it, is unverified.
+1. **Image-state ownership** — partly answered. Opening the pass through Minecraft's
+   own `createRenderPass` leaves every colour transition to Minecraft and is validation
+   clean, so Voxy does not need to know the layout for that route. What remains unverified
+   is the route where Voxy records into a pass Minecraft itself opened (Sodium's terrain
+   pass), and anything involving the depth attachment.
 2. **What may be recorded where.** Compute cannot be recorded inside an open
    dynamic-rendering pass, so the traversal/cull/table work must be placed before
    the pass in a separate command buffer, with a barrier chain that MC's pass then

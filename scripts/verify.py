@@ -22,7 +22,7 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 import zlib
-from pixel_oracle import read_rgb, mismatches
+from pixel_oracle import read_rgb, mismatches, top_rows_rgb, png_size
 
 ROOT = Path(__file__).resolve().parents[1]
 DIAGNOSTIC = re.compile(r"\[vk-validation\]\s*\[([^\]]+)\]")
@@ -216,12 +216,94 @@ def native_environment_result(output):
                 attachment = renderer.get(role)
                 if not attachment or not attachment.get("vkImage") or not attachment.get("vkImageView") or min(attachment.get("width", 0), attachment.get("height", 0)) <= 0:
                     raise ValueError(f"{case['stage']}: invalid native {role} attachment")
-            png = (output / (case["stage"] + ".png")).read_bytes()
-            if len(png) < 100 or png[:8] != b"\x89PNG\r\n\x1a\n":
-                raise ValueError(f"{case['stage']}: missing or invalid screenshot")
+            read_rgb(output / (case["stage"] + ".png"),
+                expected_size=(renderer["colour"]["width"], renderer["colour"]["height"]), validate_only=True)
         if len(devices) != 1:
             raise ValueError("Minecraft device changed within the lifecycle run")
         result.update(success=True, checkpoints=cases, voxy_integration_status=evidence.get("voxyIntegrationStatus"))
+    except (OSError, ValueError, KeyError, TypeError, zlib.error, struct.error) as exc:
+        result["failures"].append(str(exc))
+    return result
+
+
+def source_fingerprints():
+    names = subprocess.check_output(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=ROOT).decode().split("\0")
+    return {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in names
+        if name and (ROOT / name).is_file()
+        and (name.startswith(("src/", "scripts/")) or name in ("build.gradle", "gradle.properties"))}
+
+
+def native_marker_result(output, checkpoints):
+    """Independently confirm the bounded native draw actually reached Minecraft's frame.
+
+    The in-client report says a draw was recorded; this decodes the top of every captured
+    screenshot and looks for the marker's exact colour in the box the vertex shader covers
+    (NDC -0.98..-0.78 on both axes, i.e. the first 1%..11% of width and height). A report
+    without pixels, or pixels without a report, both fail.
+    """
+    result = {"success": False, "failures": [],
+              "scope": "bounded marker draw recorded into Minecraft's own Vulkan frame"}
+    marker = (255, 0, 255)
+    try:
+        report = json.loads((output / "native-marker-draw.json").read_text())
+        result["report"] = report
+        if not report.get("enabled"):
+            raise ValueError("the marker draw was not enabled")
+        if not report.get("pipelineLive"):
+            raise ValueError("no marker pipeline was live on Minecraft's device")
+        if report.get("drawsRecorded", 0) < 1:
+            raise ValueError("no draw was recorded into Minecraft's command buffer")
+        if report.get("notes"):
+            raise ValueError(f"the marker draw reported notes: {report['notes']}")
+        if tuple(report.get("markerRgb") or ()) != marker:
+            raise ValueError("the reported marker colour is not the one checked here")
+        # The shader writes (255, 0, 255) but Minecraft's final composition darkens it
+        # (measured: (235, 0, 235)), so the check is a bounded neighbourhood of the drawn
+        # colour rather than equality, and the values actually found are recorded.
+        def is_marker(px):
+            return px[0] >= 200 and px[1] <= 60 and px[2] >= 200
+        found, colours, skipped = {}, {}, {}
+        result["marker_pixels"], result["marker_colour_in_frame"] = found, colours
+        result["frames_without_level_content"] = skipped
+        for case in checkpoints:
+            png = output / (case["stage"] + ".png")
+            width, height = png_size(png)
+            x0, x1 = int(0.012 * width), int(0.108 * width)
+            y0, y1 = int(0.012 * height), int(0.108 * height)
+            # Decode only the scanlines the marker box can touch; a full screenshot
+            # reconstructed in Python would cost a minute per image.
+            rows, decoded_size = top_rows_rgb(png, y1 + 1)
+            if decoded_size != (width, height) or len(rows) <= y1:
+                raise ValueError(f"{case['stage']}: decoded {len(rows)} rows of {decoded_size}, need {y1 + 1}")
+            hits, sample, brightest = 0, None, 0
+            for y in range(y0, y1):
+                for x in range(x0, x1):
+                    px = rows[y][x]
+                    brightest = max(brightest, px[0] + px[1] + px[2])
+                    if is_marker(px):
+                        hits += 1
+                        sample = px
+            box = max(1, (x1 - x0) * (y1 - y0))
+            found[case["stage"]] = hits
+            colours[case["stage"]] = list(sample) if sample else None
+            if hits >= box // 4:
+                continue
+            # The draw only happens on frames where the level is actually rendered. A
+            # checkpoint captured during a dimension change lands on an essentially black
+            # frame (measured: the nether checkpoint's whole box was (5, 2, 2)), and that
+            # says nothing about whether the draw works. Record such a frame instead of
+            # counting it either way — and require most checkpoints to be real, so a run
+            # cannot pass by calling every frame empty.
+            if brightest <= 30:
+                skipped[case["stage"]] = brightest
+                continue
+            raise ValueError(f"{case['stage']}: only {hits} of {box} marker pixels present"
+                             f" in a frame that has content (brightest box pixel sum {brightest})")
+        positives = sum(1 for stage, hits in found.items() if stage not in skipped)
+        if positives < 8:
+            raise ValueError(f"only {positives} of {len(found)} checkpoints carried the marker;"
+                             f" frames without level content: {skipped}")
+        result.update(success=True)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         result["failures"].append(str(exc))
     return result
@@ -335,9 +417,11 @@ def main():
             result = run_stage("native", ["runHarnessClient", *native_common,
                 f"-PharnessOutput={native_output}", f"-PharnessRunDir={game}",
                 f"-PharnessSeconds={args.seconds}", "-PharnessNative=true",
-                "-PharnessGraphicsBackend=vulkan"], output, args.timeout)
+                "-PharnessGraphicsBackend=vulkan", "-PharnessNativeMarker=true"], output, args.timeout)
             result["gate"] = native_environment_result(native_output)
             result["success"] &= result["gate"]["success"]
+            result["marker"] = native_marker_result(native_output, result["gate"].get("checkpoints") or [])
+            result["success"] &= result["marker"]["success"]
             text = (output / "native.log").read_text(errors="replace")
             result["diagnostics"] = [line.strip() for line in text.splitlines()
                 if re.search(r"\[vk-validation\]|Validation (Error|Warning)|SYNC-HAZARD-|VUID-", line)]
@@ -356,9 +440,11 @@ def main():
             summary["stages"]["native_environment"] = result
             save()
         summary["success"] = bool(summary["stages"]) and all(r["success"] for r in summary["stages"].values())
-        changed = [name for name, digest in fingerprints.items()
-            if not (ROOT / name).is_file() or hashlib.sha256((ROOT / name).read_bytes()).hexdigest() != digest]
+        final_fingerprints = source_fingerprints()
+        changed = sorted(name for name in fingerprints.keys() | final_fingerprints.keys()
+            if fingerprints.get(name) != final_fingerprints.get(name))
         summary["changed_sources_during_run"] = changed
+        summary["final_revision"] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
         if changed:
             summary["success"] = False
         if args.only == "required":
