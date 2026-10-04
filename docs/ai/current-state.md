@@ -17,6 +17,9 @@ below describe the existing GL-hosted diagnostic route. They are reusable baseli
 evidence, not acceptance of the project goal. Next priority is a minimal connection
 to Minecraft's Vulkan device, color/depth targets and submission/resource lifetimes.
 
+The API basis for the next priority is surveyed in [vulkan-native-integration-survey.md](vulkan-native-integration-survey.md),
+read from the actual 26.2 / Sodium 0.9.2 artifacts rather than from the historical device-sharing survey.
+
 ## What works
 
 - **OpenGL renderer** remains the established path when GL capabilities suffice.
@@ -45,8 +48,8 @@ to Minecraft's Vulkan device, color/depth targets and submission/resource lifeti
   JUnit, interop and a real Minecraft scenario. It creates an isolated world, operates
   it without GUI clicks, saves logs/PNGs/JSON and returns a failure exit code for
   unexpected diagnostics, missing GPU execution, missing evidence or timeouts.
-  The test suite has 289 cases including changing-count and visual/recovery regressions;
-  the latest GPU gate observed 288 pass / 1 documented skip, with no unexpected diagnostics.
+  The test suite has 298 cases including changing-count and visual/recovery regressions;
+  the latest GPU gate observed 297 pass / 1 documented skip, with no unexpected diagnostics.
   The live scenario has also passed all eleven checkpoints after connecting block
   ingestion and world updates. Logs include completed mesh versions for placement
   and removal. Consult `build/harness/*/summary.json` for exact runtime evidence.

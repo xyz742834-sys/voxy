@@ -1,0 +1,147 @@
+# Native Minecraft-Vulkan integration — API survey against the actual candidate
+
+Investigation for the next priority in [project-goal.md](project-goal.md), done
+2026-10-04 against the **actual** candidate this project builds on:
+`minecraft_version=26.2`, `fabric_api 0.152.2+26.2`,
+`sodium mc26.2-0.9.2-alpha.3-fabric`. Every signature below was read from the
+class files in those artifacts (`javap` on
+`~/.gradle/caches/fabric-loom/26.2/minecraft-merged.jar` and the Sodium jar), not
+from the historical [device-sharing survey](../phase6-device-sharing-survey.md),
+whose assumptions this replaces where they differ.
+
+Nothing here is implemented. This is the API basis for deciding the first step.
+
+## Minecraft 26.2 has a real Vulkan backend
+
+`com.mojang.blaze3d.vulkan` contains 73 classes, including `VulkanBackend`,
+`VulkanInstance`, `VulkanPhysicalDevice`, `VulkanDevice`, `VulkanQueue`,
+`VulkanCommandEncoder`, `VulkanRenderPass`, `VulkanRenderPipeline`,
+`VulkanGpuTexture`, `VulkanGpuTextureView`, `VulkanGpuBuffer`,
+`VulkanTransientMemory`, `DestructionQueue` and a `checkpoints/` extension for
+AMD/NVIDIA breadcrumbs.
+
+`VulkanBackend.REQUIRED_DEVICE_FEATURES` / `REQUIRED_DEVICE_EXTENSIONS` require
+**synchronization2** and **dynamic rendering** (plus VK11/VK12 feature structs,
+vertex attribute divisor and multi-draw). The disassembly confirms the backend
+actually uses them: the encoder issues `vkCmdPipelineBarrier2KHR`,
+`vkCmdBeginRenderingKHR` / `vkCmdEndRenderingKHR`, `vkWaitSemaphores` with
+timeline-semaphore signal/wait triples, and the render pass issues
+`vkCmdPushDescriptorSetKHR`, `vkCmdDraw*`, `vkCmdDrawIndirect`,
+`vkCmdDrawIndexedIndirect` and `vkCmdDrawMulti*EXT`.
+
+That is the same feature set Voxy's own Vulkan renderer is built on, which is why
+the shader, traversal, culling and table-generation code is a candidate for reuse
+rather than a rewrite.
+
+## The three connection points, with real signatures
+
+**1. The device.** `RenderSystem.getDevice()` returns the `GpuDevice` *wrapper*,
+whose `GpuDeviceBackend backend` field is private with no accessor; the same is
+true of `CommandEncoder.backend()` (protected). So reaching the backend needs a
+mixin `@Accessor`/`@Invoker` — standard for this project. The backend itself is
+public API once reached:
+
+    class VulkanDevice implements GpuDeviceBackend {
+        public VkDevice vkDevice();
+        public VulkanInstance instance();
+        public VulkanQueue graphicsQueue();   // also computeQueue(), transferQueue()
+        public long vma();                    // MC's VMA allocator
+        public VulkanCommandEncoder createCommandEncoder();
+        public DeviceInfo getDeviceInfo();
+    }
+
+This means Voxy would **adopt** MC's instance, physical device, logical device,
+queues and allocator instead of creating its own (`VkContext` currently creates
+all of them). It also means MoltenVK is already initialized by Minecraft; there is
+a `VulkanDevice.isIntegratedIntelMoltenVK` flag, so the backend is MoltenVK-aware.
+
+**2. The colour/depth targets, as raw Vulkan handles.**
+
+    class RenderTarget {
+        public GpuTextureView getColorTextureView();   // and getDepthTextureView()
+    }
+    class VulkanGpuTextureView extends GpuTextureView { public long vkImageView(); public VulkanGpuTexture texture(); }
+    class VulkanGpuTexture   extends GpuTexture     { public long vkImage(); }
+
+No GL texture ID, no `GlTextureView` cast, no IOSurface. This removes the reason
+`VoxyClient` currently disables itself when Minecraft is not on OpenGL.
+
+**3. The render point — Minecraft's live command buffer.** Sodium 0.9.2 for 26.2
+already supports this backend and exposes exactly the handle needed:
+
+    interface VulkanRenderPassAccessor {           // net.caffeinemc.mods.sodium.mixin.core
+        VulkanRenderPipeline sodium$getPipeline();
+        VkCommandBuffer      sodium$getCommandBuffer();
+    }
+    interface RenderPassAccessor { RenderPassBackend getBackend(); }
+
+So terrain draws can be recorded into Minecraft's own in-flight command buffer,
+inside the dynamic-rendering pass that already has MC's colour/depth bound and
+viewport/scissor set. Voxy can mixin an equivalent accessor on
+`com.mojang.blaze3d.vulkan.VulkanRenderPass` rather than depending on Sodium's
+internal mixin interface.
+
+For work that cannot go inside a render pass — Voxy's compute traversal, culling
+and table generation — the encoder hands out a real command buffer and takes it
+back:
+
+    class VulkanCommandEncoder implements CommandEncoderBackend {
+        public static final int MAX_SUBMITS_IN_FLIGHT;
+        public VkCommandBuffer allocateAndBeginTransientCommandBuffer();
+        public void execute(VkCommandBuffer);
+        public void waitSemaphore(long sem, long value, long stage);
+        public void signalSemaphore(long sem, long value, long stage);
+        public void submit();
+        public void queueForDestroy(Destroyable);
+        public GpuFence createFence();
+        public static void memoryBarrier(VkCommandBuffer, MemoryStack);
+    }
+    record VulkanQueue(VkQueue vkQueue, int queueFamilyIndex) {
+        Submission beginSubmit();   // Submission.executeCommands(VkCommandBuffer), wait/signalSemaphore
+    }
+
+## What this changes about Voxy's current assumptions
+
+- **Resource lifetime.** `queueForDestroy(Destroyable)` plus
+  `MAX_SUBMITS_IN_FLIGHT` is the lifetime contract the backend actually offers.
+  Voxy's explicit fence waits / `vkDeviceWaitIdle` are its own invention and are
+  not supplied by Minecraft; uploads, descriptors and destruction must be adapted
+  to the submission lifetime instead.
+- **Submission ordering.** Recording into MC's command buffer needs no submit of
+  our own; anything submitted separately must order against MC's work through the
+  timeline semaphores the encoder/queue already expose, not through device-wide
+  waits.
+- **Instance/device ownership.** Voxy must stop creating a device when running
+  native, which also means its validation-layer setup, queue selection and memory
+  allocation paths become MC's.
+
+## What is NOT answered yet, and must be measured on hardware
+
+1. **Image-state ownership.** `VulkanGpuTexture` tracks no layout field; all
+   transitions live inside the encoder and render pass (`vkCmdPipelineBarrier2KHR`).
+   The layout Minecraft leaves colour/depth in at the chosen hook point, and
+   whether Voxy must restore it, is unverified.
+2. **What may be recorded where.** Compute cannot be recorded inside an open
+   dynamic-rendering pass, so the traversal/cull/table work must be placed before
+   the pass in a separate command buffer, with a barrier chain that MC's pass then
+   observes. The exact placement relative to Sodium's own passes is unverified.
+3. **MoltenVK coverage** of the paths MC relies on (`vkCmdDrawMulti*EXT`,
+   push descriptors) and of Voxy's own indirect/compute usage on MC's device.
+4. **Descriptor interplay** between Voxy's own layouts and MC's push-descriptor
+   usage inside the same pass.
+5. Whether `Prefer Vulkan` actually selects this backend on this host, and what
+   `getBackendDescription()` reports when it does — the evidence requirement in
+   project-goal.md.
+
+## Proposed first step (bounded, evidence-first)
+
+Add a diagnostic that, when Minecraft runs its Vulkan backend, reaches the backend
+through a mixin accessor and reports: `getBackendDescription()`, the `VkDevice` /
+queue family indices, `DeviceInfo`, and the `vkImage`/`vkImageView` handles plus
+format and extent of the main render target's colour and depth. Then record one
+bounded Voxy draw into Minecraft's command buffer at the Sodium terrain hook and
+capture the frame, with the validation layer enabled, retaining the diagnostics.
+
+That answers (1), (2) and (5) with real evidence before any controller or resource
+code is adapted, and it is the smallest change that can prove a real connection
+rather than a preference setting.
