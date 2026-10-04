@@ -166,3 +166,11 @@ This evidence is ignored build output and is not a checked-in baseline image sui
 The captured ocean travel scene shows horizontal bands; the current liveness gate
 has no live-world pixel-accuracy oracle to classify that visual artifact or establish its cause.
 The new analytic fixture does not establish that the ocean bands are correct.
+
+Additional combined evidence (2026-10-04):
+`build/harness/20261004T023424-744890Z/summary.json` — all three stages passed;
+289 GPU cases (288 pass, one descriptor-sync skip), six required visual/recovery
+cases, four effective negative controls, three recovery cycles, 46 hashed visual
+artifacts, 45 interop checks and 11 live checkpoints. No unexpected validation or
+live Voxy application errors. The runner's source snapshot/fingerprints bind the
+working source candidate; commits made concurrently do not change that scope.
