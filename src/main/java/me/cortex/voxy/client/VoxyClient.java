@@ -152,6 +152,13 @@ public class VoxyClient implements ClientModInitializer {
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK
             .register(me.cortex.voxy.client.core.vk.VulkanWorldUpdates::tick);
 
+        // ⚠ Voxy が自分を無効化したかどうかに関係なく一度だけ測る。
+        // MC 自身が Vulkan で動いている場合こそ知りたい情報であり、
+        // そのときまさに Voxy は (今は) 自分を無効化するからである
+        // [docs/ai/project-goal.md / docs/ai/vulkan-native-integration-survey.md]。
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK
+            .register(client -> me.cortex.voxy.client.core.vk.mcnative.McNativeVulkanProbe.probeOnce());
+
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             if (VoxyCommon.isAvailable()) {
                 dispatcher.register(VoxyCommands.register());

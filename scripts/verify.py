@@ -191,13 +191,54 @@ def run_stage(name, arguments, output, timeout):
     return result
 
 
+def native_environment_result(output):
+    """Independently reject preferences, fallback, partial observations and missing images."""
+    result = {"success": False, "failures": [], "scope": "Minecraft Vulkan environment; no Voxy LoD acceptance"}
+    expected = {"warmup", "turn", "travel", "return", "edit", "remove", "resize", "reload", "nether", "overworld", "reconnect"}
+    try:
+        evidence = json.loads((output / "native-result.json").read_text())
+        cases = evidence["checkpoints"]
+        if evidence.get("complete") is not True or evidence.get("success") is not True or evidence.get("failures") != []:
+            raise ValueError("Native environment scenario did not complete cleanly")
+        if len(cases) != 11 or {c["stage"] for c in cases} != expected:
+            raise ValueError("Missing or duplicate native lifecycle checkpoints")
+        devices = set()
+        for case in cases:
+            renderer = case["renderer"]
+            if (renderer.get("mcUsesVulkan") is not True
+                or renderer.get("backendClass") != "com.mojang.blaze3d.vulkan.VulkanDevice"
+                or renderer.get("notes") != [] or not renderer.get("vkDevice") or not renderer.get("vkInstance")
+                or not renderer.get("vmaAllocator") or any(renderer.get(q, -1) < 0 for q in
+                    ("graphicsQueueFamily", "computeQueueFamily", "transferQueueFamily"))):
+                raise ValueError(f"{case['stage']}: native Vulkan device not established")
+            devices.add(renderer["vkDevice"])
+            for role in ("colour", "depth"):
+                attachment = renderer.get(role)
+                if not attachment or not attachment.get("vkImage") or not attachment.get("vkImageView") or min(attachment.get("width", 0), attachment.get("height", 0)) <= 0:
+                    raise ValueError(f"{case['stage']}: invalid native {role} attachment")
+            png = (output / (case["stage"] + ".png")).read_bytes()
+            if len(png) < 100 or png[:8] != b"\x89PNG\r\n\x1a\n":
+                raise ValueError(f"{case['stage']}: missing or invalid screenshot")
+        if len(devices) != 1:
+            raise ValueError("Minecraft device changed within the lifecycle run")
+        result.update(success=True, checkpoints=cases, voxy_integration_status=evidence.get("voxyIntegrationStatus"))
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        result["failures"].append(str(exc))
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--only", choices=("all", "gpu", "live"), default="all")
+    parser.add_argument("--only", choices=("all", "gpu", "live", "native", "required"), default="all")
     parser.add_argument("--seconds", type=int, default=10, help="dwell per live scenario; increase for a soak")
     parser.add_argument("--timeout", type=int, default=1200, help="wall-clock limit per Gradle stage")
     parser.add_argument("--online", action="store_true", help="allow Gradle dependency downloads")
     parser.add_argument("--vk-lib", default="/opt/homebrew/lib/libvulkan.dylib")
+    parser.add_argument("--wait-lock", action="store_true", help="queue behind another runner in this checkout")
+    parser.add_argument("--graphics-backend", choices=("default", "opengl", "vulkan"), default="default",
+        help="Minecraft's preferredGraphicsBackend for the live stage. 'vulkan' asks Minecraft for its own "
+             "Vulkan backend, which Voxy cannot render through yet, so the live stage is then judged by the "
+             "native probe instead of the GL-hosted checkpoint gate")
     args = parser.parse_args()
     if args.seconds < 1 or args.timeout < 1:
         parser.error("seconds and timeout must be positive")
@@ -205,7 +246,7 @@ def main():
     (ROOT / ".gradle").mkdir(exist_ok=True)
     lock = (ROOT / ".gradle" / "voxy-harness.lock").open("w")
     try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(lock, fcntl.LOCK_EX | (0 if args.wait_lock else fcntl.LOCK_NB))
     except BlockingIOError:
         print("Another verification run is active in this checkout", file=sys.stderr)
         return 1
@@ -215,6 +256,7 @@ def main():
     summary = {"success": False, "host": platform.platform(), "revision": subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(), "output": str(output), "stages": {},
         "scope": "Standalone Vulkan GPU/analytic pixel/arena recovery gates plus GL-hosted live liveness/lifecycle/mesh updates; Minecraft-native integration and live visual parity remain unproven"}
+    summary["graphics_backend_preference"] = args.graphics_backend
     summary["selection"] = args.only
     summary["scenario_seconds"] = args.seconds
     summary["worktree_status"] = subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT, text=True)
@@ -237,7 +279,7 @@ def main():
     common = ([] if args.online else ["--offline"]) + [f"-PvkLibname={args.vk_lib}",
         "-PvkValidation=true", "-PvkSyncEnv=true", f"-PharnessOutput={output}"]
     try:
-        if args.only in ("all", "gpu"):
+        if args.only in ("all", "gpu", "required"):
             result = run_stage("junit", ["test", "--rerun-tasks", *common], output, args.timeout)
             result["gate"] = junit_result(output / "junit")
             result["success"] &= result["gate"]["success"]
@@ -253,13 +295,17 @@ def main():
             if (ROOT / "build" / "vk-test-output").exists():
                 shutil.copytree(ROOT / "build" / "vk-test-output", output / "gpu-images")
             save()
-        if args.only in ("all", "live"):
+        if args.only in ("all", "live", "required"):
             game = output / "game"
             game.mkdir()
             (game / ".voxy-harness").write_text(timestamp)
-            (game / "options.txt").write_text('preferredGraphicsBackend:"default"\nonboardAccessibility:false\ntutorialStep:none\npauseOnLostFocus:false\nrenderDistance:8\nsimulationDistance:5\nmaxFps:60\nenableVsync:false\n')
+            (game / "options.txt").write_text(f'preferredGraphicsBackend:"{args.graphics_backend}"\nonboardAccessibility:false\ntutorialStep:none\npauseOnLostFocus:false\nrenderDistance:8\nsimulationDistance:5\nmaxFps:60\nenableVsync:false\n')
+            # options.txt only expresses a preference; Minecraft's own --graphicsBackend launch
+            # argument is what actually forces the backend, so pass both and let the probe report
+            # which one Minecraft really ran.
             result = run_stage("live", ["runHarnessClient", *common, f"-PharnessRunDir={game}",
-                f"-PharnessSeconds={args.seconds}"], output, args.timeout)
+                f"-PharnessSeconds={args.seconds}",
+                f"-PharnessGraphicsBackend={args.graphics_backend}"], output, args.timeout)
             live = output / "live-result.json"
             result["gate"] = json.loads(live.read_text()) if live.exists() else {"success": False, "failures": ["No live result; startup failed or timed out"]}
             result["success"] &= result["gate"].get("complete", False) and result["gate"]["success"]
@@ -272,7 +318,56 @@ def main():
                 if "/ERROR]" in line and "(Voxy)" in line and "[vk-validation]" not in line]
             result["success"] &= not result["diagnostics"] and not result["application_errors"]
             summary["stages"]["live"] = result
+            save()
+        if args.only in ("native", "required"):
+            native_output = output / "native"
+            native_output.mkdir()
+            game = native_output / "game"
+            game.mkdir()
+            (game / ".voxy-harness").write_text(timestamp)
+            (game / "options.txt").write_text('preferredGraphicsBackend:"vulkan"\nonboardAccessibility:false\ntutorialStep:none\npauseOnLostFocus:false\nrenderDistance:8\nsimulationDistance:5\nmaxFps:60\nenableVsync:false\n')
+            native_common = [a for a in common if not a.startswith("-PharnessOutput=")]
+            # ⚠ options.txt is only a preference and Minecraft overrode it back to "default" on this
+            # host (measured: it ran com.mojang.blaze3d.opengl.GlDevice with the file asking for
+            # vulkan). Minecraft's own --graphicsBackend launch argument is what actually forces the
+            # backend ("Graphics backend forced to vulkan by launch argument, in-game preferred
+            # graphics backend setting is ignored"), so the native stage passes it.
+            result = run_stage("native", ["runHarnessClient", *native_common,
+                f"-PharnessOutput={native_output}", f"-PharnessRunDir={game}",
+                f"-PharnessSeconds={args.seconds}", "-PharnessNative=true",
+                "-PharnessGraphicsBackend=vulkan"], output, args.timeout)
+            result["gate"] = native_environment_result(native_output)
+            result["success"] &= result["gate"]["success"]
+            text = (output / "native.log").read_text(errors="replace")
+            result["diagnostics"] = [line.strip() for line in text.splitlines()
+                if re.search(r"\[vk-validation\]|Validation (Error|Warning)|SYNC-HAZARD-|VUID-", line)]
+            result["success"] &= not result["diagnostics"]
+            result["scope"] = "Minecraft-native Vulkan environment only; no Voxy LoD acceptance"
+            result["voxy_integration_status"] = "BLOCKED_UNIMPLEMENTED"
+            result["validation_layer_loader_evidence"] = [line.strip() for line in text.splitlines()
+                if "VK_LAYER_KHRONOS_validation" in line and "Insert" in line]
+            result["success"] &= bool(result["validation_layer_loader_evidence"])
+            result["application_errors"] = [line.strip() for line in text.splitlines() if "/ERROR]" in line and "(Voxy)" in line]
+            expected_errors = ("Minecraft is not using the OpenGL backend; Voxy's Vulkan path still ",
+                               "Voxy is unsupported on your system.")
+            result["unexpected_application_errors"] = [line for line in result["application_errors"]
+                if not any(message in line for message in expected_errors)]
+            result["success"] &= not result["unexpected_application_errors"]
+            summary["stages"]["native_environment"] = result
+            save()
         summary["success"] = bool(summary["stages"]) and all(r["success"] for r in summary["stages"].values())
+        changed = [name for name, digest in fingerprints.items()
+            if not (ROOT / name).is_file() or hashlib.sha256((ROOT / name).read_bytes()).hexdigest() != digest]
+        summary["changed_sources_during_run"] = changed
+        if changed:
+            summary["success"] = False
+        if args.only == "required":
+            summary["executed_gates_success"] = summary["success"]
+            summary["required_unproven"] = ["Minecraft-native Voxy LoD draw/composite connection",
+                "Live native-world independent reference pixel/depth comparison",
+                "Live native-world forced arena exhaustion and multi-frame GPU lifetime recovery"]
+            summary["status"] = "INCOMPLETE"
+            summary["success"] = False
     except (Exception, KeyboardInterrupt) as exc:
         summary["runner_error"] = str(exc) or type(exc).__name__
     finally:

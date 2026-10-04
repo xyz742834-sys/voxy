@@ -536,6 +536,12 @@ loom {
             source sourceSets.harness
             runDir project.relativePath(project.findProperty('harnessRunDir') ?: 'build/harness/manual/game')
             vmArg '-Dvoxy.harness=true'
+            if (project.hasProperty('harnessNative')) {
+                vmArg '-Dvoxy.harness.native=true'
+                environmentVariable 'VK_INSTANCE_LAYERS', 'VK_LAYER_KHRONOS_validation'
+                environmentVariable 'VK_LAYER_VALIDATE_SYNC', '1'
+                environmentVariable 'VK_LOADER_DEBUG', 'layer'
+            }
             vmArg '-Dvoxy.5c4=on'
             vmArg '-Dvoxy.5c4.depth=4'
             vmArg '-Dvoxy.5c4.radius=0'
@@ -547,6 +553,17 @@ loom {
                 vmArg '-Dorg.lwjgl.vulkan.libname=' + project.property('vkLibname')
             }
             vmArg '-Dvoxy.vk.validation=true'
+            // Minecraft's own launch argument wins over options.txt's preferredGraphicsBackend
+            // ("Graphics backend forced to {} by launch argument, in-game preferred graphics backend
+            // setting is ignored"), so forcing the backend here is the only reliable way to ask for
+            // Minecraft's native Vulkan backend. --vulkanValidation is Minecraft's own flag for it.
+            if (project.hasProperty('harnessGraphicsBackend')) {
+                programArg '--graphicsBackend'
+                programArg project.property('harnessGraphicsBackend')
+                if (project.property('harnessGraphicsBackend') == 'vulkan') {
+                    programArg '--vulkanValidation'
+                }
+            }
             def layerRoot = '/opt/homebrew/opt/vulkan-validationlayers'
             if (file("$layerRoot/share/vulkan/explicit_layer.d").exists()) {
                 environmentVariable 'VK_LAYER_PATH', "$layerRoot/share/vulkan/explicit_layer.d"
