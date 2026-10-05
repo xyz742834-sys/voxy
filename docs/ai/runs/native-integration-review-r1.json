@@ -1,0 +1,79 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "5160f0007a74d562e84e403891196d74925467d8",
+  "blocking_findings": [
+    {
+      "id": "B1",
+      "severity": "high",
+      "finding": "Named retained native proof and all build/harness evidence are absent; measured draw/depth/feature/adopted-shader claims cannot be established.",
+      "evidence": "ls/cat build/harness/20261004T150924-204694Z/summary.json: No such file or directory"
+    },
+    {
+      "id": "B2",
+      "severity": "high",
+      "finding": "Native diagnostics and client-stop vkDeviceWaitIdle execute with all native flags unset; ordinary Minecraft-Vulkan shutdown can stall.",
+      "evidence": "VoxyClient.java:165-172; McNativeVulkanProbe.java:268-303; McNativeVkContext.java:263-280"
+    },
+    {
+      "id": "B3",
+      "severity": "high",
+      "finding": "Native stage never gates feature, compute, adoption or real-shader proof files; caught WARN/INFO failures can pass.",
+      "evidence": "scripts/verify.py:445-469"
+    },
+    {
+      "id": "B4",
+      "severity": "high",
+      "finding": "Marker gate passes without depth, accepts one cyan pixel instead of expected spatial split, and exempts three bright scene frames with dark marker boxes.",
+      "evidence": "scripts/verify.py:266-334; offline valid-PNG counterexamples both environment and marker success=true"
+    },
+    {
+      "id": "B5",
+      "severity": "high",
+      "finding": "Compute/adoption fence timeout cleanup destroys resources while submitted commands may remain pending; marker retirement also falls back to immediate destruction without retirement proof.",
+      "evidence": "McNativeComputeProbe.java:204-230; McNativeVkContext.java:223-245,267-303; McNativeMarkerDraw.java:435-442"
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "N1",
+      "finding": "Type reflection is unique on the inspected artifact but does not reject ambiguous/static fields and command-buffer cache does not recover from changed backend classes.",
+      "evidence": "McNativeVulkan.java:114-146; McNativeDeviceFeatures.java:200-210; javap -private current Minecraft jar"
+    },
+    {
+      "id": "N2",
+      "finding": "Physical-device adoption/compute selects first enumerated device rather than the parent of Minecraft logical device; no multi-GPU validation.",
+      "evidence": "McNativeVkContext.java:316-329; McNativeComputeProbe.java:256-266"
+    },
+    {
+      "id": "N3",
+      "finding": "Feature audit enabled list is static unaugmented requests; int64 compute proves neither graphics-stage stores/atomics nor nonzero firstInstance indirect drawing.",
+      "evidence": "McNativeFeatureAudit.java:155-165; McNativeComputeProbe.java:63-70,195-208"
+    },
+    {
+      "id": "N4",
+      "finding": "Adopted hasMetalObjects reports physical support instead of enabled device extensions, contradicting its claimed disablement.",
+      "evidence": "VkContext.java:449-453"
+    },
+    {
+      "id": "N5",
+      "finding": "Partial PNG decoder lacks standalone integrity/size bounds and rows=0 permits unlimited zlib output; native environment full decoder mitigates current route.",
+      "evidence": "scripts/pixel_oracle.py:93-168; scripts/verify.py:219-220"
+    },
+    {
+      "id": "N6",
+      "finding": "Native tests cover helper inputs and independent core-device fixture, not live hooks/adoption/KHR/depth; no Python marker gate tests.",
+      "evidence": "src/test/java/me/cortex/voxy/vk/McNative*Test.java; rg native_marker_result scripts/tests"
+    },
+    {
+      "id": "N7",
+      "finding": "Depth pattern overwrites scene depth and cannot prove near-draw depth writes or normal scene composition even with ideal expected pixels.",
+      "evidence": "McNativeMarkerDraw.java:276-283"
+    },
+    {
+      "id": "N8",
+      "finding": "Actual checkout branch is xyz742834-sys/native-review-r1; review is bound to the requested full candidate HEAD, with initial clean tracked tree.",
+      "evidence": "git branch --show-current; git rev-parse HEAD; git status --short"
+    }
+  ],
+  "safe_for_normal_play": false
+}
