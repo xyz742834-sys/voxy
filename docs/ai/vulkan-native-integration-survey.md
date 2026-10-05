@@ -358,6 +358,68 @@ NPE whose cause was invisible from the outside, and each diagnosis cost a full c
 ordinary suite. That separates "the probe is wrong" from "Minecraft's device is different",
 and it is what located the KHR problem in one iteration instead of several.
 
+## Round-1 review repairs (2026-10-05)
+
+The round-1 reviewer returned REDESIGN with five blocking findings
+([native-integration-review-r1.md](runs/native-integration-review-r1.md)) and, rather than
+arguing, encoded counterexample PNGs and showed the real gate functions accepting frames
+that proved nothing. What changed:
+
+**The screenshot was never the right place to look.** Voxy records at the end of level
+rendering, so Minecraft's GUI, a loading overlay and post-processing all come afterwards and
+can hide the marker — measured on the nether checkpoint, whose frame showed nothing although
+the draw had certainly run. The authoritative proof is now a **readback of Minecraft's own
+colour image** taken right after the draw, through Minecraft's own
+`CommandEncoder.copyTextureToBuffer` so the layout transitions stay Minecraft's.
+
+**The readback does not assume an orientation either.** The first version read the box's
+rectangle using final-image coordinates and found nothing at all: the texture's rows run
+opposite to the composited frame. Guessing which way up it is was the wrong fix. It now reads
+the whole image once and judges **relationships**: the near and far quads must be side by
+side across the same rows, and the rejected colour must exist (in its control strip) but
+never inside the rows the depth-tested box occupies. Those hold whichever way the rows run.
+
+**A third draw that is simply absent now fails.** "No rejected colour in the box" was treated
+as proof that depth rejected it, which it is not — not issuing the draw looks identical. The
+marker therefore also draws the rejected colour in a control strip with compare `ALWAYS`, and
+the gate requires it there.
+
+**The proof files are gated.** `native-device-features.json`, `native-compute-probe.json`,
+`native-adopted-context.json` and `native-real-shader.json` were written and never read, and
+probe failures log at INFO/WARN rather than the ERROR level the stage rejects — so a failed
+adoption passed. Each is now required, with its claim checked, and the adopted device must be
+the device the lifecycle checkpoints observed (compared numerically: the probes spell handles
+as hex, the checkpoints as integers).
+
+**Nothing native runs without its own flag.** The probe ran unconditionally, and
+`releaseAdopted` queried Minecraft's device and called `vkDeviceWaitIdle` *before* checking
+whether anything had been adopted — an ordinary Vulkan-backend player could stall at exit for
+a diagnostic they never enabled. The probe now has `voxy.native.probe`, and release returns
+immediately unless the context was adopted.
+
+**Nothing is destroyed on an unconfirmed wait.** All three fence waits previously fell through
+to destruction on timeout, while submitted commands might still reference the objects. They
+now leak deliberately and say so; marker retirement no longer falls back to immediate
+destruction when `queueForDestroy` refuses.
+
+**The evidence lives in the repository.** Every claim above cited paths under `build/`, which
+is ignored — so for anyone else the evidence did not exist. The native stage now copies its
+JSON proofs into `docs/ai/runs/native-evidence/<run>/` and records each screenshot's sha256
+in a manifest. The passing run is
+[20261005T050713-618859Z](runs/native-evidence/20261005T050713-618859Z/MANIFEST.json), whose
+readback reports near 9888, far 6528, control 3249, rejected-inside-the-box 0, no relationship
+problem, with every gate green and zero validation diagnostics.
+
+Smaller repairs: the type-based reflection refuses to guess when a class has more than one
+field of the wanted type and ignores statics; the command-buffer cache is keyed by backend
+class; physical-device selection matches Minecraft's reported device name instead of taking
+the first enumerated one; `hasMetalObjects` in adopted mode comes from the extensions
+Minecraft actually enabled rather than from physical support; and the partial PNG decoder
+carries its own CRC, IEND, dimension and row-count bounds.
+
+The counterexamples the reviewer used are now tests (`scripts/tests/test_marker_gate.py`,
+47 Python tests in total), so the gate cannot drift back.
+
 ## What is NOT answered yet, and must be measured on hardware
 
 1. **Image-state ownership** — partly answered. Opening the pass through Minecraft's

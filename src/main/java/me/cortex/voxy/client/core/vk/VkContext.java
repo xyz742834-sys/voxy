@@ -84,13 +84,17 @@ public class VkContext {
      *
      * @param queueFamily {@code queue} のファミリ。グラフィクス対応のファミリは
      *                    仕様上 compute も必ず対応するので、Voxy の compute も同じ queue に流せる。
+     * @param enabledDeviceExtensions device を作った側が<b>有効にした</b>拡張名。
+     *                    物理デバイスの対応可否ではなく<b>有効化の有無</b>で決まる機能
+     *                    ({@code VK_EXT_metal_objects} による IOSurface interop) の判定に使う。
      */
     public static void initAdopted(VkInstance instance, VkPhysicalDevice physical, VkDevice device,
                                    VkQueue queue, int queueFamily,
-                                   boolean validationEnabled, boolean syncValidationEnabled) {
+                                   boolean validationEnabled, boolean syncValidationEnabled,
+                                   java.util.Set<String> enabledDeviceExtensions) {
         if (INSTANCE != null) return;
         INSTANCE = new VkContext(instance, physical, device, queue, queueFamily,
-            validationEnabled, syncValidationEnabled);
+            validationEnabled, syncValidationEnabled, enabledDeviceExtensions);
     }
 
     /** 採用モードか (instance/device を所有していない)。 */
@@ -397,7 +401,8 @@ public class VkContext {
      */
     private VkContext(VkInstance instance, VkPhysicalDevice physical, VkDevice device,
                       VkQueue queue, int queueFamily,
-                      boolean validationEnabled, boolean syncValidationEnabled) {
+                      boolean validationEnabled, boolean syncValidationEnabled,
+                      java.util.Set<String> enabledDeviceExtensions) {
         this.adopted = true;
         this.instance = instance;
         this.physical = physical;
@@ -446,11 +451,12 @@ public class VkContext {
             }
             this.timestampValidBits = family.timestampValidBits();
 
-            // ⚠ IOSurface interop は device を作った側が拡張を有効にしていないと使えない。
-            // MC の device は VK_EXT_metal_objects を有効にしないので、採用モードでは
-            // この経路が自動的に無効になる (ネイティブ目標では使わない)。
-            this.hasMetalObjects = enumerateDeviceExtensions(stack, physical)
-                .contains("VK_EXT_metal_objects");
+            // ⚠ IOSurface interop は device を作った側が拡張を<b>有効にしていないと</b>使えない。
+            // round-1 review N4: ここで物理デバイスの対応可否を見ていたのは誤りで、
+            // 「MC が有効にしたか」を見なければならない (MC は VK_EXT_metal_objects を
+            // 有効にしないので、採用モードではこの経路が自動的に無効になる)。
+            this.hasMetalObjects = enabledDeviceExtensions != null
+                && enabledDeviceExtensions.contains("VK_EXT_metal_objects");
 
             VkCommandPoolCreateInfo pci = VkCommandPoolCreateInfo.calloc(stack)
                 .sType$Default()

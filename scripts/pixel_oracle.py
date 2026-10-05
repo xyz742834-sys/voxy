@@ -98,7 +98,14 @@ def top_rows_rgb(path, rows):
     the top of an image can be reconstructed without touching the rest: feed the zlib
     stream incrementally and stop once enough scanlines are out. Used to look for the
     bounded native marker, which is drawn in the top-left corner.
+
+    Round-1 review N5: this helper is used on its own, so it carries its own integrity and
+    size bounds rather than relying on a caller having validated the file first — chunk
+    CRCs, a single IHDR, IEND terminating the file, a bounded image, and a positive row
+    count (`rows=0` previously handed zlib an unbounded output limit).
     """
+    if not isinstance(rows, int) or rows < 1:
+        raise ValueError("rows must be a positive integer")
     data = path.read_bytes()
     if data[:8] != b"\x89PNG\r\n\x1a\n":
         raise ValueError("Invalid PNG signature")
@@ -111,15 +118,22 @@ def top_rows_rgb(path, rows):
         payload = data[offset + 8:offset + 8 + size]
         if offset + size + 12 > len(data):
             raise ValueError("Truncated PNG payload")
+        checksum = struct.unpack_from(">I", data, offset + size + 8)[0]
+        if zlib.crc32(kind + payload) & 0xFFFFFFFF != checksum:
+            raise ValueError("PNG checksum mismatch")
         if kind == b"IHDR":
-            if header is not None or size != 13:
+            if header is not None or offset != 8 or size != 13:
                 raise ValueError("Invalid PNG header")
             header = struct.unpack(">IIBBBBB", payload)
             if header[2] != 8 or header[3] not in (2, 6) or any(header[4:]):
                 raise ValueError("Expected a non-interlaced RGB/RGBA8 PNG")
+            if not 0 < header[0] * header[1] <= 32_000_000:
+                raise ValueError("PNG dimensions out of bounds")
         elif kind == b"IDAT":
             compressed.extend(payload)
         elif kind == b"IEND":
+            if size != 0 or offset + 12 != len(data):
+                raise ValueError("Invalid PNG end")
             ended = True
             break
         offset += size + 12
@@ -128,7 +142,7 @@ def top_rows_rgb(path, rows):
     width, height, _, colour = header[0], header[1], header[2], header[3]
     channels = 4 if colour == 6 else 3
     stride = width * channels
-    wanted = max(0, min(rows, height))
+    wanted = max(1, min(rows, height))
     raw = zlib.decompressobj().decompress(bytes(compressed), (stride + 1) * wanted)
     if len(raw) < (stride + 1) * wanted:
         raise ValueError("Could not decode the requested scanlines")

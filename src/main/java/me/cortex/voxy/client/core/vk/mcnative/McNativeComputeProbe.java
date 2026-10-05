@@ -108,6 +108,7 @@ public final class McNativeComputeProbe {
         int queueFamily = -1;
         String readBack = null;
         boolean ok = false;
+        boolean submitted = false, retired = false;
         try (MemoryStack stack = stackPush()) {
             var queue = device.computeQueue();
             queueFamily = queue.queueFamilyIndex();
@@ -204,9 +205,19 @@ public final class McNativeComputeProbe {
             var submit = VkSubmitInfo.calloc(1, stack).sType$Default()
                 .pCommandBuffers(stack.pointers(cmd));
             check(vkQueueSubmit(queue.vkQueue(), submit, fence), "vkQueueSubmit", notes);
+            submitted = true;
             // 一度きりの診断なので、ここだけは明示的に待つ。MC の提出寿命には触らない。
-            check(vkWaitForFences(vk, stack.longs(fence), true, 5_000_000_000L),
-                "vkWaitForFences", notes);
+            // ⚠ round-1 review B5: タイムアウト (VK_TIMEOUT) でも例外で finally に落ち、
+            // <b>実行中のコマンドが参照しているまま</b>破棄していた。待てたかどうかを
+            // 記録し、待てていなければ何も壊さない。
+            int waited = vkWaitForFences(vk, stack.longs(fence), true, 5_000_000_000L);
+            if (waited != VK_SUCCESS) {
+                notes.add("vkWaitForFences -> VkResult " + waited
+                    + "; the submission may still be running, so nothing is destroyed"
+                    + " (resources are leaked on purpose)");
+                throw new IllegalStateException("fence wait did not complete: " + waited);
+            }
+            retired = true;
 
             PointerBuffer mapped = stack.mallocPointer(1);
             check(vkMapMemory(vk, memory, 0, 8, 0, mapped), "vkMapMemory", notes);
@@ -218,6 +229,13 @@ public final class McNativeComputeProbe {
         } catch (Throwable t) {
             notes.add("int64 compute probe failed: " + t);
         } finally {
+            // ⚠ 提出したのに退役を確認できていないときは<b>何も壊さない</b>。
+            // 壊せば「実行中のコマンドが参照している」状態になる (round-1 review B5)。
+            if (submitted && !retired) {
+                notes.add("leaking the probe's Vulkan objects on purpose: the submission was"
+                    + " never observed to complete");
+                return new Result(true, false, hex(EXPECTED), readBack, queueFamily, List.copyOf(notes));
+            }
             try {
                 if (fence != 0) vkDestroyFence(vk, fence, null);
                 if (commandPool != 0) vkDestroyCommandPool(vk, commandPool, null);

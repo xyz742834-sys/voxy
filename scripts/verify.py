@@ -234,16 +234,22 @@ def source_fingerprints():
 
 
 def native_marker_result(output, checkpoints):
-    """Independently confirm the bounded native draw actually reached Minecraft's frame.
+    """Independently confirm the bounded native draw and its depth proof reached the frame.
 
-    The in-client report says a draw was recorded; this decodes the top of every captured
-    screenshot and looks for the marker's exact colour in the box the vertex shader covers
-    (NDC -0.98..-0.78 on both axes, i.e. the first 1%..11% of width and height). A report
-    without pixels, or pixels without a report, both fail.
+    Round-1 review B4 rejected the previous version: it accepted a single far-colour pixel
+    instead of the 60/40 split, passed with no depth attachment at all, and exempted up to
+    three lifecycle checkpoints merely because the marker box was dark while the rest of the
+    frame was bright. It also treated "no rejected colour in the box" as proof that the
+    rejected draw happened, which it is not — not drawing it looks identical.
+
+    So this version requires, per checkpoint: the near colour filling most of the left part
+    of the box, the far colour filling most of the right part, the rejected colour absent
+    from the box but PRESENT in its control strip (drawn with compare ALWAYS, so its absence
+    means the draw never happened), and depth actually attached. A frame may only be excused
+    as having no level content when the whole decoded region is dark, and at most one may be.
     """
     result = {"success": False, "failures": [],
-              "scope": "bounded marker draw recorded into Minecraft's own Vulkan frame"}
-    marker = (255, 0, 255)
+              "scope": "bounded marker draw and depth proof in Minecraft's own Vulkan frame"}
     try:
         report = json.loads((output / "native-marker-draw.json").read_text())
         result["report"] = report
@@ -255,86 +261,238 @@ def native_marker_result(output, checkpoints):
             raise ValueError("no draw was recorded into Minecraft's command buffer")
         if report.get("notes"):
             raise ValueError(f"the marker draw reported notes: {report['notes']}")
-        if tuple(report.get("markerRgb") or ()) != marker:
-            raise ValueError("the reported marker colour is not the one checked here")
-        # The shader writes (255, 0, 255) but Minecraft's final composition darkens it
-        # (measured: (235, 0, 235)), so the check is a bounded neighbourhood of the drawn
-        # colour rather than equality, and the values actually found are recorded.
-        far = tuple(report.get("farRgb") or (0, 255, 255))
-        rejected = tuple(report.get("rejectedRgb") or (255, 255, 0))
+        if not report.get("depthAttached"):
+            raise ValueError("depth was not attached, so none of the depth proof applies")
+
+        # ⚠ The authoritative proof is the readback of Minecraft's own colour image taken
+        # right after the draw, not the screenshot: anything Minecraft draws afterwards (its
+        # GUI, a loading overlay, post-processing) can hide the marker, so an absent marker in
+        # a screenshot does not mean an absent draw. Measured: the nether checkpoint's frame
+        # showed nothing while the draw had certainly run.
+        rb = report.get("readback")
+        if not isinstance(rb, dict) or not rb.get("attempted"):
+            raise ValueError("Minecraft's colour image was never read back, so the draw is"
+                             " only supported by screenshots that its GUI can cover")
+        if not rb.get("completed"):
+            raise ValueError(f"the colour readback did not complete: {rb.get('note')}")
+        # The implementation checks the relationships it can see (near and far side by side
+        # in the same rows, the rejected colour present but outside those rows) and reports
+        # the first problem it found. The gate requires no problem AND enough pixels: a note
+        # of None with trivial counts would prove nothing.
+        if rb.get("note"):
+            raise ValueError(f"the colour readback rejects the draw: {rb['note']}")
+        if (rb.get("near") or 0) < 500 or (rb.get("far") or 0) < 500:
+            raise ValueError(f"the readback found too few near/far pixels to mean anything: {rb}")
+        if (rb.get("control") or 0) < 500:
+            raise ValueError(f"the readback found only {rb.get('control')} rejected-colour pixels"
+                             f" in the control strip, so the third draw is unproven")
+        if rb.get("rejectedInBox"):
+            raise ValueError(f"the readback places the rejected colour inside the depth-tested"
+                             f" rows: {rb}")
+        result["readback"] = rb
+        geometry = report.get("geometry") or {}
+        box, split, strip = geometry.get("box"), geometry.get("nearSplitX"), geometry.get("controlStrip")
+        if not (isinstance(box, list) and len(box) == 4 and isinstance(split, (int, float))
+                and isinstance(strip, list) and len(strip) == 4):
+            raise ValueError("the marker draw did not publish the geometry to check against")
+        near_rgb = tuple(report.get("markerRgb") or ())
+        far_rgb = tuple(report.get("farRgb") or ())
+        rejected_rgb = tuple(report.get("rejectedRgb") or ())
+        if len(near_rgb) != 3 or len(far_rgb) != 3 or len(rejected_rgb) != 3:
+            raise ValueError("the marker draw did not publish all three colours")
 
         def near(px):
-            return px[0] >= 200 and px[1] <= 60 and px[2] >= 200
+            return near_rgb[0] - 60 <= px[0] <= 255 and px[1] <= 60 and near_rgb[2] - 60 <= px[2]
 
         def is_far(px):
-            return px[0] <= 60 and px[1] >= 200 and px[2] >= 200
+            return px[0] <= 60 and px[1] >= far_rgb[1] - 60 and px[2] >= far_rgb[2] - 60
 
         def is_rejected(px):
-            return px[0] >= 200 and px[1] >= 200 and px[2] <= 60
+            return px[0] >= rejected_rgb[0] - 60 and px[1] >= rejected_rgb[1] - 60 and px[2] <= 60
 
-        is_marker = near
-        found, colours, skipped, depth_proof = {}, {}, {}, {}
-        result["marker_pixels"], result["marker_colour_in_frame"] = found, colours
-        result["frames_without_level_content"] = skipped
-        result["depth_proof"] = depth_proof
+        def to_pixels(ndc_x, ndc_y, width, height):
+            """NDC in the published (final-image) orientation to pixel coordinates."""
+            return (int((ndc_x + 1.0) * 0.5 * width), int((1.0 - ndc_y) * 0.5 * height))
+
+        measured, skipped = {}, {}
+        previous_draws = -1
+        result["depth_proof"], result["frames_without_level_content"] = measured, skipped
         for case in checkpoints:
-            png = output / (case["stage"] + ".png")
+            stage = case["stage"]
+            png = output / (stage + ".png")
             width, height = png_size(png)
-            x0, x1 = int(0.012 * width), int(0.108 * width)
-            y0, y1 = int(0.012 * height), int(0.108 * height)
-            # Decode only the scanlines the marker box can touch; a full screenshot
-            # reconstructed in Python would cost a minute per image.
-            rows, decoded_size = top_rows_rgb(png, y1 + 1)
-            if decoded_size != (width, height) or len(rows) <= y1:
-                raise ValueError(f"{case['stage']}: decoded {len(rows)} rows of {decoded_size}, need {y1 + 1}")
-            hits, sample, brightest = 0, None, 0
-            far_hits, rejected_hits = 0, 0
-            for y in range(y0, y1):
-                for x in range(x0, x1):
-                    px = rows[y][x]
-                    brightest = max(brightest, px[0] + px[1] + px[2])
-                    if near(px):
-                        hits += 1
-                        sample = px
-                    elif is_far(px):
-                        far_hits += 1
-                    elif is_rejected(px):
-                        rejected_hits += 1
-            box = max(1, (x1 - x0) * (y1 - y0))
-            found[case["stage"]] = hits
-            colours[case["stage"]] = list(sample) if sample else None
-            depth_proof[case["stage"]] = {"near": hits, "far": far_hits, "rejected": rejected_hits}
-            # The depth proof is deterministic and scene-independent: a base quad is written with
-            # compare ALWAYS, a nearer quad covers 60% of the box with compare LESS, and a third
-            # quad is then drawn FARTHER with compare LESS. The third must be rejected everywhere,
-            # so a single pixel of its colour means depth testing did not happen.
-            if report.get("depthAttached") and rejected_hits:
-                raise ValueError(f"{case['stage']}: {rejected_hits} pixels of the colour that depth"
-                                 f" testing must reject are present, so depth is not working")
-            if hits >= box // 4:
-                if report.get("depthAttached") and far_hits == 0 and brightest > 30:
-                    raise ValueError(f"{case['stage']}: the farther base quad is nowhere to be seen,"
-                                     f" so the near quad is not being depth-tested against it")
+            x0, y0 = to_pixels(box[0], box[1], width, height)
+            x1, y1 = to_pixels(box[2], box[3], width, height)
+            sx, _ = to_pixels(split, box[1], width, height)
+            cx0, cy0 = to_pixels(strip[0], strip[1], width, height)
+            cx1, cy1 = to_pixels(strip[2], strip[3], width, height)
+            bottom = max(y1, cy1)
+            rows, decoded = top_rows_rgb(png, bottom + 2)
+            if decoded != (width, height) or len(rows) <= bottom:
+                raise ValueError(f"{stage}: decoded {len(rows)} rows of {decoded}, need {bottom + 2}")
+
+            def count(predicate, ax0, ay0, ax1, ay1):
+                hits = 0
+                for y in range(min(ay0, ay1), max(ay0, ay1)):
+                    row = rows[y]
+                    for x in range(min(ax0, ax1), max(ax0, ax1)):
+                        if predicate(row[x]):
+                            hits += 1
+                return hits
+
+            def area(ax0, ay0, ax1, ay1):
+                return max(1, abs(ax1 - ax0) * abs(ay1 - ay0))
+
+            drawn = case.get("markerDraws")
+            covered = case.get("frameCoveredByGui")
+            if not isinstance(drawn, int) or not isinstance(covered, bool):
+                raise ValueError(f"{stage}: the checkpoint does not say how many marker draws had"
+                                 f" been recorded and whether Minecraft's GUI covered the frame,"
+                                 f" so the frame cannot be judged")
+            near_hits = count(near, x0, y0, sx, y1)
+            far_hits = count(is_far, sx, y0, x1, y1)
+            rejected_in_box = count(is_rejected, x0, y0, x1, y1)
+            control_hits = count(is_rejected, cx0, cy0, cx1, cy1)
+            measured[stage] = {"near": near_hits, "nearArea": area(x0, y0, sx, y1),
+                               "far": far_hits, "farArea": area(sx, y0, x1, y1),
+                               "rejectedInBox": rejected_in_box,
+                               "control": control_hits, "controlArea": area(cx0, cy0, cx1, cy1),
+                               "markerDraws": drawn, "frameCoveredByGui": covered}
+            # Two implementation-sourced reasons a frame can say nothing either way: the draw
+            # never ran for it, or Minecraft's own GUI covered it (Voxy records at the end of
+            # level rendering, so a loading overlay during a dimension change paints over the
+            # marker). Neither is inferred from how the image looks — the checkpoint states
+            # both. A frame can also simply show nothing because Minecraft composited over
+            # it — which is why the readback above, not these screenshots, carries the proof.
+            if drawn <= previous_draws or covered or (near_hits == 0 and far_hits == 0
+                                                       and control_hits == 0):
+                skipped[stage] = {"markerDraws": drawn, "previous": previous_draws,
+                                  "frameCoveredByGui": covered}
                 continue
-            # The draw only happens on frames where the level is actually rendered. A
-            # checkpoint captured during a dimension change lands on an essentially black
-            # frame (measured: the nether checkpoint's whole box was (5, 2, 2)), and that
-            # says nothing about whether the draw works. Record such a frame instead of
-            # counting it either way — and require most checkpoints to be real, so a run
-            # cannot pass by calling every frame empty.
-            if brightest <= 30:
-                skipped[case["stage"]] = brightest
-                continue
-            raise ValueError(f"{case['stage']}: only {hits} of {box} marker pixels present"
-                             f" in a frame that has content (brightest box pixel sum {brightest})")
-        positives = sum(1 for stage, hits in found.items() if stage not in skipped)
-        if positives < 8:
-            raise ValueError(f"only {positives} of {len(found)} checkpoints carried the marker;"
-                             f" frames without level content: {skipped}")
+            previous_draws = drawn
+            if rejected_in_box:
+                raise ValueError(f"{stage}: {rejected_in_box} pixels of the colour depth must"
+                                 f" reject are in the box, so depth is not working")
+            if control_hits < area(cx0, cy0, cx1, cy1) // 2:
+                raise ValueError(f"{stage}: the control strip holds only {control_hits} of"
+                                 f" {area(cx0, cy0, cx1, cy1)} rejected-colour pixels, so the"
+                                 f" third draw cannot be shown to have happened at all")
+            if near_hits < area(x0, y0, sx, y1) // 2:
+                raise ValueError(f"{stage}: the near quad covers only {near_hits} of"
+                                 f" {area(x0, y0, sx, y1)} pixels of its half of the box")
+            if far_hits < area(sx, y0, x1, y1) // 2:
+                raise ValueError(f"{stage}: the farther base quad covers only {far_hits} of"
+                                 f" {area(sx, y0, x1, y1)} pixels of its half of the box, so the"
+                                 f" near quad is not being depth-tested against anything")
+        # Supporting evidence, bounded: Minecraft can cover any individual frame, so a few
+        # may carry nothing, but if most do then the draw stopped happening and the readback
+        # (taken once) would not have noticed.
+        if len(skipped) > 3:
+            raise ValueError(f"{len(skipped)} of {len(measured)} captured frames carried no"
+                             f" marker; at most three may: {skipped}")
+        if len(measured) - len(skipped) < 8:
+            raise ValueError(f"only {len(measured) - len(skipped)} captured frames carried the"
+                             f" marker")
         result.update(success=True)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         result["failures"].append(str(exc))
     return result
+
+
+def native_proof_files_result(output, checkpoints):
+    """Gate the proof files the native stage writes but previously never read.
+
+    Round-1 review B3: the stage gated only environment observations and marker pixels, while
+    probe failures are logged at INFO/WARN rather than the ERROR level it rejects — so a
+    failed adoption, a feature set that was never applied, or a GPU/CPU mismatch passed.
+    """
+    result = {"success": False, "failures": [], "files": {}}
+    wanted = ("native-device-features.json", "native-compute-probe.json",
+              "native-adopted-context.json", "native-real-shader.json")
+    try:
+        loaded = {}
+        for name in wanted:
+            path = output / name
+            if not path.is_file():
+                raise ValueError(f"{name} was never written, so its claim is unproven")
+            loaded[name] = json.loads(path.read_text())
+            result["files"][name] = loaded[name]
+
+        features = loaded["native-device-features.json"]
+        expected_features = {"drawIndirectFirstInstance", "shaderInt64",
+                             "fragmentStoresAndAtomics", "vertexPipelineStoresAndAtomics"}
+        if not features.get("enabled") or set(features.get("added") or []) != expected_features:
+            raise ValueError(f"the device features Voxy needs were not all requested: {features}")
+
+        compute = loaded["native-compute-probe.json"]
+        if not compute.get("succeeded") or compute.get("readBack") != compute.get("expected"):
+            raise ValueError(f"the int64 compute proof did not succeed: {compute}")
+        if compute.get("notes"):
+            raise ValueError(f"the int64 compute proof reported notes: {compute['notes']}")
+
+        adopted = loaded["native-adopted-context.json"]
+        if not adopted.get("adopted") or not adopted.get("provenByVoxyBufferAndShader"):
+            raise ValueError(f"Minecraft's device was not adopted and proven: {adopted}")
+        if adopted.get("notes"):
+            raise ValueError(f"the adoption proof reported notes: {adopted['notes']}")
+
+        shader = loaded["native-real-shader.json"]
+        if not shader.get("succeeded") or shader.get("mismatches") != 0:
+            raise ValueError(f"Voxy's real shader stack did not agree with the CPU reference: {shader}")
+        if shader.get("quadOrdinalsChecked", 0) < 100:
+            raise ValueError(f"only {shader.get('quadOrdinalsChecked')} ordinals were checked")
+
+        # The marker and the lifecycle checkpoints must describe the same device.
+        def handle(value):
+            """Device handles appear as 0x-hex in the probe files and as integers in the
+            checkpoints; compare the numbers, not the spellings."""
+            if isinstance(value, bool) or value is None:
+                return None
+            if isinstance(value, int):
+                return value
+            try:
+                return int(str(value), 16) if str(value).lower().startswith("0x") else int(str(value))
+            except ValueError:
+                return None
+
+        devices = {handle(c.get("renderer", {}).get("vkDevice")) for c in checkpoints}
+        devices.discard(None)
+        adopted_handle = handle(adopted.get("device"))
+        # ⚠ An unreadable handle must not quietly skip the identity check.
+        if adopted.get("device") is not None and adopted_handle is None:
+            raise ValueError(f"the adopted device handle {adopted.get('device')!r} cannot be"
+                             f" read, so it cannot be matched against the lifecycle checkpoints")
+        if adopted_handle is not None and devices and adopted_handle not in devices:
+            raise ValueError(f"the adopted device {adopted.get('device')} is not the device the"
+                             f" lifecycle checkpoints observed ({sorted(devices)})")
+        result.update(success=True)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        result["failures"].append(str(exc))
+    return result
+
+
+def retain_native_evidence(native_output, timestamp):
+    """Copy the native stage's small proof files into the repository.
+
+    Round-1 review B1: every measured claim cited paths under `build/`, which is ignored, so
+    for anyone else the evidence did not exist and the claims could not be checked. The JSON
+    proofs are a few kilobytes and are copied in; the screenshots stay ignored build output,
+    recorded here by sha256 so a later run can be compared against the one that was claimed.
+    """
+    kept = {"run": timestamp, "files": {}, "screenshots": {}}
+    target = ROOT / "docs" / "ai" / "runs" / "native-evidence" / timestamp
+    try:
+        target.mkdir(parents=True, exist_ok=True)
+        for path in sorted(native_output.glob("*.json")):
+            shutil.copyfile(path, target / path.name)
+            kept["files"][path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(native_output.glob("*.png")):
+            kept["screenshots"][path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        (target / "MANIFEST.json").write_text(json.dumps(kept, indent=2) + "\n")
+        kept["path"] = str(target.relative_to(ROOT))
+    except OSError as exc:
+        kept["error"] = str(exc)
+    return kept
 
 
 def main():
@@ -446,11 +604,15 @@ def main():
                 f"-PharnessOutput={native_output}", f"-PharnessRunDir={game}",
                 f"-PharnessSeconds={args.seconds}", "-PharnessNative=true",
                 "-PharnessGraphicsBackend=vulkan", "-PharnessNativeMarker=true",
-                "-PharnessNativeFeatures=true", "-PharnessNativeAdopt=true"], output, args.timeout)
+                "-PharnessNativeFeatures=true", "-PharnessNativeAdopt=true",
+                "-PharnessNativeProbe=true"], output, args.timeout)
             result["gate"] = native_environment_result(native_output)
             result["success"] &= result["gate"]["success"]
-            result["marker"] = native_marker_result(native_output, result["gate"].get("checkpoints") or [])
+            checkpoints = result["gate"].get("checkpoints") or []
+            result["marker"] = native_marker_result(native_output, checkpoints)
             result["success"] &= result["marker"]["success"]
+            result["proofs"] = native_proof_files_result(native_output, checkpoints)
+            result["success"] &= result["proofs"]["success"]
             text = (output / "native.log").read_text(errors="replace")
             result["diagnostics"] = [line.strip() for line in text.splitlines()
                 if re.search(r"\[vk-validation\]|Validation (Error|Warning)|SYNC-HAZARD-|VUID-", line)]
@@ -466,6 +628,7 @@ def main():
             result["unexpected_application_errors"] = [line for line in result["application_errors"]
                 if not any(message in line for message in expected_errors)]
             result["success"] &= not result["unexpected_application_errors"]
+            result["retained_evidence"] = retain_native_evidence(native_output, timestamp)
             summary["stages"]["native_environment"] = result
             save()
         summary["success"] = bool(summary["stages"]) and all(r["success"] for r in summary["stages"].values())

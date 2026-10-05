@@ -112,9 +112,13 @@ public final class McNativeVkContext {
                     return;
                 }
                 var queue = mc.graphicsQueue();
+                // ⚠ round-1 review N4: 「物理デバイスが対応しているか」ではなく
+                // 「MC がその device で有効にしたか」を渡す。IOSurface 経路の可否は
+                // 有効化の有無で決まるため (MC は VK_EXT_metal_objects を有効にしない)。
                 VkContext.initAdopted(mc.instance().vkInstance(), physical, mc.vkDevice(),
                     queue.vkQueue(), queue.queueFamilyIndex(),
-                    safeDebugEnabled(mc, notes), false);
+                    safeDebugEnabled(mc, notes), false,
+                    enabledDeviceExtensions(mc, notes));
                 boolean adopted = VkContext.isAdopted();
                 if (!adopted) {
                     notes.add("VkContext was already initialised, so Minecraft's device was not adopted");
@@ -147,6 +151,7 @@ public final class McNativeVkContext {
         VkBuffer out = null;
         String readBack = null;
         boolean ok = false;
+        boolean submitted = false, retired = false;
         try (MemoryStack stack = stackPush()) {
             out = new VkBuffer(8, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, true).name("native-adopt-probe");
 
@@ -222,8 +227,15 @@ public final class McNativeVkContext {
             fence = handle[0];
             var submit = VkSubmitInfo.calloc(1, stack).sType$Default().pCommandBuffers(stack.pointers(cmd));
             VkContext.check(vkQueueSubmit(ctx.queue, submit, fence), "vkQueueSubmit(adopted)");
-            VkContext.check(vkWaitForFences(ctx.device, stack.longs(fence), true, 5_000_000_000L),
-                "vkWaitForFences(adopted)");
+            submitted = true;
+            // ⚠ round-1 review B5: タイムアウトでも破棄に進んでいた。待てなければ壊さない。
+            int waited = vkWaitForFences(ctx.device, stack.longs(fence), true, 5_000_000_000L);
+            if (waited != VK_SUCCESS) {
+                notes.add("vkWaitForFences(adopted) -> VkResult " + waited
+                    + "; nothing is destroyed (resources are leaked on purpose)");
+                throw new IllegalStateException("adopted fence wait did not complete: " + waited);
+            }
+            retired = true;
 
             long value = MemoryUtil.memGetLong(out.addr());
             readBack = "0x" + Long.toHexString(value);
@@ -233,6 +245,13 @@ public final class McNativeVkContext {
         } catch (Throwable t) {
             notes.add("the adopted-context proof failed: " + t);
         } finally {
+            if (submitted && !retired) {
+                notes.add("leaking the adopted proof's Vulkan objects on purpose: the submission"
+                    + " was never observed to complete");
+                status = new Status(status.enabled(), true, status.adopted(), status.queueFamily(),
+                    status.device(), false, readBack, List.copyOf(notes));
+                return status;
+            }
             try {
                 if (fence != 0) vkDestroyFence(ctx.device, fence, null);
                 if (pipeline != 0) vkDestroyPipeline(ctx.device, pipeline, null);
@@ -261,14 +280,27 @@ public final class McNativeVkContext {
      * 「device 破棄前に子オブジェクトを全て破棄せよ」と正しく指摘する。
      */
     public static void releaseAdopted() {
-        // ⚠ Minecraft の最終フレームがまだ実行中のことがある。そのフレームが参照している
+        // ⚠ round-1 review B2: 以前はここで「採用したか」を見る前に Minecraft の device を
+        // 取得して vkDeviceWaitIdle していた。採用していないプレイヤー — つまり通常の
+        // Vulkan バックエンド利用者 — まで、有効化していない診断のために終了時に
+        // 待たされる。<b>採用していなければ何も触らない</b>。
+        if (!VkContext.isAdopted()) return;
+
+        // Minecraft の最終フレームがまだ実行中のことがある。そのフレームが参照している
         // パイプラインを壊すと検証レイヤが正しく指摘する ("All submitted commands that
         // refer to pipeline must have completed execution")。終了時なので待って構わない。
         try {
-            var device = McNativeVulkan.device();
-            if (device != null) vkDeviceWaitIdle(device.vkDevice());
+            int waited = vkDeviceWaitIdle(VkContext.get().device);
+            if (waited != VK_SUCCESS) {
+                Logger.warn("[native-vk] vkDeviceWaitIdle returned " + waited
+                    + " at release; not destroying anything (objects are leaked on purpose"
+                    + " rather than destroyed while still in use)");
+                return;
+            }
         } catch (Throwable t) {
-            Logger.warn("[native-vk] could not wait for Minecraft's device to go idle: " + t);
+            Logger.warn("[native-vk] could not wait for Minecraft's device to go idle: " + t
+                + "; not destroying anything");
+            return;
         }
         try {
             // ⚠ queueForDestroy ではなく即破棄。終了時はもう誰も提出しないので、
@@ -277,7 +309,6 @@ public final class McNativeVkContext {
         } catch (Throwable t) {
             Logger.warn("[native-vk] could not release the marker draw: " + t);
         }
-        if (!VkContext.isAdopted()) return;
         // ⚠ Voxy の静的キャッシュは device オブジェクトを握っている。採用モードでは
         // device は Minecraft のものなので、MC がそれを壊す前にこちらを空にしないと
         // 「device 破棄前に子オブジェクトを全て破棄せよ」と正しく指摘される
@@ -304,6 +335,25 @@ public final class McNativeVkContext {
         }
     }
 
+    /**
+     * MC がその device で<b>有効にした</b>拡張名。{@code DeviceInfo.underlyingExtensions()} は
+     * instance/device を {@code " (I)"} / {@code " (D)"} の接尾辞で区別して並べるので、
+     * device 側だけを取り出して接尾辞を落とす。
+     */
+    private static java.util.Set<String> enabledDeviceExtensions(VulkanDevice device, List<String> notes) {
+        var out = new java.util.HashSet<String>();
+        try {
+            for (String entry : device.getDeviceInfo().underlyingExtensions()) {
+                if (entry == null) continue;
+                String name = entry.trim();
+                if (name.endsWith("(D)")) out.add(name.substring(0, name.length() - 3).trim());
+            }
+        } catch (Throwable t) {
+            notes.add("underlyingExtensions(): " + t + "; treating the device as having none");
+        }
+        return out;
+    }
+
     private static boolean safeDebugEnabled(VulkanDevice device, List<String> notes) {
         try {
             return device.isDebuggingEnabled();
@@ -323,10 +373,26 @@ public final class McNativeVkContext {
             }
             PointerBuffer handles = stack.mallocPointer(count.get(0));
             if (vkEnumeratePhysicalDevices(instance, count, handles) != VK_SUCCESS) return null;
-            if (count.get(0) > 1) {
-                notes.add(count.get(0) + " physical devices; adopting the first");
+            // ⚠ round-1 review N2: 「最初の 1 つ」では複数 GPU で取り違える。
+            // MC 自身が報告しているデバイス名と突き合わせる。合わなければ採用しない。
+            String wanted = null;
+            try {
+                wanted = device.getDeviceInfo().name();
+            } catch (Throwable t) {
+                notes.add("getDeviceInfo().name(): " + t);
             }
-            return new VkPhysicalDevice(handles.get(0), instance);
+            VkPhysicalDevice first = null;
+            for (int i = 0; i < count.get(0); i++) {
+                var candidate = new VkPhysicalDevice(handles.get(i), instance);
+                if (first == null) first = candidate;
+                var props = org.lwjgl.vulkan.VkPhysicalDeviceProperties.calloc(stack);
+                vkGetPhysicalDeviceProperties(candidate, props);
+                if (wanted != null && wanted.equals(props.deviceNameString())) return candidate;
+            }
+            if (count.get(0) == 1 && wanted == null) return first;
+            notes.add("could not match Minecraft's device " + wanted + " among " + count.get(0)
+                + " physical devices; not adopting");
+            return null;
         } catch (Throwable t) {
             notes.add("physical device lookup: " + t);
             return null;

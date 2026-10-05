@@ -39,6 +39,7 @@ public final class McNativeVulkan {
     private static Field cachedBackendField;
     private static Field cachedPassBackendField;
     private static Field cachedCommandBufferField;
+    private static Class<?> cachedCommandBufferOwner;
 
     /**
      * MC が今 Vulkan バックエンドで動いていれば、その {@link VulkanDevice}。
@@ -84,7 +85,7 @@ public final class McNativeVulkan {
             if (value instanceof GpuDeviceBackend backend) return backend;
             cachedBackendField = null;
         }
-        Field found = fieldOfType(device.getClass(), GpuDeviceBackend.class);
+        Field found = fieldOfType(device.getClass(), GpuDeviceBackend.class, notes);
         if (found == null) {
             notes.add("no GpuDeviceBackend-typed field on " + device.getClass().getName()
                 + " (the wrapper's shape changed?)");
@@ -112,7 +113,7 @@ public final class McNativeVulkan {
         }
         Object backend = pass;
         Field passBackend = cachedPassBackendField != null ? cachedPassBackendField
-            : fieldOfType(pass.getClass(), com.mojang.blaze3d.systems.RenderPassBackend.class);
+            : fieldOfType(pass.getClass(), com.mojang.blaze3d.systems.RenderPassBackend.class, notes);
         if (passBackend == null) {
             notes.add("no RenderPassBackend-typed field on " + pass.getClass().getName());
             return null;
@@ -122,8 +123,13 @@ public final class McNativeVulkan {
         cachedPassBackendField = passBackend;
         backend = value;
 
+        // ⚠ キャッシュはバックエンドの実型ごとに持つ。型が変われば作り直す (round-1 review N1)。
+        if (cachedCommandBufferOwner != null && cachedCommandBufferOwner != backend.getClass()) {
+            cachedCommandBufferField = null;
+            cachedCommandBufferOwner = null;
+        }
         Field cmdField = cachedCommandBufferField != null ? cachedCommandBufferField
-            : fieldOfType(backend.getClass(), VkCommandBuffer.class);
+            : fieldOfType(backend.getClass(), VkCommandBuffer.class, notes);
         if (cmdField == null) {
             notes.add("no VkCommandBuffer-typed field on " + backend.getClass().getName()
                 + " (not a Vulkan render pass?)");
@@ -132,18 +138,35 @@ public final class McNativeVulkan {
         Object cmd = read(cmdField, backend, notes);
         if (cmd instanceof VkCommandBuffer buffer) {
             cachedCommandBufferField = cmdField;
+            cachedCommandBufferOwner = backend.getClass();
             return buffer;
         }
         return null;
     }
 
-    private static Field fieldOfType(Class<?> owner, Class<?> type) {
+    /**
+     * 型でフィールドを 1 本だけ特定する。
+     *
+     * <p>⚠ <b>曖昧なら諦める</b>。同じ型のインスタンスフィールドが複数あれば、どれが欲しいものか
+     * 決められないので null を返す (round-1 review N1)。{@code static} は候補から除く —
+     * 値はインスタンスと無関係で、選んでしまえば黙って間違う。
+     */
+    private static Field fieldOfType(Class<?> owner, Class<?> type, List<String> notes) {
+        Field found = null;
         for (Class<?> c = owner; c != null && c != Object.class; c = c.getSuperclass()) {
             for (Field f : c.getDeclaredFields()) {
-                if (type.isAssignableFrom(f.getType())) return f;
+                if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
+                if (!type.isAssignableFrom(f.getType())) continue;
+                if (found != null) {
+                    notes.add(owner.getName() + " has more than one non-static "
+                        + type.getSimpleName() + " field (" + found.getName() + ", " + f.getName()
+                        + "); refusing to guess");
+                    return null;
+                }
+                found = f;
             }
         }
-        return null;
+        return found;
     }
 
     private static Object read(Field f, Object owner, List<String> notes) {

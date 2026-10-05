@@ -1,5 +1,7 @@
 package me.cortex.voxy.client.core.vk.mcnative;
 
+import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vulkan.Destroyable;
@@ -138,8 +140,21 @@ public final class McNativeMarkerDraw implements Destroyable {
 
     private static final float DEPTH_FAR = 0.6f, DEPTH_NEAR = 0.3f, DEPTH_REJECTED = 0.9f;
 
+    /**
+     * <b>棄却色の対照帯</b>。深度証明の箱のすぐ下に、同じ色を<b>必ず通る設定</b>
+     * (比較 ALWAYS) で置く。
+     *
+     * <p>⚠ round-1 review B4: 「箱に棄却色が無い」だけでは<b>3 枚目を描いたこと自体</b>を
+     * 示せない — 描かなければ同じ絵になる。対照帯に色が出ていれば「描いた・描ける」が立ち、
+     * そのうえで箱に無いことが初めて「深度に落とされた」証拠になる。
+     */
+    private static final float CONTROL_Y0 = 0.76f, CONTROL_Y1 = 0.72f;
+
     private static McNativeMarkerDraw instance;
     private static long drawsRecorded;
+    /** 読み戻しで数えた画素。<b>最終画像ではなく MC のカラー画像そのもの</b>を見た結果。 */
+    private static Readback readback;
+    private static boolean readbackRequested;
     private static long evidenceWrittenAt = -1;
     private static final List<String> NOTES = new ArrayList<>();
     private static boolean complained;
@@ -236,6 +251,11 @@ public final class McNativeMarkerDraw implements Destroyable {
             draw.record(cmd, width, height);
             drawsRecorded++;
         }
+        // パスを閉じた後に一度だけ読み戻す。MC の API を使うのでレイアウトは MC の持ち物のまま。
+        if (!readbackRequested && drawsRecorded >= 2) {
+            readbackRequested = true;
+            requestReadback(colour, width, height);
+        }
         writeEvidenceIfDue(device, format, width, height);
     }
 
@@ -255,6 +275,110 @@ public final class McNativeMarkerDraw implements Destroyable {
      * <p>⚠ 深度バッファ (MC のもの) の隅 10% に書き込む。診断としては意図的だが、
      * フラグ無効時は一切行われない。
      */
+    /**
+     * MC のカラー画像を<b>丸ごと</b>読み戻し、3 色の個数と外接矩形を出す。
+     *
+     * <p>⚠ <b>向きを仮定しない</b>。最初の実装は「最終画像での座標」で部分矩形を読み戻し、
+     * 全カウントが 0 になった — テクスチャの行順は最終画像と反転していた。
+     * どちらが上かを当てる代わりに、全面を読んで<b>色の位置関係</b>で判定する:
+     * 近/遠の矩形が横に並んでいること、対照帯がその行範囲の外にあること、
+     * そして<b>近/遠の行範囲に棄却色が無いこと</b>。これなら上下どちらでも同じ結論になる。
+     */
+    private static void requestReadback(GpuTextureView colour, int width, int height) {
+        try {
+            long bytes = (long) width * height * 4;
+            var device = RenderSystem.getDevice();
+            GpuBuffer buffer = device.createBuffer(() -> "voxy native marker readback",
+                GpuBuffer.USAGE_MAP_READ | GpuBuffer.USAGE_COPY_DST, bytes);
+            device.createCommandEncoder().copyTextureToBuffer(colour.texture(), buffer, 0,
+                () -> classifyReadback(buffer, width, height), 0);
+        } catch (Throwable t) {
+            readback = new Readback(true, false, 0, 0, 0, 0, 0, 0, "readback request failed: " + t);
+            note("could not read Minecraft's colour image back: " + t);
+        }
+    }
+
+    /** 1 色ぶんの個数と外接矩形。 */
+    private record Span(int count, int x0, int y0, int x1, int y1) {
+        boolean empty() { return this.count == 0; }
+        int rows() { return this.y1 - this.y0 + 1; }
+    }
+
+    private static void classifyReadback(GpuBuffer buffer, int width, int height) {
+        try (var view = new GpuBufferSlice(buffer, 0, buffer.size()).map(true, false)) {
+            var data = view.data();
+            int[] counts = new int[3];
+            int[] minX = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE};
+            int[] minY = {Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE};
+            int[] maxX = {-1, -1, -1}, maxY = {-1, -1, -1};
+            for (int y = 0; y < height; y++) {
+                int rowBase = y * width * 4;
+                for (int x = 0; x < width; x++) {
+                    int at = rowBase + x * 4;
+                    if (at + 2 >= data.limit()) break;
+                    int r = data.get(at) & 0xFF, g = data.get(at + 1) & 0xFF, b = data.get(at + 2) & 0xFF;
+                    int which = isNear(r, g, b) ? 0 : isFar(r, g, b) ? 1 : isRejected(r, g, b) ? 2 : -1;
+                    if (which < 0) continue;
+                    counts[which]++;
+                    if (x < minX[which]) minX[which] = x;
+                    if (y < minY[which]) minY[which] = y;
+                    if (x > maxX[which]) maxX[which] = x;
+                    if (y > maxY[which]) maxY[which] = y;
+                }
+            }
+            var near = new Span(counts[0], minX[0], minY[0], maxX[0], maxY[0]);
+            var far = new Span(counts[1], minX[1], minY[1], maxX[1], maxY[1]);
+            var rejected = new Span(counts[2], minX[2], minY[2], maxX[2], maxY[2]);
+            String note = relationshipProblem(near, far, rejected);
+            int rejectedInBox = note == null ? 0 : rejected.count();
+            readback = new Readback(true, true, near.count(), far.count(), rejectedInBox,
+                rejected.count(), near.count() + far.count(), rejected.count(), note);
+            Logger.info("[native-vk] read Minecraft's colour image back: near=" + near
+                + " far=" + far + " rejected=" + rejected
+                + (note == null ? " (relationships as expected)" : " PROBLEM: " + note));
+        } catch (Throwable t) {
+            readback = new Readback(true, false, 0, 0, 0, 0, 0, 0, "readback classify failed: " + t);
+            note("could not classify the colour readback: " + t);
+        } finally {
+            try { buffer.close(); } catch (Throwable ignored) { }
+        }
+    }
+
+    /**
+     * 期待する位置関係が崩れていれば、その理由。崩れていなければ null。
+     *
+     * <p>近と遠は<b>同じ行範囲に横並び</b>で、対照帯 (棄却色) は<b>その行範囲の外</b>に
+     * 独立して存在していなければならない。棄却色が近/遠の行範囲に入っていれば、
+     * 深度テストが効いていない。
+     */
+    private static String relationshipProblem(Span near, Span far, Span rejected) {
+        if (near.empty()) return "the near quad is nowhere in Minecraft's colour image";
+        if (far.empty()) return "the farther base quad is nowhere in Minecraft's colour image";
+        if (rejected.empty()) return "the rejected colour is nowhere, so the third draw cannot be"
+            + " shown to have happened at all";
+        int sharedRows = Math.min(near.y1(), far.y1()) - Math.max(near.y0(), far.y0()) + 1;
+        if (sharedRows < Math.min(near.rows(), far.rows()) / 2) {
+            return "the near and far quads do not share rows (near " + near + ", far " + far + ")";
+        }
+        if (!(near.x1() <= far.x0() + 2 || far.x1() <= near.x0() + 2)) {
+            return "the near and far quads are not side by side (near " + near + ", far " + far + ")";
+        }
+        int bandTop = Math.max(near.y0(), far.y0()), bandBottom = Math.min(near.y1(), far.y1());
+        if (rejected.y0() <= bandBottom && rejected.y1() >= bandTop) {
+            return "the rejected colour overlaps the rows the depth-tested box occupies ("
+                + rejected + " against " + bandTop + ".." + bandBottom + "), so depth is not working";
+        }
+        return null;
+    }
+
+    private static boolean isNear(int r, int g, int b) { return r >= 200 && g <= 60 && b >= 200; }
+    private static boolean isFar(int r, int g, int b) { return r <= 60 && g >= 200 && b >= 200; }
+    private static boolean isRejected(int r, int g, int b) { return r >= 200 && g >= 200 && b <= 60; }
+
+    /** NDC (最終画像の向き) から画素座標へ。 */
+    private static int pixelX(float ndc, int width) { return (int) ((ndc + 1.0f) * 0.5f * width); }
+    private static int pixelY(float ndc, int height) { return (int) ((1.0f - ndc) * 0.5f * height); }
+
     private void record(VkCommandBuffer cmd, int width, int height) {
         try (MemoryStack stack = stackPush()) {
             var viewport = VkViewport.calloc(1, stack)
@@ -279,7 +403,13 @@ public final class McNativeMarkerDraw implements Destroyable {
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.testPipeline);
             quad(cmd, stack, BOX_X0, BOX_Y0, NEAR_X1, BOX_Y1,
                 MARKER_R, MARKER_G, MARKER_B, DEPTH_NEAR);
+            // 深度に落とされるべき 3 枚目。箱のどこにも出てはいけない。
             quad(cmd, stack, BOX_X0, BOX_Y0, BOX_X1, BOX_Y1,
+                REJECTED_R, REJECTED_G, REJECTED_B, DEPTH_REJECTED);
+            // 対照: 同じ色を必ず通る設定で帯に置く。これが出ていなければ
+            // 「3 枚目を描いた」ことすら言えない (round-1 review B4)。
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.writePipeline);
+            quad(cmd, stack, BOX_X0, CONTROL_Y0, BOX_X1, CONTROL_Y1,
                 REJECTED_R, REJECTED_G, REJECTED_B, DEPTH_REJECTED);
         }
     }
@@ -437,8 +567,11 @@ public final class McNativeMarkerDraw implements Destroyable {
         try {
             McNativeVulkan.encoder(device).queueForDestroy(draw);
         } catch (Throwable t) {
-            note("queueForDestroy refused the marker pipeline (" + t + "); destroying immediately");
-            draw.destroy();
+            // ⚠ round-1 review B5: ここで即破棄していた。退役を Minecraft に預けられなかった
+            // 時点で「もう使われていない」根拠が無いので、<b>壊さずに漏らす</b>。
+            // 診断 1 個分のパイプラインであり、壊して実行中参照になる方が遥かに悪い。
+            note("queueForDestroy refused the marker pipeline (" + t + "); leaking it on purpose"
+                + " rather than destroying something that may still be in use");
         }
     }
 
@@ -494,6 +627,24 @@ public final class McNativeMarkerDraw implements Destroyable {
         }
     }
 
+    /**
+     * <b>MC のカラー画像を描画直後に読み戻して数えた画素</b>。
+     *
+     * <p>⚠ round-1 review B4 の本質的な弱点への答え。最終スクリーンショットは
+     * MC がこの後に描く GUI / オーバーレイ / ポスト処理に左右されるので、
+     * 「マーカーが見えない」が「描けていない」を意味しない (実測: 次元切替の
+     * フレームでは左上が暗いだけでマーカーが消えた)。読み戻しは
+     * <b>こちらの draw が MC のカラー画像に届いたか</b>そのものを測る。
+     *
+     * <p>コピーは MC の {@code CommandEncoder.copyTextureToBuffer} で行う —
+     * 画像のレイアウト遷移は MC が持ったままになる。
+     */
+    public record Readback(boolean attempted, boolean completed, int near, int far,
+                           int rejectedInBox, int control, int boxArea, int controlArea,
+                           String note) {}
+
+    public static Readback readback() { return readback; }
+
     /** これまでに記録した draw の本数と、諦めた理由。 */
     public record Status(boolean enabled, long drawsRecorded, boolean pipelineLive,
                          int colourFormat, List<String> notes) {}
@@ -534,8 +685,31 @@ public final class McNativeMarkerDraw implements Destroyable {
         var draw = instance;
         sb.append("  \"depthAttached\": ")
             .append(draw != null && draw.depthFormat != VK_FORMAT_UNDEFINED).append(",\n");
+        // ゲートが「どこに何色が出ているべきか」を推測しないよう、幾何をそのまま渡す
+        // (NDC, 最終画像の向き)。round-1 review B4。
+        sb.append("  \"geometry\": {")
+            .append("\"box\": [").append(BOX_X0).append(", ").append(BOX_Y0).append(", ")
+            .append(BOX_X1).append(", ").append(BOX_Y1).append("], ")
+            .append("\"nearSplitX\": ").append(NEAR_X1).append(", ")
+            .append("\"controlStrip\": [").append(BOX_X0).append(", ").append(CONTROL_Y0)
+            .append(", ").append(BOX_X1).append(", ").append(CONTROL_Y1).append("]},\n");
         sb.append("  \"depthVkFormat\": ").append(draw == null ? 0 : draw.depthFormat).append(",\n");
         sb.append("  \"device\": \"0x").append(Long.toHexString(device.vkDevice().address())).append("\",\n");
+        var rb = readback;
+        sb.append("  \"readback\": ");
+        if (rb == null) {
+            sb.append("null,\n");
+        } else {
+            sb.append("{\"attempted\": ").append(rb.attempted())
+              .append(", \"completed\": ").append(rb.completed())
+              .append(", \"near\": ").append(rb.near())
+              .append(", \"far\": ").append(rb.far())
+              .append(", \"rejectedInBox\": ").append(rb.rejectedInBox())
+              .append(", \"control\": ").append(rb.control())
+              .append(", \"boxArea\": ").append(rb.boxArea())
+              .append(", \"controlArea\": ").append(rb.controlArea())
+              .append(", \"note\": ").append(McNativeVulkanProbe.quote(rb.note())).append("},\n");
+        }
         sb.append("  \"notes\": [");
         var notes = status.notes();
         for (int i = 0; i < notes.size(); i++) {

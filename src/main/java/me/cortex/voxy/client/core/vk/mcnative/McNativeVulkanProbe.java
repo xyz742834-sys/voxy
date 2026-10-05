@@ -51,6 +51,16 @@ import java.util.List;
 public final class McNativeVulkanProbe {
     private McNativeVulkanProbe() {}
 
+    /**
+     * これを true にしたときだけ測る。
+     *
+     * <p>⚠ round-1 review B2: 以前は<b>無条件で</b>走っていた。読むだけとはいえ、
+     * 通常プレイヤーの描画スレッドで反射・物理デバイス問い合わせ・ファイル書き込みを
+     * するのは「有効化していない診断」であり、約束していた「フラグ無しでは何も走らない」に
+     * 反していた。
+     */
+    public static final String FLAG = "voxy.native.probe";
+
     /** 一度でも測ったか。描画スレッドからのみ触る。 */
     private static boolean probed;
     private static Report last;
@@ -93,7 +103,15 @@ public final class McNativeVulkanProbe {
      * (MC を起動せずに「取れなかった」経路を試せるようにしてある。)
      */
     public static Report probe(GpuDevice device, RenderTarget target) {
-        return probe(device, target, new ArrayList<>());
+        var notes = new ArrayList<String>();
+        try {
+            return probe(device, target, notes);
+        } catch (Throwable t) {
+            // ⚠ round-1 review B2: 反射が投げる経路 (SecurityException など) が
+            // この public 呼び出しから漏れていた。測れなかったことは報告で表す。
+            notes.add("probe threw " + t);
+            return unavailable("", notes);
+        }
     }
 
     private static Report probe(GpuDevice device, RenderTarget target, List<String> notes) {
@@ -267,6 +285,7 @@ public final class McNativeVulkanProbe {
      */
     public static void probeOnce() {
         if (probed) return;
+        if (!Boolean.getBoolean(FLAG)) return;   // フラグ無しでは本当に何もしない
         probed = true;
         try {
             Report r = probe();

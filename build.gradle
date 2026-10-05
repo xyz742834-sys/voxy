@@ -559,6 +559,11 @@ loom {
             // Minecraft's native Vulkan backend. --vulkanValidation is Minecraft's own flag for it.
             // The bounded native marker draw is off unless asked for; it must never appear
             // in a normal game. docs/ai/vulkan-native-integration-survey.md
+            // The native diagnostics probe is opt-in too: round-1 review B2 found it ran
+            // unconditionally, which broke the promise that nothing native runs without a flag.
+            if (project.hasProperty('harnessNativeProbe')) {
+                vmArg '-Dvoxy.native.probe=true'
+            }
             if (project.hasProperty('harnessNativeMarker')) {
                 vmArg '-Dvoxy.native.marker=true'
             }

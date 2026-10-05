@@ -37,6 +37,8 @@ public final class LiveWorldHarness implements ClientModInitializer {
     private final List<String> failures = java.util.Collections.synchronizedList(new ArrayList<>());
     private Path output;
     private int stage;
+    /** Marker draws recorded when this stage began; native mode waits for real frames. */
+    private long markerStart;
     private boolean entered;
     private boolean done;
     private long started = System.nanoTime();
@@ -81,6 +83,8 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 entered = true;
                 var d = nativeMode ? null : VkInteropProbe.diagnostics(false);
                 frameStart = d == null ? 0 : d.frames();
+                markerStart = me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw
+                    .status().drawsRecorded();
                 enter(mc);
                 return;
             }
@@ -117,8 +121,14 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 mc.player.setXRot(30);
             }
             var d = nativeMode ? null : VkInteropProbe.diagnostics(false);
+            // Native mode waits for the renderer to have actually drawn into recent frames,
+            // the same way the GL path waits for Voxy frames. Without this a checkpoint can
+            // land on a frame where the level is not rendered at all (a dimension change),
+            // and its screenshot then shows nothing — which says nothing about the draw.
+            var marker = me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.status();
             if (elapsed < dwell + (stage == 2 ? 1 : 0)
-                || (!nativeMode && (d == null || d.frames() - frameStart < 20))) return;
+                || (!nativeMode && (d == null || d.frames() - frameStart < 20))
+                || (nativeMode && marker.enabled() && marker.drawsRecorded() - markerStart < 2)) return;
             if (nativeMode) nativeCheckpoint(mc); else checkpoint(mc);
             if (stage == STAGES.length - 1) {
                 if (screenshotsPending.get() != 0) return;
@@ -243,6 +253,18 @@ public final class LiveWorldHarness implements ClientModInitializer {
         entry.put("seconds", (System.nanoTime() - started) / 1e9);
         entry.put("deviceDebuggingEnabled", com.mojang.blaze3d.systems.RenderSystem.getDevice().isDebuggingEnabled());
         entry.put("deviceDebugMessages", com.mojang.blaze3d.systems.RenderSystem.getDevice().getLastDebugMessages());
+        // How many bounded marker draws had been recorded when this frame was captured.
+        // The gate needs an implementation-sourced answer to "was anything drawn into the
+        // frame we are about to screenshot?" — inferring it from how dark the image looks
+        // was wrong in both directions (round-1 review B4).
+        entry.put("markerDraws",
+            me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.status().drawsRecorded());
+        // Whether Minecraft had a screen or overlay up when this frame was captured. Anything
+        // Voxy records at the end of level rendering is drawn BEFORE Minecraft's GUI, so a
+        // loading overlay (a dimension change, for instance) covers it. The gate needs this
+        // as a fact rather than guessing from how the image looks.
+        entry.put("frameCoveredByGui",
+            mc.gui.screen() != null || mc.gui.overlay() != null);
         nativeCheckpoints.add(entry);
         screenshotsPending.incrementAndGet();
         Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image -> {
