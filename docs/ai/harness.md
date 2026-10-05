@@ -122,3 +122,40 @@ validation diagnostics through JUnit XML, so a Gradle `JavaExec` gate such as
 it fails closed — which made the policy's own allowance for the (now fixed) D6
 interop diagnostic unsatisfiable. This runner does not have that limitation: it
 scans interop and live output directly.
+
+## Verification rule for native-integration work (owner decision, 2026-10-04)
+
+The agent harness is frozen, so its Codex verify step no longer runs. That removed the
+only independent check this project had, and the first five native-integration commits
+(`331322c0`..`5160f000`) were committed and pushed on self-verification alone. That is
+the gap this rule closes.
+
+**No native-integration work is "verified" until a fresh, independent Codex review of a
+frozen commit records a verdict.** Concretely, per milestone:
+
+1. finish the work and make the measurements, with `scripts/verify.py` and the test suites;
+2. commit, and freeze that SHA;
+3. dispatch a fresh reviewer against that SHA in its own worktree
+   (`orca worktree create --name native-review-rN --repo id:<voxy> --base-branch <SHA>
+   --agent codex --no-parent`, then `orca terminal send ... --enter`). Ask it to judge
+   claims-versus-evidence, safety for ordinary players with every native flag unset, the
+   parts where a mistake is invisible (reflection, offsets, destruction order, core-vs-KHR
+   dispatch), whether the gate can pass while the thing it checks did not happen, and
+   whether the tests fail on broken code;
+4. it writes `docs/ai/runs/native-integration-review-rN.md` plus a machine-readable
+   `.agent-run/native-integration-review.json` (`final_verdict`, `reviewed_commit`,
+   `blocking_findings`, `non_blocking_findings`, `safe_for_normal_play`);
+5. commit the review report **separately** from any repair, repair every blocking finding,
+   and re-review the repaired SHA.
+
+Until that verdict exists, the work may be described as *measured* — never as verified,
+accepted, or production-ready. Pushing to a personal fork before review is fine; calling
+it done is not.
+
+If the review cannot run — exhausted credits, an unreachable execution host, a model that
+stalls on the request (GPT-6.1-Sol has worked here; Astra has hit a capability limit twice)
+— then say so and stop at "measured, review blocked". Do not substitute self-review.
+
+A reviewer told not to launch Minecraft (it takes the GPU) judges the *existing* evidence
+under `build/harness/`. Record that limit in the report rather than letting a PASS imply
+live-hardware coverage it did not have.
