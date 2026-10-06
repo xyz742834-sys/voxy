@@ -1,0 +1,150 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "7a769ad58d6f66da8c73930f7f48c34609b5932e",
+  "blocking_findings": [
+    {
+      "id": "B1",
+      "severity": "high",
+      "finding": "Evidence retains JSON assertions and screenshot hashes but no screenshots, raw readback, native/shutdown log, full gate summary or candidate/source binding. Environment and marker gates cannot replay; older build-only citations remain.",
+      "evidence": [
+        "docs/ai/runs/native-evidence/20261005T050713-618859Z/MANIFEST.json",
+        "scripts/verify.py:474-495,631-633",
+        "docs/ai/vulkan-native-integration-survey.md:169,213,282,323"
+      ],
+      "judgment": "REFUTED"
+    },
+    {
+      "id": "B3",
+      "severity": "high",
+      "finding": "Proof files are now required, but missing adopted identity, ignored marker/compute/shader identities and contradictory/missing proof fields can still pass.",
+      "evidence": [
+        "scripts/verify.py:424-467",
+        "combined environment/marker/proof fixture returned true/true/true with device mismatch and null adopted device"
+      ],
+      "judgment": "REFUTED"
+    },
+    {
+      "id": "B4",
+      "severity": "high",
+      "finding": "Whole-image colour spans accept unrelated distant patches; rejectedInBox is derived from a weak relationship note. Separate control does not prove tested yellow draw. Screenshot exemptions can skip explicit yellow depth failures; readback is stale across lifecycle.",
+      "evidence": [
+        "McNativeMarkerDraw.java:254-258,307-376,407-413",
+        "scripts/verify.py:272-291,367-395",
+        "actual Java relationshipProblem returned null for three distant 500-pixel patches",
+        "yellow nether box with absent control passed and was skipped"
+      ],
+      "judgment": "REFUTED"
+    },
+    {
+      "id": "B5",
+      "severity": "high",
+      "finding": "Real-shader cleanup destroys resources after an unconfirmed wait/drain. Tracker ignores device-idle result. Marker null-device shutdown and replacement-device retirement lack old-submission completion proof.",
+      "evidence": [
+        "McNativeRealShaderProbe.java:182-218",
+        "VkFrameTracker.java:211-221",
+        "McNativeMarkerDraw.java:224-229,601-606"
+      ],
+      "judgment": "REFUTED"
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "N1",
+      "finding": "Ambiguity/static rejection was repaired in McNativeVulkan, but not duplicated probe/feature reflection helpers.",
+      "evidence": "McNativeVulkanProbe.java:187-203; McNativeDeviceFeatures.java:200-210"
+    },
+    {
+      "id": "N2",
+      "finding": "Adoption matches by device name, but compute still picks first physical device, audit still falls back to first and identical names remain ambiguous.",
+      "evidence": "McNativeComputeProbe.java:274-284; McNativeFeatureAudit.java:190-216; McNativeVkContext.java:373-396"
+    },
+    {
+      "id": "N3",
+      "finding": "Audit's enabled features come from unaugmented static requests; int64 compute cannot alone prove all graphics/indirect features.",
+      "evidence": "McNativeFeatureAudit.java:155-165; survey:249-257"
+    },
+    {
+      "id": "N7",
+      "finding": "Expected depth pattern cannot prove near-draw depth writes or ordinary Minecraft scene-depth composition.",
+      "evidence": "McNativeMarkerDraw.java:400-413"
+    },
+    {
+      "id": "R2-N1",
+      "finding": "Readback buffer is lost if copy/registration throws or callback never runs; callback classification cleanup normally closes it.",
+      "evidence": "McNativeMarkerDraw.java:287-298,307-344"
+    },
+    {
+      "id": "R2-N2",
+      "finding": "One-shot whole-image allocation/scan lacks diagnostic budget and assumes tightly packed RGBA8; 8K entails 126.56 MiB.",
+      "evidence": "McNativeMarkerDraw.java:289-328"
+    },
+    {
+      "id": "R2-N3",
+      "finding": "Harness cumulative recording count and GUI-object presence are not capture-frame draw/completion/coverage identity.",
+      "evidence": "LiveWorldHarness.java:83-88,128-131,260-274"
+    },
+    {
+      "id": "R2-N4",
+      "finding": "Lone-far-pixel fixture already fails old gate; several regression tests detect only wording, and three dark critical frames still explicitly pass. Notes-on-any-proof test only covers compute.",
+      "evidence": "scripts/tests/test_marker_gate.py:64-68,106-109,116-129,304-306"
+    },
+    {
+      "id": "R2-N5",
+      "finding": "Java tests do not cover classifier, readback request failures, retirement failures or actual adopted/KHR gameplay path.",
+      "evidence": "src/test/java/me/cortex/voxy/vk/McNative*Test.java"
+    }
+  ],
+  "safe_for_normal_play": true,
+  "safe_for_normal_play_scope": {
+    "flags": "voxy.native.probe, voxy.native.marker, voxy.native.features, voxy.native.adopt all unset",
+    "gl_backend": "Source review accepts native diagnostic confinement; no gameplay/parity run performed.",
+    "minecraft_vulkan_backend": "Source review accepts dormant diagnostic additions; Voxy LoD remains disabled. No gameplay run performed.",
+    "opted_in_native_diagnostics": false,
+    "limitations": "Normal-play safety field is not native rendering or comprehensive gameplay acceptance."
+  },
+  "round1_findings_closed": {
+    "B1": false,
+    "B2": true,
+    "B3": false,
+    "B4": false,
+    "B5": false
+  },
+  "tests": {
+    "java": {
+      "command": "./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true",
+      "exit_code": 0,
+      "total": 313,
+      "passed": 312,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "skip": "VkBarriersTest.missingBarrierIsDetected()",
+      "scope": "independent Voxy Vulkan device; not Minecraft"
+    },
+    "python": {
+      "command": "python3 -m unittest discover -s scripts/tests",
+      "exit_code": 0,
+      "total": 47,
+      "passed": 47
+    },
+    "old_marker_gate_substitution": {
+      "total": 17,
+      "failed": 14,
+      "passed": 3,
+      "old_commit": "59a6a78d0c8bad687fca5da21bf1a7b433599ea0",
+      "same_gate_as_round1": true,
+      "limitation": "Several failures only compare changed message wording."
+    }
+  },
+  "evidence_replay": {
+    "json_hashes_match": true,
+    "retained_png_count": 0,
+    "environment_gate": false,
+    "marker_gate": false,
+    "proof_files_gate": true
+  },
+  "report_path": "docs/ai/runs/native-integration-review.md",
+  "did_launch_minecraft": false,
+  "implementation_modified": false
+}
+
