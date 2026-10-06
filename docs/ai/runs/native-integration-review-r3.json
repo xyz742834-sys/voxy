@@ -1,0 +1,188 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "a1d128f43001f693af17aa4dceaa106235891d6a",
+  "requested_commit_text": "a1d128f48d6f66da8c73930f7f48c34609b5932e",
+  "candidate_note": "Reviewed actual checkout HEAD as explicitly requested; supplied full SHA differs but short prefix matches.",
+  "review_round": 3,
+  "blocking_findings": [
+    {
+      "id": "B1",
+      "judgment": "REFUTED",
+      "title": "Retained evidence cannot replay pixel gates and contains pre-finalization summary",
+      "evidence": [
+        "scripts/verify.py:520-582",
+        "scripts/verify.py:723-733",
+        "docs/ai/runs/native-evidence/20261006T064519-555551Z/summary.json:2",
+        "direct retained native_environment_result/native_marker_result: missing warmup.png"
+      ],
+      "details": "All manifest hashes and retained source hashes match, but eleven checkpoint PNGs and raw readbacks are absent. Only one unbound composited crop is retained. Summary success is false and final source-change checks are absent; historical build-only and removed round-1 runs remain uncheckable."
+    },
+    {
+      "id": "B3",
+      "judgment": "REFUTED",
+      "title": "Compute/shader proof identities and internal consistency remain unchecked",
+      "evidence": [
+        "scripts/verify.py:453-513",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeComputeProbe.java:81-82",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeRealShaderProbe.java:60-61",
+        "ProofFileGateTest.run_gate mutations: contradictory compute/shader devices, invalid adopted readBack and empty compute expected/readBack all pass"
+      ],
+      "details": "Required files and adopted/marker/probe/checkpoint identity agreement are improved. Compute and real-shader files still publish no identity; contradictory supplied identities are ignored. Attempted fields, adopted sentinel and shader firstMismatch are unchecked."
+    },
+    {
+      "id": "B4",
+      "judgment": "REFUTED",
+      "title": "New readback/cell/repetition mechanisms still admit false marker and depth proof",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:359-466",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:490-509",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:780-831",
+        "scripts/verify.py:272-298",
+        "scripts/verify.py:374-403",
+        "src/harness/java/me/cortex/voxy/harness/LiveWorldHarness.java:256-274",
+        "reflection of actual Java measure: unrelated expected pattern passes; mirrored yellow depth failure ignored by first passing orientation"
+      ],
+      "details": "Density/position and direct rearm arithmetic are repaired. Separate pass-cell command cannot prove rejected-box command issuance. Python trusts sparse/defaulted aggregate data. Every-240 sampling misses intermediate failures; every-600 evidence persistence can hide late sampled failures. Retained marker report is frame 4800/20 clean while final checkpoint is 5161 and log contains 22 samples. Harness metadata lacks frame/submission binding."
+    },
+    {
+      "id": "B5",
+      "judgment": "REFUTED",
+      "title": "Immediate shutdown can destroy a marker on a device whose completion was not observed",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeVkContext.java:92-95",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeVkContext.java:293-308",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:245-256",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:726-729",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkFrameTracker.java:220-224"
+      ],
+      "details": "Specific fence/drain/destroy/missing-device/retirement repairs are confirmed. If the MC device is replaced, adopted context remains A while current marker follows B; release waits A and destroys B without identity validation. Public waitIdle also still drains pending frees after unchecked wait, though no production caller was found. Source-path finding, not an observed hardware crash."
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R3-N1",
+      "judgment": "REFUTED",
+      "title": "Failure leaks are not uniformly bounded or reported",
+      "evidence": [
+        "McNativeMarkerDraw.java:313-380",
+        "McNativeMarkerDraw.java:661-742"
+      ],
+      "details": "Close failures are swallowed; continued periodic readbacks can abandon up to 40 MiB each attempt. Retirement leaks can recur over unlimited lifecycle/format changes. NOTES deduplicates/caps messages, not objects/bytes. One-shot compute/adoption/shader leaks are session-bounded; healthy callbacks do close buffers."
+    },
+    {
+      "id": "R3-N2",
+      "judgment": "PARTLY_CONFIRMED",
+      "title": "Physical-device lookup still selects the first equal-name device",
+      "evidence": [
+        "McNativeComputeProbe.java:274-296",
+        "McNativeFeatureAudit.java:190-214",
+        "McNativeVkContext.java:366-397"
+      ],
+      "details": "First-enumerated fallback is removed but duplicate model names remain ambiguous. No multi-GPU execution performed."
+    },
+    {
+      "id": "R3-N3",
+      "judgment": "REFUTED",
+      "title": "Feature audit still describes static baseline requests, not augmented enabled features",
+      "evidence": [
+        "McNativeFeatureAudit.java:155-165",
+        "docs/ai/runs/native-evidence/20261006T064519-555551Z/native-feature-audit.json"
+      ],
+      "details": "Retained audit calls all four injected features disabled. Int64 compute success also does not test all four shader-stage/indirect requirements."
+    },
+    {
+      "id": "R3-N4",
+      "judgment": "REFUTED",
+      "title": "Regression tests and survey overstate proof coverage",
+      "evidence": [
+        "scripts/tests/test_marker_gate.py:1-7",
+        "scripts/tests/test_marker_gate.py:25-26",
+        "scripts/tests/test_marker_gate.py:64-68",
+        "src/test/java/me/cortex/voxy/vk/McNativeMarkerDrawTest.java",
+        "docs/ai/vulkan-native-integration-survey.md:438-465"
+      ],
+      "details": "Original lone-far fixture is already rejected by old inset; three dark frames pass both versions; Python fixtures omit new pass cell and fabricate readback results. Java lacks classifier/rearm/error-lifetime tests. Report section 4 audits each measured claim."
+    },
+    {
+      "id": "R3-N5",
+      "judgment": "PARTLY_CONFIRMED",
+      "title": "Per-buffer budget is repaired, aggregate footprint and classifier limits remain",
+      "evidence": [
+        "McNativeMarkerDraw.java:310-320",
+        "McNativeMarkerDraw.java:391-466",
+        "scripts/verify.py:284-288"
+      ],
+      "details": "40 MiB cap rejects 8K. 4K still transfers/maps about 31.6 MiB; no aggregate outstanding budget. Loose colour predicates admit unrelated pixels; fixed 500-pixel floor rejects valid small images; zero-area Java rectangles can report clean."
+    },
+    {
+      "id": "R3-N6",
+      "judgment": "CONFIRMED",
+      "title": "Strict reflection, enabled-extension Metal capability and named PNG bounds repaired",
+      "evidence": [
+        "McNativeVulkan.java:126-169",
+        "VkContext.java:458-459",
+        "scripts/pixel_oracle.py:107-148"
+      ],
+      "details": "N1/N4 and specific N5 CRC/end/dimension/row protections are confirmed. Full compressed-input size and partial-zlib completeness remain outside that guarantee."
+    }
+  ],
+  "safe_for_normal_play": {
+    "gl_backend": true,
+    "minecraft_vulkan_backend_no_native_flags": true,
+    "basis": "Source review of dormant production callbacks and permitted suites; no new Minecraft runtime certification. Vulkan Voxy LoD remains disabled/unimplemented.",
+    "flags_on_native_diagnostic_accepted": false
+  },
+  "round1_findings_closed": {
+    "B1": false,
+    "B2": true,
+    "B3": false,
+    "B4": false,
+    "B5": false
+  },
+  "round2_findings_closed": {
+    "B1": false,
+    "B3": false,
+    "B4": false,
+    "B5": false
+  },
+  "tests": {
+    "java": {
+      "command": "./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true",
+      "success": true,
+      "tests": 313,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "skip": "VkBarriersTest.missingBarrierIsDetected()",
+      "compilation": "FROM-CACHE; test task executed"
+    },
+    "python": {
+      "command": "python3 -m unittest discover -s scripts/tests",
+      "success": true,
+      "tests": 54,
+      "seconds": 20.727
+    }
+  },
+  "evidence_audit": {
+    "run": "20261006T064519-555551Z",
+    "manifest_hash_mismatches": [],
+    "source_fingerprint_mismatches": [],
+    "retained_environment_gate_replay": false,
+    "retained_marker_gate_replay": false,
+    "retained_proof_gate_replay": true,
+    "pixel_replay_failure": "missing warmup.png",
+    "retained_summary_finished": false,
+    "retained_marker_draws": 4800,
+    "last_checkpoint_marker_draws": 5161,
+    "retained_readback_times_clean": 20,
+    "log_readback_count": 22,
+    "native_log_validation_regex_matches": 0
+  },
+  "not_checked": [
+    "No Minecraft, native/live runner or GL interop launch by user instruction.",
+    "No full checkpoint PNG/raw-readback replay; those files are absent.",
+    "No new hardware timeout, device replacement, queue-refusal or multi-GPU fault injection.",
+    "No native LoD terrain/composition, scene-depth or normal-play lifecycle acceptance."
+  ],
+  "report": "docs/ai/runs/native-integration-review.md"
+}
