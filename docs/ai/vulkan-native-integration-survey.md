@@ -924,14 +924,32 @@ copyable — which is not a measurement.
 images) reads the depth attachment of `mainRenderTarget()` at the tail of `LevelRenderer.render`.
 
 Measured: the copy **completes**, and all **1,639,680 pixels of a 1708x960 D32_SFLOAT image are
-0.0**. That is also Voxy's `VkDepth.CLEAR` (reverse-Z far), so the first run — which had the
-terrain probe clearing depth — was suspect. An isolated run with the depth flag alone and
-nothing writing to Minecraft's images gave the same result, so it is not self-contamination.
+0.0**, recounted by the gate from the retained raw depth
+(`native-depth-sample.pgm.gz`, quantised to 16 bits) rather than taken from the probe's summary.
+
+⚠ **The isolation claim is weaker than it first read.** The all-zero value is also Voxy's
+`VkDepth.CLEAR` (reverse-Z far), so the first run — which had the terrain probe clearing depth —
+was suspect. A run with the depth flag alone gave the same result, but **that run's evidence was
+never committed**, so a reader cannot check it from this repository; round 7 recorded it as
+`isolated_run_independently_confirmed: false` and was right to. What is retained and checkable is
+the all-zero depth of the normal native stage. The isolated observation happened and is reported
+here as an observation, not as retained proof.
 
 **A completed transfer is not an observation.** The conclusion is negative and bounded: this
-path does not observe Minecraft's scene depth. The Z convention is **unmeasured** — the probe
-reports `uniform: true`, `reversedZ: null`, and the gate refuses to let "readable" be claimed
-from a uniform image or a convention to be asserted from bands that do not separate. Why the
+path does not observe Minecraft's scene depth. The Z convention is **unmeasured**, and the probe
+no longer has an opinion about it.
+
+⚠ Round 7 (R7-DEPTH-GATE) refuted the first version of this section's apparatus on two counts,
+both correct. The probe inferred reverse-Z from "the bottom band is nearby ground, the top band
+is sky", and the gate **rejected "unknown" whenever the bands separated** — forcing certainty
+out of an unproven premise, since a wall, a cave, a tilted camera or a flipped transfer each
+reverses it, and the positive fixtures encoded the premise rather than measuring it. The
+inference is **deleted**: the probe publishes `zConventionMeasuredHere: false` and no convention
+at all, and the gate fails any report that carries one. Separately the gate never remeasured
+anything, so contradictory summaries passed — with the real all-zero histogram intact,
+`min=0 / max=1 / bottomMean=0.8 / reversedZ=true` was accepted as "readable; reverse-Z". The raw
+depth is now retained and recounted, with the histogram, extrema and band means required to be
+what the pixels say. Why the
 image reads as uniform is **not established**: the depth view reachable at that hook may not be
 the one the scene was drawn into, or the copy may not transfer depth contents despite
 completing. Neither is claimed.

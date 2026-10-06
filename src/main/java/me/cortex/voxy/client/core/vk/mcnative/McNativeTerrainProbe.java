@@ -225,6 +225,11 @@ public final class McNativeTerrainProbe implements Destroyable {
                 stale.destroyed = true;
                 leakedProbes++;
             }
+            // ⚠ round-7 review R6-TERRAIN-DEVICE の残り: 記録は安全に止まるが、
+            // <b>ディスク上の前の清浄なレポートがそのまま残って</b>いた。
+            // 記録をやめた事実をいますぐ書く (B4 と同じ規律)。
+            evidenceWrittenAt = -1;
+            writeEvidence();
             return;
         }
         if (deviceDiverged) return;

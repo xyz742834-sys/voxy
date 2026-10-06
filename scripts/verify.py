@@ -23,7 +23,7 @@ import time
 import xml.etree.ElementTree as ET
 import zlib
 from pixel_oracle import (read_rgb, mismatches, top_rows_rgb, png_size, write_rgb_png,
-                          read_ppm, read_ppm_gz)
+                          read_ppm, read_ppm_gz, read_pgm16_gz)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -33,6 +33,9 @@ ROOT = Path(__file__).resolve().parents[1]
 # that was jointly empty — or jointly anything — agreed. The sentinel is fixed in the source,
 # so the gate requires that value.
 INT64_SENTINEL = "0x123456789abcdef"
+
+# VkFormat for 32-bit float depth, which is the only depth layout the probe interprets.
+VK_FORMAT_D32_SFLOAT = 126
 
 # The marker's geometry, as McNativeMarkerDraw declares it in source (BOX_X0/X1, BOX_Y0/Y1,
 # NEAR_X1 = BOX_X0 + (BOX_X1 - BOX_X0) * 0.6, CONTROL_Y0/Y1, CELL_Y0/Y1).
@@ -48,6 +51,38 @@ EXPECTED_MARKER_GEOMETRY = {
     "controlStrip": [-0.98, 0.76, -0.78, 0.72],
     "depthTestedPassCell": [-0.98, 0.70, -0.78, 0.66],
 }
+
+
+# The marker's three colours, as McNativeMarkerDraw declares them (MARKER_*, FAR_*, REJECTED_*).
+#
+# ⚠ Round-7 review B1: the geometry was pinned to its source constants but the COLOURS were
+# still taken from the report, so the same shifting attack worked on them — a producer could
+# publish colours its pixels happen to contain. Both are source constants; both are asserted.
+EXPECTED_MARKER_COLOURS = {"markerRgb": [255, 0, 255], "farRgb": [0, 255, 255],
+                           "rejectedRgb": [255, 255, 0]}
+
+# Byte offsets of the four features Voxy injects, counted from the start of
+# VkPhysicalDeviceFeatures (55 consecutive VkBool32 fields, so field index * 4).
+#
+# ⚠ Round-7 review B3: a RANGE check still let distinct-but-wrong offsets pass. These are fixed
+# by the Vulkan structure layout, and the read-back experiment is supposed to discover exactly
+# them — so the gate pins them. The measured run agrees (40 / 100 / 104 / 160). If Voxy ever
+# injects a different feature, add its offset here deliberately.
+VK_FEATURE_OFFSETS = {
+    "drawIndirectFirstInstance": 40,        # field 10
+    "vertexPipelineStoresAndAtomics": 100,  # field 25
+    "fragmentStoresAndAtomics": 104,        # field 26
+    "shaderInt64": 160,                     # field 40
+}
+
+
+def check_marker_colours(report):
+    """Require the published colours to be the ones the source actually declares."""
+    for key, want in EXPECTED_MARKER_COLOURS.items():
+        got = report.get(key)
+        if got != want:
+            raise ValueError(f"the marker publishes {key}={got!r}, not the {want!r} its source"
+                             f" declares")
 
 
 def check_marker_geometry(geometry):
@@ -309,6 +344,7 @@ def marker_report_checks(output, report):
 
     geometry = report.get("geometry") or {}
     check_marker_geometry(geometry)
+    check_marker_colours(report)
     box, split, strip = geometry["box"], geometry["nearSplitX"], geometry["controlStrip"]
     # ⚠ The authoritative proof is the readback of Minecraft's own colour image taken
     # right after the draw, not the screenshot: anything Minecraft draws afterwards (its
@@ -548,7 +584,15 @@ def recount_rejected_orientation(output, report, rb):
     full_w, full_h = report["targetWidth"], report["targetHeight"]
     flipped = rb["rejectedOrientationFlipped"]
 
-    def region(ax, ay, bx, by):
+    def region(label, ax, ay, bx, by):
+        """Resolve a region into the rejected crop, refusing to shrink it to fit.
+
+        ⚠ Round-7 review B4: this clamped, unlike the selected-crop recount. Replacing the
+        opposite sample with a gzipped 1x1 black image and setting its rect to [0,0,1,1] made
+        every expected region fall outside the crop; the empty loops returned zero and the gate
+        read that as "the pattern is absent". Absence requires covering the whole region, so a
+        crop that does not contain it fails instead.
+        """
         x0 = int((min(ax, bx) + 1.0) * 0.5 * full_w) - rect[0]
         x1 = int((max(ax, bx) + 1.0) * 0.5 * full_w) - rect[0]
         top, bottom = max(ay, by), min(ay, by)
@@ -558,7 +602,14 @@ def recount_rejected_orientation(output, report, rb):
         else:
             y0 = int((1.0 - top) * 0.5 * full_h) - rect[1]
             y1 = int((1.0 - bottom) * 0.5 * full_h) - rect[1]
-        return max(0, x0), max(0, y0), min(width, x1), min(height, y1)
+        if x0 < 0 or y0 < 0 or x1 > width or y1 > height:
+            raise ValueError(f"the rejected-orientation sample does not contain the whole"
+                             f" {label} region: it spans ({x0},{y0})-({x1},{y1}) of a"
+                             f" {width}x{height} crop, so its emptiness proves nothing")
+        if x1 <= x0 or y1 <= y0:
+            raise ValueError(f"the {label} region resolves to an empty rectangle in the"
+                             f" rejected-orientation sample")
+        return x0, y0, x1, y1
 
     def tally(area, want):
         x0, y0, x1, y1 = area
@@ -575,11 +626,12 @@ def recount_rejected_orientation(output, report, rb):
     cell, strip = geometry["depthTestedPassCell"], geometry["controlStrip"]
     near_rgb, far_rgb = tuple(report["markerRgb"]), tuple(report["farRgb"])
     rejected_rgb = tuple(report["rejectedRgb"])
-    near_hits, near_area = tally(region(box[0], box[1], split, box[3]), near_rgb)
-    far_hits, far_area = tally(region(split, box[1], box[2], box[3]), far_rgb)
-    cell_hits, cell_area = tally(region(box[0], cell[1], box[2], cell[3]), rejected_rgb)
-    strip_hits, strip_area = tally(region(box[0], strip[1], box[2], strip[3]), rejected_rgb)
-    box_rejected, _ = tally(region(box[0], box[1], box[2], box[3]), rejected_rgb)
+    near_hits, near_area = tally(region("near", box[0], box[1], split, box[3]), near_rgb)
+    far_hits, far_area = tally(region("far", split, box[1], box[2], box[3]), far_rgb)
+    cell_hits, cell_area = tally(region("cell", box[0], cell[1], box[2], cell[3]), rejected_rgb)
+    strip_hits, strip_area = tally(region("control strip", box[0], strip[1], box[2], strip[3]),
+                                   rejected_rgb)
+    box_rejected, _ = tally(region("box", box[0], box[1], box[2], box[3]), rejected_rgb)
     out = {"sample": name, "flipped": flipped, "near": near_hits, "nearArea": near_area,
            "far": far_hits, "farArea": far_area, "cell": cell_hits, "cellArea": cell_area,
            "controlStrip": strip_hits, "controlStripArea": strip_area,
@@ -722,22 +774,36 @@ def recount_marker_sample(output, report, rb):
 
 
 def native_depth_result(output):
-    """Report what Minecraft's own scene depth actually is, and gate only what was measured.
+    """Report what the depth copy actually produced, and recount it from retained pixels.
 
-    ⚠ This answers a question rather than proving a claim, so it is deliberately permissive
-    about the ANSWER and strict about the MEASUREMENT. "Minecraft's depth cannot be read back"
-    is a legitimate result and must not fail the stage — what fails the stage is a probe that
-    claims to have measured something while contradicting itself, or that could not tell near
-    from far and still asserted a convention.
+    ⚠ Round-7 review R7-DEPTH-GATE rejected the previous version on two counts, both fair.
+
+    First, it never remeasured anything, so mutually contradictory summaries passed: with the
+    real all-zero histogram left intact, min=0 / max=1 / topMean=0 / bottomMean=0.8 /
+    reversedZ=true was accepted as "readable; reverse-Z (larger is closer)". Likewise every
+    histogram entry in the last bin with min=max=0, a colour format where depth belongs, a null
+    device, and negative dimensions whose product happened to be right. The probe now retains
+    the raw depth and this recounts it, requiring the histogram, extrema and band means to be
+    what the pixels actually say.
+
+    Second — the deeper error — the probe inferred the Z convention from "the bottom band is
+    nearby ground, the top band is sky", and this gate REJECTED "unknown" whenever the bands
+    separated, forcing certainty out of an unproven premise. Band separation does not identify
+    which screen region is nearer: a wall, a cave, a tilted camera or a flipped transfer each
+    reverses it. The probe no longer asserts a convention at all, and this gate no longer has
+    an opinion about one. The convention has to be measured by drawing at known depths against
+    a loaded attachment; until that experiment exists, it is unmeasured and said to be.
     """
     result = {"success": False, "failures": [],
-              "scope": "Minecraft's own scene depth: readability and Z convention"}
+              "scope": "what Minecraft's depth attachment yields to a buffer copy;"
+                       " NOT the Z convention, which this cannot measure"}
     try:
         report = json.loads((output / "native-depth-probe.json").read_text())
         result["report"] = report
         for field, kind in (("enabled", bool), ("attempted", bool), ("completed", bool),
-                            ("uniform", bool), ("depthVkFormat", int), ("width", int),
-                            ("height", int), ("bins", int), ("histogram", list), ("basis", str),
+                            ("uniform", bool), ("zConventionMeasuredHere", bool),
+                            ("depthVkFormat", int), ("width", int), ("height", int),
+                            ("bins", int), ("histogram", list), ("basis", str),
                             ("closeFailures", int), ("notes", list)):
             if field not in report:
                 raise ValueError(f"the depth probe does not state {field}")
@@ -752,29 +818,39 @@ def native_depth_result(output):
         if report["closeFailures"]:
             raise ValueError(f"{report['closeFailures']} depth readback buffer(s) could not be"
                              f" closed")
+        # ⚠ The probe must never claim to have measured the convention here. If this field is
+        # ever true, something has reintroduced the band heuristic.
+        if report["zConventionMeasuredHere"]:
+            raise ValueError("the depth probe claims to have measured the Z convention from a"
+                             " buffer copy, which cannot establish it")
+        if "reversedZ" in report:
+            raise ValueError("the depth probe still publishes reversedZ; the band heuristic it"
+                             " came from cannot identify which screen region is nearer")
         result["readable"] = report["completed"]
+        result["z_convention_measured"] = False
         if not report["completed"]:
-            # A real answer, not a failure: record it and move on. The gate's job is to stop
-            # the survey claiming a convention it never measured.
             result["answer"] = "Minecraft's scene depth could not be read back"
             result["basis"] = report["basis"]
-            if report.get("reversedZ") is not None:
-                raise ValueError("the depth probe asserts a Z convention while reporting that"
-                                 " it could not read the depth image")
             result.update(success=True)
             return result
+        # ⚠ Round-7: a null device, a colour format and negative dimensions all passed.
+        if not isinstance(report.get("device"), str):
+            raise ValueError("the depth probe does not name its device")
+        handle = report["device"]
+        try:
+            parsed = int(handle, 16) if handle.lower().startswith("0x") else int(handle)
+        except ValueError:
+            raise ValueError(f"depth.device is {handle!r}, which is not a device handle")
+        if parsed == 0:
+            raise ValueError("depth.device is a null device handle")
+        if report["depthVkFormat"] != VK_FORMAT_D32_SFLOAT:
+            raise ValueError(f"the depth probe read VkFormat {report['depthVkFormat']}, not the"
+                             f" D32_SFLOAT ({VK_FORMAT_D32_SFLOAT}) it knows how to interpret")
+        if report["width"] < 1 or report["height"] < 1:
+            raise ValueError(f"the depth image is {report['width']}x{report['height']}")
         if len(report["histogram"]) != report["bins"]:
             raise ValueError(f"the histogram has {len(report['histogram'])} bins but the probe"
                              f" says {report['bins']}")
-        total = sum(report["histogram"])
-        if total < 1000:
-            raise ValueError(f"only {total} depth samples were binned, which measures nothing")
-        if total != report["width"] * report["height"]:
-            # Rows can be short if the buffer was smaller than declared; say so rather than
-            # quietly averaging over whatever arrived.
-            raise ValueError(f"the histogram counts {total} samples but the image is"
-                             f" {report['width']}x{report['height']}"
-                             f" = {report['width'] * report['height']}")
         for field in ("min", "max", "topMean", "bottomMean", "clearedValue", "clearedShare"):
             value = report.get(field)
             if not isinstance(value, (int, float)) or isinstance(value, bool):
@@ -784,54 +860,83 @@ def native_depth_result(output):
                              f" max={report['max']}")
         if report["min"] > report["max"]:
             raise ValueError(f"min {report['min']} exceeds max {report['max']}")
-        # ⚠ Measured 2026-10-06: the copy COMPLETES and every pixel is 0.0, both with the
-        # terrain probe clearing depth and in an isolated run with nothing writing to the
-        # image. A completed copy is not an observation of the scene's depth, so the gate
-        # must not let "readable" be claimed from it.
-        if report["uniform"]:
-            if report.get("reversedZ") is not None:
-                raise ValueError("the depth probe asserts a Z convention from a uniform image")
-            if report["min"] != report["max"]:
-                raise ValueError(f"the probe says the image is uniform but min={report['min']}"
-                                 f" and max={report['max']}")
-            result["readable"] = False
-            result["answer"] = ("the copy completed but every pixel was identical"
-                                f" ({report['min']}), so this path does not observe"
-                                " Minecraft's scene depth")
-            result["basis"] = report["basis"]
-            result.update(success=True)
-            return result
-        if report["min"] == report["max"]:
-            raise ValueError(f"every pixel is {report['min']} but the probe does not say the"
-                             f" image is uniform")
-        # ⚠ The convention may legitimately be unreadable from a given frame (a cave, a wall,
-        # a GUI). What must not happen is asserting one anyway.
-        reversed_z = report.get("reversedZ")
-        if reversed_z is not None and not isinstance(reversed_z, bool):
-            raise ValueError(f"depth.reversedZ is {reversed_z!r}, not a bool or null")
-        separation = abs(report["topMean"] - report["bottomMean"])
-        if reversed_z is not None and separation < 0.05:
-            raise ValueError(f"the probe asserts reversedZ={reversed_z} from bands only"
-                             f" {separation} apart, which does not separate near from far")
-        if reversed_z is None and separation >= 0.05:
-            raise ValueError(f"the bands are {separation} apart but the probe asserts no"
-                             f" convention; it should have been able to tell")
-        if reversed_z is not None:
-            nearer_bottom = report["bottomMean"] > report["topMean"]
-            if nearer_bottom != reversed_z:
-                raise ValueError(f"the probe says reversedZ={reversed_z} but the bottom band"
-                                 f" {report['bottomMean']} vs top {report['topMean']} says"
-                                 f" otherwise")
-        result["answer"] = ("Minecraft's scene depth is readable; "
-                            + ("reverse-Z (larger is closer)" if reversed_z
-                               else "not reverse-Z (smaller is closer)" if reversed_z is False
-                               else "its convention could not be read from this frame"))
+        if report["uniform"] != (report["min"] == report["max"]):
+            raise ValueError(f"the probe says uniform={report['uniform']} but min="
+                             f"{report['min']} and max={report['max']}")
+        # The authoritative part: recount the retained pixels and require agreement.
+        result["recount"] = recount_depth_sample(output, report)
+        result["answer"] = ("the copy completed but every pixel was identical"
+                            f" ({report['min']}), so this path does not observe Minecraft's"
+                            " scene depth"
+                            if report["uniform"] else
+                            "the copy completed and the image varies; what the values MEAN"
+                            " (which direction is nearer) is not measured by this path")
         result["basis"] = report["basis"]
-        result["separation"] = separation
         result.update(success=True)
-    except (OSError, ValueError, KeyError, TypeError) as exc:
-        result["failures"].append(str(exc))
+    except (OSError, ValueError, KeyError, TypeError, EOFError, zlib.error) as exc:
+        result["failures"].append(f"{type(exc).__name__}: {exc}")
     return result
+
+
+def recount_depth_sample(output, report):
+    """Recount the retained raw depth and require the published summary to match it.
+
+    The probe retains the depth quantised to 16-bit big-endian grey (a gzipped P5 PGM). That is
+    lossy, so the comparison is to within one quantisation step — enough to catch a histogram
+    that contradicts its extrema, a uniform image reported as varying, or band means invented
+    wholesale, which is what round 7 demonstrated.
+    """
+    name = report.get("sampleFile")
+    if not name:
+        raise ValueError("the depth probe retained no raw sample, so its summary cannot be"
+                         " checked against anything")
+    path = output / name
+    if not path.is_file():
+        raise ValueError(f"the retained depth sample {name} is missing")
+    values, (width, height) = read_pgm16_gz(path)
+    if (width, height) != (report["width"], report["height"]):
+        raise ValueError(f"the retained depth sample is {width}x{height} but the probe read"
+                         f" {report['width']}x{report['height']}")
+    step = 1.0 / 65535.0
+    tolerance = 2 * step
+    bins = report["bins"]
+    histogram = [0] * bins
+    low, high = 1.0, 0.0
+    band = max(1, height // 50)
+    top_sum = bottom_sum = 0.0
+    top_count = bottom_count = 0
+    for y in range(height):
+        row = values[y]
+        for q in row:
+            z = q * step
+            low = min(low, z)
+            high = max(high, z)
+            histogram[min(bins - 1, int(z * bins))] += 1
+        if y < band:
+            top_sum += sum(row) * step
+            top_count += width
+        if y >= height - band:
+            bottom_sum += sum(row) * step
+            bottom_count += width
+    out = {"sample": name, "size": [width, height], "min": low, "max": high,
+           "histogram": histogram,
+           "topMean": top_sum / top_count if top_count else None,
+           "bottomMean": bottom_sum / bottom_count if bottom_count else None}
+    if histogram != report["histogram"]:
+        raise ValueError(f"recounting the retained depth finds the histogram {histogram}, not"
+                         f" the published {report['histogram']}")
+    for field, ours in (("min", low), ("max", high),
+                        ("topMean", out["topMean"]), ("bottomMean", out["bottomMean"])):
+        theirs = report[field]
+        if ours is None:
+            continue
+        if abs(theirs - ours) > tolerance:
+            raise ValueError(f"the probe reports {field}={theirs} but the retained pixels say"
+                             f" {ours}")
+    if (low == high) != report["uniform"]:
+        raise ValueError(f"the retained pixels are{'' if low == high else ' not'} uniform but"
+                         f" the probe says uniform={report['uniform']}")
+    return out
 
 
 def terrain_report_checks(output, report, expected_device=None):
@@ -1113,8 +1218,18 @@ def native_proof_files_result(output, checkpoints):
         if len(set(offsets)) != len(offsets):
             raise ValueError(f"two features claim the same read-back offset, so at least one"
                              f" was not actually located: {verified}")
-        if any(offset < 0 for offset in offsets):
-            raise ValueError(f"a feature claims a negative offset: {verified}")
+        # ⚠ Round-7 review B3: distinct but IMPOSSIBLE offsets passed, including offsets past
+        # the end of the struct entirely. VkPhysicalDeviceFeatures is 55 VkBool32 fields, so
+        # every member offset is a multiple of 4 below 220; an offset outside that cannot be
+        # the field it names, whatever the note says.
+        for feature, offset in sorted(verified.items()):
+            want = VK_FEATURE_OFFSETS.get(feature)
+            if want is None:
+                raise ValueError(f"{feature} is not a feature this gate knows the offset of")
+            if offset != want:
+                raise ValueError(f"{feature} claims read-back offset {offset}, but its member"
+                                 f" offset in VkPhysicalDeviceFeatures is {want}; a read-back"
+                                 f" that landed elsewhere did not verify that field")
 
         compute = loaded["native-compute-probe.json"]
         if not need(compute, "native-compute-probe.json", "attempted", bool):
@@ -1270,6 +1385,7 @@ def retain_native_evidence(output, native_output, timestamp, summary):
         # artifact the marker verdict actually rests on.
         samples = {}
         for pattern in ("native-marker-sample-*.ppm", "native-marker-rejected-*.ppm.gz",
+                        "native-depth-sample.pgm.gz",
                         "native-terrain-sample-*.ppm.gz",
                         "native-terrain-reference-*.ppm.gz"):
             for path in sorted(native_output.glob(pattern)):
@@ -1286,6 +1402,7 @@ def retain_native_evidence(output, native_output, timestamp, summary):
         # report points at is the one that has to be here.
         for name, referenced in (("native-marker-draw.json", lambda r: (r.get("readback") or {}).get("rejectedOrientationSample")),
                                  ("native-marker-draw.json", lambda r: (r.get("readback") or {}).get("sampleFile")),
+                                 ("native-depth-probe.json", lambda r: r.get("sampleFile")),
                                  ("native-terrain-probe.json", lambda r: (r.get("comparison") or {}).get("sampleFile"))):
             path = native_output / name
             if not path.is_file():
@@ -1410,19 +1527,44 @@ def replay_evidence(directory):
         outcome["checkpoints"] = len(checkpoints)
         outcome["proofs"] = native_proof_files_result(directory, checkpoints)["failures"]
         outcome["replayed"].append("proof-file consistency")
+        # ⚠ Round-7 review R7-DEPTH-GATE: replay did not call the depth gate AT ALL and did
+        # not list it among its omissions, so all three contradictory depth mutations replayed
+        # as 0. This is the third time a gate and the replay diverged; every gate belongs here.
+        depth_path = directory / "native-depth-probe.json"
+        if depth_path.is_file():
+            depth = native_depth_result(directory)
+            if not depth["success"]:
+                raise ValueError(f"depth gate: {depth['failures']}")
+            outcome["depth"] = {"answer": depth.get("answer"),
+                                "recount": depth.get("recount", {}).get("size")}
+            outcome["replayed"].append("depth probe acceptance checks and pixel recount")
         terrain_path = directory / "native-terrain-probe.json"
         if terrain_path.is_file():
             terrain = json.loads(terrain_path.read_text())
-            terrain_checks = terrain_report_checks(directory, terrain)
+            # ⚠ Round-7 review R6-TERRAIN-GATE residual: replay omitted the adopted-device
+            # argument, so the terrain probe's identity was never compared on this path.
+            adopted = json.loads((directory / "native-adopted-context.json").read_text())
+            adopted_handle = adopted.get("device")
+            expected = (int(adopted_handle, 16) if isinstance(adopted_handle, str)
+                        and adopted_handle.lower().startswith("0x") else None)
+            terrain_checks = terrain_report_checks(directory, terrain, expected)
             outcome["terrain_recompare"] = terrain_checks["recompare"]
             outcome["replayed"].append("terrain report acceptance checks")
             outcome["replayed"].append("terrain frame-vs-reference recomparison")
         # ⚠ Round-6 review R6-TERRAIN-GATE: manifest success is not provenance. Require the
         # samples the reports reference to be manifest MEMBERS, so a file dropped in beside
         # the evidence cannot stand in for one the run produced.
-        referenced = [(rb or {}).get("sampleFile")
-                      for rb in (report.get("readback"),
-                                 (terrain if terrain_path.is_file() else {}).get("comparison"))]
+        rb_ref = report.get("readback") or {}
+        terrain_ref = (terrain if terrain_path.is_file() else {}).get("comparison") or {}
+        referenced = [rb_ref.get("sampleFile"), rb_ref.get("rejectedOrientationSample"),
+                      (report.get("sampleFile") if depth_path.is_file() else None),
+                      terrain_ref.get("sampleFile")]
+        if terrain_ref.get("sampleFile"):
+            referenced.append(terrain_ref["sampleFile"].replace(
+                "native-terrain-sample-", "native-terrain-reference-"))
+        if depth_path.is_file():
+            referenced.append(depth.get("report", {}).get("sampleFile")
+                              if isinstance(depth.get("report"), dict) else None)
         for name in [n for n in referenced if n]:
             if name not in (kept.get("files") or {}):
                 raise ValueError(f"{name} is referenced but is not a manifest member, so it is"

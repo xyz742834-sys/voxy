@@ -9,6 +9,7 @@ import com.mojang.blaze3d.vulkan.VulkanDevice;
 import me.cortex.voxy.common.Logger;
 import net.minecraft.client.Minecraft;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -70,15 +71,15 @@ public final class McNativeDepthProbe {
      * @param clearedValue 最も多く出た値 (ほぼ確実にクリア値 = 最遠面)
      * @param clearedShare その値が占める割合
      * @param histogram    [0,1] を {@link #BINS} 等分したヒストグラム
-     * @param reversedZ    逆Zと述べられるか。判断できないときは {@code null}
-     * @param basis        その判断の根拠、または判断できない理由
+     * @param basis        観測の記述。<b>規約は述べない</b> (R7-DEPTH-GATE)
+     * @param sampleFile   生の深度を残したファイル名。ゲートが数え直せるようにする
      * @param device       測った device のハンドル
      * @param notes        問題
      */
     public record Result(boolean attempted, boolean completed, boolean uniform, int vkFormat,
                          int width, int height, float min, float max, float topMean,
                          float bottomMean, float clearedValue, float clearedShare,
-                         long[] histogram, Boolean reversedZ, String basis, String device,
+                         long[] histogram, String basis, String sampleFile, String device,
                          List<String> notes) {}
 
     public static Result status() {
@@ -86,7 +87,7 @@ public final class McNativeDepthProbe {
             var r = result;
             if (r != null) return r;
             return new Result(attempted, false, false, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                new long[BINS], null, "not measured", deviceHandle(), List.copyOf(NOTES));
+                new long[BINS], "not measured", null, deviceHandle(), List.copyOf(NOTES));
         }
     }
 
@@ -206,38 +207,30 @@ public final class McNativeDepthProbe {
             float topMean = topCount == 0 ? Float.NaN : (float) (topSum / topCount);
             float bottomMean = bottomCount == 0 ? Float.NaN : (float) (bottomSum / bottomCount);
 
-            // ⚠ 向きは<b>十分に分離しているときだけ</b>述べる。上端が空だとは限らない。
-            Boolean reversed = null;
-            String basis;
-            float separation = Math.abs(topMean - bottomMean);
-            if (uniform) {
-                // ⚠ 実測 (2026-10-06): コピーは<b>完了する</b>が、1708x960 の全画素が
-                // 0.0 だった。何も書いていない隔離実行でも同じだった。
-                // 「コピーが成功した」は「中身がシーンの深度である」を意味しない。
-                // 一様な画像は深度規約について何も語らないので、そう記録する。
-                basis = "the copy completed but every one of " + counted + " pixels is " + min
+            // ⚠ round-7 review R7-DEPTH-GATE: ここには「下端は足元の地面 (近)、
+            // 上端は空 (遠)」という<b>前提</b>に基づいて逆Zを述べるコードがあった。
+            // レビュアの指摘は正しい: <b>帯の平均が離れていることは、どちらが近いかを
+            // 特定しない</b>。壁・洞窟・見上げ/見下ろし・行順の反転のいずれでも逆になる。
+            // しかもゲートは「帯が離れているなら unknown を認めない」としていたので、
+            // 証明されていない前提から確信を強制していた。
+            //
+            // だから<b>この probe は規約を述べない</b>。観測した値だけを出す。
+            // 規約は、既知の深度で描いて<b>何が残るか</b>を見る実験
+            // (= McNativeMarkerDraw が既に成立させている手法) でしか決まらない。
+            String basis = uniform
+                ? "the copy completed but every one of " + counted + " pixels is " + min
                     + "; a uniform image cannot be Minecraft's scene depth, so this path does"
-                    + " not observe it (measured with nothing else writing to the image)";
-            } else if (Float.isNaN(topMean) || Float.isNaN(bottomMean)) {
-                basis = "the top or bottom band held no readable depth";
-            } else if (separation < 0.05f) {
-                basis = "the top band (" + topMean + ") and the bottom band (" + bottomMean
-                    + ") are within " + separation + " of each other, which does not separate"
-                    + " near from far; the convention cannot be read off this frame";
-            } else if (bottomMean < topMean) {
-                reversed = Boolean.FALSE;
-                basis = "the bottom band (" + bottomMean + ", expected to be the ground close to"
-                    + " the camera) is NEARER ZERO than the top band (" + topMean + ", expected"
-                    + " to be sky), so smaller means closer: not reverse-Z";
-            } else {
-                reversed = Boolean.TRUE;
-                basis = "the bottom band (" + bottomMean + ", expected to be the ground close to"
-                    + " the camera) is NEARER ONE than the top band (" + topMean + ", expected"
-                    + " to be sky), so larger means closer: reverse-Z";
-            }
+                    + " not observe it"
+                : "observed min " + min + ", max " + max + ", top band " + topMean
+                    + ", bottom band " + bottomMean + " over " + counted + " pixels."
+                    + " THE Z CONVENTION IS NOT INFERRED FROM THIS: which screen region is"
+                    + " nearer is not known, so band order says nothing about the direction"
+                    + " of depth. It must be measured by drawing at known depths against a"
+                    + " loaded attachment.";
+            String sample = writeSample(data, width, height, counted);
 
             result = new Result(true, true, uniform, format, width, height, min, max, topMean,
-                bottomMean, clearedValue, clearedShare, histogram, reversed, basis,
+                bottomMean, clearedValue, clearedShare, histogram, basis, sample,
                 deviceHandle(), List.copyOf(NOTES));
             done = true;
             Logger.info("[native-vk] read Minecraft's depth image back: " + width + "x" + height
@@ -259,11 +252,56 @@ public final class McNativeDepthProbe {
         }
     }
 
+    /**
+     * 生の深度を gzip した P6 相当で残す。
+     *
+     * <p>⚠ round-7 review R7-DEPTH-GATE: 集計 (ヒストグラム・最小最大・帯の平均) しか
+     * 残していなかったので、<b>互いに矛盾する集計が通った</b> — 実測ゼロのヒストグラムの
+     * まま min=0/max=1/bottomMean=0.8 と書けば「読めた」ことになった。
+     * 生の値を残し、Python 側が数え直して集計と突き合わせられるようにする。
+     *
+     * <p>深度は 32bit float なので、[0,1] を 0..65535 に量子化した 16bit grey の
+     * PGM (P5) で残す。<b>可逆ではない</b>が、ヒストグラム・一様性・最小最大・帯の平均を
+     * 検算するには十分で、1708x960 なら gzip 後は数十 KB に収まる。
+     */
+    private static String writeSample(java.nio.ByteBuffer data, int width, int height,
+                                      long counted) {
+        String dir = System.getProperty("voxy.harness.output");
+        if (dir == null || dir.isBlank()) return null;
+        String name = "native-depth-sample.pgm.gz";
+        try {
+            var header = ("P5\n" + width + " " + height + "\n65535\n")
+                .getBytes(StandardCharsets.US_ASCII);
+            byte[] body = new byte[width * height * 2];
+            int into = 0;
+            for (int y = 0; y < height; y++) {
+                long rowBase = (long) y * width * 4;
+                for (int x = 0; x < width; x++) {
+                    long at = rowBase + (long) x * 4;
+                    int q = 0;
+                    if (at + 3 < data.limit()) {
+                        float z = data.getFloat((int) at);
+                        if (!Float.isNaN(z)) {
+                            q = (int) Math.round(Math.max(0, Math.min(1, z)) * 65535.0);
+                        }
+                    }
+                    body[into++] = (byte) ((q >>> 8) & 0xFF);   // PGM は big-endian
+                    body[into++] = (byte) (q & 0xFF);
+                }
+            }
+            McNativeVulkanProbe.writeGzipFileBytes(name, header, body);
+            return name;
+        } catch (Throwable t) {
+            note("could not retain the raw depth sample: " + t);
+            return null;
+        }
+    }
+
     /** 測れなかったことも結果である。推測で埋めず、そう記録する。 */
     private static void fail(String why, int format, int width, int height) {
         note(why);
         result = new Result(true, false, false, format, width, height, 0, 0, 0, 0, 0, 0,
-            new long[BINS], null, why, deviceHandle(), List.copyOf(NOTES));
+            new long[BINS], why, null, deviceHandle(), List.copyOf(NOTES));
         done = true;
         write();
     }
@@ -295,7 +333,10 @@ public final class McNativeDepthProbe {
             sb.append(r.histogram()[i]);
         }
         sb.append("],\n");
-        sb.append("  \"reversedZ\": ").append(r.reversedZ() == null ? "null" : r.reversedZ())
+        // ⚠ round-7 review R7-DEPTH-GATE: ここには reversedZ があった。帯の平均からは
+        // 決まらないので<b>出さない</b>。規約は別の実験で測る。
+        sb.append("  \"zConventionMeasuredHere\": false,\n");
+        sb.append("  \"sampleFile\": ").append(McNativeVulkanProbe.quote(r.sampleFile()))
           .append(",\n");
         sb.append("  \"basis\": ").append(McNativeVulkanProbe.quote(r.basis())).append(",\n");
         sb.append("  \"closeFailures\": ").append(closeFailures).append(",\n");

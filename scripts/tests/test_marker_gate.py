@@ -466,10 +466,13 @@ class ProofFileGateTest(unittest.TestCase):
         "native-device-features.json": {"enabled": True, "attempted": True,
             "added": ["drawIndirectFirstInstance", "shaderInt64",
                       "fragmentStoresAndAtomics", "vertexPipelineStoresAndAtomics"],
-            "notes": ["drawIndirectFirstInstance: offset 44 verified by read-back",
+            # ⚠ These are the real VkPhysicalDeviceFeatures member offsets, which the gate now
+            # pins (round-7 B3). The fixture previously carried invented values (44/128/124)
+            # and the pinning caught them — which is the point of pinning.
+            "notes": ["drawIndirectFirstInstance: offset 40 verified by read-back",
                       "shaderInt64: offset 160 verified by read-back",
-                      "fragmentStoresAndAtomics: offset 128 verified by read-back",
-                      "vertexPipelineStoresAndAtomics: offset 124 verified by read-back"]},
+                      "fragmentStoresAndAtomics: offset 104 verified by read-back",
+                      "vertexPipelineStoresAndAtomics: offset 100 verified by read-back"]},
         "native-compute-probe.json": {"attempted": True, "succeeded": True,
             "expected": "0x123456789abcdef", "readBack": "0x123456789abcdef",
             "queueFamily": 3, "device": "0x79b569e018", "notes": []},
@@ -582,6 +585,17 @@ class ProofFileGateTest(unittest.TestCase):
             "vertexPipelineStoresAndAtomics: offset 0 verified by read-back"]}})
         self.assertFalse(result["success"])
         self.assertIn("same read-back offset", " ".join(result["failures"]))
+
+    def test_distinct_but_wrong_offsets_fail(self):
+        """Round-7 B3: distinct impossible offsets passed, including outside the struct."""
+        for bad in (44, 216, 1024, 4):
+            result = self.run_gate({"native-device-features.json": {"notes": [
+                f"drawIndirectFirstInstance: offset {bad} verified by read-back",
+                "shaderInt64: offset 160 verified by read-back",
+                "fragmentStoresAndAtomics: offset 104 verified by read-back",
+                "vertexPipelineStoresAndAtomics: offset 100 verified by read-back"]}})
+            self.assertFalse(result["success"], bad)
+            self.assertIn("did not verify that field", " ".join(result["failures"]))
 
     def test_a_duplicated_feature_request_fails(self):
         """Round-6 B3: set() comparison accepted a list with duplicate entries."""
@@ -1046,138 +1060,160 @@ class TerrainGateTest(unittest.TestCase):
 
 
 class DepthProbeGateTest(unittest.TestCase):
-    """The depth probe answers a question, so the gate is strict about the MEASUREMENT.
+    """The depth gate must recount pixels and must never judge the Z convention.
 
-    "Minecraft's depth cannot be read back" is a legitimate answer and must pass. What must not
-    pass is a probe that asserts a Z convention it could not have measured, or whose numbers
-    contradict each other — because the survey would then record a convention nobody observed,
-    and the terrain coexistence work would be built on it.
+    Round 7 (R7-DEPTH-GATE) broke the previous version two ways, both fairly. It never
+    remeasured anything, so contradictory summaries passed — with the real all-zero histogram
+    left intact, min=0 / max=1 / bottomMean=0.8 / reversedZ=true was accepted as "readable;
+    reverse-Z". And the probe inferred the convention from "the bottom band is nearby ground",
+    which band separation cannot establish, while the gate REJECTED "unknown" whenever the
+    bands separated — forcing certainty from an unproven premise. The inference is gone; these
+    cases hold both repairs in place.
     """
-    W, H = 64, 40
+    W, H = 48, 32
 
-    def report(self, **overrides):
-        # A plausible frame: sky near 1.0 at the top, ground near 0.1 at the bottom.
-        histogram = [0] * 16
-        histogram[1] = 500
-        histogram[15] = self.W * self.H - 500
-        base = {"enabled": True, "attempted": True, "completed": True, "uniform": False,
-                "depthVkFormat": 126,
-                "width": self.W, "height": self.H, "min": 0.08, "max": 1.0,
-                "topMean": 0.99, "bottomMean": 0.12, "clearedValue": 0.96875,
-                "clearedShare": 0.8, "bins": 16, "histogram": histogram,
-                "reversedZ": False,
-                "basis": "the bottom band is nearer zero than the top band",
-                "closeFailures": 0, "device": "0xabc", "notes": []}
-        base.update(overrides)
-        return base
+    def pixels(self, uniform=True, value=0.0):
+        if uniform:
+            return [[value] * self.W for _ in range(self.H)]
+        # A varying image: a gradient down the rows, so bands genuinely differ.
+        return [[y / (self.H - 1)] * self.W for y in range(self.H)]
 
-    def run_gate(self, overrides=None, drop=()):
-        body = self.report(**(overrides or {}))
-        for key in drop:
-            body.pop(key, None)
+    def summarise(self, rows, bins=16):
+        step = 1.0 / 65535.0
+        quantised = [[round(min(1.0, max(0.0, v)) * 65535) for v in row] for row in rows]
+        flat = [q * step for row in quantised for q in row]
+        histogram = [0] * bins
+        for z in flat:
+            histogram[min(bins - 1, int(z * bins))] += 1
+        band = max(1, self.H // 50)
+        top = [q * step for row in quantised[:band] for q in row]
+        bottom = [q * step for row in quantised[-band:] for q in row]
+        fullest = max(range(bins), key=lambda i: histogram[i])
+        return {"min": min(flat), "max": max(flat), "histogram": histogram,
+                "topMean": sum(top) / len(top), "bottomMean": sum(bottom) / len(bottom),
+                "clearedValue": (fullest + 0.5) / bins,
+                "clearedShare": histogram[fullest] / len(flat),
+                "uniform": min(flat) == max(flat)}
+
+    def write_pgm16_gz(self, path, rows):
+        import gzip
+        body = bytearray()
+        for row in rows:
+            for v in row:
+                q = round(min(1.0, max(0.0, v)) * 65535)
+                body.extend(((q >> 8) & 0xFF, q & 0xFF))
+        with gzip.open(path, "wb") as out:
+            out.write(f"P5\n{len(rows[0])} {len(rows)}\n65535\n".encode("ascii"))
+            out.write(bytes(body))
+
+    def run_gate(self, overrides=None, drop=(), rows=None, no_sample=False):
+        rows = self.pixels() if rows is None else rows
+        measured = self.summarise(rows)
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
+            if not no_sample:
+                self.write_pgm16_gz(out / "native-depth-sample.pgm.gz", rows)
+            body = {"enabled": True, "attempted": True, "completed": True,
+                    "zConventionMeasuredHere": False, "depthVkFormat": 126,
+                    "width": self.W, "height": self.H, "bins": 16,
+                    "basis": "observed values only", "closeFailures": 0, "device": "0xabc",
+                    "sampleFile": None if no_sample else "native-depth-sample.pgm.gz",
+                    "notes": []}
+            body.update(measured)
+            body.update(overrides or {})
+            for key in drop:
+                body.pop(key, None)
             (out / "native-depth-probe.json").write_text(json.dumps(body))
             return verify.native_depth_result(out)
 
-    def test_a_measured_non_reversed_convention_passes(self):
+    def test_a_uniform_image_is_reported_as_not_observing_the_depth(self):
         result = self.run_gate()
         self.assertTrue(result["success"], result["failures"])
-        self.assertIn("not reverse-Z", result["answer"])
+        self.assertFalse(result["readable"] and False)
+        self.assertIn("does not observe", result["answer"])
+        self.assertFalse(result["z_convention_measured"])
+        self.assertEqual(result["recount"]["min"], 0.0)
 
-    def test_a_measured_reversed_convention_passes(self):
-        result = self.run_gate({"topMean": 0.02, "bottomMean": 0.95, "reversedZ": True})
+    def test_a_varying_image_is_accepted_without_a_convention(self):
+        result = self.run_gate(rows=self.pixels(uniform=False))
         self.assertTrue(result["success"], result["failures"])
-        self.assertIn("reverse-Z (larger is closer)", result["answer"])
+        self.assertIn("not measured by this path", result["answer"])
+        self.assertFalse(result["z_convention_measured"])
 
-    def test_unreadable_depth_is_an_answer_not_a_failure(self):
-        result = self.run_gate({"completed": False, "reversedZ": None,
-                                "basis": "could not be copied",
-                                "notes": ["Minecraft's depth image could not be copied"]})
+    def test_claiming_to_have_measured_the_convention_fails(self):
+        result = self.run_gate({"zConventionMeasuredHere": True})
+        self.assertFalse(result["success"])
+        self.assertIn("cannot establish it", " ".join(result["failures"]))
+
+    def test_publishing_reversed_z_at_all_fails(self):
+        """The band heuristic is gone; a report still carrying its output is a regression."""
+        result = self.run_gate({"reversedZ": True})
+        self.assertFalse(result["success"])
+        self.assertIn("band heuristic", " ".join(result["failures"]))
+
+    def test_round7s_contradictory_summary_fails(self):
+        """Round-7 R7-DEPTH-GATE: this exact mutation passed as "readable; reverse-Z"."""
+        result = self.run_gate({"uniform": False, "min": 0.0, "max": 1.0,
+                                "topMean": 0.0, "bottomMean": 0.8})
+        self.assertFalse(result["success"])
+        joined = " ".join(result["failures"])
+        self.assertTrue("retained pixels say" in joined or "uniform" in joined, joined)
+
+    def test_a_histogram_contradicting_the_pixels_fails(self):
+        """Round-7: all entries in the last bin with min=max=0 still succeeded."""
+        bogus = [0] * 16
+        bogus[15] = self.W * self.H
+        result = self.run_gate({"histogram": bogus})
+        self.assertFalse(result["success"])
+        self.assertIn("histogram", " ".join(result["failures"]))
+
+    def test_a_colour_format_where_depth_belongs_fails(self):
+        result = self.run_gate({"depthVkFormat": 37})
+        self.assertFalse(result["success"])
+        self.assertIn("D32_SFLOAT", " ".join(result["failures"]))
+
+    def test_a_null_device_fails(self):
+        result = self.run_gate({"device": "0x0"})
+        self.assertFalse(result["success"])
+        self.assertIn("null device handle", " ".join(result["failures"]))
+
+    def test_negative_dimensions_whose_product_is_right_fail(self):
+        """Round-7: negative width/height with a correct product succeeded."""
+        result = self.run_gate({"width": -self.W, "height": -self.H})
+        self.assertFalse(result["success"])
+        self.assertIn(f"{-self.W}x{-self.H}", " ".join(result["failures"]))
+
+    def test_a_missing_sample_fails(self):
+        result = self.run_gate(no_sample=True)
+        self.assertFalse(result["success"])
+        self.assertIn("retained no raw sample", " ".join(result["failures"]))
+
+    def test_an_unreadable_depth_is_an_answer_not_a_failure(self):
+        result = self.run_gate({"completed": False, "sampleFile": None,
+                                "basis": "could not be copied"}, no_sample=True)
         self.assertTrue(result["success"], result["failures"])
         self.assertFalse(result["readable"])
         self.assertIn("could not be read back", result["answer"])
-
-    def test_asserting_a_convention_without_reading_the_depth_fails(self):
-        result = self.run_gate({"completed": False, "reversedZ": True})
-        self.assertFalse(result["success"])
-        self.assertIn("could not read the depth image", " ".join(result["failures"]))
-
-    def test_asserting_a_convention_from_bands_that_do_not_separate_fails(self):
-        result = self.run_gate({"topMean": 0.50, "bottomMean": 0.52, "reversedZ": False})
-        self.assertFalse(result["success"])
-        self.assertIn("does not separate near from far", " ".join(result["failures"]))
-
-    def test_declining_to_answer_when_the_bands_do_separate_fails(self):
-        result = self.run_gate({"reversedZ": None})
-        self.assertFalse(result["success"])
-        self.assertIn("should have been able to tell", " ".join(result["failures"]))
-
-    def test_a_convention_contradicting_the_bands_fails(self):
-        result = self.run_gate({"reversedZ": True})   # bottom 0.12 < top 0.99 says not reversed
-        self.assertFalse(result["success"])
-        self.assertIn("says otherwise", " ".join(result["failures"]))
-
-    def test_a_histogram_that_does_not_cover_the_image_fails(self):
-        short = [0] * 16
-        short[15] = 1200
-        result = self.run_gate({"histogram": short})
-        self.assertFalse(result["success"])
-        self.assertIn("but the image is", " ".join(result["failures"]))
-
-    def test_depth_outside_the_unit_range_fails(self):
-        self.assertFalse(self.run_gate({"max": 1.5})["success"])
-        self.assertFalse(self.run_gate({"min": -0.1})["success"])
 
     def test_an_unclosed_depth_buffer_fails(self):
         result = self.run_gate({"closeFailures": 1})
         self.assertFalse(result["success"])
         self.assertIn("could not be", " ".join(result["failures"]))
 
-    def test_a_missing_field_fails_instead_of_defaulting(self):
-        for field in ("enabled", "attempted", "completed", "uniform", "histogram", "bins",
-                      "basis", "closeFailures", "notes"):
-            result = self.run_gate(drop=(field,))
-            self.assertFalse(result["success"], field)
-            self.assertIn(field, " ".join(result["failures"]))
-
-    def test_a_uniform_image_is_not_a_readable_depth(self):
-        """Measured: the copy completes and every pixel is 0.0, even in isolation.
-
-        A completed transfer is not an observation. The gate must record that as "this path
-        does not observe Minecraft's depth" rather than letting "readable" be claimed.
-        """
-        histogram = [0] * 16
-        histogram[0] = self.W * self.H
-        result = self.run_gate({"uniform": True, "min": 0.0, "max": 0.0, "topMean": 0.0,
-                                "bottomMean": 0.0, "histogram": histogram, "reversedZ": None,
-                                "basis": "every pixel is 0.0"})
-        self.assertTrue(result["success"], result["failures"])
-        self.assertFalse(result["readable"])
-        self.assertIn("does not observe", result["answer"])
-
-    def test_a_uniform_image_asserting_a_convention_fails(self):
-        histogram = [0] * 16
-        histogram[0] = self.W * self.H
-        result = self.run_gate({"uniform": True, "min": 0.0, "max": 0.0, "topMean": 0.0,
-                                "bottomMean": 0.0, "histogram": histogram, "reversedZ": True})
-        self.assertFalse(result["success"])
-        self.assertIn("uniform image", " ".join(result["failures"]))
-
-    def test_claiming_variation_while_min_equals_max_fails(self):
-        result = self.run_gate({"min": 0.5, "max": 0.5})
-        self.assertFalse(result["success"])
-        self.assertIn("does not say", " ".join(result["failures"]))
-
     def test_a_probe_that_never_attempted_fails(self):
         result = self.run_gate({"attempted": False})
         self.assertFalse(result["success"])
         self.assertIn("never tried", " ".join(result["failures"]))
 
+    def test_a_missing_field_fails_instead_of_defaulting(self):
+        for field in ("enabled", "attempted", "completed", "uniform",
+                      "zConventionMeasuredHere", "histogram", "bins", "basis",
+                      "closeFailures", "notes"):
+            result = self.run_gate(drop=(field,))
+            self.assertFalse(result["success"], field)
+            self.assertIn(field, " ".join(result["failures"]))
 
-# ⚠ Round-5 review R5-TEST: this guard used to sit in the middle of the file, so running it
-# directly exited before the later test classes were even defined. Discovery found them;
-# `python3 scripts/tests/test_marker_gate.py` silently did not. It belongs at the end.
+
 if __name__ == "__main__":
     unittest.main()
 

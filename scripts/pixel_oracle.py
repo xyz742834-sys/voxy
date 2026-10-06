@@ -202,6 +202,49 @@ def write_rgb_png(path, rows):
                      + chunk(b"IDAT", zlib.compress(bytes(raw), 9)) + chunk(b"IEND", b""))
 
 
+def read_pgm16_gz(path):
+    """Read a gzip-compressed binary P5 PGM with maxval 65535 as (rows of ints, (w, h)).
+
+    The native depth probe retains Minecraft's depth attachment this way — quantised to 16 bits
+    so a 1708x960 float image stays small enough to keep in the repository, while remaining
+    exact enough to recount a histogram, extrema and band means against (round-7 review
+    R7-DEPTH-GATE: the gate had no pixels at all, so contradictory summaries passed).
+    """
+    import gzip
+    with gzip.open(path, "rb") as raw:
+        data = raw.read(96 << 20)
+        if raw.read(1):
+            raise ValueError("the compressed PGM is larger than the read limit")
+    fields, offset = [], 0
+    while len(fields) < 4:
+        while offset < len(data) and data[offset:offset + 1].isspace():
+            offset += 1
+        if offset < len(data) and data[offset:offset + 1] == b"#":
+            while offset < len(data) and data[offset:offset + 1] != b"\n":
+                offset += 1
+            continue
+        start = offset
+        while offset < len(data) and not data[offset:offset + 1].isspace():
+            offset += 1
+        fields.append(data[start:offset])
+    if fields[0] != b"P5":
+        raise ValueError("not a binary PGM")
+    width, height, maximum = (int(f) for f in fields[1:4])
+    if maximum != 65535:
+        raise ValueError(f"expected a 16-bit PGM, got maxval {maximum}")
+    if not 0 < width * height <= 32_000_000:
+        raise ValueError("unsupported PGM dimensions")
+    offset += 1
+    body = data[offset:offset + width * height * 2]
+    if len(body) != width * height * 2:
+        raise ValueError("truncated PGM body")
+    rows = []
+    for y in range(height):
+        base = y * width * 2
+        rows.append([(body[base + x * 2] << 8) | body[base + x * 2 + 1] for x in range(width)])
+    return rows, (width, height)
+
+
 def read_ppm_gz(path):
     """Read a gzip-compressed binary P6 PPM as (rows, (width, height)).
 

@@ -55,7 +55,7 @@ public class McNativeTerrainLifetimeTest {
         assertFalse(before.attempted());
         assertFalse(before.completed());
         assertFalse(before.uniform());
-        assertNull(before.reversedZ());
+        assertNull(before.sampleFile());
         assertDoesNotThrow(McNativeDepthProbe::probeOnce);
         var after = McNativeDepthProbe.status();
         assertFalse(after.attempted(), "a disabled depth probe must not record an attempt");
@@ -75,7 +75,12 @@ public class McNativeTerrainLifetimeTest {
         String json = McNativeDepthProbe.json();
         assertTrue(json.contains("\"completed\": false"), json);
         assertTrue(json.contains("\"uniform\": false"), json);
-        assertTrue(json.contains("\"reversedZ\": null"), json);
         assertTrue(json.contains("\"attempted\": false"), json);
+        // ⚠ round-7 review R7-DEPTH-GATE: the probe used to infer reverse-Z from band means,
+        // which cannot identify which screen region is nearer. The inference is gone, and the
+        // report must say so rather than omit the question.
+        assertTrue(json.contains("\"zConventionMeasuredHere\": false"), json);
+        assertFalse(json.contains("reversedZ"),
+            "the band heuristic's output must not come back: " + json);
     }
 }
