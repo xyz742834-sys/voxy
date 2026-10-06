@@ -50,6 +50,9 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
         // ⚠ 地形 probe を<b>先に</b>呼ぶ。有効なときは MC の colour/depth をクリアするので、
         // 後に呼ぶとマーカーを消してしまい、マーカー側の測定が成り立たなくなる。
         // どちらも既定では何もしない。
+        // ⚠ 深度 probe は<b>いちばん先</b>に、まだ誰も上書きしていない MC のシーン深度を読む。
+        // 読み戻すだけで何も書かない。既定では何もしない。
+        me.cortex.voxy.client.core.vk.mcnative.McNativeDepthProbe.probeOnce();
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.renderIfEnabled();
         me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.renderIfEnabled();
     }

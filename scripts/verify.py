@@ -33,6 +33,42 @@ ROOT = Path(__file__).resolve().parents[1]
 # that was jointly empty — or jointly anything — agreed. The sentinel is fixed in the source,
 # so the gate requires that value.
 INT64_SENTINEL = "0x123456789abcdef"
+
+# The marker's geometry, as McNativeMarkerDraw declares it in source (BOX_X0/X1, BOX_Y0/Y1,
+# NEAR_X1 = BOX_X0 + (BOX_X1 - BOX_X0) * 0.6, CONTROL_Y0/Y1, CELL_Y0/Y1).
+#
+# ⚠ Round-6 review B1: the gate required the retained crop to CONTAIN the published geometry,
+# which the producer also publishes — so moving the geometry and the crop together made the
+# same partial crop pass. The geometry is a compile-time constant, so the gate asserts the
+# constant instead of trusting what it is told. If the source constants change, this must be
+# changed deliberately alongside them.
+EXPECTED_MARKER_GEOMETRY = {
+    "box": [-0.98, 0.98, -0.78, 0.78],
+    "nearSplitX": -0.86,
+    "controlStrip": [-0.98, 0.76, -0.78, 0.72],
+    "depthTestedPassCell": [-0.98, 0.70, -0.78, 0.66],
+}
+
+
+def check_marker_geometry(geometry):
+    """Require the published geometry to be the geometry the source actually declares."""
+    if not isinstance(geometry, dict):
+        raise ValueError("the marker draw did not publish the geometry to check against")
+    for key, want in EXPECTED_MARKER_GEOMETRY.items():
+        got = geometry.get(key)
+        if isinstance(want, list):
+            if (not isinstance(got, list) or len(got) != 4
+                    or any(abs(a - b) > 1e-6 for a, b in zip(got, want))):
+                raise ValueError(f"the marker geometry publishes {key}={got!r}, not the"
+                                 f" {want!r} its source declares")
+        else:
+            if not isinstance(got, (int, float)) or abs(got - want) > 1e-6:
+                raise ValueError(f"the marker geometry publishes {key}={got!r}, not the"
+                                 f" {want!r} its source declares")
+    extra = set(geometry) - set(EXPECTED_MARKER_GEOMETRY)
+    if extra:
+        raise ValueError(f"the marker geometry publishes unexpected regions {sorted(extra)};"
+                         f" the gate cannot know what they mean")
 DIAGNOSTIC = re.compile(r"\[vk-validation\]\s*\[([^\]]+)\]")
 KNOWN_SKIP = ("me.cortex.voxy.vk.VkBarriersTest", "missingBarrierIsDetected")
 CONTROL = ("me.cortex.voxy.vk.VkBarriersTest", "plainBufferHazardIsNowDetected")
@@ -272,10 +308,8 @@ def marker_report_checks(output, report):
     # ⚠ Round-2 review B4: one readback says nothing about the rest of the lifecycle.
 
     geometry = report.get("geometry") or {}
-    box, split, strip = geometry.get("box"), geometry.get("nearSplitX"), geometry.get("controlStrip")
-    if not (isinstance(box, list) and len(box) == 4 and isinstance(split, (int, float))
-            and isinstance(strip, list) and len(strip) == 4):
-        raise ValueError("the marker draw did not publish the geometry to check against")
+    check_marker_geometry(geometry)
+    box, split, strip = geometry["box"], geometry["nearSplitX"], geometry["controlStrip"]
     # ⚠ The authoritative proof is the readback of Minecraft's own colour image taken
     # right after the draw, not the screenshot: anything Minecraft draws afterwards (its
     # GUI, a loading overlay, post-processing) can hide the marker, so an absent marker in
@@ -343,6 +377,11 @@ def marker_report_checks(output, report):
     # implementation produced. Recount them from the raw sample it retained, with the
     # published geometry, and require agreement. A sample that is missing fails.
     checks["recount"] = recount_marker_sample(output, report, rb)
+    # ⚠ Round-6 review B4: only the SELECTED orientation's pixels were retained, so the claim
+    # "exactly one orientation matches the expected pattern" could only be taken on the
+    # implementation's word. The rejected orientation's pixels are retained too, and this
+    # verifies from them that the pattern really is absent there.
+    checks["rejected_orientation"] = recount_rejected_orientation(output, report, rb)
 
     return checks
 
@@ -478,6 +517,88 @@ def native_marker_result(output, checkpoints):
     return result
 
 
+def recount_rejected_orientation(output, report, rb):
+    """Verify from pixels that the orientation the implementation rejected really fails.
+
+    The composited frame is y-ambiguous, so the implementation measures both orientations and
+    requires exactly one to satisfy the expected pattern. That claim is only worth something if
+    someone else can check it, which needs the rejected orientation's pixels — round 6's B4
+    residual. This reads them and requires the pattern to be ABSENT.
+    """
+    name = rb.get("rejectedOrientationSample")
+    rect = rb.get("rejectedOrientationRect")
+    if not name:
+        raise ValueError("the rejected orientation's pixels were not retained, so the claim"
+                         " that only one orientation matches cannot be checked")
+    if not (isinstance(rect, list) and len(rect) == 4):
+        raise ValueError("the readback does not say where the rejected orientation's sample"
+                         " came from")
+    if not isinstance(rb.get("rejectedOrientationFlipped"), bool):
+        raise ValueError("the readback does not say which orientation it rejected")
+    if rb["rejectedOrientationFlipped"] == bool(rb.get("flipped")):
+        raise ValueError("the rejected orientation is the same as the selected one")
+    path = output / name
+    if not path.is_file():
+        raise ValueError(f"the retained rejected-orientation sample {name} is missing")
+    rows, (width, height) = read_ppm_gz(path)
+    if width != rect[2] - rect[0] or height != rect[3] - rect[1]:
+        raise ValueError(f"the rejected-orientation sample is {width}x{height} but its rect"
+                         f" says {rect[2] - rect[0]}x{rect[3] - rect[1]}")
+    geometry = report["geometry"]
+    full_w, full_h = report["targetWidth"], report["targetHeight"]
+    flipped = rb["rejectedOrientationFlipped"]
+
+    def region(ax, ay, bx, by):
+        x0 = int((min(ax, bx) + 1.0) * 0.5 * full_w) - rect[0]
+        x1 = int((max(ax, bx) + 1.0) * 0.5 * full_w) - rect[0]
+        top, bottom = max(ay, by), min(ay, by)
+        if flipped:
+            y0 = int((1.0 + bottom) * 0.5 * full_h) - rect[1]
+            y1 = int((1.0 + top) * 0.5 * full_h) - rect[1]
+        else:
+            y0 = int((1.0 - top) * 0.5 * full_h) - rect[1]
+            y1 = int((1.0 - bottom) * 0.5 * full_h) - rect[1]
+        return max(0, x0), max(0, y0), min(width, x1), min(height, y1)
+
+    def tally(area, want):
+        x0, y0, x1, y1 = area
+        hits = 0
+        for y in range(y0, y1):
+            row = rows[y]
+            for x in range(x0, x1):
+                px = row[x]
+                if all((px[i] >= 200) if want[i] >= 200 else (px[i] <= 60) for i in range(3)):
+                    hits += 1
+        return hits, max(1, (x1 - x0) * (y1 - y0))
+
+    box, split = geometry["box"], geometry["nearSplitX"]
+    cell, strip = geometry["depthTestedPassCell"], geometry["controlStrip"]
+    near_rgb, far_rgb = tuple(report["markerRgb"]), tuple(report["farRgb"])
+    rejected_rgb = tuple(report["rejectedRgb"])
+    near_hits, near_area = tally(region(box[0], box[1], split, box[3]), near_rgb)
+    far_hits, far_area = tally(region(split, box[1], box[2], box[3]), far_rgb)
+    cell_hits, cell_area = tally(region(box[0], cell[1], box[2], cell[3]), rejected_rgb)
+    strip_hits, strip_area = tally(region(box[0], strip[1], box[2], strip[3]), rejected_rgb)
+    box_rejected, _ = tally(region(box[0], box[1], box[2], box[3]), rejected_rgb)
+    out = {"sample": name, "flipped": flipped, "near": near_hits, "nearArea": near_area,
+           "far": far_hits, "farArea": far_area, "cell": cell_hits, "cellArea": cell_area,
+           "controlStrip": strip_hits, "controlStripArea": strip_area,
+           "rejectedInBox": box_rejected}
+    # The depth-failure rule is orientation-free: the rejected colour must be absent from the
+    # box whichever orientation is real.
+    if box_rejected:
+        raise ValueError(f"the rejected orientation holds {box_rejected} pixels of the colour"
+                         f" depth must reject inside the box, so depth is not working in"
+                         f" whichever orientation is the real one: {out}")
+    dense = [near_hits * 10 >= near_area * 8, far_hits * 10 >= far_area * 8,
+             cell_hits * 10 >= cell_area * 8, strip_hits * 10 >= strip_area * 8]
+    if all(dense):
+        raise ValueError(f"the rejected orientation ALSO satisfies the expected pattern, so the"
+                         f" image does not say which orientation the draw produced: {out}")
+    out["satisfiedRegions"] = sum(dense)
+    return out
+
+
 def recount_marker_sample(output, report, rb):
     """Recount the marker colours from the retained raw sample, independently of the report."""
     name = rb.get("sampleFile")
@@ -600,7 +721,225 @@ def recount_marker_sample(output, report, rb):
     return out
 
 
-def native_terrain_result(output):
+def native_depth_result(output):
+    """Report what Minecraft's own scene depth actually is, and gate only what was measured.
+
+    ⚠ This answers a question rather than proving a claim, so it is deliberately permissive
+    about the ANSWER and strict about the MEASUREMENT. "Minecraft's depth cannot be read back"
+    is a legitimate result and must not fail the stage — what fails the stage is a probe that
+    claims to have measured something while contradicting itself, or that could not tell near
+    from far and still asserted a convention.
+    """
+    result = {"success": False, "failures": [],
+              "scope": "Minecraft's own scene depth: readability and Z convention"}
+    try:
+        report = json.loads((output / "native-depth-probe.json").read_text())
+        result["report"] = report
+        for field, kind in (("enabled", bool), ("attempted", bool), ("completed", bool),
+                            ("uniform", bool), ("depthVkFormat", int), ("width", int),
+                            ("height", int), ("bins", int), ("histogram", list), ("basis", str),
+                            ("closeFailures", int), ("notes", list)):
+            if field not in report:
+                raise ValueError(f"the depth probe does not state {field}")
+            value = report[field]
+            if not isinstance(value, kind) or isinstance(value, bool) != (kind is bool):
+                raise ValueError(f"depth.{field} is {value!r}, not a {kind.__name__}")
+        if not report["enabled"]:
+            raise ValueError("the depth probe was not enabled")
+        if not report["attempted"]:
+            raise ValueError(f"the depth probe never tried to read Minecraft's depth:"
+                             f" {report['notes']}")
+        if report["closeFailures"]:
+            raise ValueError(f"{report['closeFailures']} depth readback buffer(s) could not be"
+                             f" closed")
+        result["readable"] = report["completed"]
+        if not report["completed"]:
+            # A real answer, not a failure: record it and move on. The gate's job is to stop
+            # the survey claiming a convention it never measured.
+            result["answer"] = "Minecraft's scene depth could not be read back"
+            result["basis"] = report["basis"]
+            if report.get("reversedZ") is not None:
+                raise ValueError("the depth probe asserts a Z convention while reporting that"
+                                 " it could not read the depth image")
+            result.update(success=True)
+            return result
+        if len(report["histogram"]) != report["bins"]:
+            raise ValueError(f"the histogram has {len(report['histogram'])} bins but the probe"
+                             f" says {report['bins']}")
+        total = sum(report["histogram"])
+        if total < 1000:
+            raise ValueError(f"only {total} depth samples were binned, which measures nothing")
+        if total != report["width"] * report["height"]:
+            # Rows can be short if the buffer was smaller than declared; say so rather than
+            # quietly averaging over whatever arrived.
+            raise ValueError(f"the histogram counts {total} samples but the image is"
+                             f" {report['width']}x{report['height']}"
+                             f" = {report['width'] * report['height']}")
+        for field in ("min", "max", "topMean", "bottomMean", "clearedValue", "clearedShare"):
+            value = report.get(field)
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                raise ValueError(f"depth.{field} is {value!r}, not a number")
+        if not (0.0 <= report["min"] <= 1.0) or not (0.0 <= report["max"] <= 1.0):
+            raise ValueError(f"the depth values are outside [0,1]: min={report['min']}"
+                             f" max={report['max']}")
+        if report["min"] > report["max"]:
+            raise ValueError(f"min {report['min']} exceeds max {report['max']}")
+        # ⚠ Measured 2026-10-06: the copy COMPLETES and every pixel is 0.0, both with the
+        # terrain probe clearing depth and in an isolated run with nothing writing to the
+        # image. A completed copy is not an observation of the scene's depth, so the gate
+        # must not let "readable" be claimed from it.
+        if report["uniform"]:
+            if report.get("reversedZ") is not None:
+                raise ValueError("the depth probe asserts a Z convention from a uniform image")
+            if report["min"] != report["max"]:
+                raise ValueError(f"the probe says the image is uniform but min={report['min']}"
+                                 f" and max={report['max']}")
+            result["readable"] = False
+            result["answer"] = ("the copy completed but every pixel was identical"
+                                f" ({report['min']}), so this path does not observe"
+                                " Minecraft's scene depth")
+            result["basis"] = report["basis"]
+            result.update(success=True)
+            return result
+        if report["min"] == report["max"]:
+            raise ValueError(f"every pixel is {report['min']} but the probe does not say the"
+                             f" image is uniform")
+        # ⚠ The convention may legitimately be unreadable from a given frame (a cave, a wall,
+        # a GUI). What must not happen is asserting one anyway.
+        reversed_z = report.get("reversedZ")
+        if reversed_z is not None and not isinstance(reversed_z, bool):
+            raise ValueError(f"depth.reversedZ is {reversed_z!r}, not a bool or null")
+        separation = abs(report["topMean"] - report["bottomMean"])
+        if reversed_z is not None and separation < 0.05:
+            raise ValueError(f"the probe asserts reversedZ={reversed_z} from bands only"
+                             f" {separation} apart, which does not separate near from far")
+        if reversed_z is None and separation >= 0.05:
+            raise ValueError(f"the bands are {separation} apart but the probe asserts no"
+                             f" convention; it should have been able to tell")
+        if reversed_z is not None:
+            nearer_bottom = report["bottomMean"] > report["topMean"]
+            if nearer_bottom != reversed_z:
+                raise ValueError(f"the probe says reversedZ={reversed_z} but the bottom band"
+                                 f" {report['bottomMean']} vs top {report['topMean']} says"
+                                 f" otherwise")
+        result["answer"] = ("Minecraft's scene depth is readable; "
+                            + ("reverse-Z (larger is closer)" if reversed_z
+                               else "not reverse-Z (smaller is closer)" if reversed_z is False
+                               else "its convention could not be read from this frame"))
+        result["basis"] = report["basis"]
+        result["separation"] = separation
+        result.update(success=True)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        result["failures"].append(str(exc))
+    return result
+
+
+def terrain_report_checks(output, report, expected_device=None):
+    """Every terrain acceptance check that needs only the report and its retained samples.
+
+    ⚠ Round-6 review R6-TERRAIN-GATE: `--replay-evidence` repeated only the pixel comparison,
+    so a terrain report with enabled/attempted/built false, draws=0, clean=0, problems=3,
+    closeFailures=99, leakedProbes=3 and failure notes still replayed as 0 — the same hole
+    round 5 found in the marker replay, reintroduced in new code. These checks now live in one
+    place that both the stage gate and the replay call.
+    """
+    checks = {}
+    for field, kind in (("enabled", bool), ("attempted", bool), ("built", bool),
+                        ("drawsRecorded", int), ("targetWidth", int), ("targetHeight", int),
+                        ("colourVkFormat", int), ("clearRgb", int), ("timesClean", int),
+                        ("timesWithAProblem", int), ("closeFailures", int),
+                        ("failureBudget", int), ("leakedProbes", int), ("leakBudget", int),
+                        ("deviceDiverged", bool), ("notes", list)):
+        if field not in report:
+            raise ValueError(f"the terrain probe does not state {field}")
+        value = report[field]
+        if not isinstance(value, kind) or isinstance(value, bool) != (kind is bool):
+            raise ValueError(f"terrain.{field} is {value!r}, not a {kind.__name__}")
+    if not report["enabled"]:
+        raise ValueError("the terrain probe was not enabled")
+    if not report["attempted"] or not report["built"]:
+        raise ValueError(f"the terrain probe never built its pipeline: {report['notes']}")
+    if report["drawsRecorded"] < 1:
+        raise ValueError("no terrain draw was recorded into Minecraft's command buffer")
+    if report["notes"]:
+        raise ValueError(f"the terrain probe reported notes: {report['notes']}")
+    for field in ("targetWidth", "targetHeight"):
+        if report[field] < 1:
+            raise ValueError(f"the terrain probe states {field}={report[field]}")
+    if report["timesWithAProblem"]:
+        raise ValueError(f"{report['timesWithAProblem']} terrain comparison(s) found a"
+                         f" problem, first: {report.get('firstProblem')}")
+    if report["timesClean"] < 1:
+        raise ValueError("Minecraft's frame was never compared against Voxy's own target")
+    if report["closeFailures"]:
+        raise ValueError(f"{report['closeFailures']} terrain readback buffer(s) could not be"
+                         f" closed, so memory was held for the rest of the run")
+    if report["leakedProbes"]:
+        raise ValueError(f"{report['leakedProbes']} terrain probe(s) were leaked because"
+                         f" their retirement could not be handed to Minecraft")
+    # ⚠ Round-6 review R6-TERRAIN-DEVICE: if Minecraft's device moved away from the one Voxy
+    # adopted, the probe stops for the session — and the run must not then be reported as a
+    # clean terrain measurement, because part of it was spent refusing to record.
+    if report["deviceDiverged"]:
+        raise ValueError("Minecraft's device diverged from Voxy's adopted one during the run,"
+                         " so the terrain probe stopped recording partway through")
+    # ⚠ Round-6 review R6-TERRAIN-GATE: this required only that `device` be a string, so
+    # "0xdead" and "0x0" both passed. It must be a real handle, and it must be the same
+    # device every other proof names.
+    handle = report.get("device")
+    if not isinstance(handle, str):
+        raise ValueError("the terrain probe does not name its device")
+    try:
+        parsed = int(handle, 16) if handle.lower().startswith("0x") else int(handle)
+    except ValueError:
+        raise ValueError(f"terrain.device is {handle!r}, which is not a device handle")
+    if parsed == 0:
+        raise ValueError("terrain.device is a null device handle")
+    if expected_device is not None and parsed != expected_device:
+        raise ValueError(f"the terrain probe names device {hex(parsed)} but the rest of the"
+                         f" run names {hex(expected_device)}")
+    checks["device"] = parsed
+
+    c = report.get("comparison")
+    if not isinstance(c, dict):
+        raise ValueError("the terrain probe published no comparison, so the draws are"
+                         " unmeasured")
+    for field, kind in (("attempted", bool), ("completed", bool), ("referenceSet", int),
+                        ("nativeSet", int), ("mismatches", int), ("sampleAtDraw", int),
+                        ("flipped", bool)):
+        if field not in c:
+            raise ValueError(f"the terrain comparison does not state {field}")
+        value = c[field]
+        if not isinstance(value, kind) or isinstance(value, bool) != (kind is bool):
+            raise ValueError(f"comparison.{field} is {value!r}, not a {kind.__name__}")
+    if not c["attempted"] or not c["completed"]:
+        raise ValueError(f"the terrain comparison did not complete: {c.get('note')}")
+    if c.get("note"):
+        raise ValueError(f"the terrain comparison rejects the frame: {c['note']}")
+    # ⚠ Round-6 review R6-TERRAIN-GATE: the capture number was checked against the file name
+    # but never for positivity or against the total, so a report with one draw and a
+    # comparison at draw 3598 passed.
+    if c["sampleAtDraw"] < 1:
+        raise ValueError(f"comparison.sampleAtDraw is {c['sampleAtDraw']}, so the sample is"
+                         f" not bound to any capture")
+    if c["sampleAtDraw"] > report["drawsRecorded"]:
+        raise ValueError(f"the comparison claims draw {c['sampleAtDraw']} but only"
+                         f" {report['drawsRecorded']} terrain draws were recorded")
+    if c["referenceSet"] < 1000:
+        raise ValueError(f"Voxy's own target holds only {c['referenceSet']} non-background"
+                         f" pixels, so there is nothing to compare against")
+    if c["nativeSet"] < 1000:
+        raise ValueError(f"Minecraft's frame holds only {c['nativeSet']} non-background"
+                         f" pixels, so the terrain draws did not reach it")
+    if c["mismatches"]:
+        raise ValueError(f"{c['mismatches']} pixels differ between Minecraft's frame and"
+                         f" Voxy's own target")
+    checks["comparison"] = c
+    checks["recompare"] = recompare_terrain_samples(output, report, c)
+    return checks
+
+
+def native_terrain_result(output, expected_device=None):
     """Gate Voxy's REAL terrain pipeline recorded into Minecraft's own Vulkan frame.
 
     ⚠ This is an EXPERIMENT, not a promotion. Round 4 ruled the diagnostic layer "not yet
@@ -620,76 +959,10 @@ def native_terrain_result(output):
     try:
         report = json.loads((output / "native-terrain-probe.json").read_text())
         result["report"] = report
-        for field, kind in (("enabled", bool), ("attempted", bool), ("built", bool),
-                            ("drawsRecorded", int), ("targetWidth", int), ("targetHeight", int),
-                            ("colourVkFormat", int), ("clearRgb", int), ("timesClean", int),
-                            ("timesWithAProblem", int), ("closeFailures", int),
-                            ("failureBudget", int), ("leakedProbes", int), ("leakBudget", int),
-                            ("notes", list)):
-            if field not in report:
-                raise ValueError(f"the terrain probe does not state {field}")
-            value = report[field]
-            if not isinstance(value, kind) or isinstance(value, bool) != (kind is bool):
-                raise ValueError(f"terrain.{field} is {value!r}, not a {kind.__name__}")
-        if not report["enabled"]:
-            raise ValueError("the terrain probe was not enabled")
-        if not report["attempted"] or not report["built"]:
-            raise ValueError(f"the terrain probe never built its pipeline: {report['notes']}")
-        if report["drawsRecorded"] < 1:
-            raise ValueError("no terrain draw was recorded into Minecraft's command buffer")
-        if report["notes"]:
-            raise ValueError(f"the terrain probe reported notes: {report['notes']}")
-        for field in ("targetWidth", "targetHeight"):
-            if report[field] < 1:
-                raise ValueError(f"the terrain probe states {field}={report[field]}")
-        if report["timesWithAProblem"]:
-            raise ValueError(f"{report['timesWithAProblem']} terrain comparison(s) found a"
-                             f" problem, first: {report.get('firstProblem')}")
-        if report["timesClean"] < 1:
-            raise ValueError("Minecraft's frame was never compared against Voxy's own target")
-        if report["closeFailures"]:
-            raise ValueError(f"{report['closeFailures']} terrain readback buffer(s) could not be"
-                             f" closed, so memory was held for the rest of the run")
-        # ⚠ Round-5 review R4-L1: the marker leaked on retirement refusal without counting it,
-        # so repeated resizes could pile up silently. The terrain probe counts and publishes
-        # its leaks; the gate refuses to call a run clean while any are outstanding.
-        if report["leakedProbes"]:
-            raise ValueError(f"{report['leakedProbes']} terrain probe(s) were leaked because"
-                             f" their retirement could not be handed to Minecraft")
-        if not isinstance(report.get("device"), str):
-            raise ValueError("the terrain probe does not name its device")
-
-        c = report.get("comparison")
-        if not isinstance(c, dict):
-            raise ValueError("the terrain probe published no comparison, so the draws are"
-                             " unmeasured")
-        for field, kind in (("attempted", bool), ("completed", bool), ("referenceSet", int),
-                            ("nativeSet", int), ("mismatches", int), ("sampleAtDraw", int)):
-            if field not in c:
-                raise ValueError(f"the terrain comparison does not state {field}")
-            value = c[field]
-            if not isinstance(value, kind) or isinstance(value, bool) != (kind is bool):
-                raise ValueError(f"comparison.{field} is {value!r}, not a {kind.__name__}")
-        if not c["attempted"] or not c["completed"]:
-            raise ValueError(f"the terrain comparison did not complete: {c.get('note')}")
-        if c.get("note"):
-            raise ValueError(f"the terrain comparison rejects the frame: {c['note']}")
-        if c["referenceSet"] < 1000:
-            raise ValueError(f"Voxy's own target holds only {c['referenceSet']} non-background"
-                             f" pixels, so there is nothing to compare against")
-        if c["nativeSet"] < 1000:
-            raise ValueError(f"Minecraft's frame holds only {c['nativeSet']} non-background"
-                             f" pixels, so the terrain draws did not reach it")
-        if c["mismatches"]:
-            raise ValueError(f"{c['mismatches']} pixels differ between Minecraft's frame and"
-                             f" Voxy's own target")
-        result["comparison"] = c
-        # ⚠ Same discipline as the marker gate: recompare the retained raw samples here, so a
-        # reported zero cannot stand on its own.
-        result["recompare"] = recompare_terrain_samples(output, report, c)
+        result.update(terrain_report_checks(output, report, expected_device))
         result.update(success=True)
-    except (OSError, ValueError, KeyError, TypeError) as exc:
-        result["failures"].append(str(exc))
+    except (OSError, ValueError, KeyError, TypeError, EOFError, zlib.error) as exc:
+        result["failures"].append(f"{type(exc).__name__}: {exc}")
     return result
 
 
@@ -808,7 +1081,12 @@ def native_proof_files_result(output, checkpoints):
             raise ValueError("the device-feature injection was not enabled")
         if not need(features, "native-device-features.json", "attempted", bool):
             raise ValueError("the device-feature injection was never attempted")
-        added = set(need(features, "native-device-features.json", "added", list))
+        added_list = need(features, "native-device-features.json", "added", list)
+        # ⚠ Round-6 review B3: `set(added) != expected` accepted DUPLICATE entries, so a list
+        # naming one feature four times and another once could satisfy the set comparison.
+        if len(added_list) != len(set(added_list)):
+            raise ValueError(f"the device-feature list repeats entries: {added_list}")
+        added = set(added_list)
         if added != expected_features:
             raise ValueError(f"the device features Voxy needs were not all requested: {features}")
         # ⚠ Round-5 review B3: this was a substring test with no coverage requirement, so an
@@ -828,6 +1106,15 @@ def native_proof_files_result(output, checkpoints):
         if set(verified) != added:
             raise ValueError(f"the features verified by read-back {sorted(verified)} are not the"
                              f" ones requested {sorted(added)}")
+        # ⚠ Round-6 review B3: four distinct features could all claim offset 0 and pass. The
+        # read-back experiment resolves one offset PER feature; two features sharing an offset
+        # means one of them was never actually located.
+        offsets = sorted(verified.values())
+        if len(set(offsets)) != len(offsets):
+            raise ValueError(f"two features claim the same read-back offset, so at least one"
+                             f" was not actually located: {verified}")
+        if any(offset < 0 for offset in offsets):
+            raise ValueError(f"a feature claims a negative offset: {verified}")
 
         compute = loaded["native-compute-probe.json"]
         if not need(compute, "native-compute-probe.json", "attempted", bool):
@@ -982,7 +1269,8 @@ def retain_native_evidence(output, native_output, timestamp, summary):
         # retained, so no reader could reclassify it. Keep the raw samples; they are the one
         # artifact the marker verdict actually rests on.
         samples = {}
-        for pattern in ("native-marker-sample-*.ppm", "native-terrain-sample-*.ppm.gz",
+        for pattern in ("native-marker-sample-*.ppm", "native-marker-rejected-*.ppm.gz",
+                        "native-terrain-sample-*.ppm.gz",
                         "native-terrain-reference-*.ppm.gz"):
             for path in sorted(native_output.glob(pattern)):
                 shutil.copyfile(path, target / path.name)
@@ -996,7 +1284,8 @@ def retain_native_evidence(output, native_output, timestamp, summary):
         # reviewer duplicated a sample, deleted the one the report REFERENCES, and retention
         # reported no error while replay then failed on the missing file. The sample each
         # report points at is the one that has to be here.
-        for name, referenced in (("native-marker-draw.json", lambda r: (r.get("readback") or {}).get("sampleFile")),
+        for name, referenced in (("native-marker-draw.json", lambda r: (r.get("readback") or {}).get("rejectedOrientationSample")),
+                                 ("native-marker-draw.json", lambda r: (r.get("readback") or {}).get("sampleFile")),
                                  ("native-terrain-probe.json", lambda r: (r.get("comparison") or {}).get("sampleFile"))):
             path = native_output / name
             if not path.is_file():
@@ -1086,7 +1375,15 @@ def replay_evidence(directory):
         print(json.dumps(outcome, indent=2))
         return 1
     kept = json.loads(manifest.read_text())
-    bad = sorted(name for name, digest in (kept.get("files") or {}).items()
+    # ⚠ Round-6 review B1: an EMPTY files map produced no mismatches and passed. A manifest
+    # that binds nothing binds nothing.
+    files = kept.get("files") or {}
+    if len(files) < 10:
+        outcome["error"] = (f"the manifest lists only {len(files)} file(s), which cannot bind"
+                            f" this directory to a run")
+        print(json.dumps(outcome, indent=2))
+        return 1
+    bad = sorted(name for name, digest in files.items()
                  if not (directory / name).is_file()
                  or hashlib.sha256((directory / name).read_bytes()).hexdigest() != digest)
     outcome["manifest_mismatches"] = bad
@@ -1116,11 +1413,24 @@ def replay_evidence(directory):
         terrain_path = directory / "native-terrain-probe.json"
         if terrain_path.is_file():
             terrain = json.loads(terrain_path.read_text())
-            outcome["terrain_recompare"] = recompare_terrain_samples(
-                directory, terrain, terrain["comparison"])
+            terrain_checks = terrain_report_checks(directory, terrain)
+            outcome["terrain_recompare"] = terrain_checks["recompare"]
+            outcome["replayed"].append("terrain report acceptance checks")
             outcome["replayed"].append("terrain frame-vs-reference recomparison")
-    except (OSError, ValueError, KeyError, TypeError) as exc:
-        outcome["error"] = str(exc)
+        # ⚠ Round-6 review R6-TERRAIN-GATE: manifest success is not provenance. Require the
+        # samples the reports reference to be manifest MEMBERS, so a file dropped in beside
+        # the evidence cannot stand in for one the run produced.
+        referenced = [(rb or {}).get("sampleFile")
+                      for rb in (report.get("readback"),
+                                 (terrain if terrain_path.is_file() else {}).get("comparison"))]
+        for name in [n for n in referenced if n]:
+            if name not in (kept.get("files") or {}):
+                raise ValueError(f"{name} is referenced but is not a manifest member, so it is"
+                                 f" not evidence this run produced")
+    except (OSError, ValueError, KeyError, TypeError, EOFError, zlib.error) as exc:
+        # ⚠ Round-6 review (non-blocking): a truncated gzip trailer threw an uncaught
+        # EOFError, which is not a false pass but is not the promised structured failure.
+        outcome["error"] = f"{type(exc).__name__}: {exc}"
         print(json.dumps(outcome, indent=2))
         return 1
     print(json.dumps(outcome, indent=2))
@@ -1242,7 +1552,8 @@ def main():
                 f"-PharnessSeconds={args.seconds}", "-PharnessNative=true",
                 "-PharnessGraphicsBackend=vulkan", "-PharnessNativeMarker=true",
                 "-PharnessNativeFeatures=true", "-PharnessNativeAdopt=true",
-                "-PharnessNativeProbe=true", "-PharnessNativeTerrain=true"], output, args.timeout)
+                "-PharnessNativeProbe=true", "-PharnessNativeTerrain=true",
+                "-PharnessNativeDepth=true"], output, args.timeout)
             result["gate"] = native_environment_result(native_output)
             result["success"] &= result["gate"]["success"]
             checkpoints = result["gate"].get("checkpoints") or []
@@ -1254,8 +1565,19 @@ def main():
             # gated like everything else: if Voxy's real terrain pipeline is asked to record
             # into Minecraft's frame and the result disagrees with Voxy's own target, the stage
             # fails. Being experimental is about what may be CLAIMED, not about being ungated.
-            result["terrain"] = native_terrain_result(native_output)
+            # ⚠ Round-6 review R6-TERRAIN-GATE: the terrain probe's device was never
+            # compared with the one every other proof names, so "0xdead" passed.
+            identities = (result["proofs"].get("device_identities") or {})
+            expected_device = None
+            if identities.get("adopted"):
+                expected_device = int(identities["adopted"], 16)
+            result["terrain"] = native_terrain_result(native_output, expected_device)
             result["success"] &= result["terrain"]["success"]
+            # ⚠ Answers a question (is Minecraft's depth readable, and which way does it run?)
+            # rather than proving a claim. A "cannot be read" answer passes; a probe that
+            # contradicts itself or asserts an unmeasured convention does not.
+            result["depth"] = native_depth_result(native_output)
+            result["success"] &= result["depth"]["success"]
             text = (output / "native.log").read_text(errors="replace")
             result["diagnostics"] = [line.strip() for line in text.splitlines()
                 if re.search(r"\[vk-validation\]|Validation (Error|Warning)|SYNC-HAZARD-|VUID-", line)]

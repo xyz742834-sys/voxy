@@ -23,6 +23,9 @@ from pixel_oracle import top_rows_rgb
 from verify import (native_marker_result, native_proof_files_result,
                     retain_native_evidence, replay_evidence)
 
+# ⚠ Do not shrink this to make the suite faster. At 640x360 the depth-tested pass cell
+# resolves to 448 pixels, below the gate's 500-pixel floor, so every positive case fails for
+# the wrong reason — and lowering the floor to suit the fixture would weaken the real gate.
 WIDTH, HEIGHT = 960, 540
 NEAR, FAR, REJECTED = (255, 0, 255), (0, 255, 255), (255, 255, 0)
 BACKGROUND = (100, 100, 100)
@@ -61,6 +64,27 @@ def union_rect():
         xs += [int((min(ax, bx) + 1.0) * 0.5 * WIDTH), int((max(ax, bx) + 1.0) * 0.5 * WIDTH)]
         ys += [int((1.0 - max(ay, by)) * 0.5 * HEIGHT), int((1.0 - min(ay, by)) * 0.5 * HEIGHT)]
     return [min(xs), min(ys), max(xs), max(ys)]
+
+
+def mirror_rect():
+    """The union rect resolved in the MIRRORED orientation — where the marker is not."""
+    xs, ys = [], []
+    for key in ("box", "controlStrip", "depthTestedPassCell"):
+        ax, ay, bx, by = GEOMETRY[key]
+        xs += [int((min(ax, bx) + 1.0) * 0.5 * WIDTH), int((max(ax, bx) + 1.0) * 0.5 * WIDTH)]
+        ys += [int((1.0 + min(ay, by)) * 0.5 * HEIGHT), int((1.0 + max(ay, by)) * 0.5 * HEIGHT)]
+    return [min(xs), min(ys), max(xs), max(ys)]
+
+
+def write_gz_ppm(path, rows):
+    import gzip
+    body = bytearray()
+    for row in rows:
+        for px in row:
+            body.extend(px[:3])
+    with gzip.open(path, "wb") as out:
+        out.write(f"P6\n{len(rows[0])} {len(rows)}\n255\n".encode("ascii"))
+        out.write(bytes(body))
 
 
 def write_ppm(path, rows):
@@ -198,6 +222,16 @@ class MarkerGateTest(unittest.TestCase):
                 rb["sampleRect"] = union_rect()
                 rb["flipped"] = False
                 rb.pop("autoCounts", None)
+                # ⚠ Round-6 B4: the rejected orientation's pixels are part of the proof now.
+                # The fixture's frame has the pattern only in the upright orientation, so the
+                # mirrored crop is background — exactly what the gate must see.
+                if rb.get("rejectedOrientationSample") != "":
+                    mirror = mirror_rect()
+                    rows = [row[mirror[0]:mirror[2]] for row in frames[stage][mirror[1]:mirror[3]]]
+                    write_gz_ppm(out / "rejected.ppm.gz", rows)
+                    rb.setdefault("rejectedOrientationSample", "rejected.ppm.gz")
+                    rb["rejectedOrientationRect"] = mirror
+                    rb["rejectedOrientationFlipped"] = not bool(rb.get("flipped"))
                 if rb.pop("autoAgree", False):   # the default fixture: make it agree
                     rb.update(near=counts["near"], far=counts["far"], control=counts["cell"],
                               rejectedInBox=counts["rejectedInBox"])
@@ -310,6 +344,12 @@ class MarkerGateTest(unittest.TestCase):
                                    near=counts["near"], far=counts["far"],
                                    control=counts["cell"], rejectedInBox=counts["rejectedInBox"])
             rep["readback"].pop("autoAgree", None)
+            mirror = mirror_rect()
+            write_gz_ppm(out / "rejected.ppm.gz",
+                         [row[mirror[0]:mirror[2]] for row in pixels[mirror[1]:mirror[3]]])
+            rep["readback"].update(rejectedOrientationSample="rejected.ppm.gz",
+                                   rejectedOrientationRect=mirror,
+                                   rejectedOrientationFlipped=True)
             (out / "native-marker-draw.json").write_text(json.dumps(rep))
             for stage in STAGES:
                 write_png(out / (stage + ".png"), pixels)
@@ -533,6 +573,24 @@ class ProofFileGateTest(unittest.TestCase):
         self.assertFalse(partial["success"], "one note cannot stand for four features")
         self.assertIn("are not the ones requested", " ".join(partial["failures"]))
 
+    def test_features_sharing_one_offset_fail(self):
+        """Round-6 B3: four distinct features could all claim offset 0 and pass."""
+        result = self.run_gate({"native-device-features.json": {"notes": [
+            "drawIndirectFirstInstance: offset 0 verified by read-back",
+            "shaderInt64: offset 0 verified by read-back",
+            "fragmentStoresAndAtomics: offset 0 verified by read-back",
+            "vertexPipelineStoresAndAtomics: offset 0 verified by read-back"]}})
+        self.assertFalse(result["success"])
+        self.assertIn("same read-back offset", " ".join(result["failures"]))
+
+    def test_a_duplicated_feature_request_fails(self):
+        """Round-6 B3: set() comparison accepted a list with duplicate entries."""
+        result = self.run_gate({"native-device-features.json": {
+            "added": ["shaderInt64", "shaderInt64", "drawIndirectFirstInstance",
+                      "fragmentStoresAndAtomics", "vertexPipelineStoresAndAtomics"]}})
+        self.assertFalse(result["success"])
+        self.assertIn("repeats entries", " ".join(result["failures"]))
+
     def test_an_unattempted_adoption_fails(self):
         """Round-5 B3: `attempted` was never read, so a proof that never ran still passed."""
         result = self.run_gate({"native-adopted-context.json": {"attempted": False}})
@@ -636,7 +694,12 @@ class EvidenceRetentionTest(unittest.TestCase):
               "timesClean": 7, "timesWithAProblem": 0,
               "firstProblem": None, "flipped": False, "sampleAtDraw": 2900,
               "sampleRect": union_rect(), "closeFailures": 0, "failureBudget": 3,
-              "leakedPipelines": 0, "leakBudget": 3}
+              "leakedPipelines": 0, "leakBudget": 3,
+              # ⚠ Round-6 B4: the rejected orientation's pixels are part of the proof, so
+              # retention and replay both require them.
+              "rejectedOrientationSample": "native-marker-rejected-2900.ppm.gz",
+              "rejectedOrientationRect": mirror_rect(),
+              "rejectedOrientationFlipped": True}
         sample = sample_from(pixels)
         counts = counts_in(sample)
         rb.update(near=counts["near"], far=counts["far"], control=counts["cell"],
@@ -649,6 +712,9 @@ class EvidenceRetentionTest(unittest.TestCase):
             write_png(native_output / (stage + ".png"), pixels)
         if with_sample:
             write_ppm(native_output / "native-marker-sample-2900.ppm", sample)
+            mirror = mirror_rect()
+            write_gz_ppm(native_output / "native-marker-rejected-2900.ppm.gz",
+                         [row[mirror[0]:mirror[2]] for row in pixels[mirror[1]:mirror[3]]])
         for name, body in ProofFileGateTest.FILES.items():
             if name == "native-marker-draw.json":
                 continue
@@ -674,8 +740,13 @@ class EvidenceRetentionTest(unittest.TestCase):
     def test_the_raw_colour_sample_is_retained_and_hashed(self):
         _, kept = self.retain()
         self.assertNotIn("error", kept)
-        self.assertEqual(kept["raw_colour_samples"], ["native-marker-sample-2900.ppm"])
-        self.assertIn("native-marker-sample-2900.ppm", kept["files"])
+        # ⚠ Round-6 B4: BOTH orientations' pixels are evidence now — the selected one and the
+        # one the implementation says it rejected.
+        self.assertEqual(kept["raw_colour_samples"],
+                         ["native-marker-rejected-2900.ppm.gz",
+                          "native-marker-sample-2900.ppm"])
+        for name in kept["raw_colour_samples"]:
+            self.assertIn(name, kept["files"])
 
     def test_every_crop_states_its_origin_rather_than_implying_it(self):
         """⚠ Round-5 review R5-TEST: this checked the parent size and that the origin had two
@@ -844,7 +915,7 @@ class TerrainGateTest(unittest.TestCase):
         return differ, native, reference
 
     def run_gate(self, overrides=None, comparison=None, blank=False, differ=0,
-                 drop=(), agree=True):
+                 drop=(), agree=True, expected_device=None):
         got, want = self.scene(blank=blank, differ=differ)
         d, native, reference = self.counts(got, want)
         with tempfile.TemporaryDirectory() as tmp:
@@ -859,17 +930,18 @@ class TerrainGateTest(unittest.TestCase):
                  "mismatches": d if agree else 0,
                  "flipped": True, "note": None, "sampleAtDraw": 900, "sampleFile": name}
             c.update(comparison or {})
+            c = {k: v for k, v in c.items() if v is not None or k == "note"}
             report = {"enabled": True, "attempted": True, "built": True, "drawsRecorded": 1200,
                       "targetWidth": self.W, "targetHeight": self.H, "colourVkFormat": 37,
                       "clearRgb": self.PACKED_CLEAR, "device": "0xabc", "timesClean": 5,
                       "timesWithAProblem": 0, "firstProblem": None, "closeFailures": 0,
                       "failureBudget": 3, "leakedProbes": 0, "leakBudget": 3,
-                      "notes": [], "comparison": c}
+                      "deviceDiverged": False, "notes": [], "comparison": c}
             report.update(overrides or {})
             for key in drop:
                 report.pop(key, None)
             (out / "native-terrain-probe.json").write_text(json.dumps(report))
-            return verify.native_terrain_result(out)
+            return verify.native_terrain_result(out, expected_device)
 
     def test_an_identical_pair_with_real_content_passes(self):
         result = self.run_gate()
@@ -912,6 +984,35 @@ class TerrainGateTest(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertIn("could not be closed", " ".join(result["failures"]))
 
+    def test_a_dead_or_null_device_fails(self):
+        """Round-6 R6-TERRAIN-GATE: device was only required to be a string, so "0xdead" and
+        "0x0" both passed, and it was never compared with the rest of the run's identity."""
+        for handle in ("0x0", "0", "not-a-handle"):
+            result = self.run_gate({"device": handle})
+            self.assertFalse(result["success"], handle)
+        mismatched = self.run_gate(expected_device=0xbeef)
+        self.assertFalse(mismatched["success"])
+        self.assertIn("but the rest of the run names", " ".join(mismatched["failures"]))
+
+    def test_a_capture_beyond_the_recorded_draws_fails(self):
+        """Round-6 R6-TERRAIN-GATE: one draw with a comparison at draw 3598 passed."""
+        result = self.run_gate({"drawsRecorded": 1})
+        self.assertFalse(result["success"])
+        self.assertIn("only 1 terrain draws were recorded", " ".join(result["failures"]))
+
+    def test_a_missing_flipped_field_fails(self):
+        """Round-6 R6-TERRAIN-GATE: omitting comparison.flipped passed."""
+        result = self.run_gate(comparison={"flipped": None})
+        self.assertFalse(result["success"])
+        self.assertIn("flipped", " ".join(result["failures"]))
+
+    def test_a_diverged_device_fails(self):
+        """Round-6 R6-TERRAIN-DEVICE: the probe stops when Minecraft's device moves, and a run
+        that spent part of itself refusing to record is not a clean measurement."""
+        result = self.run_gate({"deviceDiverged": True})
+        self.assertFalse(result["success"])
+        self.assertIn("diverged", " ".join(result["failures"]))
+
     def test_a_leaked_probe_fails(self):
         """Round-5 R4-L1: a leak that is counted but tolerated is still an unbounded leak."""
         result = self.run_gate({"leakedProbes": 1})
@@ -925,14 +1026,15 @@ class TerrainGateTest(unittest.TestCase):
 
     def test_a_missing_field_fails_instead_of_defaulting(self):
         for field in ("enabled", "built", "closeFailures", "clearRgb", "notes",
-                      "leakedProbes", "leakBudget"):
+                      "leakedProbes", "leakBudget", "deviceDiverged"):
             result = self.run_gate(drop=(field,))
             self.assertFalse(result["success"], field)
             self.assertIn(field, " ".join(result["failures"]))
 
     def test_a_sample_not_bound_to_its_capture_fails(self):
         """Round-5 B4: the file name carries the draw the copy was registered at."""
-        result = self.run_gate(comparison={"sampleAtDraw": 4321})
+        # Within the recorded total, so the only thing wrong is the binding to the file.
+        result = self.run_gate(comparison={"sampleAtDraw": 901})
         self.assertFalse(result["success"])
         self.assertIn("named for draw", " ".join(result["failures"]))
 
@@ -942,8 +1044,140 @@ class TerrainGateTest(unittest.TestCase):
         self.assertIn("but the probe drew to", " ".join(result["failures"]))
 
 
+
+class DepthProbeGateTest(unittest.TestCase):
+    """The depth probe answers a question, so the gate is strict about the MEASUREMENT.
+
+    "Minecraft's depth cannot be read back" is a legitimate answer and must pass. What must not
+    pass is a probe that asserts a Z convention it could not have measured, or whose numbers
+    contradict each other — because the survey would then record a convention nobody observed,
+    and the terrain coexistence work would be built on it.
+    """
+    W, H = 64, 40
+
+    def report(self, **overrides):
+        # A plausible frame: sky near 1.0 at the top, ground near 0.1 at the bottom.
+        histogram = [0] * 16
+        histogram[1] = 500
+        histogram[15] = self.W * self.H - 500
+        base = {"enabled": True, "attempted": True, "completed": True, "uniform": False,
+                "depthVkFormat": 126,
+                "width": self.W, "height": self.H, "min": 0.08, "max": 1.0,
+                "topMean": 0.99, "bottomMean": 0.12, "clearedValue": 0.96875,
+                "clearedShare": 0.8, "bins": 16, "histogram": histogram,
+                "reversedZ": False,
+                "basis": "the bottom band is nearer zero than the top band",
+                "closeFailures": 0, "device": "0xabc", "notes": []}
+        base.update(overrides)
+        return base
+
+    def run_gate(self, overrides=None, drop=()):
+        body = self.report(**(overrides or {}))
+        for key in drop:
+            body.pop(key, None)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            (out / "native-depth-probe.json").write_text(json.dumps(body))
+            return verify.native_depth_result(out)
+
+    def test_a_measured_non_reversed_convention_passes(self):
+        result = self.run_gate()
+        self.assertTrue(result["success"], result["failures"])
+        self.assertIn("not reverse-Z", result["answer"])
+
+    def test_a_measured_reversed_convention_passes(self):
+        result = self.run_gate({"topMean": 0.02, "bottomMean": 0.95, "reversedZ": True})
+        self.assertTrue(result["success"], result["failures"])
+        self.assertIn("reverse-Z (larger is closer)", result["answer"])
+
+    def test_unreadable_depth_is_an_answer_not_a_failure(self):
+        result = self.run_gate({"completed": False, "reversedZ": None,
+                                "basis": "could not be copied",
+                                "notes": ["Minecraft's depth image could not be copied"]})
+        self.assertTrue(result["success"], result["failures"])
+        self.assertFalse(result["readable"])
+        self.assertIn("could not be read back", result["answer"])
+
+    def test_asserting_a_convention_without_reading_the_depth_fails(self):
+        result = self.run_gate({"completed": False, "reversedZ": True})
+        self.assertFalse(result["success"])
+        self.assertIn("could not read the depth image", " ".join(result["failures"]))
+
+    def test_asserting_a_convention_from_bands_that_do_not_separate_fails(self):
+        result = self.run_gate({"topMean": 0.50, "bottomMean": 0.52, "reversedZ": False})
+        self.assertFalse(result["success"])
+        self.assertIn("does not separate near from far", " ".join(result["failures"]))
+
+    def test_declining_to_answer_when_the_bands_do_separate_fails(self):
+        result = self.run_gate({"reversedZ": None})
+        self.assertFalse(result["success"])
+        self.assertIn("should have been able to tell", " ".join(result["failures"]))
+
+    def test_a_convention_contradicting_the_bands_fails(self):
+        result = self.run_gate({"reversedZ": True})   # bottom 0.12 < top 0.99 says not reversed
+        self.assertFalse(result["success"])
+        self.assertIn("says otherwise", " ".join(result["failures"]))
+
+    def test_a_histogram_that_does_not_cover_the_image_fails(self):
+        short = [0] * 16
+        short[15] = 1200
+        result = self.run_gate({"histogram": short})
+        self.assertFalse(result["success"])
+        self.assertIn("but the image is", " ".join(result["failures"]))
+
+    def test_depth_outside_the_unit_range_fails(self):
+        self.assertFalse(self.run_gate({"max": 1.5})["success"])
+        self.assertFalse(self.run_gate({"min": -0.1})["success"])
+
+    def test_an_unclosed_depth_buffer_fails(self):
+        result = self.run_gate({"closeFailures": 1})
+        self.assertFalse(result["success"])
+        self.assertIn("could not be", " ".join(result["failures"]))
+
+    def test_a_missing_field_fails_instead_of_defaulting(self):
+        for field in ("enabled", "attempted", "completed", "uniform", "histogram", "bins",
+                      "basis", "closeFailures", "notes"):
+            result = self.run_gate(drop=(field,))
+            self.assertFalse(result["success"], field)
+            self.assertIn(field, " ".join(result["failures"]))
+
+    def test_a_uniform_image_is_not_a_readable_depth(self):
+        """Measured: the copy completes and every pixel is 0.0, even in isolation.
+
+        A completed transfer is not an observation. The gate must record that as "this path
+        does not observe Minecraft's depth" rather than letting "readable" be claimed.
+        """
+        histogram = [0] * 16
+        histogram[0] = self.W * self.H
+        result = self.run_gate({"uniform": True, "min": 0.0, "max": 0.0, "topMean": 0.0,
+                                "bottomMean": 0.0, "histogram": histogram, "reversedZ": None,
+                                "basis": "every pixel is 0.0"})
+        self.assertTrue(result["success"], result["failures"])
+        self.assertFalse(result["readable"])
+        self.assertIn("does not observe", result["answer"])
+
+    def test_a_uniform_image_asserting_a_convention_fails(self):
+        histogram = [0] * 16
+        histogram[0] = self.W * self.H
+        result = self.run_gate({"uniform": True, "min": 0.0, "max": 0.0, "topMean": 0.0,
+                                "bottomMean": 0.0, "histogram": histogram, "reversedZ": True})
+        self.assertFalse(result["success"])
+        self.assertIn("uniform image", " ".join(result["failures"]))
+
+    def test_claiming_variation_while_min_equals_max_fails(self):
+        result = self.run_gate({"min": 0.5, "max": 0.5})
+        self.assertFalse(result["success"])
+        self.assertIn("does not say", " ".join(result["failures"]))
+
+    def test_a_probe_that_never_attempted_fails(self):
+        result = self.run_gate({"attempted": False})
+        self.assertFalse(result["success"])
+        self.assertIn("never tried", " ".join(result["failures"]))
+
+
 # ⚠ Round-5 review R5-TEST: this guard used to sit in the middle of the file, so running it
 # directly exited before the later test classes were even defined. Discovery found them;
 # `python3 scripts/tests/test_marker_gate.py` silently did not. It belongs at the end.
 if __name__ == "__main__":
     unittest.main()
+

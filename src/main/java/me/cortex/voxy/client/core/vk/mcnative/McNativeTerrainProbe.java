@@ -97,6 +97,14 @@ public final class McNativeTerrainProbe implements Destroyable {
     /** 直近の標本書き込みが失敗したか。比較を清浄として数えないために使う。 */
     private static boolean sampleWriteFailed;
 
+    /**
+     * MC の device が Voxy の採用した device から離れたか。
+     *
+     * <p>一度離れたら<b>この session では二度と記録しない</b>。採用はやり直せないので、
+     * 作り直しても古い context の資源を使うことになる。
+     */
+    private static boolean deviceDiverged;
+
     /** 漏らしてよい probe の数。超えたら新しく作らない。 */
     private static final int LEAK_BUDGET = 3;
 
@@ -196,6 +204,30 @@ public final class McNativeTerrainProbe implements Destroyable {
                 + " record the terrain pipeline onto (set -Dvoxy.native.adopt=true)");
             return;
         }
+        // ⚠ round-6 review R6-TERRAIN-DEVICE: 採用は一度しか起きないので、MC が device を
+        // 差し替えても Voxy の context は<b>古い device を持ったまま</b>になる。以前の
+        // 所有判定は「自分の context の device」同士を比べていたので常に真で、
+        // 結果として<b>A の資源で B のコマンドバッファに記録する</b>ことになった。
+        // 基準を MC のいまに置き、食い違うなら<b>何もしない</b>。
+        long mcDevice = McNativeVulkan.vkDeviceHandle(device, notes);
+        long ourDevice = adoptedDeviceHandle();
+        if (mcDevice == 0 || ourDevice == 0 || mcDevice != ourDevice) {
+            notes.forEach(McNativeTerrainProbe::note);
+            noteOnce("Voxy's adopted context holds device 0x" + Long.toHexString(ourDevice)
+                + " but Minecraft is now using 0x" + Long.toHexString(mcDevice)
+                + "; refusing to record Voxy's resources into another device's command buffer."
+                + " The terrain probe stops for the rest of this session.");
+            deviceDiverged = true;
+            var stale = instance;
+            instance = null;
+            if (stale != null) {
+                // 古い device のものなので壊さない。意図的に漏らして数える。
+                stale.destroyed = true;
+                leakedProbes++;
+            }
+            return;
+        }
+        if (deviceDiverged) return;
         var mc = Minecraft.getInstance();
         if (mc == null || mc.gameRenderer == null) return;
         var target = mc.gameRenderer.mainRenderTarget();
@@ -296,6 +328,11 @@ public final class McNativeTerrainProbe implements Destroyable {
         VkTerrainResources res = null;
         VkTerrainRenderer renderer = null;
         VkRenderTarget reference = null;
+        // ⚠ round-6 review R6-TERRAIN-WAIT: finally は<b>無条件に</b>解放していた。
+        // 提出したのにフェンス待ちが成功しなかった場合、完了を観測していない資源を
+        // 壊すことになる (使用中参照)。「提出した」と「待ちを観測した」を分けて持つ。
+        boolean submitted = false;
+        boolean waitObserved = false;
         try {
             boolean wasRunning = frameTrackerRunning();
             VkFrameTracker.init();
@@ -325,7 +362,9 @@ public final class McNativeTerrainProbe implements Destroyable {
             renderer.record(cmd, reference, draws.size(), CLEAR, VkDepth.CLEAR);
             reference.recordReadback(cmd);
             tracker.endFrame();
+            submitted = true;
             tracker.waitForFrame();
+            waitObserved = true;
 
             int[] pixels = new int[width * height];
             long base = reference.readbackBuffer().addr();
@@ -354,22 +393,34 @@ public final class McNativeTerrainProbe implements Destroyable {
             for (int i = 0; i < Math.min(6, trace.length); i++) note("  at " + trace[i]);
             return null;
         } finally {
-            // 参照の的は読み戻した後は要らない。フレームはフェンスで待ってあるので壊せる。
-            if (reference != null) {
-                try { reference.free(); } catch (Throwable t) { note("could not free the reference target: " + t); }
-            }
-            if (renderer != null) {
-                try { renderer.free(); } catch (Throwable ignored) { }
-            }
-            if (res != null) {
-                try { res.free(); } catch (Throwable ignored) { }
+            // ⚠ round-6 review R6-TERRAIN-WAIT: <b>提出したが待ちを観測できていない</b>なら
+            // 何も壊さない。診断 1 個ぶんの資源を漏らす方が、実行中の参照を壊すより遥かに良い。
+            if (submitted && !waitObserved) {
+                leakedProbes++;
+                note("the reference frame was submitted but its fence wait was not observed to"
+                    + " succeed; leaking the reference target, renderer and resources on purpose"
+                    + " rather than destroying something that may still be in use");
+            } else {
+                if (reference != null) {
+                    try { reference.free(); } catch (Throwable t) {
+                        note("could not free the reference target: " + t);
+                    }
+                }
+                if (renderer != null) {
+                    try { renderer.free(); } catch (Throwable ignored) { }
+                }
+                if (res != null) {
+                    try { res.free(); } catch (Throwable ignored) { }
+                }
             }
             if (startedTracker) {
                 // 参照画像を描くためだけに起こしたので、ここで片付ける。
                 // 毎フレームの経路はトラッカーを使わない (MC のコマンドバッファに積むだけ)。
-                // ⚠ waitIdle は使わない — 採用した device は MC のものなので、
-                // vkDeviceWaitIdle は MC の投入まで待たせてしまう。自分のフレームは
-                // 直前に waitForFrame() でフェンス待ちしてある。
+                // ⚠ round-6 review R6-TERRAIN-WAIT: 以前ここのコメントは
+                // 「waitIdle は使わない」と書いていたが、{@code VkFrameTracker.shutdown} は
+                // {@code destroy} 経由で<b>実際に vkDeviceWaitIdle を呼ぶ</b>。
+                // 採用した device は MC のものなので、これは MC の投入まで待たせる。
+                // 正しさの問題ではないが、コメントが事実と違っていた。
                 try { VkFrameTracker.shutdown(); } catch (Throwable t) {
                     note("could not shut the frame tracker down after building the reference: " + t);
                 }
@@ -622,12 +673,30 @@ public final class McNativeTerrainProbe implements Destroyable {
         }
     }
 
-    /** いま {@link VkContext} が持っている device が、この probe のものと同じか。 */
+    /**
+     * この probe の資源が<b>いまも有効な device に属しているか</b>。
+     *
+     * <p>⚠ round-6 review R6-TERRAIN-DEVICE: 以前は
+     * {@code VkContext.get().device.address() == this.ownerDevice} だけを見ていた。
+     * 採用は一度きりなので両者は常に一致し、<b>MC が device を差し替えても真</b>になった。
+     * 自分の context と、<b>MC のいまの device</b>の両方に一致することを要求する。
+     */
     private boolean ownedByCurrentDevice() {
         try {
-            return VkContext.get().device.address() == this.ownerDevice;
+            if (VkContext.get().device.address() != this.ownerDevice) return false;
+            long mc = McNativeVulkan.vkDeviceHandle(McNativeVulkan.device(), new ArrayList<>());
+            return mc != 0 && mc == this.ownerDevice;
         } catch (Throwable t) {
             return false;
+        }
+    }
+
+    /** Voxy が採用した {@code VkDevice} のハンドル、取れなければ 0。 */
+    private static long adoptedDeviceHandle() {
+        try {
+            return VkContext.get().device.address();
+        } catch (Throwable t) {
+            return 0;
         }
     }
 
@@ -712,6 +781,7 @@ public final class McNativeTerrainProbe implements Destroyable {
         sb.append("  \"closeFailures\": ").append(s.closeFailures()).append(",\n");
         sb.append("  \"leakedProbes\": ").append(leakedProbes).append(",\n");
         sb.append("  \"leakBudget\": ").append(LEAK_BUDGET).append(",\n");
+        sb.append("  \"deviceDiverged\": ").append(deviceDiverged).append(",\n");
         sb.append("  \"failureBudget\": ").append(s.failureBudget()).append(",\n");
         var c = s.comparison();
         if (c == null) {

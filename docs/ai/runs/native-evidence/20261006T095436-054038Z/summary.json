@@ -1,0 +1,1149 @@
+{
+  "success": true,
+  "host": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "revision": "35aff16fbda3e2f93564dfe7af3ccb8ee9cfc257",
+  "output": "/Users/xyz/dev/voxy/build/harness/20261006T095436-054038Z",
+  "stages": {
+    "native_environment": {
+      "command": [
+        "/Users/xyz/dev/voxy/gradlew",
+        "--console=plain",
+        "runHarnessClient",
+        "--offline",
+        "-PvkLibname=/opt/homebrew/lib/libvulkan.dylib",
+        "-PvkValidation=true",
+        "-PvkSyncEnv=true",
+        "-PharnessOutput=/Users/xyz/dev/voxy/build/harness/20261006T095436-054038Z/native",
+        "-PharnessRunDir=/Users/xyz/dev/voxy/build/harness/20261006T095436-054038Z/native/game",
+        "-PharnessSeconds=8",
+        "-PharnessNative=true",
+        "-PharnessGraphicsBackend=vulkan",
+        "-PharnessNativeMarker=true",
+        "-PharnessNativeFeatures=true",
+        "-PharnessNativeAdopt=true",
+        "-PharnessNativeProbe=true",
+        "-PharnessNativeTerrain=true",
+        "-PharnessNativeDepth=true"
+      ],
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 214.68,
+      "log": "/Users/xyz/dev/voxy/build/harness/20261006T095436-054038Z/native.log",
+      "success": true,
+      "gate": {
+        "success": true,
+        "failures": [],
+        "scope": "Minecraft Vulkan environment; no Voxy LoD acceptance",
+        "checkpoints": [
+          {
+            "stage": "warmup",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 526395342872,
+              "vkInstance": 526295779328,
+              "vmaAllocator": 5191401472,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 90159953477714,
+                "vkImageView": 94557999988822,
+                "format": "RGBA8_UNORM",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 92358976733268,
+                "vkImageView": 95657511616599,
+                "format": "D32_FLOAT",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 18.392086875,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 465,
+            "frameCoveredByGui": false
+          },
+          {
+            "stage": "turn",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 526395342872,
+              "vkInstance": 526295779328,
+              "vmaAllocator": 5191401472,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 90159953477714,
+                "vkImageView": 94557999988822,
+                "format": "RGBA8_UNORM",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 92358976733268,
+                "vkImageView": 95657511616599,
+                "format": "D32_FLOAT",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 27.415533,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 998,
+            "frameCoveredByGui": false
+          },
+          {
+            "stage": "travel",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 526395342872,
+              "vkInstance": 526295779328,
+              "vmaAllocator": 5191401472,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 90159953477714,
+                "vkImageView": 94557999988822,
+                "format": "RGBA8_UNORM",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 92358976733268,
+                "vkImageView": 95657511616599,
+                "format": "D32_FLOAT",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 35.44755225,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 1473,
+            "frameCoveredByGui": false
+          },
+          {
+            "stage": "return",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 526395342872,
+              "vkInstance": 526295779328,
+              "vmaAllocator": 5191401472,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 90159953477714,
+                "vkImageView": 94557999988822,
+                "format": "RGBA8_UNORM",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 92358976733268,
+                "vkImageView": 95657511616599,
+                "format": "D32_FLOAT",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 43.489511292,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 1949,
+            "frameCoveredByGui": false
+          },
+          {
+            "stage": "edit",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 526395342872,
+              "vkInstance": 526295779328,
+              "vmaAllocator": 5191401472,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 90159953477714,
+                "vkImageView": 94557999988822,
+                "format": "RGBA8_UNORM",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 92358976733268,
+                "vkImageView": 95657511616599,
+                "format": "D32_FLOAT",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 51.49874825,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 2422,
+            "frameCoveredByGui": false
+          },
+          {
+            "stage": "remove",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 526395342872,
+              "vkInstance": 526295779328,
+              "vmaAllocator": 5191401472,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 90159953477714,
+                "vkImageView": 94557999988822,
+                "format": "RGBA8_UNORM",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 92358976733268,
+                "vkImageView": 95657511616599,
+                "format": "D32_FLOAT",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 59.506240417,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 2896,
+            "frameCoveredByGui": false
+          },
+          {
+            "stage": "resize",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 526395342872,
+              "vkInstance": 526295779328,
+              "vmaAllocator": 5191401472,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 32215690693866100,
+                "vkImageView": 32217889717121654,
+                "format": "RGBA8_UNORM",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 32212392158982769,
+                "vkImageView": 32214591182238323,
+                "format": "D32_FLOAT",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 67.548132667,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 3366,
+            "frameCoveredByGui": false
+          },
+          {
+            "stage": "reload",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 526395342872,
+              "vkInstance": 526295779328,
+              "vmaAllocator": 5191401472,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 32215690693866100,
+                "vkImageView": 32217889717121654,
+                "format": "RGBA8_UNORM",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 32212392158982769,
+                "vkImageView": 32214591182238323,
+                "format": "D32_FLOAT",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 75.58742625,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 3770,
+            "frameCoveredByGui": false
+          },
+          {
+            "stage": "nether",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 526395342872,
+              "vkInstance": 526295779328,
+              "vmaAllocator": 5191401472,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 32215690693866100,
+                "vkImageView": 32217889717121654,
+                "format": "RGBA8_UNORM",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 32212392158982769,
+                "vkImageView": 32214591182238323,
+                "format": "D32_FLOAT",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:the_nether]",
+            "seconds": 83.597492709,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 4242,
+            "frameCoveredByGui": false
+          },
+          {
+            "stage": "overworld",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 526395342872,
+              "vkInstance": 526295779328,
+              "vmaAllocator": 5191401472,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 32215690693866100,
+                "vkImageView": 32217889717121654,
+                "format": "RGBA8_UNORM",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 32212392158982769,
+                "vkImageView": 32214591182238323,
+                "format": "D32_FLOAT",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 91.642391334,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 4715,
+            "frameCoveredByGui": false
+          },
+          {
+            "stage": "reconnect",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 526395342872,
+              "vkInstance": 526295779328,
+              "vmaAllocator": 5191401472,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 32215690693866100,
+                "vkImageView": 32217889717121654,
+                "format": "RGBA8_UNORM",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 32212392158982769,
+                "vkImageView": 32214591182238323,
+                "format": "D32_FLOAT",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 100.086059917,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 4935,
+            "frameCoveredByGui": false
+          }
+        ],
+        "voxy_integration_status": "BLOCKED_UNIMPLEMENTED"
+      },
+      "marker": {
+        "success": true,
+        "failures": [],
+        "scope": "bounded marker draw and depth proof in Minecraft's own Vulkan frame",
+        "report": {
+          "enabled": true,
+          "drawsRecorded": 4800,
+          "pipelineLive": true,
+          "colourVkFormat": 37,
+          "targetWidth": 1920,
+          "targetHeight": 1080,
+          "markerRgb": [
+            255,
+            0,
+            255
+          ],
+          "farRgb": [
+            0,
+            255,
+            255
+          ],
+          "rejectedRgb": [
+            255,
+            255,
+            0
+          ],
+          "depthAttached": true,
+          "geometry": {
+            "box": [
+              -0.98,
+              0.98,
+              -0.78,
+              0.78
+            ],
+            "nearSplitX": -0.86,
+            "controlStrip": [
+              -0.98,
+              0.76,
+              -0.78,
+              0.72
+            ],
+            "depthTestedPassCell": [
+              -0.98,
+              0.7,
+              -0.78,
+              0.66
+            ]
+          },
+          "depthVkFormat": 126,
+          "device": "0x7a8f9b8018",
+          "readback": {
+            "attempted": true,
+            "completed": true,
+            "near": 12420,
+            "far": 8316,
+            "rejectedInBox": 0,
+            "control": 4224,
+            "boxArea": 20736,
+            "controlArea": 4224,
+            "note": null,
+            "timesClean": 20,
+            "timesWithAProblem": 0,
+            "firstProblem": null,
+            "flipped": true,
+            "sampleAtDraw": 4562,
+            "sampleFile": "native-marker-sample-4562.ppm",
+            "closeFailures": 0,
+            "rejectedOrientationSample": "native-marker-rejected-4562.ppm.gz",
+            "rejectedOrientationFlipped": false,
+            "rejectedOrientationRect": [
+              19,
+              10,
+              211,
+              183
+            ],
+            "leakedPipelines": 0,
+            "leakBudget": 3,
+            "failureBudget": 3,
+            "sampleRect": [
+              19,
+              896,
+              211,
+              1069
+            ]
+          },
+          "notes": []
+        },
+        "readback": {
+          "attempted": true,
+          "completed": true,
+          "near": 12420,
+          "far": 8316,
+          "rejectedInBox": 0,
+          "control": 4224,
+          "boxArea": 20736,
+          "controlArea": 4224,
+          "note": null,
+          "timesClean": 20,
+          "timesWithAProblem": 0,
+          "firstProblem": null,
+          "flipped": true,
+          "sampleAtDraw": 4562,
+          "sampleFile": "native-marker-sample-4562.ppm",
+          "closeFailures": 0,
+          "rejectedOrientationSample": "native-marker-rejected-4562.ppm.gz",
+          "rejectedOrientationFlipped": false,
+          "rejectedOrientationRect": [
+            19,
+            10,
+            211,
+            183
+          ],
+          "leakedPipelines": 0,
+          "leakBudget": 3,
+          "failureBudget": 3,
+          "sampleRect": [
+            19,
+            896,
+            211,
+            1069
+          ]
+        },
+        "recount": {
+          "sample": "native-marker-sample-4562.ppm",
+          "flipped": true,
+          "near": 12420,
+          "nearArea": 12420,
+          "far": 8316,
+          "farArea": 8316,
+          "cell": 4224,
+          "cellArea": 4224,
+          "controlStrip": 4032,
+          "controlStripArea": 4224,
+          "rejectedInBox": 0,
+          "sampleAtDraw": 4562
+        },
+        "rejected_orientation": {
+          "sample": "native-marker-rejected-4562.ppm.gz",
+          "flipped": false,
+          "near": 0,
+          "nearArea": 12420,
+          "far": 0,
+          "farArea": 8316,
+          "cell": 0,
+          "cellArea": 4032,
+          "controlStrip": 0,
+          "controlStripArea": 4224,
+          "rejectedInBox": 0,
+          "satisfiedRegions": 0
+        },
+        "depth_proof": {
+          "warmup": {
+            "near": 9690,
+            "nearArea": 9792,
+            "far": 6365,
+            "farArea": 6528,
+            "rejectedInBox": 0,
+            "control": 3230,
+            "controlArea": 3230,
+            "markerDraws": 465,
+            "frameCoveredByGui": false
+          },
+          "turn": {
+            "near": 9690,
+            "nearArea": 9792,
+            "far": 6365,
+            "farArea": 6528,
+            "rejectedInBox": 0,
+            "control": 3230,
+            "controlArea": 3230,
+            "markerDraws": 998,
+            "frameCoveredByGui": false
+          },
+          "travel": {
+            "near": 9690,
+            "nearArea": 9792,
+            "far": 6365,
+            "farArea": 6528,
+            "rejectedInBox": 0,
+            "control": 3230,
+            "controlArea": 3230,
+            "markerDraws": 1473,
+            "frameCoveredByGui": false
+          },
+          "return": {
+            "near": 9690,
+            "nearArea": 9792,
+            "far": 6365,
+            "farArea": 6528,
+            "rejectedInBox": 0,
+            "control": 3230,
+            "controlArea": 3230,
+            "markerDraws": 1949,
+            "frameCoveredByGui": false
+          },
+          "edit": {
+            "near": 9690,
+            "nearArea": 9792,
+            "far": 6365,
+            "farArea": 6528,
+            "rejectedInBox": 0,
+            "control": 3230,
+            "controlArea": 3230,
+            "markerDraws": 2422,
+            "frameCoveredByGui": false
+          },
+          "remove": {
+            "near": 9690,
+            "nearArea": 9792,
+            "far": 6365,
+            "farArea": 6528,
+            "rejectedInBox": 0,
+            "control": 3230,
+            "controlArea": 3230,
+            "markerDraws": 2896,
+            "frameCoveredByGui": false
+          },
+          "resize": {
+            "near": 12305,
+            "nearArea": 12420,
+            "far": 8239,
+            "farArea": 8316,
+            "rejectedInBox": 0,
+            "control": 4032,
+            "controlArea": 4224,
+            "markerDraws": 3366,
+            "frameCoveredByGui": false
+          },
+          "reload": {
+            "near": 12305,
+            "nearArea": 12420,
+            "far": 8239,
+            "farArea": 8316,
+            "rejectedInBox": 0,
+            "control": 4032,
+            "controlArea": 4224,
+            "markerDraws": 3770,
+            "frameCoveredByGui": false
+          },
+          "nether": {
+            "near": 0,
+            "nearArea": 12420,
+            "far": 0,
+            "farArea": 8316,
+            "rejectedInBox": 0,
+            "control": 0,
+            "controlArea": 4224,
+            "markerDraws": 4242,
+            "frameCoveredByGui": false
+          },
+          "overworld": {
+            "near": 12305,
+            "nearArea": 12420,
+            "far": 8239,
+            "farArea": 8316,
+            "rejectedInBox": 0,
+            "control": 4032,
+            "controlArea": 4224,
+            "markerDraws": 4715,
+            "frameCoveredByGui": false
+          },
+          "reconnect": {
+            "near": 12305,
+            "nearArea": 12420,
+            "far": 8239,
+            "farArea": 8316,
+            "rejectedInBox": 0,
+            "control": 4032,
+            "controlArea": 4224,
+            "markerDraws": 4935,
+            "frameCoveredByGui": false
+          }
+        },
+        "frames_without_level_content": {
+          "nether": {
+            "markerDraws": 4242,
+            "previous": 3770,
+            "frameCoveredByGui": false
+          }
+        }
+      },
+      "proofs": {
+        "success": true,
+        "failures": [],
+        "files": {
+          "native-device-features.json": {
+            "enabled": true,
+            "attempted": true,
+            "added": [
+              "drawIndirectFirstInstance",
+              "shaderInt64",
+              "fragmentStoresAndAtomics",
+              "vertexPipelineStoresAndAtomics"
+            ],
+            "notes": [
+              "drawIndirectFirstInstance: offset 40 verified by read-back",
+              "shaderInt64: offset 160 verified by read-back",
+              "fragmentStoresAndAtomics: offset 104 verified by read-back",
+              "vertexPipelineStoresAndAtomics: offset 100 verified by read-back"
+            ]
+          },
+          "native-compute-probe.json": {
+            "attempted": true,
+            "succeeded": true,
+            "expected": "0x123456789abcdef",
+            "readBack": "0x123456789abcdef",
+            "queueFamily": 3,
+            "device": "0x7a8f9b8018",
+            "notes": []
+          },
+          "native-adopted-context.json": {
+            "enabled": true,
+            "attempted": true,
+            "adopted": true,
+            "queueFamily": 0,
+            "device": "0x7a8f9b8018",
+            "provenByVoxyBufferAndShader": true,
+            "readBack": "0x123456789abcdef",
+            "notes": []
+          },
+          "native-real-shader.json": {
+            "attempted": true,
+            "succeeded": true,
+            "quadOrdinalsChecked": 189,
+            "mismatches": 0,
+            "device": "0x7a8f9b8018",
+            "firstMismatch": null,
+            "notes": []
+          },
+          "native-marker-draw.json": {
+            "enabled": true,
+            "drawsRecorded": 4800,
+            "pipelineLive": true,
+            "colourVkFormat": 37,
+            "targetWidth": 1920,
+            "targetHeight": 1080,
+            "markerRgb": [
+              255,
+              0,
+              255
+            ],
+            "farRgb": [
+              0,
+              255,
+              255
+            ],
+            "rejectedRgb": [
+              255,
+              255,
+              0
+            ],
+            "depthAttached": true,
+            "geometry": {
+              "box": [
+                -0.98,
+                0.98,
+                -0.78,
+                0.78
+              ],
+              "nearSplitX": -0.86,
+              "controlStrip": [
+                -0.98,
+                0.76,
+                -0.78,
+                0.72
+              ],
+              "depthTestedPassCell": [
+                -0.98,
+                0.7,
+                -0.78,
+                0.66
+              ]
+            },
+            "depthVkFormat": 126,
+            "device": "0x7a8f9b8018",
+            "readback": {
+              "attempted": true,
+              "completed": true,
+              "near": 12420,
+              "far": 8316,
+              "rejectedInBox": 0,
+              "control": 4224,
+              "boxArea": 20736,
+              "controlArea": 4224,
+              "note": null,
+              "timesClean": 20,
+              "timesWithAProblem": 0,
+              "firstProblem": null,
+              "flipped": true,
+              "sampleAtDraw": 4562,
+              "sampleFile": "native-marker-sample-4562.ppm",
+              "closeFailures": 0,
+              "rejectedOrientationSample": "native-marker-rejected-4562.ppm.gz",
+              "rejectedOrientationFlipped": false,
+              "rejectedOrientationRect": [
+                19,
+                10,
+                211,
+                183
+              ],
+              "leakedPipelines": 0,
+              "leakBudget": 3,
+              "failureBudget": 3,
+              "sampleRect": [
+                19,
+                896,
+                211,
+                1069
+              ]
+            },
+            "notes": []
+          },
+          "native-vulkan-probe.json": {
+            "mcUsesVulkan": true,
+            "backendDescription": "LWJGL version 3.4.1-snapshot",
+            "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+            "deviceName": "Apple M4 Pro",
+            "vendorName": "APPLE",
+            "driverInfo": "1.2.357 MoltenVK 1.4.2",
+            "vkInstance": "0x7a89ac4800",
+            "vkDevice": "0x7a8f9b8018",
+            "vmaAllocator": "0x1356e8000",
+            "graphicsQueueFamily": 0,
+            "computeQueueFamily": 3,
+            "transferQueueFamily": 3,
+            "colour": {
+              "role": "colour",
+              "label": "Main / Color",
+              "vkImage": "0x520000000052",
+              "vkImageView": "0x560000000056",
+              "format": "RGBA8_UNORM",
+              "width": 1708,
+              "height": 960,
+              "mipLevels": 1,
+              "usage": "0xf"
+            },
+            "depth": {
+              "role": "depth",
+              "label": "Main / Depth",
+              "vkImage": "0x540000000054",
+              "vkImageView": "0x570000000057",
+              "format": "D32_FLOAT",
+              "width": 1708,
+              "height": 960,
+              "mipLevels": 1,
+              "usage": "0xf"
+            },
+            "notes": []
+          }
+        },
+        "device_identities": {
+          "adopted": "0x7a8f9b8018",
+          "marker": "0x7a8f9b8018",
+          "probe": "0x7a8f9b8018",
+          "compute": "0x7a8f9b8018",
+          "realShader": "0x7a8f9b8018"
+        },
+        "checkpoint_devices": [
+          "0x7a8f9b8018"
+        ]
+      },
+      "terrain": {
+        "success": true,
+        "failures": [],
+        "scope": "Voxy's real terrain pipeline recorded into Minecraft's Vulkan frame; EXPERIMENTAL, not an accepted foundation",
+        "report": {
+          "enabled": true,
+          "attempted": true,
+          "built": true,
+          "drawsRecorded": 4800,
+          "targetWidth": 1920,
+          "targetHeight": 1080,
+          "colourVkFormat": 37,
+          "clearRgb": 1707277,
+          "device": "0x7a8f9b8018",
+          "timesClean": 21,
+          "timesWithAProblem": 0,
+          "firstProblem": null,
+          "closeFailures": 0,
+          "leakedProbes": 0,
+          "leakBudget": 3,
+          "deviceDiverged": false,
+          "failureBudget": 3,
+          "comparison": {
+            "attempted": true,
+            "completed": true,
+            "referenceSet": 26116,
+            "nativeSet": 26116,
+            "mismatches": 0,
+            "flipped": false,
+            "note": null,
+            "sampleAtDraw": 4580,
+            "sampleFile": "native-terrain-sample-4580.ppm.gz"
+          },
+          "notes": []
+        },
+        "device": 526395342872,
+        "comparison": {
+          "attempted": true,
+          "completed": true,
+          "referenceSet": 26116,
+          "nativeSet": 26116,
+          "mismatches": 0,
+          "flipped": false,
+          "note": null,
+          "sampleAtDraw": 4580,
+          "sampleFile": "native-terrain-sample-4580.ppm.gz"
+        },
+        "recompare": {
+          "sample": "native-terrain-sample-4580.ppm.gz",
+          "size": [
+            1920,
+            1080
+          ],
+          "mismatches": 0,
+          "nativeSet": 26116,
+          "referenceSet": 26116,
+          "sampleAtDraw": 4580
+        }
+      },
+      "depth": {
+        "success": true,
+        "failures": [],
+        "scope": "Minecraft's own scene depth: readability and Z convention",
+        "report": {
+          "enabled": true,
+          "attempted": true,
+          "completed": true,
+          "uniform": true,
+          "depthVkFormat": 126,
+          "width": 1708,
+          "height": 960,
+          "min": 0.0,
+          "max": 0.0,
+          "topMean": 0.0,
+          "bottomMean": 0.0,
+          "clearedValue": 0.03125,
+          "clearedShare": 1.0,
+          "bins": 16,
+          "histogram": [
+            1639680,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "reversedZ": null,
+          "basis": "the copy completed but every one of 1639680 pixels is 0.0; a uniform image cannot be Minecraft's scene depth, so this path does not observe it (measured with nothing else writing to the image)",
+          "closeFailures": 0,
+          "device": "0x7a8f9b8018",
+          "notes": []
+        },
+        "readable": false,
+        "answer": "the copy completed but every pixel was identical (0.0), so this path does not observe Minecraft's scene depth",
+        "basis": "the copy completed but every one of 1639680 pixels is 0.0; a uniform image cannot be Minecraft's scene depth, so this path does not observe it (measured with nothing else writing to the image)"
+      },
+      "diagnostics": [],
+      "scope": "Minecraft-native Vulkan environment only; no Voxy LoD acceptance",
+      "voxy_integration_status": "BLOCKED_UNIMPLEMENTED",
+      "validation_layer_loader_evidence": [
+        "[Vulkan Loader] INFO | LAYER:   Insert instance layer \"VK_LAYER_KHRONOS_validation\" (/opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib)",
+        "[Vulkan Loader] INFO | LAYER:   Inserted device layer \"VK_LAYER_KHRONOS_validation\" (/opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib)"
+      ],
+      "application_errors": [
+        "[18:56:35] [Render thread/ERROR] (Voxy) [me.cx.vy.ct.VoxyClient]: Minecraft is not using the OpenGL backend; Voxy's Vulkan path still needs a GL context to composite through. Voxy will disable itself. (set preferredGraphicsBackend to \"default\" in options.txt)",
+        "[18:56:35] [Render thread/ERROR] (Voxy) [me.cx.vy.ct.VoxyClient]: Voxy is unsupported on your system."
+      ],
+      "unexpected_application_errors": []
+    }
+  },
+  "scope": "Standalone Vulkan GPU/analytic pixel/arena recovery gates plus GL-hosted live liveness/lifecycle/mesh updates; Minecraft-native integration and live visual parity remain unproven",
+  "graphics_backend_preference": "default",
+  "selection": "native",
+  "scenario_seconds": 8,
+  "worktree_status": " M build.gradle\n M docs/ai/current-state.md\n M docs/ai/vulkan-native-integration-survey.md\n M scripts/tests/test_marker_gate.py\n M scripts/verify.py\n M src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java\n M src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java\n M src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeVulkan.java\n M src/main/java/me/cortex/voxy/client/mixin/minecraft/MixinLevelRenderer.java\n?? docs/ai/runs/native-evidence/20261006T084300-332469Z/\n?? docs/ai/runs/native-integration-review-r6.json\n?? docs/ai/runs/native-integration-review-r6.md\n?? src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthProbe.java\n?? src/test/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainLifetimeTest.java\n",
+  "native_evidence_pending": {
+    "output": "/Users/xyz/dev/voxy/build/harness/20261006T095436-054038Z/native"
+  },
+  "changed_sources_during_run": [],
+  "final_revision": "35aff16fbda3e2f93564dfe7af3ccb8ee9cfc257"
+}

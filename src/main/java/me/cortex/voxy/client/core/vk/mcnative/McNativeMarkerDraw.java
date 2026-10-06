@@ -223,6 +223,12 @@ public final class McNativeMarkerDraw implements Destroyable {
      * いたので、清浄カウンタが進み、失敗は公開されなかった。
      */
     private static boolean sampleWriteFailed;
+    /** 棄却した向きの生標本のファイル名。{@code null} なら残せていない。 */
+    private static String rejectedOrientationSample;
+    /** 棄却した向きの向きフラグ。 */
+    private static boolean rejectedOrientationFlipped;
+    /** 棄却した向きの標本矩形。採用した向きとは別の y 範囲になる。 */
+    private static int[] rejectedOrientationRect;
     /**
      * 壊さずに漏らしたパイプラインの数と、その予算。
      *
@@ -449,6 +455,14 @@ public final class McNativeMarkerDraw implements Destroyable {
             // 「選ばれなかった方がどうだったか」を見られない。
             sampleWriteFailed = false;
             best = withSample(best, data, width, height);
+            // ⚠ round-5/6 review B4: 採用した向きしか残していなかったので、
+            // <b>棄却した向きがどうだったか</b>を誰も確かめられなかった。両方残す。
+            // 「ちょうど 1 つの向きだけが条件を満たす」という主張が、実装の言葉ではなく
+            // 画素から検算できるようになる。
+            Readback other = measure(data, width, height, !best.flipped(), at);
+            rejectedOrientationFlipped = other.flipped();
+            rejectedOrientationRect = other.sampleRect();
+            rejectedOrientationSample = writeOrientationSample(other, data, width, height, at);
             if (best.note() == null && sampleWriteFailed) {
                 best = new Readback(true, true, best.near(), best.far(), best.rejectedInBox(),
                     best.control(), best.boxArea(), best.controlArea(),
@@ -617,6 +631,46 @@ public final class McNativeMarkerDraw implements Destroyable {
         int format = draw != null ? draw.colourFormat : lastColourFormat;
         McNativeVulkanProbe.writeFile("native-marker-draw.json",
             evidenceJson(device, format, lastWidth, lastHeight));
+    }
+
+    /**
+     * 棄却した向きの標本も残す。
+     *
+     * <p>⚠ round-6 review B4: 片方しか残っていないと、ゲートは
+     * 「もう一方は条件を満たさなかった」を実装の申告として受け取るしかない。
+     * 両方の画素があれば、その主張そのものを画素から検算できる。
+     *
+     * @return 書けたファイル名、書けなければ {@code null}
+     */
+    private static String writeOrientationSample(Readback r, java.nio.ByteBuffer data,
+                                                 int width, int height, long at) {
+        if (r.sampleRect() == null) return null;
+        String dir = System.getProperty("voxy.harness.output");
+        if (dir == null || dir.isBlank()) return null;
+        int[] q = r.sampleRect();
+        int w = Math.max(0, q[2] - q[0]), h = Math.max(0, q[3] - q[1]);
+        if (w == 0 || h == 0) return null;
+        String name = "native-marker-rejected-" + at + ".ppm";
+        try {
+            var header = ("P6\n" + w + " " + h + "\n255\n").getBytes(StandardCharsets.US_ASCII);
+            byte[] body = new byte[w * h * 3];
+            int into = 0;
+            for (int y = q[1]; y < q[3]; y++) {
+                int rowBase = y * width * 4;
+                for (int x = q[0]; x < q[2]; x++) {
+                    int src = rowBase + x * 4;
+                    if (src + 2 >= data.limit()) break;
+                    body[into++] = data.get(src);
+                    body[into++] = data.get(src + 1);
+                    body[into++] = data.get(src + 2);
+                }
+            }
+            McNativeVulkanProbe.writeGzipFileBytes(name + ".gz", header, body);
+            return name + ".gz";
+        } catch (Throwable t) {
+            note("could not retain the rejected orientation's sample: " + t);
+            return null;
+        }
     }
 
     private static Readback withSample(Readback r, java.nio.ByteBuffer data, int width, int height) {
@@ -957,6 +1011,8 @@ public final class McNativeMarkerDraw implements Destroyable {
         }
         // ⚠ round-2 review B5: ここで即破棄していた。device が取れないということは
         // 「提出が終わった」ことも確かめられないということなので、漏らす方を選ぶ。
+        // ⚠ round-6 review R4-L1: 同じく数えていなかった第二の経路。
+        leakedPipelines++;
         note("Minecraft's device is no longer reachable, so the marker pipeline cannot be shown"
             + " to be unused; leaking it on purpose");
         draw.destroyed = true;
@@ -982,6 +1038,10 @@ public final class McNativeMarkerDraw implements Destroyable {
         instance = null;
         if (draw == null) return;
         if (waitedDevice == null || draw.device.vkDevice().address() != waitedDevice.address()) {
+            // ⚠ round-6 review R4-L1: この経路は意図的に漏らすのに
+            // <b>leakedPipelines を increment していなかった</b>ので、証跡にも予算にも
+            // 現れなかった。数える。
+            leakedPipelines++;
             note("the marker pipeline belongs to a different device than the one whose idle was"
                 + " observed; leaking it on purpose rather than destroying something whose"
                 + " submissions were never confirmed to finish");
@@ -1107,6 +1167,12 @@ public final class McNativeMarkerDraw implements Destroyable {
               .append(", \"sampleAtDraw\": ").append(rb.sampleAtDraw())
               .append(", \"sampleFile\": ").append(McNativeVulkanProbe.quote(rb.sampleFile()))
               .append(", \"closeFailures\": ").append(readbackCloseFailures)
+              .append(", \"rejectedOrientationSample\": ")
+              .append(McNativeVulkanProbe.quote(rejectedOrientationSample))
+              .append(", \"rejectedOrientationFlipped\": ").append(rejectedOrientationFlipped)
+              .append(", \"rejectedOrientationRect\": ").append(rejectedOrientationRect == null
+                  ? "null" : "[" + rejectedOrientationRect[0] + ", " + rejectedOrientationRect[1]
+                    + ", " + rejectedOrientationRect[2] + ", " + rejectedOrientationRect[3] + "]")
               .append(", \"leakedPipelines\": ").append(leakedPipelines)
               .append(", \"leakBudget\": ").append(LEAK_BUDGET)
               .append(", \"failureBudget\": ").append(READBACK_FAILURE_BUDGET)

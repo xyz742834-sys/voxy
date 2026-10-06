@@ -585,6 +585,11 @@ loom {
             if (project.hasProperty('harnessNativeTerrain')) {
                 vmArg '-Dvoxy.native.terrain=true'
             }
+            // Read Minecraft's own scene depth back and measure its convention. Read-only:
+            // it writes nothing to Minecraft's images. Off by default like everything native.
+            if (project.hasProperty('harnessNativeDepth')) {
+                vmArg '-Dvoxy.native.depth=true'
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')

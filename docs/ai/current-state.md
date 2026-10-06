@@ -28,8 +28,10 @@ independent review rounds returned REDESIGN; round 4
 ([native-integration-review-r4.md](runs/native-integration-review-r4.md)) closed its inertness
 and destruction findings and stated the layer is *"not yet sound enough to use as the accepted
 foundation for terrain work"*, with terrain investigation permitted as experimental. Round 5 is
-returned REDESIGN too, confirming the mechanisms, refusing their completeness, and finding a
-new blocking lifetime defect. Nothing here may be cited as an accepted foundation until a round
+and round 6 ([r6](runs/native-integration-review-r6.md)) returned REDESIGN too. Round 6 closed
+the last lifetime finding, left the evidence findings open on narrower residuals, and added
+three blocking findings against the terrain experiment's gate and lifetime while confirming its
+pixel measurement. Nothing here may be cited as an accepted foundation until a round
 says so — see [harness.md](harness.md) for the rule.
 
 Behind a fifth default-off flag (`voxy.native.terrain`) there is now an **experiment**: Voxy's
@@ -37,6 +39,13 @@ real terrain pipeline, recorded into a pass Minecraft opens over its own colour 
 out RGB-identical to the same scene drawn by the same renderer on Voxy's own target on the same
 device. Round 4 permits terrain investigation as experimental and that is all this is; the input
 is synthetic and the probe clears Minecraft's frame to make the comparison meaningful.
+
+Measured and negative, so it does not become a hidden assumption: **Minecraft's scene depth is
+not observable through `copyTextureToBuffer`** at the level-render tail. The copy completes and
+every pixel of the 1708x960 D32_SFLOAT image is 0.0, including in an isolated run with nothing
+writing to that image. The Z convention is therefore unmeasured, and depth coexistence needs the
+behavioural route (draws at known depths against a `LOAD`ed attachment) rather than a readback.
+See the survey section of the same name.
 
 ## What works
 

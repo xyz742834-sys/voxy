@@ -1,0 +1,243 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "35aff16fbda3e2f93564dfe7af3ccb8ee9cfc257",
+  "review_round": 6,
+  "report": "docs/ai/runs/native-integration-review.md",
+  "acceptance_boundary": "An independently accepted diagnostic foundation is still REDESIGN. No accepted layer or production native terrain is granted.",
+  "candidate_binding": {
+    "head_verified": true,
+    "initial_tree_clean": true,
+    "retained_run": "20261006T083136-838975Z",
+    "recorded_revision": "3313c8093ca6b06fd38d6f5d091f3e2b743d36df",
+    "recorded_revision_dirty": true,
+    "manifest_files_verified": 88,
+    "matching_source_fingerprints": 403,
+    "changed_sources_during_run": []
+  },
+  "blocking_findings": [
+    {
+      "id": "B1",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Original crop-clamping attack now fails, but moving producer geometry plus matching areas makes the same 20-column omission replay as success. Empty MANIFEST.json object verifies no hashes and passes.",
+      "evidence": [
+        "scripts/verify.py:497-534",
+        "scripts/verify.py:562-576",
+        "scripts/verify.py:1088-1096",
+        "20-column crop + box.x0=2*39/1920-1 + boxArea=18576 + controlArea=3784: replay exit 0",
+        "MANIFEST.json={}: replay exit 0"
+      ]
+    },
+    {
+      "id": "B3",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Exact note syntax and coverage repaired; numerical offsets remain unchecked. All four distinct feature verifications at offset 0 pass, as does duplicate added list entry.",
+      "evidence": [
+        "scripts/verify.py:811-830",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDeviceFeatures.java:56-61",
+        "native_proof_files_result allOffsetsZero -> success=true"
+      ]
+    },
+    {
+      "id": "B4",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Callback failure persistence repaired, but good mirror can hide all-cyan wrong actual pattern; only selected raw crop retained. Marker filename/capture contradiction passes.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:512-541",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:622-652",
+        "scripts/verify.py:319-325",
+        "real select good top/all-cyan bottom -> note=null",
+        "sampleFile native-marker-sample-3362.ppm + sampleAtDraw=1 -> replay exit 0"
+      ]
+    },
+    {
+      "id": "R6-TERRAIN-GATE",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Replay bypasses terrain report checks. Stage terrain gate accepts null/mismatching device and sampleAtDraw beyond recorded draws.",
+      "evidence": [
+        "scripts/verify.py:659-689",
+        "scripts/verify.py:710-713",
+        "scripts/verify.py:1116-1121",
+        "fully failed terrain report with unchanged pair -> replay exit 0",
+        "terrain device=0x0/0xdead or drawsRecorded=1 with capture3598 -> terrain gate success=true"
+      ]
+    },
+    {
+      "id": "R6-TERRAIN-DEVICE",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Ownership refusal checks stale adopted Voxy context rather than active Minecraft device. Replacement build can allocate on A then record against Minecraft B. Queued destruction also uses global context without owner recheck.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java:194-228",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java:304-347",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java:626-651",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkBuffer.java:92-97",
+        "heap real ownership/retire: active Minecraft222 adopted111 ownershipAccepted=true old queue callback1 leaks0"
+      ]
+    },
+    {
+      "id": "R6-TERRAIN-WAIT",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Source-derived: submitted reference with failing wait reaches unconditional target/renderer/resource frees before any successful completion check.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java:327-328",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java:351-375",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkFrameTracker.java:163-166",
+        "Hardware failure not induced"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R4-L1",
+      "severity": "low",
+      "judgment": "REFUTED",
+      "finding": "Ordinary retirement budget repaired; unreachable-device and mismatched-waited-device marker shutdown leaks bypass leakedPipelines/build budget.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:949-989",
+        "four heap unreachable-device shutdowns -> leakedPipelines=0"
+      ]
+    },
+    {
+      "id": "R5-TEST",
+      "severity": "medium",
+      "judgment": "REFUTED",
+      "finding": "Requested test repairs detect independent mutations, but fresh split-only behavior, enabled terrain lifetime/device replacement, budget enforcement and new proof contradictions remain uncovered.",
+      "evidence": [
+        "scripts/tests/test_marker_gate.py:798-949",
+        "src/test/java/me/cortex/voxy/vk/McNativeTerrainProbeTest.java",
+        "src/test/java/me/cortex/voxy/vk/VkTerrainRenderTest.java:304-334"
+      ]
+    },
+    {
+      "id": "R5-DOC",
+      "severity": "medium",
+      "judgment": "REFUTED",
+      "finding": "Acceptance boundary and replay table accurate; universal no-unconfirmed-destruction, full orientation attribution, depth-write proof and device-change retirement claims overstate evidence.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:298-307",
+        "docs/ai/vulkan-native-integration-survey.md:498-501",
+        "docs/ai/vulkan-native-integration-survey.md:733-740",
+        "docs/ai/vulkan-native-integration-survey.md:831-834"
+      ]
+    },
+    {
+      "id": "R5-API",
+      "severity": "low",
+      "judgment": "REFUTED",
+      "finding": "Unused waitIdle still ignores return and drains frees; direct VkContext destruction has no internal completion guard.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/VkFrameTracker.java:220-224",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkContext.java:103-106",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkContext.java:692-695"
+      ]
+    },
+    {
+      "id": "R5-IO",
+      "severity": "low",
+      "judgment": "REFUTED",
+      "finding": "Synchronous diagnostic I/O and total disk growth remain unbounded; JSON write exceptions are swallowed; registration-close failures are not fully published/counted.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeVulkanProbe.java:359-390",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:403-415",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java:420-423"
+      ]
+    },
+    {
+      "id": "R6-GZIP",
+      "severity": "low",
+      "judgment": "REFUTED",
+      "finding": "Truncated gzip raises uncaught EOFError instead of a structured failed gate/replay. It does not false-pass.",
+      "evidence": [
+        "scripts/pixel_oracle.py:205-221",
+        "scripts/verify.py:691-692",
+        "scripts/verify.py:1122-1125",
+        "remove 5 gzip trailer bytes -> EOFError"
+      ]
+    }
+  ],
+  "safe_for_normal_play": {
+    "gl_backend": true,
+    "minecraft_vulkan_backend": true,
+    "scope": "All five native flags unset; GL backend preserved and native backend keeps Voxy disabled. Source/test-supported dormant safety, without fresh Minecraft smoke/soak.",
+    "terrain_cannot_clear_unflagged": true
+  },
+  "round5_findings_closed": {
+    "B1": false,
+    "B3": false,
+    "B4": false,
+    "R4-L1": false,
+    "R5-LIFETIME": true
+  },
+  "terrain_experiment_judgment": {
+    "judgment": "CONFIRMED_BOUNDED_MEASUREMENT; REFUTED_GATE_AND_LIFETIME_SOUNDNESS",
+    "experimental_only": true,
+    "split_recording_test": "CONFIRMED: real offscreen RGB equality in tested warmed same-renderer scene; broader equivalence unproven",
+    "retained_rgb_comparison": {
+      "confirmed": true,
+      "sampleAtDraw": 3598,
+      "size": [
+        1920,
+        1080
+      ],
+      "nativeSet": 26116,
+      "referenceSet": 26116,
+      "mismatches": 0
+    },
+    "same_device_draw_into_minecraft_image": "CONFIRMED from inspected source plus retained nonblank pair, scoped to stable-device synthetic experiment",
+    "general_gate_sound": false,
+    "general_retirement_sound": false,
+    "normal_play_integration_accepted": false,
+    "limitations": [
+      "same renderer reference permits common-mode errors",
+      "comparison normalizes whole-image vertical orientation; original raw orientation not retained",
+      "no raw depth or real world/mesh/atlas/LoD acceptance",
+      "clears Minecraft scene instead of composing with it",
+      "replay skips terrain report acceptance",
+      "device replacement can leave adopted context on old device",
+      "reference wait failure reaches unguarded frees"
+    ]
+  },
+  "tests": {
+    "gradle": {
+      "command": "./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true",
+      "exit_code": 0,
+      "tests": 322,
+      "passed": 321,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "known_skip": "VkBarriersTest.missingBarrierIsDetected()",
+      "unexpected_validation_events": 0
+    },
+    "python": {
+      "command": "python3 -m unittest discover -s scripts/tests",
+      "exit_code": 0,
+      "tests": 86,
+      "seconds": 93.067
+    },
+    "replay": {
+      "command": "python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261006T083136-838975Z",
+      "exit_code": 0
+    },
+    "repaired_tests_independently_mutated": {
+      "empty_recount_detected": true,
+      "hardcoded_crop_origin_detected": true,
+      "missing_screenshot_checks_detected": true,
+      "explicit_count_not_overwritten": true
+    }
+  },
+  "not_checked": [
+    "fresh Minecraft/native/live stages forbidden by user",
+    "real GPU fence-error/device-loss/replacement faults",
+    "normal-play smoke/soak on either backend",
+    "full parent screenshots, raw depth and opposite-orientation marker readback absent",
+    "native synchronization validation enablement not established",
+    "dependency binary/environment identity beyond listed fingerprints",
+    "real-world terrain and composition/performance/LoD acceptance"
+  ]
+}

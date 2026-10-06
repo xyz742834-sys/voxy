@@ -833,6 +833,114 @@ run it had already been shut down by the time the window resized, so retirement 
 queueing (so R5-LIFETIME cannot recur here), refuses to destroy across a device change, and
 counts every deliberate leak against a budget that stops it building another.
 
+## Round-6 review repairs (2026-10-06)
+
+Round 6 ([native-integration-review-r6.md](runs/native-integration-review-r6.md)) returned
+REDESIGN. It **closed R5-LIFETIME**, left B1/B3/B4/R4-L1 open on narrower residuals, and added
+three blocking findings against the terrain experiment. Its judgment of that experiment is the
+split this document should keep:
+
+> `CONFIRMED_BOUNDED_MEASUREMENT; REFUTED_GATE_AND_LIFETIME_SOUNDNESS`
+
+— the pixel result stands ("same-device draw into Minecraft's image: CONFIRMED from inspected
+source plus retained nonblank pair"), while the gate guarding it and the probe's lifetime
+handling did not. Offered to round 7, not treated as acceptance.
+
+**The terrain gate was the marker replay hole, reintroduced** (R6-TERRAIN-GATE). This is the
+one worth recording as a process failure rather than a bug: round 5 found that
+`--replay-evidence` skipped the marker's acceptance checks, the fix was to extract
+`marker_report_checks` so the stage gate and the replay share one function — and the terrain
+gate, written immediately afterwards, was not given the same treatment. Its report checks were
+replay-invisible in exactly the same way: a terrain report with enabled/attempted/built false,
+draws 0, clean 0, problems 3, closeFailures 99 and leakedProbes 3 still replayed as 0. Along
+with that: `device` only had to be a *string*, so `"0xdead"` and `"0x0"` passed and were never
+compared with the run's other identities; the capture number was checked against the file name
+but not for positivity or against the recorded total, so one draw with a comparison at draw
+3598 passed; omitting `comparison.flipped` passed. All of it now goes through one
+`terrain_report_checks` that both callers use, the device must be a real non-zero handle equal
+to the adopted one, and referenced samples must be manifest **members** — manifest success is
+not provenance.
+
+**Ownership was compared against itself** (R6-TERRAIN-DEVICE). `ownedByCurrentDevice()` tested
+`VkContext.get().device == this.ownerDevice`, and since adoption happens once those are always
+the same value — so the check was true even after Minecraft replaced its device. The consequence
+was concrete: a rebuild would use context A's resources while labelling the probe with wrapper
+B, then record into **B's command buffer with A's resources**. The basis is now Minecraft's
+*current* `VkDevice` (`McNativeVulkan.vkDeviceHandle`), divergence stops the probe for the
+session and leaks the stale one deliberately with a count, and the gate fails a run that spent
+part of itself refusing to record.
+
+**Resources were freed without observing completion** (R6-TERRAIN-WAIT). `build()`'s `finally`
+freed the reference target, renderer and resources unconditionally, so a submitted frame whose
+fence wait threw reached destruction with completion never observed — the same class of defect
+as round 1's B5, in new code. "Submitted" and "wait observed" are now separate facts; without
+the second, nothing is freed and the leak is counted. The reviewer also caught a comment
+asserting that shutdown avoids `vkDeviceWaitIdle` when `VkFrameTracker.destroy` does call it.
+
+**The geometry is asserted, not accepted** (B1). The gate required the retained crop to
+*contain* the published geometry — but the producer publishes that geometry too, so moving both
+together made the same partial crop pass. Any check against producer-supplied reference data
+has that weakness. The geometry is a compile-time constant, so `EXPECTED_MARKER_GEOMETRY` now
+asserts the constant and rejects regions the gate does not know. An empty manifest, which
+previously produced no mismatches and passed, now fails.
+
+**Distinct features must have distinct offsets** (B3). Four features could all claim offset 0
+and pass, which means at least three were never located; the read-back experiment resolves one
+offset per feature, so duplicates now fail. Duplicate entries in `added` also fail, since the
+set comparison accepted them.
+
+**The rejected orientation is now evidence** (B4). Only the selected orientation's pixels were
+retained, so "exactly one orientation matches" was the implementation's word. Both crops are
+retained — the rejected one gzipped, with its own rect — and `recount_rejected_orientation`
+requires the pattern to be *absent* there and the box to be free of the rejected colour in both.
+
+⚠ **The honest limit**: a single y-ambiguous image cannot establish *which* orientation a draw
+produced. The strongest claim available is "exactly one orientation matches the expectation, and
+the box is clean in both", now checkable from retained pixels. That is what is claimed.
+
+**Both uncounted leak paths count** (R4-L1): `shutdown()` when Minecraft's device is
+unreachable, and `shutdownImmediate` when the waited device is not the owner.
+
+Measured: 326 JUnit tests, 107 Python gate tests, and the native stage green as
+[20261006T095436-054038Z](runs/native-evidence/20261006T095436-054038Z/MANIFEST.json) — 121
+retained files, 2.6 MB, every one of the five gates (environment, marker, proofs, terrain,
+depth) passing. The marker readback recounts to near 12420/12420, far 8316/8316, cell
+4224/4224, rejected-in-box 0 in both orientations; **the rejected orientation's retained crop
+contains none of the pattern** (`near 0/12420, far 0/8316, cell 0/4032, satisfiedRegions 0`),
+which is the "exactly one orientation matches" claim checked from pixels rather than asserted.
+The terrain comparison is still 26116 non-background pixels each side with 0 mismatches.
+`--replay-evidence` returns 0 and now lists six replayed checks, the terrain acceptance checks
+among them.
+
+## Minecraft's scene depth is not observable through a buffer copy (2026-10-06)
+
+This was measured because depth coexistence — Voxy's LoD drawing behind Minecraft's own terrain
+— needs Minecraft's scene depth, and two things had to be known first: whether that image can
+be read back at all, and which way its Z runs. Decompiling showed `VulkanCommandEncoder` derives
+the copy aspect from the format via `VulkanConst.formatAspectMask`, so depth *should* be
+copyable — which is not a measurement.
+
+`McNativeDepthProbe` (flag `voxy.native.depth`, read-only — it writes nothing to Minecraft's
+images) reads the depth attachment of `mainRenderTarget()` at the tail of `LevelRenderer.render`.
+
+Measured: the copy **completes**, and all **1,639,680 pixels of a 1708x960 D32_SFLOAT image are
+0.0**. That is also Voxy's `VkDepth.CLEAR` (reverse-Z far), so the first run — which had the
+terrain probe clearing depth — was suspect. An isolated run with the depth flag alone and
+nothing writing to Minecraft's images gave the same result, so it is not self-contamination.
+
+**A completed transfer is not an observation.** The conclusion is negative and bounded: this
+path does not observe Minecraft's scene depth. The Z convention is **unmeasured** — the probe
+reports `uniform: true`, `reversedZ: null`, and the gate refuses to let "readable" be claimed
+from a uniform image or a convention to be asserted from bands that do not separate. Why the
+image reads as uniform is **not established**: the depth view reachable at that hook may not be
+the one the scene was drawn into, or the copy may not transfer depth contents despite
+completing. Neither is claimed.
+
+What this changes about the next step: depth coexistence should be approached **behaviourally**
+rather than by readback — draws at known depths against a `LOAD`ed depth attachment, which is
+the technique `McNativeMarkerDraw` already demonstrates works on Minecraft's own depth image.
+That infers the convention from what survives the depth test instead of from a transfer.
+
 ## What is NOT answered yet, and must be measured on hardware
 
 1. **Image-state ownership** — partly answered. Opening the pass through Minecraft's

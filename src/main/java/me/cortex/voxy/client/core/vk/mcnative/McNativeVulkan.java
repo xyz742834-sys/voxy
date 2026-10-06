@@ -72,6 +72,27 @@ public final class McNativeVulkan {
      * device が持っている 1 つを返す (確認済 — 当該メソッドは {@code commandEncoder}
      * フィールドをそのまま返すだけ) ので、MC が今使っているものと同一である。
      */
+    /**
+     * <b>Minecraft が<i>いま</i>使っている {@code VkDevice} のハンドル</b>。
+     *
+     * <p>⚠ round-6 review R6-TERRAIN-DEVICE: 採用は一度しか起きないので、Minecraft が
+     * device A から B へ差し替わっても Voxy の {@link me.cortex.voxy.client.core.vk.VkContext}
+     * は A を持ったままである。「自分の context の device」と「MC のいまの device」を
+     * 比べないと、A の資源で B のコマンドバッファに記録する — 診断としては最悪の形になる。
+     * 比較の基準はこちら側ではなく<b>MC のいま</b>である。
+     *
+     * @return ハンドル、取れなければ 0
+     */
+    public static long vkDeviceHandle(VulkanDevice device, List<String> notes) {
+        if (device == null) return 0;
+        try {
+            return device.vkDevice().address();
+        } catch (Throwable t) {
+            notes.add("could not read Minecraft's current VkDevice handle: " + t);
+            return 0;
+        }
+    }
+
     public static VulkanCommandEncoder encoder(VulkanDevice device) {
         return device.createCommandEncoder();
     }
