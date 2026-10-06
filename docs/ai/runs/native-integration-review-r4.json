@@ -1,0 +1,150 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "132be67d94a8aa27a366061946169ba0b0984359",
+  "prompt_candidate": "132be67d8d6f66da8c73930f7f48c34609b5932e",
+  "candidate_binding": "Reviewed this checkout's actual HEAD as instructed; prompt full SHA differs. Retained runtime source fingerprints match this HEAD, although run revision names its dirty parent.",
+  "review_round": 4,
+  "report": "docs/ai/runs/native-integration-review.md",
+  "blocking_findings": [
+    {
+      "id": "B1",
+      "judgment": "REFUTED",
+      "claim": "Committed evidence sufficiently replays the authoritative native proof",
+      "finding": "Per-checkpoint supporting crop counts and final summary are repaired, but no authoritative raw colour-image samples, selected orientation or sample identity are retained. Direct environment/marker replay fails on missing checkpoint PNGs. Retention errors do not fail the stage; historical linked evidence directories are absent.",
+      "evidence": [
+        "scripts/verify.py:542-618",
+        "scripts/verify.py:775-789",
+        "docs/ai/runs/native-evidence/20261006T070311-099413Z/MANIFEST.json",
+        "native_environment_result(retained_directory): false, missing warmup.png",
+        "native_marker_result(retained_directory, checkpoints): false, missing warmup.png"
+      ],
+      "blocks_terrain_work_acceptance": true
+    },
+    {
+      "id": "B3",
+      "judgment": "REFUTED",
+      "claim": "Every required proof failure, identity and semantic field is fail-closed",
+      "finding": "Five logical-device identities now agree and missing/mismatching identities fail. Feature attempt/failure signals, adopted readback and enabled/attempted consistency, fixed compute sentinel, and missing shader firstMismatch remain unchecked. Contradictory proofs can still pass.",
+      "evidence": [
+        "scripts/verify.py:465-468",
+        "scripts/verify.py:475-477",
+        "scripts/verify.py:481-494",
+        "scripts/verify.py:505-535",
+        "ProofFileGateTest.run_gate mutations: feature attempted=false or FAILED notes, adopted readBack=0xdead, and compute empty sentinel strings all return success=true"
+      ],
+      "blocks_terrain_work_acceptance": true
+    },
+    {
+      "id": "B4",
+      "judgment": "REFUTED",
+      "claim": "Current marker/readback/depth evidence cannot false-pass or lose a problem",
+      "finding": "Single spanning-command omission is repaired. Exceptions still bypass immediate persistence and the problem counter, leaving a clean prior snapshot gateable; first-clean orientation can conceal a failed mirrored draw; the Python gate accepts incoherent density/area/firstProblem fields. Samples and harness metadata are not frame/checkpoint-bound, and LESS-pipeline depth writes are not distinguished by the colour proof.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:343-350",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:366-443",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:511-529",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:818-825",
+        "scripts/verify.py:273-307",
+        "src/harness/java/me/cortex/voxy/harness/LiveWorldHarness.java:256-274",
+        "Actual Java classifyReadback reflection with failing map: problemCount=0, closed=true, old_file_unchanged=true",
+        "Actual Java measure reflection: clean unflipped note=null while mirrored box contains 20736 rejected-colour pixels"
+      ],
+      "blocks_terrain_work_acceptance": true
+    },
+    {
+      "id": "R4-L1",
+      "judgment": "REFUTED",
+      "claim": "Every deliberate diagnostic leak is bounded and reported",
+      "finding": "Readback close failures are swallowed and callbacks have no outstanding-byte cap; requests continue every 240 draws. Marker retirement refusal or repeated device/format/world changes can abandon replacement objects repeatedly. There is no total leak bound or object/byte accounting.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:258-268",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:290-292",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:349",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:401",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:681-699",
+        "javap VulkanGpuBuffer$Direct.close: closed flag set before owning-device queueForDestroy"
+      ],
+      "blocks_terrain_work_acceptance": true
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R4-N1",
+      "finding": "Unused public VkFrameTracker.waitIdle ignores idle result and drains frees; direct VkContext.shutdown has no completion guard. Current native callers are guarded, but these APIs must not be adopted as terrain lifetime guarantees.",
+      "evidence": ["src/main/java/me/cortex/voxy/client/core/vk/VkFrameTracker.java:220-224", "src/main/java/me/cortex/voxy/client/core/vk/VkContext.java:103-106", "src/main/java/me/cortex/voxy/client/core/vk/VkContext.java:692-695"]
+    },
+    {
+      "id": "R4-N2",
+      "finding": "Equal-name physical GPUs remain ambiguous; logical-handle agreement lacks a run/device-generation token. Retained single-GPU execution does not establish general identity portability.",
+      "evidence": ["src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeVkContext.java:368-396", "scripts/verify.py:505-535"]
+    },
+    {
+      "id": "R4-N3",
+      "finding": "Some regression tests fail against old gates only on error wording. New compute/shader identity comparisons, spanning draw and callback failure persistence lack dedicated regression coverage.",
+      "evidence": ["scripts/tests/test_marker_gate.py:64-68", "scripts/tests/test_marker_gate.py:107-130", "scripts/tests/test_marker_gate.py:342-375", "src/test/java/me/cortex/voxy/vk/McNativeMarkerDrawTest.java:24-58"]
+    },
+    {
+      "id": "R4-N4",
+      "finding": "Survey historical exact runs and failed incidents are unretained; current-source descriptions of no push constants, shared reflection helpers, and complete feature/depth proof overstate the evidence. Full claim-by-claim judgments are in the report.",
+      "evidence": ["docs/ai/vulkan-native-integration-survey.md:160-203", "docs/ai/vulkan-native-integration-survey.md:288-311", "docs/ai/vulkan-native-integration-survey.md:409", "docs/ai/vulkan-native-integration-survey.md:475"]
+    },
+    {
+      "id": "R4-N5",
+      "finding": "Per-buffer readback remains up to 40 MiB and copies/maps the full image; a 4K sample is approximately 31.6 MiB. Measured-problem writes publish zero target dimensions and use non-atomic file replacement.",
+      "evidence": ["src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:323-341", "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:389-390", "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeVulkanProbe.java:359-367"]
+    }
+  ],
+  "safe_for_normal_play": {
+    "gl_backend_no_native_flags": true,
+    "minecraft_vulkan_backend_no_native_flags": true,
+    "native_diagnostics_enabled_accepted_for_players": false,
+    "basis": "Source-confirmed dormant native call graph plus permitted standalone tests; no fresh Minecraft/GL gameplay certification. Native Vulkan production LoD remains disabled."
+  },
+  "round1_findings_closed": {"B1": false, "B2": true, "B3": false, "B4": false, "B5": true},
+  "round3_findings_closed": {"B1": false, "B3": false, "B4": false, "B5": true},
+  "closure_scope": {
+    "B1": "Per-checkpoint supporting recount and finished summary repaired; authoritative sample replay and fail-closed retention remain open.",
+    "B3": "Five-way logical-device comparison repaired; complete proof semantics and required fields remain open.",
+    "B4": "Single spanning-command omission repaired; orientation, current failure retention and sample/depth proof remain open.",
+    "B5": "Actually invoked diagnostic destruction paths, including previous cross-device shutdown, closed; unused unsafe public APIs are explicitly excluded from future lifetime acceptance."
+  },
+  "diagnostic_layer_sound_enough_for_terrain": false,
+  "terrain_work_decision": "Remaining blocking findings prevent accepting this diagnostic layer as the verified foundation for real Voxy pipelines in Minecraft's pass. Experimental investigation is not terrain acceptance.",
+  "tests": {
+    "gradle": {
+      "command": "./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true",
+      "exit_code": 0,
+      "tests": 313,
+      "passed": 312,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "known_gap": "VkBarriersTest.missingBarrierIsDetected",
+      "independent_junit_result_success": true,
+      "unexpected_test_diagnostics": 0,
+      "scope": "Standalone Vulkan and CPU tests; no Minecraft/native terrain acceptance. Loader deprecated-validation-settings warning observed outside XML."
+    },
+    "python": {"command": "python3 -m unittest discover -s scripts/tests", "exit_code": 0, "tests": 56, "result": "OK"}
+  },
+  "retained_evidence_audit": {
+    "run": "20261006T070311-099413Z",
+    "manifest_payload_files": 33,
+    "per_frame_crops": 22,
+    "file_hash_mismatches": [],
+    "source_hash_mismatches": [],
+    "supporting_checkpoint_counts_reproduced": 11,
+    "summary_finalized": true,
+    "native_log_validation_diagnostics": 0,
+    "raw_readback_samples_retained": false,
+    "readback_samples_reported_in_json": 15,
+    "readback_messages_in_log": 17,
+    "last_marker_json_draw": 3600,
+    "final_checkpoint_marker_draw": 4012
+  },
+  "not_checked": [
+    "No Minecraft, native/live runner, GUI synchronization or hardware fault injection, as requested.",
+    "Authoritative raw-image/depth classification and sample/checkpoint binding: artifacts absent.",
+    "Historical failed/preference/orientation runs: cited artifacts absent.",
+    "Native terrain, Sodium-pass interplay, world pressure/updates and complete normal-play lifetime acceptance remain outside this diagnostic evidence."
+  ]
+}
