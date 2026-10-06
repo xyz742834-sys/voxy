@@ -7,6 +7,7 @@ checkpoints excused because their marker box was dark while the rest of the fram
 bright. Each of those is a test here, and each must now fail.
 """
 import contextlib
+import hashlib
 import io
 import json
 from pathlib import Path
@@ -18,6 +19,7 @@ import zlib
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import verify
+from pixel_oracle import top_rows_rgb
 from verify import (native_marker_result, native_proof_files_result,
                     retain_native_evidence, replay_evidence)
 
@@ -129,17 +131,54 @@ def frame(near_fill=NEAR, far_fill=FAR, control_fill=REJECTED, box_fill=None,
     return pixels
 
 
+def region_area(key):
+    """The pixel area a geometry region resolves to, the way the implementation computes it.
+
+    ⚠ Round-5 review B1: the gate now requires the report's boxArea/controlArea to agree with
+    the published geometry, because a shrunken crop was otherwise undetectable from the numbers
+    alone. The fixture used to carry invented areas, which is exactly what that check rejects.
+    """
+    ax, ay, bx, by = GEOMETRY[key]
+    x0 = int((min(ax, bx) + 1.0) * 0.5 * WIDTH)
+    x1 = int((max(ax, bx) + 1.0) * 0.5 * WIDTH)
+    y0 = int((1.0 - max(ay, by)) * 0.5 * HEIGHT)
+    y1 = int((1.0 - min(ay, by)) * 0.5 * HEIGHT)
+    return (x1 - x0) * (y1 - y0)
+
+
 def report(**overrides):
     base = {"enabled": True, "pipelineLive": True, "drawsRecorded": 3000, "notes": [],
             "targetWidth": WIDTH, "targetHeight": HEIGHT,
             "readback": {"attempted": True, "completed": True, "near": 9690, "far": 6365,
-                         "rejectedInBox": 0, "control": 3230, "boxArea": 16055,
-                         "controlArea": 3230, "note": None, "timesClean": 7, "timesWithAProblem": 0,
-                         "firstProblem": None, "autoAgree": True},
+                         "rejectedInBox": 0, "control": 3230,
+                         "boxArea": region_area("box"),
+                         "controlArea": region_area("depthTestedPassCell"),
+                         "note": None, "timesClean": 7, "timesWithAProblem": 0,
+                         "firstProblem": None, "sampleAtDraw": 2900,
+                         "closeFailures": 0, "leakedPipelines": 0, "leakBudget": 3,
+                         "failureBudget": 3, "autoAgree": True},
             "markerRgb": list(NEAR), "farRgb": list(FAR), "rejectedRgb": list(REJECTED),
             "depthAttached": True, "depthVkFormat": 126, "geometry": GEOMETRY,
             "device": "0xabc"}
+    patch = overrides.pop("readback", None)
     base.update(overrides)
+    if patch is not None:
+        # ⚠ A readback override MERGES onto the fixture rather than replacing it, so a test
+        # about one field does not silently drop every other required field — and so adding a
+        # required field does not quietly weaken seven unrelated tests. Pass
+        # readback_exact=... when a test is specifically about a field being absent.
+        merged = dict(base["readback"])
+        merged.update(patch)
+        # ⚠ Round-5 review R5-TEST: `autoAgree` rewrites the aggregates from the sample, which
+        # silently erased the very counts a test had set — the test then passed for the wrong
+        # reason, or passed outright. A test that states a count means it.
+        if {"near", "far", "control", "rejectedInBox"} & set(patch):
+            merged.pop("autoAgree", None)
+            merged["autoCounts"] = False
+        base["readback"] = merged
+    exact = base.pop("readback_exact", None)
+    if exact is not None:
+        base["readback"] = exact
     return base
 
 
@@ -158,6 +197,7 @@ class MarkerGateTest(unittest.TestCase):
                 rb.setdefault("sampleFile", "sample.ppm")
                 rb["sampleRect"] = union_rect()
                 rb["flipped"] = False
+                rb.pop("autoCounts", None)
                 if rb.pop("autoAgree", False):   # the default fixture: make it agree
                     rb.update(near=counts["near"], far=counts["far"], control=counts["cell"],
                               rejectedInBox=counts["rejectedInBox"])
@@ -230,11 +270,23 @@ class MarkerGateTest(unittest.TestCase):
         self.assertIn("at most three", " ".join(result["failures"]))
 
     def test_the_readback_is_what_carries_the_proof_not_the_screenshots(self):
-        """With every captured frame empty, the gate must fail however good the readback is —
-        the screenshots are a sanity check on the scenario, not decoration."""
+        """With every captured frame empty, the gate must fail however good the readback is.
+
+        ⚠ Round-5 review R5-TEST: this used to build the raw sample from the SAME empty frames,
+        so `autoAgree` zeroed the counts and the gate failed with "too few near/far pixels" —
+        before any screenshot was examined. It passed a broken screenshot gate. The sample now
+        comes from a good frame while every captured frame is empty, which is the situation the
+        name describes: an unimpeachable readback and nothing visible in any frame.
+        """
         frames = {s: [[(2, 2, 2)] * WIDTH for _ in range(HEIGHT)] for s in STAGES}
-        result = self.run_gate(frames, report())
+        frames["good"] = frame()
+        result = self.run_gate(frames, report(), sample_from_stage="good")
         self.assertFalse(result["success"])
+        joined = " ".join(result["failures"])
+        self.assertNotIn("too few near/far", joined,
+                         "the readback must be accepted, so the failure has to come from the"
+                         " screenshots: " + joined)
+        self.assertIn("carried no marker", joined)
 
     def test_a_gui_covered_frame_is_excused_with_the_implementations_reason(self):
         """Voxy records before Minecraft's GUI, so a loading overlay hides the marker. The
@@ -293,8 +345,8 @@ class MarkerGateTest(unittest.TestCase):
 
     def test_the_readback_finding_the_rejected_colour_is_rejected(self):
         bad = report(readback={"attempted": True, "completed": True, "near": 9690, "far": 6365,
-                               "rejectedInBox": 7, "control": 3230, "boxArea": 16055,
-                               "controlArea": 3230,
+                               "rejectedInBox": 7, "control": 3230, "boxArea": region_area("box"),
+                               "controlArea": region_area("depthTestedPassCell"),
                                "note": "the rejected colour overlaps the rows the depth-tested"
                                        " box occupies, so depth is not working", "timesClean": 7, "timesWithAProblem": 0,
                                "firstProblem": None})
@@ -304,8 +356,8 @@ class MarkerGateTest(unittest.TestCase):
 
     def test_a_readback_note_of_any_kind_is_rejected(self):
         bad = report(readback={"attempted": True, "completed": True, "near": 9690, "far": 6365,
-                               "rejectedInBox": 0, "control": 3230, "boxArea": 16055,
-                               "controlArea": 3230,
+                               "rejectedInBox": 0, "control": 3230, "boxArea": region_area("box"),
+                               "controlArea": region_area("depthTestedPassCell"),
                                "note": "the near and far quads are not side by side", "timesClean": 7, "timesWithAProblem": 0,
                                "firstProblem": None})
         result = self.run_gate({s: frame() for s in STAGES}, bad)
@@ -314,18 +366,13 @@ class MarkerGateTest(unittest.TestCase):
 
     def test_the_readback_without_a_control_strip_is_rejected(self):
         bad = report(readback={"attempted": True, "completed": True, "near": 9690, "far": 6365,
-                               "rejectedInBox": 0, "control": 0, "boxArea": 16055,
-                               "controlArea": 0, "note": None, "timesClean": 7, "timesWithAProblem": 0,
-                               "firstProblem": None})
+                               "rejectedInBox": 0, "control": 0})
         result = self.run_gate({s: frame() for s in STAGES}, bad)
         self.assertFalse(result["success"])
         self.assertIn("unproven", " ".join(result["failures"]))
 
     def test_the_readback_missing_one_half_of_the_box_is_rejected(self):
-        bad = report(readback={"attempted": True, "completed": True, "near": 16000, "far": 0,
-                               "rejectedInBox": 0, "control": 3230, "boxArea": 16000,
-                               "controlArea": 3230, "note": None, "timesClean": 7, "timesWithAProblem": 0,
-                               "firstProblem": None})
+        bad = report(readback={"near": 16000, "far": 0})
         result = self.run_gate({s: frame() for s in STAGES}, bad)
         self.assertFalse(result["success"])
         self.assertIn("too few near/far", " ".join(result["failures"]))
@@ -333,8 +380,8 @@ class MarkerGateTest(unittest.TestCase):
     def test_a_single_readback_is_not_enough(self):
         """Round-2 review B4: one readback says nothing about the rest of the lifecycle."""
         bad = report(readback={"attempted": True, "completed": True, "near": 9690, "far": 6365,
-                               "rejectedInBox": 0, "control": 3230, "boxArea": 16055,
-                               "controlArea": 3230, "note": None, "timesClean": 1, "timesWithAProblem": 0,
+                               "rejectedInBox": 0, "control": 3230, "boxArea": region_area("box"),
+                               "controlArea": region_area("depthTestedPassCell"), "note": None, "timesClean": 1, "timesWithAProblem": 0,
                                "firstProblem": None})
         result = self.run_gate({s: frame() for s in STAGES}, bad)
         self.assertFalse(result["success"])
@@ -342,8 +389,8 @@ class MarkerGateTest(unittest.TestCase):
 
     def test_any_readback_problem_during_the_run_is_rejected(self):
         bad = report(readback={"attempted": True, "completed": True, "near": 9690, "far": 6365,
-                               "rejectedInBox": 0, "control": 3230, "boxArea": 16055,
-                               "controlArea": 3230, "note": None, "timesClean": 6, "timesWithAProblem": 1,
+                               "rejectedInBox": 0, "control": 3230, "boxArea": region_area("box"),
+                               "controlArea": region_area("depthTestedPassCell"), "note": None, "timesClean": 6, "timesWithAProblem": 1,
                                "firstProblem": "the near quad fills 0 of 9792 pixels"})
         result = self.run_gate({s: frame() for s in STAGES}, bad)
         self.assertFalse(result["success"])
@@ -379,7 +426,10 @@ class ProofFileGateTest(unittest.TestCase):
         "native-device-features.json": {"enabled": True, "attempted": True,
             "added": ["drawIndirectFirstInstance", "shaderInt64",
                       "fragmentStoresAndAtomics", "vertexPipelineStoresAndAtomics"],
-            "notes": ["shaderInt64: offset 160 verified by read-back"]},
+            "notes": ["drawIndirectFirstInstance: offset 44 verified by read-back",
+                      "shaderInt64: offset 160 verified by read-back",
+                      "fragmentStoresAndAtomics: offset 128 verified by read-back",
+                      "vertexPipelineStoresAndAtomics: offset 124 verified by read-back"]},
         "native-compute-probe.json": {"attempted": True, "succeeded": True,
             "expected": "0x123456789abcdef", "readBack": "0x123456789abcdef",
             "queueFamily": 3, "device": "0x79b569e018", "notes": []},
@@ -469,7 +519,66 @@ class ProofFileGateTest(unittest.TestCase):
         result = self.run_gate({"native-device-features.json":
                                 {"notes": ["could not find multiDrawIndirect; adding nothing"]}})
         self.assertFalse(result["success"])
-        self.assertIn("reported a problem", " ".join(result["failures"]))
+        self.assertIn("not a read-back verification", " ".join(result["failures"]))
+
+    def test_vacuous_feature_verification_fails(self):
+        """Round-5 B3: an empty notes list passed, and so did a note NEGATING verification."""
+        self.assertFalse(self.run_gate({"native-device-features.json": {"notes": []}})["success"])
+        negation = self.run_gate({"native-device-features.json":
+            {"notes": ["FAILED: not verified by read-back"]}})
+        self.assertFalse(negation["success"])
+        self.assertIn("not a read-back verification", " ".join(negation["failures"]))
+        partial = self.run_gate({"native-device-features.json":
+            {"notes": ["shaderInt64: offset 160 verified by read-back"]}})
+        self.assertFalse(partial["success"], "one note cannot stand for four features")
+        self.assertIn("are not the ones requested", " ".join(partial["failures"]))
+
+    def test_an_unattempted_adoption_fails(self):
+        """Round-5 B3: `attempted` was never read, so a proof that never ran still passed."""
+        result = self.run_gate({"native-adopted-context.json": {"attempted": False}})
+        self.assertFalse(result["success"])
+        self.assertIn("never attempted", " ".join(result["failures"]))
+
+    def test_jointly_empty_sentinel_values_fail(self):
+        """Round-5 B3: expected=="" and readBack=="" compared equal and passed."""
+        result = self.run_gate({"native-compute-probe.json": {"expected": "", "readBack": ""},
+                                "native-adopted-context.json": {"readBack": ""}})
+        self.assertFalse(result["success"])
+        self.assertIn("sentinel", " ".join(result["failures"]))
+
+    def test_a_null_device_handle_fails(self):
+        """Round-5 B3: all-zero handles agreed with each other and passed this helper."""
+        zeroed = {name: {"device": "0x0"} for name in (
+            "native-compute-probe.json", "native-adopted-context.json",
+            "native-real-shader.json", "native-marker-draw.json")}
+        zeroed["native-vulkan-probe.json"] = {"vkDevice": "0x0"}
+        result = self.run_gate(zeroed, checkpoints=[
+            {"stage": s, "renderer": {"vkDevice": 0}} for s in STAGES])
+        self.assertFalse(result["success"])
+        self.assertIn("null device handle", " ".join(result["failures"]))
+
+    def test_a_missing_first_mismatch_key_fails(self):
+        """Round-5 B3: firstMismatch was read with .get(), so deleting it escaped the check."""
+        files = {k: dict(v) for k, v in self.FILES.items()}
+        del files["native-real-shader.json"]["firstMismatch"]
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            for name, body in files.items():
+                (out / name).write_text(json.dumps(body))
+            result = native_proof_files_result(out, self.CHECKPOINTS)
+        self.assertFalse(result["success"])
+        self.assertIn("firstMismatch", " ".join(result["failures"]))
+
+    def test_marker_and_probe_failure_flags_are_checked_here_too(self):
+        """Round-5 B3: this helper loaded them for handles only, and replay calls it alone."""
+        for patch, expect in (({"native-marker-draw.json": {"enabled": False}}, "not enabled"),
+                              ({"native-marker-draw.json": {"pipelineLive": False}}, "live"),
+                              ({"native-marker-draw.json": {"notes": ["x"]}}, "reported notes"),
+                              ({"native-vulkan-probe.json": {"mcUsesVulkan": False}}, "Vulkan backend"),
+                              ({"native-vulkan-probe.json": {"notes": ["x"]}}, "reported notes")):
+            result = self.run_gate(patch)
+            self.assertFalse(result["success"], patch)
+            self.assertIn(expect, " ".join(result["failures"]))
 
     def test_an_adopted_proof_reading_back_the_wrong_value_fails(self):
         result = self.run_gate({"native-adopted-context.json": {"readBack": "0xdeadbeef"}})
@@ -521,10 +630,13 @@ class EvidenceRetentionTest(unittest.TestCase):
 
     def populate(self, native_output, with_sample=True):
         pixels = frame()
-        rb = {"attempted": True, "completed": True, "rejectedInBox": 0, "boxArea": 16055,
-              "controlArea": 3230, "note": None, "timesClean": 7, "timesWithAProblem": 0,
+        rb = {"attempted": True, "completed": True, "rejectedInBox": 0,
+              "boxArea": region_area("box"),
+              "controlArea": region_area("depthTestedPassCell"), "note": None,
+              "timesClean": 7, "timesWithAProblem": 0,
               "firstProblem": None, "flipped": False, "sampleAtDraw": 2900,
-              "sampleRect": union_rect(), "closeFailures": 0, "failureBudget": 3}
+              "sampleRect": union_rect(), "closeFailures": 0, "failureBudget": 3,
+              "leakedPipelines": 0, "leakBudget": 3}
         sample = sample_from(pixels)
         counts = counts_in(sample)
         rb.update(near=counts["near"], far=counts["far"], control=counts["cell"],
@@ -566,12 +678,26 @@ class EvidenceRetentionTest(unittest.TestCase):
         self.assertIn("native-marker-sample-2900.ppm", kept["files"])
 
     def test_every_crop_states_its_origin_rather_than_implying_it(self):
-        _, kept = self.retain()
+        """⚠ Round-5 review R5-TEST: this checked the parent size and that the origin had two
+        entries, so a hardcoded [0, 0] would have passed. Decode each crop and require the
+        pixels at the stated origin to be the pixels of the parent frame there."""
+        root, kept = self.retain()
+        target = root / "docs" / "ai" / "runs" / "native-evidence" / "run"
+        parent = frame()
         self.assertTrue(kept["crops"])
+        checked = 0
         for name in kept["crops"]:
             origin = kept["crop_origins"][name]
             self.assertEqual(origin["parent"], [WIDTH, HEIGHT])
-            self.assertEqual(len(origin["origin"]), 2)
+            x0, y0 = origin["origin"]
+            w, h = origin["size"]
+            rows, decoded = top_rows_rgb(target / name, h)
+            self.assertEqual(decoded, (w, h), name)
+            for y in range(h):
+                self.assertEqual(rows[y][:w], parent[y0 + y][x0:x0 + w],
+                                 f"{name} row {y} does not match the parent at {(x0, y0)}")
+            checked += 1
+        self.assertGreater(checked, 0)
 
     def test_a_run_that_retains_no_raw_sample_reports_an_error(self):
         _, kept = self.retain(with_sample=False)
@@ -585,11 +711,79 @@ class EvidenceRetentionTest(unittest.TestCase):
         return code, json.loads(quiet.getvalue())
 
     def test_the_retained_directory_replays_on_its_own(self):
+        """⚠ Round-5 review R5-TEST: this passed with `recount_marker_sample` stubbed to return
+        {} — it asserted on a printed label and a checkpoint count, never on a pixel. Require
+        the recount's actual numbers, and require them to agree with the sample on disk."""
         root, _ = self.retain()
-        code, out = self.replay(root / "docs" / "ai" / "runs" / "native-evidence" / "run")
+        target = root / "docs" / "ai" / "runs" / "native-evidence" / "run"
+        code, out = self.replay(target)
         self.assertEqual(code, 0, out)
-        self.assertIn("authoritative raw colour-image recount", out["replayed"])
+        self.assertIn("marker report acceptance checks", out["replayed"])
         self.assertEqual(out["checkpoints"], len(STAGES))
+        counts = counts_in(sample_from(frame()))
+        recount = out["recount"]
+        self.assertEqual(recount["near"], counts["near"])
+        self.assertEqual(recount["far"], counts["far"])
+        self.assertEqual(recount["cell"], counts["cell"])
+        self.assertEqual(recount["rejectedInBox"], 0)
+        self.assertEqual(recount["nearArea"], recount["near"])
+
+    def test_replay_rejects_a_report_that_records_its_own_failure(self):
+        """⚠ Round-5 review B1: these exact mutations all replayed as 0."""
+        for patch in ({"readback": {"attempted": False, "completed": False}},
+                      {"readback": {"timesClean": 0, "timesWithAProblem": 3,
+                                    "note": "FAILED", "firstProblem": "FAILED"}},
+                      {"readback": {"closeFailures": 99}},
+                      {"readback": {"leakedPipelines": 2}},
+                      {"enabled": False}, {"pipelineLive": False},
+                      {"drawsRecorded": 0}, {"depthAttached": False},
+                      {"notes": ["FAILED"]}):
+            root, _ = self.retain()
+            target = root / "docs" / "ai" / "runs" / "native-evidence" / "run"
+            path = target / "native-marker-draw.json"
+            body = json.loads(path.read_text())
+            for key, value in patch.items():
+                if key == "readback":
+                    body["readback"].update(value)
+                else:
+                    body[key] = value
+            path.write_text(json.dumps(body))
+            # Re-hash so this is a semantic challenge, not a tampering-detection one.
+            manifest = json.loads((target / "MANIFEST.json").read_text())
+            manifest["files"]["native-marker-draw.json"] = hashlib.sha256(
+                path.read_bytes()).hexdigest()
+            (target / "MANIFEST.json").write_text(json.dumps(manifest))
+            code, out = self.replay(target)
+            self.assertEqual(code, 1, f"{patch} replayed as success: {out}")
+
+    def test_replay_without_a_manifest_fails(self):
+        """⚠ Round-5 review B1: removing MANIFEST.json altogether replayed as 0."""
+        root, _ = self.retain()
+        target = root / "docs" / "ai" / "runs" / "native-evidence" / "run"
+        (target / "MANIFEST.json").unlink()
+        code, out = self.replay(target)
+        self.assertEqual(code, 1)
+        self.assertIn("MANIFEST", out["error"])
+
+    def test_losing_the_referenced_sample_fails_retention(self):
+        """⚠ Round-5 review B1: duplicating a sample and deleting the referenced one left
+        retention reporting no error, so the stage stayed green and replay then failed."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        native_output = root / "native"
+        native_output.mkdir()
+        self.populate(native_output)
+        (root / "native.log").write_text("log\n")
+        decoy = native_output / "native-marker-sample-1.ppm"
+        decoy.write_bytes((native_output / "native-marker-sample-2900.ppm").read_bytes())
+        (native_output / "native-marker-sample-2900.ppm").unlink()
+        original = verify.ROOT
+        verify.ROOT = root
+        self.addCleanup(lambda: setattr(verify, "ROOT", original))
+        kept = retain_native_evidence(root, native_output, "run", {"revision": "abc"})
+        self.assertIn("error", kept)
+        self.assertIn("native-marker-sample-2900.ppm", kept["error"])
 
     def test_replay_fails_when_a_retained_file_was_altered(self):
         root, _ = self.retain()

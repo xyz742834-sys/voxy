@@ -133,10 +133,10 @@ public final class McNativeMarkerDraw implements Destroyable {
     public static final int REJECTED_R = 255, REJECTED_G = 255, REJECTED_B = 0;
 
     // 画像の左上隅、幅/高さの 1%..11% の矩形 (最終画像での向き)。
-    private static final float BOX_X0 = -0.98f, BOX_X1 = -0.78f;
-    private static final float BOX_Y0 = 0.98f,  BOX_Y1 = 0.78f;
+    static final float BOX_X0 = -0.98f, BOX_X1 = -0.78f;
+    static final float BOX_Y0 = 0.98f,  BOX_Y1 = 0.78f;
     /** 近い矩形は箱の左 60% を覆う。残りは奥の色が残る。 */
-    private static final float NEAR_X1 = BOX_X0 + (BOX_X1 - BOX_X0) * 0.6f;
+    static final float NEAR_X1 = BOX_X0 + (BOX_X1 - BOX_X0) * 0.6f;
 
     private static final float DEPTH_FAR = 0.6f, DEPTH_NEAR = 0.3f, DEPTH_REJECTED = 0.9f;
 
@@ -160,7 +160,7 @@ public final class McNativeMarkerDraw implements Destroyable {
      * 示せない — 描かなければ同じ絵になる。対照帯に色が出ていれば「描いた・描ける」が立ち、
      * そのうえで箱に無いことが初めて「深度に落とされた」証拠になる。
      */
-    private static final float CONTROL_Y0 = 0.76f, CONTROL_Y1 = 0.72f;
+    static final float CONTROL_Y0 = 0.76f, CONTROL_Y1 = 0.72f;
 
     /**
      * <b>深度テスト済みの棄却色が「通る」セル</b>。箱の下、対照帯の下に置く。
@@ -171,7 +171,7 @@ public final class McNativeMarkerDraw implements Destroyable {
      * 箱には<b>奥</b>の深度 (必ず落ちる) を書く。結果が二つに分かれることが、
      * 「draw は出ていて、箱では深度に落ちた」の証明になる。
      */
-    private static final float CELL_Y0 = 0.70f, CELL_Y1 = 0.66f;
+    static final float CELL_Y0 = 0.70f, CELL_Y1 = 0.66f;
 
     private static McNativeMarkerDraw instance;
     private static long drawsRecorded;
@@ -206,6 +206,31 @@ public final class McNativeMarkerDraw implements Destroyable {
      * 対象の寸法ではないので、捏造された 0 ではなく<b>最後に実際に見た値</b>を出す。
      */
     private static int lastWidth, lastHeight;
+    /**
+     * 最後に見た device と色フォーマット。
+     *
+     * <p>⚠ round-5 review B4: 失敗の即時保存が {@code instance != null} を条件にしていたので、
+     * <b>shutdown 後に届いたコールバックは何も書かなかった</b> (実測:
+     * {@code mapFailure live=false ... oldFileUnchanged=true} — ディスクには前回の清浄な
+     * 証跡が残った)。instance に依らず書けるように覚えておく。
+     */
+    private static VulkanDevice lastDevice;
+    private static int lastColourFormat;
+    /**
+     * 直近の標本書き込みが失敗したか。
+     *
+     * <p>⚠ round-5 review B4: 書き込みに失敗しても<b>元の成功した Readback をそのまま返して</b>
+     * いたので、清浄カウンタが進み、失敗は公開されなかった。
+     */
+    private static boolean sampleWriteFailed;
+    /**
+     * 壊さずに漏らしたパイプラインの数と、その予算。
+     *
+     * <p>⚠ round-5 review R4-L1: 退役を預けられなかったときの意図的な漏れを
+     * <b>数えていなかった</b>ので、フォーマット変更を繰り返すと静かに積み上がり得た。
+     */
+    private static int leakedPipelines;
+    private static final int LEAK_BUDGET = 3;
     private static final List<String> NOTES = new ArrayList<>();
     private static boolean complained;
 
@@ -312,13 +337,17 @@ public final class McNativeMarkerDraw implements Destroyable {
         // パスを閉じた後に読み戻す。MC の API を使うのでレイアウトは MC の持ち物のまま。
         // ⚠ round-2 review B4: 1 回だけだと以後のライフサイクル全体に対して陳腐化する。
         // 定期的に取り直し、成功回数と最後の結果を証跡に残す。
+        // ⚠ round-5 review B4: これを要求の<b>後</b>で代入していたので、はじき返された
+        // 要求は前のフレームの寸法を (初回は 0 を) 証跡に書いた。先に覚える。
+        lastWidth = width;
+        lastHeight = height;
+        lastDevice = device;
+        lastColourFormat = format;
         if (drawsRecorded >= nextReadbackAt && !readbackInFlight
                 && readbackProblems < READBACK_FAILURE_BUDGET) {
             nextReadbackAt = drawsRecorded + READBACK_INTERVAL;
             requestReadback(colour, width, height);
         }
-        lastWidth = width;
-        lastHeight = height;
         writeEvidenceIfDue(device, format, width, height);
     }
 
@@ -365,8 +394,11 @@ public final class McNativeMarkerDraw implements Destroyable {
                 GpuBuffer.USAGE_MAP_READ | GpuBuffer.USAGE_COPY_DST, bytes);
             final GpuBuffer target = buffer;
             readbackInFlight = true;
+            // ⚠ round-5 review B4: 取得の身元を<b>登録時に</b>束ねる。コールバックの中で
+            // グローバルの draw 本数を読むと、要求と報告が食い違う。
+            final long at = drawsRecorded;
             device.createCommandEncoder().copyTextureToBuffer(colour.texture(), target, 0,
-                () -> classifyReadback(target, width, height), 0);
+                () -> classifyReadback(target, width, height, at), 0);
             buffer = null;   // 以後の解放は callback 側の責務
         } catch (Throwable t) {
             failReadback("readback request failed: " + t);
@@ -374,7 +406,13 @@ public final class McNativeMarkerDraw implements Destroyable {
         } finally {
             // ⚠ round-2 review R2-N1: コピーの登録前に投げた場合、バッファが迷子になっていた。
             if (buffer != null) {
-                try { buffer.close(); } catch (Throwable ignored) { }
+                try {
+                    buffer.close();
+                } catch (Throwable t) {
+                    // ⚠ round-5 review R4-L1: ここは<b>どこにも数えていなかった</b>。
+                    readbackCloseFailures++;
+                    note("could not close the unregistered readback buffer: " + t);
+                }
             }
         }
     }
@@ -391,21 +429,32 @@ public final class McNativeMarkerDraw implements Destroyable {
         int area() { return Math.max(0, x1 - x0) * Math.max(0, y1 - y0); }
     }
 
-    private static void classifyReadback(GpuBuffer buffer, int width, int height) {
+    private static void classifyReadback(GpuBuffer buffer, int width, int height, long at) {
         try (var view = new GpuBufferSlice(buffer, 0, buffer.size()).map(true, false)) {
             var data = view.data();
-            // 期待する矩形を「最終画像の向き」と「その上下反転」の両方で作り、
-            // 密度が条件を満たす向きを採用する。
-            Readback best = null;
-            for (boolean flipped : new boolean[] {false, true}) {
-                var result = measure(data, width, height, flipped);
-                if (result.note() == null) { best = result; break; }
-                if (best == null) best = result;
-            }
+            // 期待する矩形を「最終画像の向き」と「その上下反転」の両方で作る。
+            //
+            // ⚠ round-5 review B4: 以前は「条件を満たした<b>最初の</b>向き」を採っていた。
+            // レビュアは「上に正しい模様、下に箱いっぱいの黄色」の画像を実際に食わせ、
+            // 分類器が上を選んで問題なしと報告することを示した
+            // ({@code badActualBottomGoodMirror chosenFlip=false note=null})。
+            // 密度は疎な汚れを落とせるが、<b>濃い模様が 2 つあるときどちらが自分の draw か</b>
+            // は言えない。だから「ちょうど 1 つの向きだけが条件を満たす」ことを要求する。
+            // 両方が満たしたら、それは<b>曖昧</b>であって成功ではない。
+            Readback best = select(data, width, height, at);
             // ⚠ round-4 review B1: 集計だけ残しても、ゲートが自分で出した数値を
             // 自分で検算することになる (循環)。採用した向きの<b>生ピクセル</b>を
             // PPM で残し、Python 側が独立に数え直せるようにする。
+            // ⚠ round-5 review B4: 棄却した向きも残す。そうしないと、ゲートは
+            // 「選ばれなかった方がどうだったか」を見られない。
+            sampleWriteFailed = false;
             best = withSample(best, data, width, height);
+            if (best.note() == null && sampleWriteFailed) {
+                best = new Readback(true, true, best.near(), best.far(), best.rejectedInBox(),
+                    best.control(), best.boxArea(), best.controlArea(),
+                    "the readback agreed but its raw sample could not be retained, so nothing"
+                        + " can check it", best.flipped(), at, null, best.sampleRect());
+            }
             readback = best;
             if (best.note() == null) {
                 readbackOk++;
@@ -416,11 +465,7 @@ public final class McNativeMarkerDraw implements Destroyable {
                 // 間で起きた問題が次の清浄な読み戻しに上書きされて消え得た。
                 // 問題を見つけた瞬間に書く。
                 evidenceWrittenAt = -1;
-                var draw = instance;
-                if (draw != null) {
-                    McNativeVulkanProbe.writeFile("native-marker-draw.json",
-                        evidenceJson(draw.device, draw.colourFormat, lastWidth, lastHeight));
-                }
+                publishFailure();
             }
             Logger.info("[native-vk] read Minecraft's colour image back: near=" + best.near()
                 + " far=" + best.far() + " rejectedInBox=" + best.rejectedInBox()
@@ -437,7 +482,15 @@ public final class McNativeMarkerDraw implements Destroyable {
                 // ⚠ round-4 review R4-L1: ここを黙って捨てていた。閉じられない回数は
                 // 証跡に出す (放置すれば毎回 1 枚ぶんのメモリが残り続ける)。
                 readbackCloseFailures++;
+                // ⚠ round-5 review R4-L1: これを独立カウンタに入れるだけで<b>放棄の判断には
+                // 使っていなかった</b>ので、閉じられないまま毎間隔 1 枚ぶん積み上がり得た。
+                // 問題として数え、予算に参加させ、いますぐ公開する。
+                readbackProblems++;
+                if (firstReadbackProblem == null) {
+                    firstReadbackProblem = "could not close the readback buffer: " + t;
+                }
                 note("could not close the readback buffer: " + t);
+                publishFailure();
             }
         }
     }
@@ -449,7 +502,47 @@ public final class McNativeMarkerDraw implements Destroyable {
      * 遠は残りを 8 割以上、棄却色は「通るセル」を 8 割以上埋め、
      * <b>箱の中には 1 画素も無い</b>こと。離れた斑点ではこれを満たせない。
      */
-    private static Readback measure(java.nio.ByteBuffer data, int width, int height, boolean flipped) {
+    /**
+     * 両方の向きを測り、<b>ちょうど 1 つだけ</b>が条件を満たすことを要求する。
+     *
+     * <p>Minecraft を起動せずに JUnit から同じ判定を回せるように分けてある
+     * ({@code McNativeMarkerDrawTest})。この継ぎ目が無いと、向きの選択が正しいかを
+     * 実機 1 周ごとにしか確かめられない。
+     */
+    static Readback select(java.nio.ByteBuffer data, int width, int height, long at) {
+        Readback unflipped = measure(data, width, height, false, at);
+        Readback flipped = measure(data, width, height, true, at);
+        // ⚠ round-5 review B4 の反例は「一方の向きに正しい模様、もう一方の向きの箱に
+        // 棄却色」だった。「条件を満たす向きがちょうど 1 つ」では足りない —
+        // 正しい向きがどちらかを<b>こちらは知らない</b>のだから、
+        // <b>どちらの向きの箱にも棄却色が無い</b>ことを要求するしかない。
+        // これは向きに依らない性質であり、深度が効いていないことを取り逃がさない。
+        Readback withRejected = unflipped.rejectedInBox() > 0 ? unflipped
+            : (flipped.rejectedInBox() > 0 ? flipped : null);
+        if (withRejected != null) {
+            return new Readback(true, true, withRejected.near(), withRejected.far(),
+                withRejected.rejectedInBox(), withRejected.control(), withRejected.boxArea(),
+                withRejected.controlArea(),
+                withRejected.rejectedInBox() + " rejected-colour pixels are inside the"
+                    + " depth-tested box in the " + (withRejected.flipped() ? "flipped" : "upright")
+                    + " orientation; depth is not working in whichever of the two is the real one",
+                withRejected.flipped(), at, null, withRejected.sampleRect());
+        }
+        if (unflipped.note() == null && flipped.note() == null) {
+            return new Readback(true, true, unflipped.near(), unflipped.far(),
+                unflipped.rejectedInBox(), unflipped.control(), unflipped.boxArea(),
+                unflipped.controlArea(),
+                "both orientations satisfy the expected pattern, so the image does not say"
+                    + " which one this draw produced", unflipped.flipped(), at, null,
+                unflipped.sampleRect());
+        }
+        if (unflipped.note() == null) return unflipped;
+        if (flipped.note() == null) return flipped;
+        return unflipped;   // どちらも不合格。採用した向きの note を報告する
+    }
+
+    private static Readback measure(java.nio.ByteBuffer data, int width, int height,
+                                    boolean flipped, long at) {
         Rect box = rect(BOX_X0, BOX_Y0, BOX_X1, BOX_Y1, width, height, flipped);
         Rect nearRect = rect(BOX_X0, BOX_Y0, NEAR_X1, BOX_Y1, width, height, flipped);
         Rect farRect = rect(NEAR_X1, BOX_Y0, BOX_X1, BOX_Y1, width, height, flipped);
@@ -486,7 +579,7 @@ public final class McNativeMarkerDraw implements Destroyable {
                 + " so depth is not working";
         }
         return new Readback(true, true, near, far, rejectedInBox, cellHits,
-            box.area(), cell.area(), note, flipped, drawsRecorded, null,
+            box.area(), cell.area(), note, flipped, at, null,
             new int[] {sample.x0(), sample.y0(), sample.x1(), sample.y1()});
     }
 
@@ -507,11 +600,23 @@ public final class McNativeMarkerDraw implements Destroyable {
         readbackProblems++;
         if (firstReadbackProblem == null) firstReadbackProblem = why;
         note(why);
+        publishFailure();
+    }
+
+    /**
+     * 失敗を<b>いますぐ</b>ディスクに出す。
+     *
+     * <p>⚠ round-5 review B4: これを {@code instance != null} で条件付けていたので、
+     * shutdown 後に届いたコールバックは何も書かず、ディスクには前回の清浄な証跡が
+     * 残ったままになった。instance ではなく、最後に見た device/フォーマットを使う。
+     */
+    private static void publishFailure() {
+        evidenceWrittenAt = -1;
         var draw = instance;
-        if (draw != null) {
-            McNativeVulkanProbe.writeFile("native-marker-draw.json",
-                evidenceJson(draw.device, draw.colourFormat, lastWidth, lastHeight));
-        }
+        VulkanDevice device = draw != null ? draw.device : lastDevice;
+        int format = draw != null ? draw.colourFormat : lastColourFormat;
+        McNativeVulkanProbe.writeFile("native-marker-draw.json",
+            evidenceJson(device, format, lastWidth, lastHeight));
     }
 
     private static Readback withSample(Readback r, java.nio.ByteBuffer data, int width, int height) {
@@ -546,6 +651,7 @@ public final class McNativeMarkerDraw implements Destroyable {
                 r.control(), r.boxArea(), r.controlArea(), r.note(), r.flipped(),
                 r.sampleAtDraw(), name, q);
         } catch (Throwable t) {
+            sampleWriteFailed = true;
             note("could not retain the raw colour sample: " + t);
             return r;
         }
@@ -653,6 +759,13 @@ public final class McNativeMarkerDraw implements Destroyable {
     }
 
     private static McNativeMarkerDraw create(VulkanDevice device, int colourFormat, int depthFormat) {
+        // ⚠ round-5 review R4-L1: 退役を預けられなかったぶんを漏らし続けられると、
+        // フォーマット/デバイスの変更を繰り返すだけでパイプラインが積み上がる。
+        if (leakedPipelines >= LEAK_BUDGET) {
+            note("already leaked " + leakedPipelines + " marker pipeline(s) whose retirement"
+                + " could not be handed to Minecraft; not building another one");
+            return null;
+        }
         var vk = device.vkDevice();
         long vertexModule = 0, fragmentModule = 0, layout = 0, writePipeline = 0, testPipeline = 0;
         try (MemoryStack stack = stackPush()) {
@@ -794,6 +907,7 @@ public final class McNativeMarkerDraw implements Destroyable {
             note("the marker pipeline belongs to a device that is no longer current;"
                 + " leaking it on purpose rather than destroying it against the wrong device");
             draw.destroyed = true;
+            leakedPipelines++;
             return;
         }
         try {
@@ -802,6 +916,8 @@ public final class McNativeMarkerDraw implements Destroyable {
             // ⚠ round-1 review B5: ここで即破棄していた。退役を Minecraft に預けられなかった
             // 時点で「もう使われていない」根拠が無いので、<b>壊さずに漏らす</b>。
             // 診断 1 個分のパイプラインであり、壊して実行中参照になる方が遥かに悪い。
+            draw.destroyed = true;
+            leakedPipelines++;
             note("queueForDestroy refused the marker pipeline (" + t + "); leaking it on purpose"
                 + " rather than destroying something that may still be in use");
         }
@@ -991,6 +1107,8 @@ public final class McNativeMarkerDraw implements Destroyable {
               .append(", \"sampleAtDraw\": ").append(rb.sampleAtDraw())
               .append(", \"sampleFile\": ").append(McNativeVulkanProbe.quote(rb.sampleFile()))
               .append(", \"closeFailures\": ").append(readbackCloseFailures)
+              .append(", \"leakedPipelines\": ").append(leakedPipelines)
+              .append(", \"leakBudget\": ").append(LEAK_BUDGET)
               .append(", \"failureBudget\": ").append(READBACK_FAILURE_BUDGET)
               .append(", \"sampleRect\": ").append(rb.sampleRect() == null ? "null"
                   : "[" + rb.sampleRect()[0] + ", " + rb.sampleRect()[1] + ", "

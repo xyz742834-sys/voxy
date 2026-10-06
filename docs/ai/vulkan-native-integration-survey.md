@@ -437,6 +437,20 @@ retains in the repository under [native-evidence](runs/native-evidence/) — pro
 stage log, the finished summary, the source fingerprint, the candidate revision, a manifest of
 screenshot hashes and a crop of the marker region from every captured frame.
 
+**A retained directory stops replaying when the gate gets stricter, and that is expected.**
+Every repair round adds required fields, and a run recorded before them cannot satisfy them.
+The retained files stay readable and their figures stay checkable by hand, but the claim
+"`--replay-evidence` returns 0" is only ever about the newest run. Older directories are kept
+deliberately — deleting them would turn their measurements into narrative, which is the opposite
+of the point — and the replay status of each is:
+
+| Run | Replays under the current gate |
+| --- | --- |
+| [20261006T070311-099413Z](runs/native-evidence/20261006T070311-099413Z/MANIFEST.json) | no — predates raw-sample retention entirely |
+| [20261006T073859-396220Z](runs/native-evidence/20261006T073859-396220Z/MANIFEST.json) | no — no `leakedPipelines` counter |
+| [20261006T080931-279390Z](runs/native-evidence/20261006T080931-279390Z/MANIFEST.json) | no — no `leakedPipelines` counter |
+| [20261006T083136-838975Z](runs/native-evidence/20261006T083136-838975Z/MANIFEST.json) | **yes** |
+
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
 retained run, and it refused every exact count, failure and causal explanation attributed to a
@@ -601,8 +615,14 @@ The passing run is
 22 crops, 18 raw colour samples, 2.2 MB in total; readback near 12420 of 12420, far 8316 of
 8316, cell 4224 of 4224, rejected-in-box 0, 15 clean readbacks, no problems, no unclosed
 readback buffers; the independent recount of `native-marker-sample-3363.ppm` agrees with every
-one of those figures; every gate green and zero validation diagnostics. `--replay-evidence` on
-that directory returns 0 with all manifest hashes matching.
+one of those figures; every gate green and zero validation diagnostics.
+
+⚠ `--replay-evidence` returned 0 on that directory **when this was written**. It does not any
+more: the round-5 repairs made the gate require counters this run never published
+(`leakedPipelines`), so replaying it now fails with "the readback does not state
+leakedPipelines". That is the gate getting stricter, not the run getting worse — but it means
+the only directory whose replay can be cited is the newest one. See
+[A note on how runs are cited](#a-note-on-how-runs-are-cited).
 
 ## Round-5 review (2026-10-06)
 
@@ -664,6 +684,87 @@ one quad with none; and the nether frame's *cause* was never established).
 
 Flags-unset safety was confirmed for a third time, route by route, for both backends.
 
+## Round-5 review repairs (2026-10-06)
+
+Offered to round 6, not treated as acceptance. Each repair is the reviewer's own counterexample
+turned into a check and, where it could be, into a test.
+
+**The recount no longer shrinks its own denominator** (B1). A region that would have to be
+clamped to fit the retained crop now fails outright — a crop that does not contain the whole
+box cannot say anything about the part it omits — and the report's `boxArea`/`controlArea` must
+agree with the areas the published geometry resolves to, so a shrunken crop is detectable from
+the numbers as well as the geometry. The recount also uses the implementation's own colour
+predicate (`>= 200` / `<= 60`) rather than a ±60 neighbourhood, which differed in the 195–199
+band.
+
+**`--replay-evidence` runs the marker gate** (B1). The report-only acceptance checks are now one
+function, `marker_report_checks`, called by both the stage gate and the replay, so the nine
+mutations round 5 replayed as 0 — `attempted=false`, `timesWithAProblem=3`, `enabled=false`,
+`drawsRecorded=0`, `depthAttached=false`, `closeFailures=99` among them — all fail. A directory
+without `MANIFEST.json` fails rather than passing vacuously. The output lists three things it
+does *not* replay, including that it replays recorded evidence and re-runs nothing.
+
+**Retention requires the sample the report points at** (B1), not merely that some sample exists,
+and for the terrain probe its reference image too.
+
+**Proofs must not contradict or hollow themselves out** (B3). Each injected feature needs
+exactly one note of the form `<name>: offset N verified by read-back`, covering `added`
+one-to-one — an empty list and `"FAILED: not verified by read-back"` both pass a substring test
+and both now fail. The int64 sentinel must be the value the source actually writes, so
+`expected=""` equalling `readBack=""` no longer counts as a measurement. Adoption's `attempted`
+is read. `firstMismatch` must be present. Null device handles are rejected. The marker's and
+probe's own failure flags are checked here too, since the replay path calls this helper alone.
+
+**Failures reach disk even without a live instance** (B4). Every failure path goes through one
+`publishFailure()`, which takes the device and format from the last frame rather than from
+`instance`, so a callback arriving after shutdown can no longer leave the previous clean
+evidence in place. A raw sample that cannot be written turns an otherwise-clean readback into a
+failure instead of being noted and forgotten. Close failures — in the callback *and* on the
+unregistered-buffer path — count as problems, so they participate in abandonment.
+
+**Captures are bound to their request** (B4). The draw counter is captured when the copy is
+registered, not read from a global when the callback runs, and the gate requires `sampleAtDraw`
+to be present, positive, and no greater than the recorded draw count.
+
+**Depth failure is judged orientation-independently** (B4). Round 5 fed the classifier a correct
+pattern in one orientation and a wholly yellow box in the other, and it answered "no problem".
+The first repair — *exactly one* orientation may satisfy the pattern — **failed its own new
+test**: with the good pattern upright and the yellow box mirrored, only one orientation passes,
+so the rule was satisfied while depth was broken. The rule that holds is orientation-free: the
+rejected colour must be absent from the depth-tested box in **both** orientations, because the
+code cannot know which one is real. Two valid patterns are now reported as ambiguous rather than
+successful.
+
+**Leaks are counted and bounded** (R4-L1). A retirement that cannot be handed to Minecraft still
+leaks deliberately, but the count is published and a budget stops the probe building another
+pipeline, so repeated format or device changes cannot pile up silently.
+
+**The tests were softer than their names** (R5-TEST), which round 5 demonstrated and which was
+the most useful part of the report:
+
+- `autoAgree` rewrote the aggregates from the sample *after* a test had set them, so several
+  readback tests passed for no reason at all. An override that states a count now suppresses it.
+- the replay test passed with `recount_marker_sample` stubbed to return `{}`; it now asserts the
+  recount's actual numbers against the sample on disk.
+- the crop-origin test accepted a hardcoded `[0, 0]`; it now decodes every crop and requires the
+  pixels at the stated origin to be the parent frame's pixels there.
+- `test_the_readback_is_what_carries_the_proof_not_the_screenshots` built its sample from the
+  same empty frames it was testing, so it failed on "too few near/far pixels" before any
+  screenshot was examined — it was passing a broken screenshot gate. The sample now comes from a
+  good frame while every captured frame is empty, which is what the name claims.
+- `McNativeMarkerOrientationTest` is a new Java regression for the orientation attack that needs
+  no Minecraft (`McNativeMarkerDraw.select` is the seam). It is what caught the insufficiency of
+  the first orientation repair.
+- the `__main__` guard sat mid-file, so `python3 scripts/tests/test_marker_gate.py` exited
+  before defining `EvidenceRetentionTest`. Discovery found those cases; running the file did not.
+
+Measured: 322 JUnit tests, 86 Python gate tests, and the native stage green as
+[20261006T083136-838975Z](runs/native-evidence/20261006T083136-838975Z/MANIFEST.json) — 88
+retained files, readback near 12420/12420, far 8316/8316, cell 4224/4224, rejected-in-box 0 in
+both orientations, 15 clean readbacks, no unclosed buffers, no leaked pipelines, the independent
+recount agreeing with every figure, and zero validation diagnostics. `--replay-evidence` returns
+0 and now lists five things it replayed.
+
 ## Voxy's real terrain pipeline in Minecraft's frame, measured (2026-10-06)
 
 ⚠ **This is an experiment, under round 4's explicit permission** — *"Terrain investigation can
@@ -711,8 +812,12 @@ non-background pixels and 0 mismatches** against the reference — equal on both
 **16 clean comparisons** across the eleven-checkpoint scenario, with no leaked probes, no
 unclosed readback buffers, and zero validation diagnostics. The gate's own recomparison of
 `native-terrain-sample-3377.ppm.gz` against `native-terrain-reference-3377.ppm.gz` agrees:
-1920x1080, 0 mismatches, 26116 each side. `--replay-evidence` on that directory returns 0 and
-now lists the terrain recomparison among what it replayed.
+1920x1080, 0 mismatches, 26116 each side.
+
+⚠ This directory, too, no longer replays under the round-5 gate (same missing counter). The
+terrain figures above are from its retained files, which are still there to read; the citable
+*replay* is [20261006T083136-838975Z](runs/native-evidence/20261006T083136-838975Z/MANIFEST.json),
+which carries the same terrain result under the stricter gate.
 
 What this does **not** show: anything about real world data (the input is synthetic — no world
 load, no mesh generation, no atlas), anything about coexisting with Minecraft's own scene (the
