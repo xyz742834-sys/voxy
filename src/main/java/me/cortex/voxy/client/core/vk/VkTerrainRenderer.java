@@ -8,6 +8,8 @@ import org.lwjgl.system.MemoryStack;
 import org.lwjgl.vulkan.VkClearDepthStencilValue;
 import org.lwjgl.vulkan.VkCommandBuffer;
 import org.lwjgl.vulkan.VkImageSubresourceRange;
+import org.lwjgl.vulkan.VkRect2D;
+import org.lwjgl.vulkan.VkViewport;
 
 import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.vulkan.VK10.*;
@@ -134,6 +136,13 @@ public class VkTerrainRenderer {
     private final VkTexture depthBound;
     /** パイプラインが宣言したカラーフォーマット。描画先と食い違うと未定義動作になる。 */
     private final int colorFormat;
+    /**
+     * 描画先の寸法。{@code depthBound} と同寸であり、
+     * {@code texelFetch(depthTex, ivec2(gl_FragCoord.xy))} がこの格子を前提にする。
+     *
+     * <p>他者が開いたパスに記録するとき、ビューポートを<b>この寸法で</b>張り直すのに要る。
+     */
+    private final int width, height;
     private final Barriers barriers;
     private boolean uploaded;
     private boolean freed;
@@ -185,6 +194,8 @@ public class VkTerrainRenderer {
         this.mode = mode;
         this.pass = pass;
         this.colorFormat = colorFormat;
+        this.width = width;
+        this.height = height;
         if (pass != Pass.OPAQUE && mode != Mode.MERGED) {
             throw new IllegalArgumentException(pass + " only exists in MERGED mode");
         }
@@ -351,21 +362,76 @@ public class VkTerrainRenderer {
     public void record(VkCommandBuffer cmd, VkRenderTarget target, int drawCount,
                        float[] clearColour, Float clearDepth) {
         this.assertNotFreed();
-        // フォーマットの食い違いは絵が微妙に狂う形で出る (R と B が入れ替わる等)。
-        // バリデーションが無い実行でも確実に捕まえたいのでここで落とす
-        if (target.colorFormat != this.colorFormat) {
+        this.assertColourFormat(target.colorFormat);
+        this.recordBeforeRenderPass(cmd);
+        target.beginRendering(cmd, clearColour, clearDepth);
+        this.recordDrawsInRenderPass(cmd, drawCount);
+        target.endRendering(cmd);
+    }
+
+    /**
+     * パイプラインの色フォーマットが的と一致することを確かめる。
+     *
+     * <p>フォーマットの食い違いは絵が微妙に狂う形で出る (R と B が入れ替わる等)。
+     * バリデーションが無い実行でも確実に捕まえたいのでここで落とす。
+     */
+    private void assertColourFormat(int targetColourFormat) {
+        if (targetColourFormat != this.colorFormat) {
             throw new IllegalArgumentException("target colour format 0x"
-                + Integer.toHexString(target.colorFormat)
+                + Integer.toHexString(targetColourFormat)
                 + " does not match the pipeline's 0x" + Integer.toHexString(this.colorFormat));
         }
+    }
+
+    /**
+     * <b>レンダーパスの外で</b>record しなければならないもの。
+     *
+     * <p>アトラスのアップロード、深度境界のクリア、ホスト書き込みのバリア —
+     * どれも転送やレイアウト変更を伴うので、動的レンダリングの内側では<b>記録できない</b>。
+     *
+     * <p>⚠ 公開しているのは、既に<b>他者が開いたパス</b>に地形を入れる経路
+     * ({@link #recordDrawsInRenderPass}) が必要だからである。その経路では
+     * 呼び出し側が「パスを開く前に」これを呼ぶ責務を負う。
+     */
+    public void recordBeforeRenderPass(VkCommandBuffer cmd) {
+        this.assertNotFreed();
         this.recordUploads(cmd);
         if (this.depthBoundDirty) {
             this.depthBoundDirty = false;
             this.fillDepthBound(cmd, this.depthBoundValue);
         }
         this.hostWriteBarrier(cmd);
+    }
 
-        target.beginRendering(cmd, clearColour, clearDepth);
+    /**
+     * <b>既に開いているレンダーパスの中に</b>地形の描画コマンドだけを記録する。
+     *
+     * <h2>呼び出し側の責務 [未検証 — 呼び出し側ごとに確かめること]</h2>
+     * <ol>
+     *   <li>先に {@link #recordBeforeRenderPass} を<b>パスの外で</b>呼んでいること</li>
+     *   <li>開いているパスの色/深度フォーマットがこのパイプラインのものと一致すること
+     *       ({@link #colourFormat()} / {@link #DEPTH_BOUND_FORMAT})</li>
+     *   <li>ビューポートとシザーが設定済みであること。パイプラインは動的に持つ</li>
+     * </ol>
+     *
+     * <p>⚠ ここでは的を受け取らないので<b>フォーマットの照合ができない</b>。
+     * 食い違えば絵が狂うだけで何も言われないから、呼び出し側が
+     * {@link #assertColourFormatMatches(int)} で明示的に確かめること。
+     */
+    public void recordDrawsInRenderPass(VkCommandBuffer cmd, int drawCount) {
+        this.assertNotFreed();
+        // ⚠ ビューポート/シザーは<b>自分で張る</b>。呼び出し側に任せると、
+        // 他者のパスが別の寸法を張ったまま描いて depthBound の texelFetch が
+        // ずれる — 絵が微妙に狂うだけで何も言われない形の失敗になる。
+        try (MemoryStack stack = stackPush()) {
+            var vp = VkViewport.calloc(1, stack)
+                .x(0).y(0).width(this.width).height(this.height).minDepth(0).maxDepth(1);
+            var sc = VkRect2D.calloc(1, stack);
+            sc.offset().set(0, 0);
+            sc.extent().set(this.width, this.height);
+            vkCmdSetViewport(cmd, 0, vp);
+            vkCmdSetScissor(cmd, 0, sc);
+        }
         this.pipeline.bind(cmd);
         this.shader.bind(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS);
         vkCmdBindIndexBuffer(cmd, this.res.index.buffer.handle, 0, VK_INDEX_TYPE_UINT32);
@@ -389,8 +455,14 @@ public class VkTerrainRenderer {
             vkCmdDrawIndexedIndirect(cmd, this.res.drawCall.handle, 0,
                 drawCount, SyntheticTerrain.DRAW_COMMAND_SIZE);
         }
-        target.endRendering(cmd);
     }
+
+    /** 外部のパスに記録する呼び出し側のための、明示的なフォーマット照合。 */
+    public void assertColourFormatMatches(int targetColourFormat) {
+        this.assertColourFormat(targetColourFormat);
+    }
+
+    public int colourFormat() { return this.colorFormat; }
 
     /**
      * ホストが書いた内容を GPU の読み手に見せるバリア。

@@ -286,6 +286,75 @@ public class VkTerrainRenderTest {
         }
     }
 
+    // ---------------- 外部のパスに記録する経路 ----------------
+
+    /**
+     * <b>パスを自分で開く経路と、他者のパスに入れる経路が同じ絵を出すこと。</b>
+     *
+     * <p>Minecraft 自身の Vulkan フレームに地形を入れるには、パスの開閉を
+     * 握っている {@link VkTerrainRenderer#record} を通せない。そこで
+     * {@link VkTerrainRenderer#recordBeforeRenderPass} (パスの外) と
+     * {@link VkTerrainRenderer#recordDrawsInRenderPass} (パスの中) に分けたが、
+     * <b>分けたことで何かが抜けていないか</b>は絵でしか分からない。
+     *
+     * <p>⚠ これが示すのは「分割が等価である」ことだけである。
+     * Minecraft のパスに入れて正しく見えるかは<b>何も言っていない</b>。
+     */
+    @Test
+    void theSplitRecordingPathDrawsTheSameImage() {
+        try (var scene = build(SyntheticTerrain.boundaryCases())) {
+            var renderer = new VkTerrainRenderer(scene.res(), W, H, Barriers.CONSERVATIVE);
+            var whole = new VkRenderTarget(W, H);
+            var split = new VkRenderTarget(W, H);
+            try {
+                float[] mvp = closeUpMvp();
+                renderOnce(renderer, whole, scene, mvp, scene.drawCount());
+
+                VkSceneUniform.write(scene.res().uniform, mvp, new int[]{0, 0, 0}, 1,
+                    new float[]{0, 0, 0});
+                var tracker = VkFrameTracker.get();
+                var cmd = tracker.beginFrame();
+                renderer.assertColourFormatMatches(split.colorFormat);
+                renderer.recordBeforeRenderPass(cmd);
+                split.beginRendering(cmd, CLEAR, VkDepth.CLEAR);
+                renderer.recordDrawsInRenderPass(cmd, scene.drawCount());
+                split.endRendering(cmd);
+                split.recordReadback(cmd);
+                tracker.endFrame();
+                tracker.waitForFrame();
+
+                assertTrue(coverage(whole) > 0, "the reference frame drew nothing");
+                assertEquals(0, VkRenderTarget.compareColor(whole, split),
+                    "splitting the recording changed the image");
+            } finally {
+                split.free();
+                whole.free();
+                renderer.free();
+            }
+        }
+    }
+
+    /**
+     * <b>外部のパスに入れる経路でも、フォーマットの食い違いは落ちること。</b>
+     *
+     * <p>的を受け取らないので自動では照合できない。呼び出し側が明示的に確かめる
+     * ための入口が実際に落ちることを確かめておく — ここが黙ると、
+     * 色が入れ替わった絵が「正しく描けた」として通る。
+     */
+    @Test
+    void theExplicitFormatCheckStillRejectsAMismatch() {
+        try (var scene = build(SyntheticTerrain.boundaryCases())) {
+            var renderer = new VkTerrainRenderer(scene.res(), W, H, Barriers.CONSERVATIVE);
+            try {
+                assertEquals(VkRenderTarget.FORMAT_COLOR, renderer.colourFormat());
+                assertThrows(IllegalArgumentException.class,
+                    () -> renderer.assertColourFormatMatches(VkRenderTarget.FORMAT_COLOR + 1));
+            } finally {
+                renderer.free();
+            }
+        }
+    }
+
     // ---------------- 比較の感度 (対照) ----------------
 
     /**

@@ -577,6 +577,14 @@ loom {
             if (project.hasProperty('harnessNativeAdopt')) {
                 vmArg '-Dvoxy.native.adopt=true'
             }
+            // Record Voxy's REAL terrain pipeline into Minecraft's own Vulkan frame.
+            // Off by default and it must stay that way: when enabled it clears Minecraft's
+            // colour and depth so the frame can be compared pixel-for-pixel against the same
+            // scene drawn to Voxy's own target. Experimental — round 4 permits terrain
+            // investigation but not promotion. docs/ai/vulkan-native-integration-survey.md
+            if (project.hasProperty('harnessNativeTerrain')) {
+                vmArg '-Dvoxy.native.terrain=true'
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')

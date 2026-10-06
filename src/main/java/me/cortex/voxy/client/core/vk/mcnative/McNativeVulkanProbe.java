@@ -368,6 +368,24 @@ public final class McNativeVulkanProbe {
         }
     }
 
+    /**
+     * 生標本を gzip で書く。
+     *
+     * <p>全画面の標本は非圧縮だと 1 枚 6 MB を超える。合成シーンは平坦なので
+     * gzip なら数百 KB に収まり、リポジトリに残して<b>独立に再比較できる</b>形になる。
+     */
+    static void writeGzipFileBytes(String name, byte[] header, byte[] body) throws java.io.IOException {
+        String dir = System.getProperty("voxy.harness.output");
+        if (dir == null || dir.isBlank()) return;
+        Path out = Path.of(dir);
+        Files.createDirectories(out);
+        try (var stream = new java.util.zip.GZIPOutputStream(
+                Files.newOutputStream(out.resolve(name)))) {
+            stream.write(header);
+            stream.write(body);
+        }
+    }
+
     /** 依存を増やさない最小の JSON。数値は 10 進、ハンドルは文字列の 16 進で出す。 */
     public static String json(Report r) {
         var sb = new StringBuilder("{\n");

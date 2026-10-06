@@ -34,6 +34,7 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
     @Inject(method = "close", at = @At("HEAD"))
     private void voxy$injectClose(CallbackInfo ci) {
         this.voxy$shutdownRenderer();
+        me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.shutdown();
         me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.shutdown();
     }
 
@@ -46,6 +47,10 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
      */
     @Inject(method = "render", at = @At("TAIL"))
     private void voxy$injectNativeMarker(CallbackInfo ci) {
+        // ⚠ 地形 probe を<b>先に</b>呼ぶ。有効なときは MC の colour/depth をクリアするので、
+        // 後に呼ぶとマーカーを消してしまい、マーカー側の測定が成り立たなくなる。
+        // どちらも既定では何もしない。
+        me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.renderIfEnabled();
         me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.renderIfEnabled();
     }
 

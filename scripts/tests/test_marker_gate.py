@@ -507,8 +507,6 @@ class ProofFileGateTest(unittest.TestCase):
         self.assertIn("more than one device", " ".join(result["failures"]))
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 class EvidenceRetentionTest(unittest.TestCase):
@@ -600,3 +598,158 @@ class EvidenceRetentionTest(unittest.TestCase):
         code, out = self.replay(target)
         self.assertEqual(code, 1)
         self.assertEqual(out["manifest_mismatches"], ["native-marker-sample-2900.ppm"])
+
+
+class TerrainGateTest(unittest.TestCase):
+    """The terrain gate must not accept a frame that proves nothing.
+
+    The claim is narrow and falsifiable: the same synthetic scene, drawn by the same renderer
+    into Minecraft's colour image and into Voxy's own target on the same device, is identical
+    in RGB. These cases are the ways that claim could be faked — identical blank frames, an
+    aggregate that disagrees with the pixels, a missing sample, a swallowed close failure.
+    """
+    W, H = 64, 40
+    CLEAR_RGB = (13, 13, 26)
+    PACKED_CLEAR = CLEAR_RGB[0] | (CLEAR_RGB[1] << 8) | (CLEAR_RGB[2] << 16)
+
+    def scene(self, blank=False, differ=0):
+        """A frame pair: mostly background with a block of terrain-ish colour."""
+        got, want = [], []
+        for y in range(self.H):
+            a, b = [], []
+            for x in range(self.W):
+                px = self.CLEAR_RGB if (blank or y < 2) else ((40 + x) & 0xFF, 90, 150)
+                a.append(px)
+                b.append(px)
+            got.append(a)
+            want.append(b)
+        for i in range(differ):
+            got[2 + i // self.W][i % self.W] = (255, 255, 255)
+        return got, want
+
+    def write_gz_ppm(self, path, rows):
+        import gzip
+        body = bytearray()
+        for row in rows:
+            for px in row:
+                body.extend(px[:3])
+        with gzip.open(path, "wb") as out:
+            out.write(f"P6\n{len(rows[0])} {len(rows)}\n255\n".encode("ascii"))
+            out.write(bytes(body))
+
+    def counts(self, got, want):
+        differ = native = reference = 0
+        for y in range(len(got)):
+            for x in range(len(got[0])):
+                if got[y][x] != want[y][x]:
+                    differ += 1
+                if got[y][x] != self.CLEAR_RGB:
+                    native += 1
+                if want[y][x] != self.CLEAR_RGB:
+                    reference += 1
+        return differ, native, reference
+
+    def run_gate(self, overrides=None, comparison=None, blank=False, differ=0,
+                 drop=(), agree=True):
+        got, want = self.scene(blank=blank, differ=differ)
+        d, native, reference = self.counts(got, want)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            name = "native-terrain-sample-900.ppm.gz"
+            if "sample" not in drop:
+                self.write_gz_ppm(out / name, got)
+                self.write_gz_ppm(out / "native-terrain-reference-900.ppm.gz", want)
+            c = {"attempted": True, "completed": True,
+                 "referenceSet": reference if agree else reference + 1,
+                 "nativeSet": native if agree else native,
+                 "mismatches": d if agree else 0,
+                 "flipped": True, "note": None, "sampleAtDraw": 900, "sampleFile": name}
+            c.update(comparison or {})
+            report = {"enabled": True, "attempted": True, "built": True, "drawsRecorded": 1200,
+                      "targetWidth": self.W, "targetHeight": self.H, "colourVkFormat": 37,
+                      "clearRgb": self.PACKED_CLEAR, "device": "0xabc", "timesClean": 5,
+                      "timesWithAProblem": 0, "firstProblem": None, "closeFailures": 0,
+                      "failureBudget": 3, "leakedProbes": 0, "leakBudget": 3,
+                      "notes": [], "comparison": c}
+            report.update(overrides or {})
+            for key in drop:
+                report.pop(key, None)
+            (out / "native-terrain-probe.json").write_text(json.dumps(report))
+            return verify.native_terrain_result(out)
+
+    def test_an_identical_pair_with_real_content_passes(self):
+        result = self.run_gate()
+        self.assertTrue(result["success"], result["failures"])
+        self.assertEqual(result["recompare"]["mismatches"], 0)
+        self.assertGreater(result["recompare"]["nativeSet"], 1000)
+
+    def test_two_identical_blank_frames_prove_nothing(self):
+        result = self.run_gate(blank=True)
+        self.assertFalse(result["success"])
+        self.assertIn("non-background", " ".join(result["failures"]))
+
+    def test_differing_pixels_fail_even_when_the_aggregate_says_zero(self):
+        result = self.run_gate(differ=30, agree=False)
+        self.assertFalse(result["success"])
+        self.assertIn("differ", " ".join(result["failures"]))
+
+    def test_an_aggregate_that_disagrees_with_the_pixels_fails(self):
+        result = self.run_gate(agree=False)
+        self.assertFalse(result["success"])
+        self.assertIn("does not match the pixels", " ".join(result["failures"]))
+
+    def test_a_missing_sample_fails(self):
+        result = self.run_gate(drop=("sample",))
+        self.assertFalse(result["success"])
+        self.assertIn("missing", " ".join(result["failures"]))
+
+    def test_a_probe_that_never_built_fails(self):
+        result = self.run_gate({"built": False})
+        self.assertFalse(result["success"])
+        self.assertIn("never built", " ".join(result["failures"]))
+
+    def test_any_note_or_problem_fails(self):
+        self.assertFalse(self.run_gate({"notes": ["could not adopt"]})["success"])
+        self.assertFalse(self.run_gate({"timesWithAProblem": 1})["success"])
+        self.assertFalse(self.run_gate(comparison={"note": "nothing reached the frame"})["success"])
+
+    def test_an_unclosed_readback_buffer_fails(self):
+        result = self.run_gate({"closeFailures": 1})
+        self.assertFalse(result["success"])
+        self.assertIn("could not be closed", " ".join(result["failures"]))
+
+    def test_a_leaked_probe_fails(self):
+        """Round-5 R4-L1: a leak that is counted but tolerated is still an unbounded leak."""
+        result = self.run_gate({"leakedProbes": 1})
+        self.assertFalse(result["success"])
+        self.assertIn("leaked", " ".join(result["failures"]))
+
+    def test_a_comparison_that_never_completed_fails(self):
+        result = self.run_gate(comparison={"completed": False})
+        self.assertFalse(result["success"])
+        self.assertIn("did not complete", " ".join(result["failures"]))
+
+    def test_a_missing_field_fails_instead_of_defaulting(self):
+        for field in ("enabled", "built", "closeFailures", "clearRgb", "notes",
+                      "leakedProbes", "leakBudget"):
+            result = self.run_gate(drop=(field,))
+            self.assertFalse(result["success"], field)
+            self.assertIn(field, " ".join(result["failures"]))
+
+    def test_a_sample_not_bound_to_its_capture_fails(self):
+        """Round-5 B4: the file name carries the draw the copy was registered at."""
+        result = self.run_gate(comparison={"sampleAtDraw": 4321})
+        self.assertFalse(result["success"])
+        self.assertIn("named for draw", " ".join(result["failures"]))
+
+    def test_samples_whose_size_contradicts_the_report_fail(self):
+        result = self.run_gate({"targetWidth": self.W + 1})
+        self.assertFalse(result["success"])
+        self.assertIn("but the probe drew to", " ".join(result["failures"]))
+
+
+# ⚠ Round-5 review R5-TEST: this guard used to sit in the middle of the file, so running it
+# directly exited before the later test classes were even defined. Discovery found them;
+# `python3 scripts/tests/test_marker_gate.py` silently did not. It belongs at the end.
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,200 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "c480046928f73a0600a97ef544135f9ce14c4685",
+  "review_round": 5,
+  "report": "docs/ai/runs/native-integration-review.md",
+  "candidate_binding": "Exact HEAD confirmed. All 400 retained source/build/script fingerprints match candidate. Runtime revision names dirty parent 4d0ef19b755cd6e259ec6aa14f3bf95c35041796.",
+  "blocking_findings": [
+    {
+      "id": "B1",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Independent raw recount exists, but expected areas are clipped to sampleRect, so an omitted failing edge passes even the full marker gate. Replay bypasses marker failure/completion/counter checks and allows no manifest. Retention requires any sample rather than the referenced one.",
+      "evidence": [
+        "scripts/verify.py:434-519",
+        "scripts/verify.py:699-707",
+        "scripts/verify.py:754-800",
+        "scripts/verify.py:977-981",
+        "committed sample with crop left edge 19 -> 39 passes recount: near=10260 far=8316 cell=3784 rejectedInBox=0",
+        "hash-consistent report with completed=false and timesWithAProblem=3 replays with exit 0",
+        "lost referenced sample plus stale sample: retention error=null, replay exit=1"
+      ]
+    },
+    {
+      "id": "B3",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Specific feature-attempt, adopted-enabled/readback and device checks work, but adopted.attempted=false passes; feature verification can be vacuous or negated; jointly empty expected/readBack values pass; shader firstMismatch remains optional.",
+      "evidence": [
+        "scripts/verify.py:564-601",
+        "scripts/verify.py:605-609",
+        "scripts/verify.py:621-649",
+        "ProofFileGateTest.run_gate adopted attempted=false -> success=true",
+        "compute expected/readBack empty plus adopted readBack empty -> success=true"
+      ]
+    },
+    {
+      "id": "B4",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Live-instance map failures now count/persist. Null-instance callbacks, PPM retention failures and close failures can still leave stale clean disk proof. Wrong mirrored pattern can win orientation selection. sampleAtDraw is callback-time global state, optional and unchecked by the gate, without capture/device/lifecycle binding.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:360-433",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:480-543",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:825-828",
+        "scripts/verify.py:454-499",
+        "real callback fault injection: PPMFailure problems=0 cleanCount=4 sample=null oldFileUnchanged=true",
+        "real classifier mirrored attack: chosenFlip=false note=null problems=0"
+      ]
+    },
+    {
+      "id": "R5-LIFETIME",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "A failed replacement after queued retirement leaves the old draw in static instance. Format reversion can record it while queued or already destroyed; render does not check destroyed. Duplicate destroy calls themselves are guarded.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:274-301",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:647-680",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:781-807",
+        "actual retire/DestructionQueue heap probe: callbacks=2 destroyed=true instanceStillSame=true",
+        "source-level failed-create/format-reversion route; no GPU use-after-free induced"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R4-L1",
+      "severity": "low",
+      "judgment": "REFUTED",
+      "finding": "One pending request, three counted problems and 40 MiB allocation limit are confirmed. Close failures do not consume problem budget or persist immediately; registration-path close errors are swallowed; marker abandonment remains unbounded.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:307-370",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:424-433",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:781-799"
+      ]
+    },
+    {
+      "id": "R5-TEST",
+      "severity": "medium",
+      "judgment": "REFUTED",
+      "finding": "Positive replay and hash-tamper tests pass with recount replaced by a no-op. Origin test checks shape, not position. Empty-screenshot test fails earlier on self-generated zero raw counts. Helper retention tests do not verify stage failure propagation. Producer fault/lifetime regressions are uncovered.",
+      "evidence": [
+        "scripts/tests/test_marker_gate.py:147-177",
+        "scripts/tests/test_marker_gate.py:232-237",
+        "scripts/tests/test_marker_gate.py:510-602"
+      ]
+    },
+    {
+      "id": "R5-DOC",
+      "severity": "medium",
+      "judgment": "REFUTED",
+      "finding": "Survey correctly preserves unaccepted diagnostic scope, but exact absent historical counts/causes, universal depth-write proof and final-session failure accounting remain unproven. Round-4 repairs overstate complete persistence, rejection and abandonment.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:118-359",
+        "docs/ai/vulkan-native-integration-survey.md:523-588",
+        "docs/ai/runs/native-evidence/20261006T073859-396220Z/native-marker-draw.json",
+        "docs/ai/runs/native-evidence/20261006T073859-396220Z/native.log"
+      ]
+    },
+    {
+      "id": "R5-API",
+      "severity": "low",
+      "judgment": "REFUTED",
+      "finding": "Unused waitIdle still drains frees after ignoring wait result; direct VkContext shutdown lacks internal completion guard. Actual reviewed native shutdown checks completion first. Existing reflection/name-based physical-device selection ambiguities remain portability limits.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/VkFrameTracker.java:220-224",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkContext.java:103-106",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkContext.java:692-695",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeFeatureAudit.java:168-178"
+      ]
+    },
+    {
+      "id": "R5-IO",
+      "severity": "low",
+      "judgment": "REFUTED",
+      "finding": "Individual retained crop is bounded and absent output property makes no file writes, but synchronous callback I/O and total disk growth are unbounded. Failure dimensions may describe previous frame because lastWidth/lastHeight update follows request. Short PPM body is correctly rejected.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:307-314",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:509-543",
+        "scripts/pixel_oracle.py:204-237"
+      ]
+    }
+  ],
+  "safe_for_normal_play": {
+    "all_four_native_flags_unset": true,
+    "gl_backend": true,
+    "minecraft_vulkan_backend": true,
+    "judgment": "CONFIRMED for dormant diagnostic changes from source and permitted tests",
+    "basis": "Native guards precede GPU/device/file work. Minecraft Vulkan production Voxy remains disabled; this is inert safety, not functional terrain shipping approval or new smoke/soak certification.",
+    "live_smoke_soak_performed": false
+  },
+  "round4_findings_closed": {
+    "B1": false,
+    "B3": false,
+    "B4": false,
+    "R4-L1": false
+  },
+  "previously_closed_findings": {
+    "B2": "Remains closed for flags-unset dormant safety",
+    "B5": "Original checked-completion/owner-device defects remain closed; R5-LIFETIME is a distinct newly identified retirement/reuse defect"
+  },
+  "survey_acceptance_boundary": {
+    "judgment": "CONFIRMED",
+    "diagnostic_layer_claimed_accepted": false,
+    "diagnostic_layer_accepted_by_this_review": false
+  },
+  "checks": [
+    {
+      "command": "./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true",
+      "exit_code": 0,
+      "tests": 313,
+      "passed": 312,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "skip": "VkBarriersTest.missingBarrierIsDetected()",
+      "unexpected_validation_diagnostics": 0,
+      "intentional_validation_control": "One fill-buffer WRITE_AFTER_WRITE hazard, printed twice"
+    },
+    {
+      "command": "python3 -m unittest discover -s scripts/tests",
+      "exit_code": 0,
+      "tests": 64,
+      "marker_file_tests": 42,
+      "failures": 0,
+      "errors": 0
+    },
+    {
+      "command": "python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261006T073859-396220Z",
+      "exit_code": 0,
+      "manifest_mismatches": [],
+      "near": 12420,
+      "far": 8316,
+      "cell": 4224,
+      "control_strip": 4032,
+      "rejected_in_box": 0,
+      "sample_at_draw": 3363
+    }
+  ],
+  "retained_evidence": {
+    "directory": "docs/ai/runs/native-evidence/20261006T073859-396220Z",
+    "manifest_listed_files": 51,
+    "crops": 22,
+    "raw_colour_samples": 18,
+    "manifest_listed_bytes": 2155005,
+    "source_fingerprints_checked": 400,
+    "source_mismatches": []
+  },
+  "not_checked": [
+    "Minecraft/native/live launch explicitly prohibited",
+    "Fresh flags-unset GL/Vulkan live smoke/soak",
+    "Actual GPU timeout/device loss or use-after-free",
+    "Actual callback timing across device/target replacement",
+    "Unretained full parent screenshots and old absent runs",
+    "Native synchronization-validation coverage",
+    "Real depth readback or LoD terrain integration",
+    "Alternate GPU/OS and long-session exhaustion"
+  ],
+  "implementation_modified": false,
+  "minecraft_launched": false
+}

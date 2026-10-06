@@ -22,7 +22,8 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 import zlib
-from pixel_oracle import read_rgb, mismatches, top_rows_rgb, png_size, write_rgb_png, read_ppm
+from pixel_oracle import (read_rgb, mismatches, top_rows_rgb, png_size, write_rgb_png,
+                          read_ppm, read_ppm_gz)
 
 ROOT = Path(__file__).resolve().parents[1]
 DIAGNOSTIC = re.compile(r"\[vk-validation\]\s*\[([^\]]+)\]")
@@ -519,6 +520,154 @@ def recount_marker_sample(output, report, rb):
     return out
 
 
+def native_terrain_result(output):
+    """Gate Voxy's REAL terrain pipeline recorded into Minecraft's own Vulkan frame.
+
+    ⚠ This is an EXPERIMENT, not a promotion. Round 4 ruled the diagnostic layer "not yet
+    sound enough to use as the accepted foundation for terrain work" while permitting terrain
+    investigation as experimental. A green result here says the pipeline ran and agreed with
+    Voxy's own target on the same device; it says nothing about real-world terrain, about
+    coexisting with Minecraft's scene, or about the diagnostic layer being accepted.
+
+    The claim it does check is strong and falsifiable: the same synthetic scene drawn by the
+    same renderer into Minecraft's colour image and into Voxy's own render target must be
+    pixel-identical in RGB. The implementation reports that comparison, and this gate repeats
+    it from the two retained raw samples — so a wrong aggregate cannot pass.
+    """
+    result = {"success": False, "failures": [],
+              "scope": "Voxy's real terrain pipeline recorded into Minecraft's Vulkan frame;"
+                       " EXPERIMENTAL, not an accepted foundation"}
+    try:
+        report = json.loads((output / "native-terrain-probe.json").read_text())
+        result["report"] = report
+        for field, kind in (("enabled", bool), ("attempted", bool), ("built", bool),
+                            ("drawsRecorded", int), ("targetWidth", int), ("targetHeight", int),
+                            ("colourVkFormat", int), ("clearRgb", int), ("timesClean", int),
+                            ("timesWithAProblem", int), ("closeFailures", int),
+                            ("failureBudget", int), ("leakedProbes", int), ("leakBudget", int),
+                            ("notes", list)):
+            if field not in report:
+                raise ValueError(f"the terrain probe does not state {field}")
+            value = report[field]
+            if not isinstance(value, kind) or isinstance(value, bool) != (kind is bool):
+                raise ValueError(f"terrain.{field} is {value!r}, not a {kind.__name__}")
+        if not report["enabled"]:
+            raise ValueError("the terrain probe was not enabled")
+        if not report["attempted"] or not report["built"]:
+            raise ValueError(f"the terrain probe never built its pipeline: {report['notes']}")
+        if report["drawsRecorded"] < 1:
+            raise ValueError("no terrain draw was recorded into Minecraft's command buffer")
+        if report["notes"]:
+            raise ValueError(f"the terrain probe reported notes: {report['notes']}")
+        for field in ("targetWidth", "targetHeight"):
+            if report[field] < 1:
+                raise ValueError(f"the terrain probe states {field}={report[field]}")
+        if report["timesWithAProblem"]:
+            raise ValueError(f"{report['timesWithAProblem']} terrain comparison(s) found a"
+                             f" problem, first: {report.get('firstProblem')}")
+        if report["timesClean"] < 1:
+            raise ValueError("Minecraft's frame was never compared against Voxy's own target")
+        if report["closeFailures"]:
+            raise ValueError(f"{report['closeFailures']} terrain readback buffer(s) could not be"
+                             f" closed, so memory was held for the rest of the run")
+        # ⚠ Round-5 review R4-L1: the marker leaked on retirement refusal without counting it,
+        # so repeated resizes could pile up silently. The terrain probe counts and publishes
+        # its leaks; the gate refuses to call a run clean while any are outstanding.
+        if report["leakedProbes"]:
+            raise ValueError(f"{report['leakedProbes']} terrain probe(s) were leaked because"
+                             f" their retirement could not be handed to Minecraft")
+        if not isinstance(report.get("device"), str):
+            raise ValueError("the terrain probe does not name its device")
+
+        c = report.get("comparison")
+        if not isinstance(c, dict):
+            raise ValueError("the terrain probe published no comparison, so the draws are"
+                             " unmeasured")
+        for field, kind in (("attempted", bool), ("completed", bool), ("referenceSet", int),
+                            ("nativeSet", int), ("mismatches", int), ("sampleAtDraw", int)):
+            if field not in c:
+                raise ValueError(f"the terrain comparison does not state {field}")
+            value = c[field]
+            if not isinstance(value, kind) or isinstance(value, bool) != (kind is bool):
+                raise ValueError(f"comparison.{field} is {value!r}, not a {kind.__name__}")
+        if not c["attempted"] or not c["completed"]:
+            raise ValueError(f"the terrain comparison did not complete: {c.get('note')}")
+        if c.get("note"):
+            raise ValueError(f"the terrain comparison rejects the frame: {c['note']}")
+        if c["referenceSet"] < 1000:
+            raise ValueError(f"Voxy's own target holds only {c['referenceSet']} non-background"
+                             f" pixels, so there is nothing to compare against")
+        if c["nativeSet"] < 1000:
+            raise ValueError(f"Minecraft's frame holds only {c['nativeSet']} non-background"
+                             f" pixels, so the terrain draws did not reach it")
+        if c["mismatches"]:
+            raise ValueError(f"{c['mismatches']} pixels differ between Minecraft's frame and"
+                             f" Voxy's own target")
+        result["comparison"] = c
+        # ⚠ Same discipline as the marker gate: recompare the retained raw samples here, so a
+        # reported zero cannot stand on its own.
+        result["recompare"] = recompare_terrain_samples(output, report, c)
+        result.update(success=True)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        result["failures"].append(str(exc))
+    return result
+
+
+def recompare_terrain_samples(output, report, comparison):
+    """Recompare Minecraft's retained frame against Voxy's retained target, independently."""
+    name = comparison.get("sampleFile")
+    if not name:
+        raise ValueError("the terrain comparison retained no raw sample")
+    sample = output / name
+    reference = output / name.replace("native-terrain-sample-", "native-terrain-reference-")
+    for path in (sample, reference):
+        if not path.is_file():
+            raise ValueError(f"the retained terrain sample {path.name} is missing")
+    # ⚠ Round-5 review B4: a sample must be bound to the capture that produced it. The name
+    # carries the draw count the copy was REGISTERED at; the report must agree. Measured: a
+    # sample from before a resize stayed referenced after the rebuild, and the reported draw
+    # count (3363) disagreed with the file name (-3).
+    stem = name[len("native-terrain-sample-"):-len(".ppm.gz")]
+    if not stem.isdigit() or int(stem) != comparison.get("sampleAtDraw"):
+        raise ValueError(f"the retained sample is named for draw {stem!r} but the comparison"
+                         f" says it was taken at {comparison.get('sampleAtDraw')!r}")
+    got, (gw, gh) = read_ppm_gz(sample)
+    want, (rw, rh) = read_ppm_gz(reference)
+    if (gw, gh) != (rw, rh):
+        raise ValueError(f"the retained samples are {gw}x{gh} and {rw}x{rh}")
+    if (gw, gh) != (report["targetWidth"], report["targetHeight"]):
+        raise ValueError(f"the retained samples are {gw}x{gh} but the probe drew to"
+                         f" {report['targetWidth']}x{report['targetHeight']}")
+    clear = report["clearRgb"]
+    clear_rgb = (clear & 0xFF, (clear >> 8) & 0xFF, (clear >> 16) & 0xFF)
+    differ = native_set = reference_set = 0
+    for y in range(gh):
+        a, b = got[y], want[y]
+        for x in range(gw):
+            if a[x] != b[x]:
+                differ += 1
+            if a[x] != clear_rgb:
+                native_set += 1
+            if b[x] != clear_rgb:
+                reference_set += 1
+    out = {"sample": name, "size": [gw, gh], "mismatches": differ,
+           "nativeSet": native_set, "referenceSet": reference_set,
+           "sampleAtDraw": comparison.get("sampleAtDraw")}
+    if differ:
+        raise ValueError(f"recomparing the retained samples finds {differ} differing pixels"
+                         f" between Minecraft's frame and Voxy's own target: {out}")
+    if native_set < 1000 or reference_set < 1000:
+        raise ValueError(f"the retained samples are almost entirely background, so an identical"
+                         f" pair proves nothing: {out}")
+    for label, theirs, ours in (("mismatches", comparison["mismatches"], differ),
+                                ("nativeSet", comparison["nativeSet"], native_set),
+                                ("referenceSet", comparison["referenceSet"], reference_set)):
+        if theirs != ours:
+            raise ValueError(f"the comparison reported {label}={theirs} but the retained samples"
+                             f" hold {ours}; the aggregate does not match the pixels")
+    return out
+
+
 def native_proof_files_result(output, checkpoints):
     """Gate the proof files, their identities, and their agreement with each other.
 
@@ -697,9 +846,11 @@ def retain_native_evidence(output, native_output, timestamp, summary):
         # retained, so no reader could reclassify it. Keep the raw samples; they are the one
         # artifact the marker verdict actually rests on.
         samples = {}
-        for path in sorted(native_output.glob("native-marker-sample-*.ppm")):
-            shutil.copyfile(path, target / path.name)
-            samples[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        for pattern in ("native-marker-sample-*.ppm", "native-terrain-sample-*.ppm.gz",
+                        "native-terrain-reference-*.ppm.gz"):
+            for path in sorted(native_output.glob(pattern)):
+                shutil.copyfile(path, target / path.name)
+                samples[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
         kept["files"].update(samples)
         kept["raw_colour_samples"] = sorted(samples)
         if not samples:
@@ -792,6 +943,12 @@ def replay_evidence(directory):
         outcome["checkpoints"] = len(checkpoints)
         outcome["proofs"] = native_proof_files_result(directory, checkpoints)["failures"]
         outcome["replayed"].append("proof-file consistency")
+        terrain_path = directory / "native-terrain-probe.json"
+        if terrain_path.is_file():
+            terrain = json.loads(terrain_path.read_text())
+            outcome["terrain_recompare"] = recompare_terrain_samples(
+                directory, terrain, terrain["comparison"])
+            outcome["replayed"].append("terrain frame-vs-reference recomparison")
     except (OSError, ValueError, KeyError, TypeError) as exc:
         outcome["error"] = str(exc)
         print(json.dumps(outcome, indent=2))
@@ -915,7 +1072,7 @@ def main():
                 f"-PharnessSeconds={args.seconds}", "-PharnessNative=true",
                 "-PharnessGraphicsBackend=vulkan", "-PharnessNativeMarker=true",
                 "-PharnessNativeFeatures=true", "-PharnessNativeAdopt=true",
-                "-PharnessNativeProbe=true"], output, args.timeout)
+                "-PharnessNativeProbe=true", "-PharnessNativeTerrain=true"], output, args.timeout)
             result["gate"] = native_environment_result(native_output)
             result["success"] &= result["gate"]["success"]
             checkpoints = result["gate"].get("checkpoints") or []
@@ -923,6 +1080,12 @@ def main():
             result["success"] &= result["marker"]["success"]
             result["proofs"] = native_proof_files_result(native_output, checkpoints)
             result["success"] &= result["proofs"]["success"]
+            # ⚠ EXPERIMENTAL (round 4 permits terrain investigation, not promotion). It is
+            # gated like everything else: if Voxy's real terrain pipeline is asked to record
+            # into Minecraft's frame and the result disagrees with Voxy's own target, the stage
+            # fails. Being experimental is about what may be CLAIMED, not about being ungated.
+            result["terrain"] = native_terrain_result(native_output)
+            result["success"] &= result["terrain"]["success"]
             text = (output / "native.log").read_text(errors="replace")
             result["diagnostics"] = [line.strip() for line in text.splitlines()
                 if re.search(r"\[vk-validation\]|Validation (Error|Warning)|SYNC-HAZARD-|VUID-", line)]

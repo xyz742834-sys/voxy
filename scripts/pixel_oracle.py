@@ -1,6 +1,7 @@
 """Read the bounded analytic fixture's PNGs without third-party dependencies."""
 import struct
 import zlib
+from pathlib import Path
 
 WIDTH, HEIGHT = 256, 192
 
@@ -199,6 +200,25 @@ def write_rgb_png(path, rows):
     header = struct.pack(">IIBBBBB", len(rows[0]), len(rows), 8, 2, 0, 0, 0)
     path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header)
                      + chunk(b"IDAT", zlib.compress(bytes(raw), 9)) + chunk(b"IEND", b""))
+
+
+def read_ppm_gz(path):
+    """Read a gzip-compressed binary P6 PPM as (rows, (width, height)).
+
+    Whole-frame terrain samples are 6 MB uncompressed, which is too much to keep in the
+    repository; a synthetic scene gzips to a fraction of that, so the retained evidence stays
+    independently re-comparable without the size.
+    """
+    import gzip
+    import tempfile
+    with gzip.open(path, "rb") as raw:
+        body = raw.read(64 << 20)
+        if raw.read(1):
+            raise ValueError("the compressed PPM is larger than the 64 MiB read limit")
+    with tempfile.NamedTemporaryFile(suffix=".ppm") as tmp:
+        tmp.write(body)
+        tmp.flush()
+        return read_ppm(Path(tmp.name))
 
 
 def read_ppm(path):

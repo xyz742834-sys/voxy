@@ -28,8 +28,15 @@ independent review rounds returned REDESIGN; round 4
 ([native-integration-review-r4.md](runs/native-integration-review-r4.md)) closed its inertness
 and destruction findings and stated the layer is *"not yet sound enough to use as the accepted
 foundation for terrain work"*, with terrain investigation permitted as experimental. Round 5 is
-pending. Nothing here may be cited as an accepted foundation until a round says so — see
-[harness.md](harness.md) for the rule.
+returned REDESIGN too, confirming the mechanisms, refusing their completeness, and finding a
+new blocking lifetime defect. Nothing here may be cited as an accepted foundation until a round
+says so — see [harness.md](harness.md) for the rule.
+
+Behind a fifth default-off flag (`voxy.native.terrain`) there is now an **experiment**: Voxy's
+real terrain pipeline, recorded into a pass Minecraft opens over its own colour and depth, comes
+out RGB-identical to the same scene drawn by the same renderer on Voxy's own target on the same
+device. Round 4 permits terrain investigation as experimental and that is all this is; the input
+is synthetic and the probe clears Minecraft's frame to make the comparison meaningful.
 
 ## What works
 

@@ -157,7 +157,12 @@ rejects the backend when the Vulkan loader library is missing or
 
 ## The bounded draw, measured (2026-10-04)
 
-`McNativeMarkerDraw` records one bounded draw — a small magenta quad, no descriptors, no
+> ⚠ **Dated paragraph, superseded by the code.** When this was written the draw was *one*
+> magenta quad with no push constants. Rounds 2 and 3 replaced it with **six** quads carrying
+> a 36-byte push payload (base, near, the spanning rejected quad, the control strip). Read the
+> source for what is recorded today; this paragraph records what was measured on 2026-10-04.
+
+`McNativeMarkerDraw` records a bounded draw — then a small magenta quad, no descriptors, no
 push constants, no vertex buffers — using a pipeline Voxy builds **on Minecraft's own
 device**, into the command buffer of a render pass opened through **Minecraft's own**
 `CommandEncoder.createRenderPass`, so every layout transition and barrier for the colour
@@ -192,11 +197,15 @@ Three facts that must not be assumed, each measured rather than reasoned:
    (242, 0, 242) and (253, 0, 253) in others. An exact-colour pixel oracle on Minecraft's
    composed frame is therefore invalid; the gate checks a bounded neighbourhood and records
    the value it actually found.
-3. **Not every captured frame contains a rendered level.** The nether checkpoint's frame was
-   essentially black (the whole marker box was (5, 2, 2)); the level simply was not rendered
-   on the frame that was captured, so the hook never ran. The gate records such a frame as
-   "no level content" instead of counting it for or against the draw, and separately requires
-   most checkpoints to be real so a run cannot pass by calling every frame empty.
+3. **Not every captured frame shows the draw.** The nether checkpoint's frame was
+   essentially black (the whole marker box was (5, 2, 2)).
+   ⚠ **Why is not established.** The earlier text here said "the level was not rendered, so
+   the hook never ran"; round 5 refuted that as causality — neither a dark frame nor a rising
+   cumulative draw counter says what happened in the frame that was captured. What is measured
+   is only that the frame carried nothing. The gate therefore records such a frame as
+   "no marker" without claiming a reason, counts at most three of them, and requires at least
+   eight captured frames to carry the marker, so a run cannot pass by calling every frame
+   empty. The proof the gate rests on is the readback, not these frames.
 
 What this does NOT show: any Voxy terrain. The draw is a marker, chosen so that "did our
 command reach Minecraft's frame" is answerable without dragging in depth conventions,
@@ -426,9 +435,17 @@ The counterexamples the reviewer used are now tests (`scripts/tests/test_marker_
 measurements below were made on the dates given; what is checkable is the evidence the runner
 retains in the repository under [native-evidence](runs/native-evidence/) — proof files, the
 stage log, the finished summary, the source fingerprint, the candidate revision, a manifest of
-screenshot hashes and a crop of the marker region from every captured frame. Where an older
-paragraph describes a run whose output is gone, the claim stands only insofar as a later
-retained run reproduces it under stricter gates.
+screenshot hashes and a crop of the marker region from every captured frame.
+
+**Any figure from a run whose evidence directory is not in the repository is narrative, not
+proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
+retained run, and it refused every exact count, failure and causal explanation attributed to a
+run whose output is gone — correctly, since nothing can be re-measured from an absent
+directory. So: the citable numbers in this document are the ones in
+[native-evidence](runs/native-evidence/). The dated paragraphs are kept because the sequence of
+mistakes is useful, not because their numbers can be checked. Where an older paragraph
+describes a run whose output is gone, the claim stands only insofar as a later retained run
+reproduces it under stricter gates.
 
 ## Round-2 review repairs (2026-10-06)
 
@@ -586,6 +603,130 @@ The passing run is
 readback buffers; the independent recount of `native-marker-sample-3363.ppm` agrees with every
 one of those figures; every gate green and zero validation diagnostics. `--replay-evidence` on
 that directory returns 0 with all manifest hashes matching.
+
+## Round-5 review (2026-10-06)
+
+Round 5 ([native-integration-review-r5.md](runs/native-integration-review-r5.md)) returned
+REDESIGN. It confirmed the mechanisms and refused the completeness: raw pixels, retained crop
+origins, the no-launch replay and several failure checks are real, and B1, B3, B4 and R4-L1 are
+all still open on narrower residuals. It also found a **new blocking lifetime defect** the
+earlier rounds had missed, and its acceptance boundary is unchanged: *"an independently accepted
+diagnostic foundation is still REDESIGN."* That sentence governs this document.
+
+What it broke, in its own constructions:
+
+- **The recount can accept an incomplete proof.** `recount_marker_sample` intersected each
+  expected region with the producer's own `sampleRect` and then used *that* intersection as the
+  density denominator. Removing the leftmost 20 columns of the retained sample and adjusting
+  `sampleRect` and two counts to match gave `near=10260/10260`, `far=8316/8316`,
+  `cell=3784/3784` — 100% dense, with the omitted columns free to be yellow throughout.
+- **`--replay-evidence` rechecked almost nothing.** It called the recount and the proof-file
+  helper directly, bypassing the marker gate. A report with `attempted=false`,
+  `completed=false`, `timesClean=0`, `timesWithAProblem=3`, `enabled=false`, `drawsRecorded=0`,
+  `depthAttached=false` and `closeFailures=99` still replayed as **0**, as did a directory with
+  `MANIFEST.json` removed entirely.
+- **Retention could lose the sample it referenced.** The check was "at least one sample exists",
+  so duplicating a sample and deleting the referenced one left retention reporting no error.
+- **Contradictory proofs still passed.** Adoption's `attempted` was never read; the feature
+  notes were a substring match with no one-to-one coverage of `added`, so an empty list passed
+  vacuously and `"FAILED: not verified by read-back"` passed because it contains the phrase;
+  `expected=""` and `readBack=""` compared equal.
+- **Disk could still hold a clean proof over a failure.** With `instance` cleared, a failing
+  callback wrote nothing. A PPM write failure returned the *original successful* readback, so
+  the clean counter advanced and no failure was published. A `close()` failure incremented only
+  its own counter. The registration-path close exception was counted nowhere.
+- **Trying both orientations does not identify the right one.** Fed an image with a correct
+  pattern at the top and an entirely yellow box at the bottom, the classifier chose the top and
+  reported no problem. Density rejects sparse noise; it cannot say which of two dense patterns
+  is the marker.
+- **The sample is not bound to its capture.** `measure` reads the global draw counter when the
+  callback runs, not when the copy is registered, so the file name can disagree with the
+  request; and the gate neither required nor bounded `sampleAtDraw`.
+- **R5-LIFETIME (new blocker).** `retire(draw, device)` cleared only the local variable, not
+  the static `instance`. If the replacement `create` returned null, the retired draw stayed
+  reachable, and if the target format later returned to its old value the mismatch branch was
+  skipped and `record` ran on an object already queued for destruction. The reviewer reproduced
+  the reachability with the real `retire` and Minecraft's real destruction queue
+  (`retireTwice instanceStillSame=true live=true`).
+
+It also found the tests weaker than their names claim (R5-TEST): the replay test passed with
+`recount_marker_sample` stubbed to return `{}`; the crop-origin test checked a list length
+rather than a position; `test_the_readback_is_what_carries_the_proof_not_the_screenshots` fails
+for "too few near/far pixels" before any screenshot is examined; the fixtures omit
+`sampleAtDraw` entirely; and `EvidenceRetentionTest` sat **after** the file's
+`if __name__ == "__main__"` guard, so running the file directly never defined it.
+
+And it refused the document's historical figures (R5-DOC) — correctly. Nothing can be
+re-measured from an evidence directory that is gone. See
+[A note on how runs are cited](#a-note-on-how-runs-are-cited), which now says so plainly, and
+the two paragraphs corrected in place (the marker is six quads with a 36-byte push payload, not
+one quad with none; and the nether frame's *cause* was never established).
+
+Flags-unset safety was confirmed for a third time, route by route, for both backends.
+
+## Voxy's real terrain pipeline in Minecraft's frame, measured (2026-10-06)
+
+⚠ **This is an experiment, under round 4's explicit permission** — *"Terrain investigation can
+be experimental; it should not be promoted as continuation from an independently accepted
+diagnostic layer"* — and round 5 did not change that. Nothing below is offered as an accepted
+foundation. It is off unless `-Dvoxy.native.terrain=true`.
+
+The obstacle was structural rather than graphical. `VkTerrainRenderer.record` owns
+`beginRendering`/`endRendering`, so there was no way to put Voxy's terrain into a pass someone
+else opened. The renderer is now split at that seam:
+
+- `recordBeforeRenderPass(cmd)` — the atlas upload, the depth-bound clear and the host-write
+  barrier. These are transfers and layout transitions, so they **cannot** be recorded inside
+  dynamic rendering.
+- `recordDrawsInRenderPass(cmd, drawCount)` — the pipeline bind, descriptor bind, index buffer
+  and indirect draws, and **its own viewport and scissor**: leaving those to the caller would
+  let someone else's extent shift the `depthTex` `texelFetch`, which goes wrong by looking
+  slightly wrong and says nothing.
+- `assertColourFormatMatches(format)` — the format check `record` used to do from the target,
+  which this path cannot do for itself.
+
+`VkTerrainRenderTest.theSplitRecordingPathDrawsTheSameImage` renders the same scene both ways
+on a real device and requires the images to be **identical** (`compareColor == 0`); splitting a
+working path is exactly the kind of change that looks fine and is not.
+
+`McNativeTerrainProbe` then uses that seam. It builds `SyntheticTerrain.boundaryCases()` and
+Voxy's real `VkTerrainResources`/`VkTerrainRenderer` **on Minecraft's adopted device**, renders
+the scene once into Voxy's own `VkRenderTarget` behind a fence — which both produces the
+reference image and performs the out-of-pass work — and from then on records only
+`recordDrawsInRenderPass` into a pass opened through **Minecraft's own**
+`CommandEncoder.createRenderPass` over Minecraft's colour and depth views. It clears both, so
+the frame becomes the synthetic scene; that is what makes a pixel comparison meaningful, and it
+is why this must stay a flag.
+
+What is measured: the colour image Minecraft owns, read back right after the draw, against the
+reference drawn by the same renderer on the same device. Orientation is not assumed (both are
+tried); alpha is excluded because it encodes face/LoD. The claim is **RGB-identical**, and the
+gate repeats the comparison from two retained raw samples rather than trusting the reported
+aggregate.
+
+Measured, in the run retained as
+[20261006T080931-279390Z](runs/native-evidence/20261006T080931-279390Z/MANIFEST.json): Voxy's
+real terrain pipeline recorded into Minecraft's own pass produced an image with **26116
+non-background pixels and 0 mismatches** against the reference — equal on both sides — over
+**16 clean comparisons** across the eleven-checkpoint scenario, with no leaked probes, no
+unclosed readback buffers, and zero validation diagnostics. The gate's own recomparison of
+`native-terrain-sample-3377.ppm.gz` against `native-terrain-reference-3377.ppm.gz` agrees:
+1920x1080, 0 mismatches, 26116 each side. `--replay-evidence` on that directory returns 0 and
+now lists the terrain recomparison among what it replayed.
+
+What this does **not** show: anything about real world data (the input is synthetic — no world
+load, no mesh generation, no atlas), anything about coexisting with Minecraft's own scene (the
+probe clears it), and anything about performance, LoD selection or the indirect/compute path
+feeding real draw counts. `voxy_integration_status` stays `BLOCKED_UNIMPLEMENTED`.
+
+One defect worth recording, because the gate caught it rather than a reviewer: the first version
+retired the probe's resources through `VkFrameTracker.freeAtFrameEnd`. The tracker is not the
+lifetime that matters — **Minecraft's** submissions hold these resources — and in the measured
+run it had already been shut down by the time the window resized, so retirement threw
+`VkFrameTracker not initialised` and the stage failed. Retirement now goes to Minecraft's own
+`queueForDestroy` with the probe as the `Destroyable`, clears the static reference **before**
+queueing (so R5-LIFETIME cannot recur here), refuses to destroy across a device change, and
+counts every deliberate leak against a budget that stops it building another.
 
 ## What is NOT answered yet, and must be measured on hardware
 

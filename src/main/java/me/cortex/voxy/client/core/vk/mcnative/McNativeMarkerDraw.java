@@ -272,11 +272,19 @@ public final class McNativeMarkerDraw implements Destroyable {
         if (width <= 0 || height <= 0) return;
 
         McNativeMarkerDraw draw = instance;
+        // ⚠ round-5 review: 退役させた後に差し替えの作成が失敗すると、instance に
+        // <b>退役済みの draw が残った</b>。次のフレームで条件が合えばそれが再び使われる —
+        // 「破棄を予約したオブジェクトを描画に使う」である。退役と同時に参照を切る。
+        if (draw != null && draw.destroyed) {
+            if (instance == draw) instance = null;
+            draw = null;
+        }
         if (draw != null && (draw.device != device || draw.colourFormat != format
                 || draw.depthFormat != depthVkFormat)) {
             // 画面のフォーマットが変わった / デバイスが差し替わった。
             // 破棄は MC の提出寿命に合わせる — 今まさに使われている可能性があるため。
             retire(draw, device);
+            if (instance == draw) instance = null;
             draw = null;
         }
         if (draw == null) {
