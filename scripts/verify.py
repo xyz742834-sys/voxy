@@ -270,6 +270,15 @@ def native_marker_result(output, checkpoints):
         # a screenshot does not mean an absent draw. Measured: the nether checkpoint's frame
         # showed nothing while the draw had certainly run.
         rb = report.get("readback")
+        if isinstance(rb, dict):
+            for field, kind in (("attempted", bool), ("completed", bool), ("near", int),
+                                ("far", int), ("rejectedInBox", int), ("control", int),
+                                ("boxArea", int), ("controlArea", int), ("timesClean", int),
+                                ("timesWithAProblem", int)):
+                if field not in rb:
+                    raise ValueError(f"the readback does not state {field}")
+                if not isinstance(rb[field], kind) or isinstance(rb[field], bool) != (kind is bool):
+                    raise ValueError(f"readback.{field} is {rb[field]!r}, not a {kind.__name__}")
         if not isinstance(rb, dict) or not rb.get("attempted"):
             raise ValueError("Minecraft's colour image was never read back, so the draw is"
                              " only supported by screenshots that its GUI can cover")
@@ -459,6 +468,8 @@ def native_proof_files_result(output, checkpoints):
             raise ValueError(f"the device features Voxy needs were not all requested: {features}")
 
         compute = loaded["native-compute-probe.json"]
+        if not need(compute, "native-compute-probe.json", "attempted", bool):
+            raise ValueError("the int64 compute proof was never attempted")
         if not need(compute, "native-compute-probe.json", "succeeded", bool):
             raise ValueError(f"the int64 compute proof did not succeed: {compute}")
         if need(compute, "native-compute-probe.json", "readBack", str) != \
@@ -478,6 +489,10 @@ def native_proof_files_result(output, checkpoints):
                                 "native-adopted-context.json", "device")
 
         shader = loaded["native-real-shader.json"]
+        if not need(shader, "native-real-shader.json", "attempted", bool):
+            raise ValueError("the real-shader proof was never attempted")
+        if shader.get("firstMismatch") is not None:
+            raise ValueError(f"the real-shader proof names a mismatch: {shader['firstMismatch']}")
         if not need(shader, "native-real-shader.json", "succeeded", bool):
             raise ValueError(f"Voxy's real shader stack did not succeed: {shader}")
         if need(shader, "native-real-shader.json", "mismatches", int) != 0:
@@ -501,7 +516,14 @@ def native_proof_files_result(output, checkpoints):
             if not isinstance(renderer, dict) or "vkDevice" not in renderer:
                 raise ValueError(f"checkpoint {case.get('stage')} does not name its device")
             checkpoint_devices.add(handle(renderer["vkDevice"], "checkpoint", "vkDevice"))
-        identities = {"adopted": adopted_device, "marker": marker_device, "probe": probe_device}
+        # ⚠ Round-3 review B3: the compute and real-shader proofs published no identity at
+        # all, so a contradictory one was ignored. They name their device now and must agree.
+        compute_device = handle(need(compute, "native-compute-probe.json", "device", str),
+                                "native-compute-probe.json", "device")
+        shader_device = handle(need(shader, "native-real-shader.json", "device", str),
+                               "native-real-shader.json", "device")
+        identities = {"adopted": adopted_device, "marker": marker_device, "probe": probe_device,
+                      "compute": compute_device, "realShader": shader_device}
         result["device_identities"] = {k: hex(v) for k, v in identities.items()}
         result["checkpoint_devices"] = [hex(v) for v in sorted(checkpoint_devices)]
         if len(checkpoint_devices) != 1:
@@ -545,9 +567,13 @@ def retain_native_evidence(output, native_output, timestamp, summary):
                              "host": summary.get("host")}
         for path in sorted(native_output.glob("*.png")):
             kept["screenshots"][path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
-        crop = retain_marker_crop(native_output, target)
-        if crop:
-            kept["files"].update(crop)
+        # ⚠ Round-3 review B1: one unbound crop cannot replay the pixel gate. Keep a crop of
+        # the marker region for EVERY captured frame — a few hundred kilobytes in total, where
+        # the screenshots themselves would be tens of megabytes — so the per-frame judgement can
+        # be re-made from the repository.
+        crops = retain_marker_crops(native_output, target)
+        kept["files"].update(crops)
+        kept["crops"] = sorted(crops)
         (target / "MANIFEST.json").write_text(json.dumps(kept, indent=2) + "\n")
         kept["path"] = str(target.relative_to(ROOT))
     except (OSError, ValueError) as exc:
@@ -555,32 +581,41 @@ def retain_native_evidence(output, native_output, timestamp, summary):
     return kept
 
 
-def retain_marker_crop(native_output, target):
-    """Save a small PNG of the marker region from the first frame that carries it."""
+def retain_marker_crops(native_output, target):
+    """Save a small PNG of the marker region from every captured frame."""
     report_path = native_output / "native-marker-draw.json"
     if not report_path.is_file():
-        return None
+        return {}
     report = json.loads(report_path.read_text())
     geometry = report.get("geometry") or {}
     box, strip = geometry.get("box"), geometry.get("controlStrip")
     cell = geometry.get("depthTestedPassCell")
     if not (isinstance(box, list) and isinstance(strip, list) and isinstance(cell, list)):
-        return None
+        return {}
+    kept = {}
     for png in sorted(native_output.glob("*.png")):
-        width, height = png_size(png)
-        xs = [int((v + 1.0) * 0.5 * width) for v in (box[0], box[2])]
-        ys = [int((1.0 - v) * 0.5 * height)
-              for v in (box[1], box[3], strip[1], strip[3], cell[1], cell[3])]
-        x0, x1 = max(0, min(xs) - 2), min(width, max(xs) + 2)
-        y0, y1 = max(0, min(ys) - 2), min(height, max(ys) + 2)
-        rows, _ = top_rows_rgb(png, y1 + 1)
-        crop = [row[x0:x1] for row in rows[y0:y1]]
-        if not crop or not crop[0]:
+        try:
+            width, height = png_size(png)
+            xs = [int((v + 1.0) * 0.5 * width) for v in (box[0], box[2])]
+            ys = [int((1.0 - v) * 0.5 * height)
+                  for v in (box[1], box[3], strip[1], strip[3], cell[1], cell[3])]
+            # Both orientations can hold the marker, so keep a band from each end.
+            mirrored = [height - y for y in ys]
+            x0, x1 = max(0, min(xs) - 2), min(width, max(xs) + 2)
+            for label, rows_range in (("top", ys), ("bottom", mirrored)):
+                y0, y1 = max(0, min(rows_range) - 2), min(height, max(rows_range) + 2)
+                if y1 <= y0:
+                    continue
+                rows, _ = top_rows_rgb(png, y1 + 1)
+                crop = [row[x0:x1] for row in rows[y0:y1]]
+                if not crop or not crop[0]:
+                    continue
+                name = f"crop-{png.stem}-{label}.png"
+                write_rgb_png(target / name, crop)
+                kept[name] = hashlib.sha256((target / name).read_bytes()).hexdigest()
+        except (OSError, ValueError):
             continue
-        name = "marker-crop-" + png.stem + ".png"
-        write_rgb_png(target / name, crop)
-        return {name: hashlib.sha256((target / name).read_bytes()).hexdigest()}
-    return None
+    return kept
 
 
 def main():
@@ -720,9 +755,7 @@ def main():
             save()
             # Retained after the summary is written, so the evidence includes the finished
             # gate results and the log rather than a half-written snapshot.
-            result["retained_evidence"] = retain_native_evidence(
-                output, native_output, timestamp, summary)
-            save()
+            summary["native_evidence_pending"] = {"output": str(native_output)}
         summary["success"] = bool(summary["stages"]) and all(r["success"] for r in summary["stages"].values())
         final_fingerprints = source_fingerprints()
         changed = sorted(name for name in fingerprints.keys() | final_fingerprints.keys()
@@ -742,6 +775,16 @@ def main():
         summary["runner_error"] = str(exc) or type(exc).__name__
     finally:
         save()
+        # ⚠ Round-3 review B1: the retained summary was the pre-finalization copy, whose
+        # success is false and whose source-change check had not run. Retain after the last
+        # save, then save once more so the manifest is part of the summary too.
+        pending = summary.pop("native_evidence_pending", None)
+        if pending:
+            stage = summary.get("stages", {}).get("native_environment")
+            if isinstance(stage, dict):
+                stage["retained_evidence"] = retain_native_evidence(
+                    output, Path(pending["output"]), timestamp, summary)
+            save()
     print(f"{'PASS' if summary['success'] else 'FAIL'}: {summary_file}", flush=True)
     return 0 if summary["success"] else 1
 

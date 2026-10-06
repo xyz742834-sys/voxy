@@ -78,8 +78,9 @@ public final class McNativeComputeProbe {
      * @param readBack    実際に読み戻した値 (16 進)
      * @param queueFamily 提出したキューファミリ
      */
+    /** @param device 実際に走らせた {@code VkDevice} (round-3 review B3: 同一性の出典)。 */
     public record Result(boolean attempted, boolean succeeded, String expected, String readBack,
-                         int queueFamily, List<String> notes) {}
+                         int queueFamily, String device, List<String> notes) {}
 
     public static Result last() { return last; }
 
@@ -91,7 +92,7 @@ public final class McNativeComputeProbe {
         if (!Boolean.getBoolean(McNativeDeviceFeatures.FLAG)) {
             notes.add("skipped: " + McNativeDeviceFeatures.FLAG + " is not set, so the features"
                 + " Voxy needs were never requested on Minecraft's device");
-            last = new Result(false, false, hex(EXPECTED), null, -1, List.copyOf(notes));
+            last = new Result(false, false, hex(EXPECTED), null, -1, null, List.copyOf(notes));
             return last;
         }
         last = run(device, notes);
@@ -103,6 +104,7 @@ public final class McNativeComputeProbe {
 
     private static Result run(VulkanDevice device, List<String> notes) {
         var vk = device.vkDevice();
+        String deviceHandle = "0x" + Long.toHexString(vk.address());
         long module = 0, setLayout = 0, pipelineLayout = 0, pipeline = 0, pool = 0;
         long descriptorPool = 0, buffer = 0, memory = 0, commandPool = 0, fence = 0;
         int queueFamily = -1;
@@ -234,7 +236,7 @@ public final class McNativeComputeProbe {
             if (submitted && !retired) {
                 notes.add("leaking the probe's Vulkan objects on purpose: the submission was"
                     + " never observed to complete");
-                return new Result(true, false, hex(EXPECTED), readBack, queueFamily, List.copyOf(notes));
+                return new Result(true, false, hex(EXPECTED), readBack, queueFamily, deviceHandle, List.copyOf(notes));
             }
             try {
                 if (fence != 0) vkDestroyFence(vk, fence, null);
@@ -250,7 +252,7 @@ public final class McNativeComputeProbe {
                 notes.add("cleanup after the int64 compute probe: " + t);
             }
         }
-        return new Result(true, ok, hex(EXPECTED), readBack, queueFamily, List.copyOf(notes));
+        return new Result(true, ok, hex(EXPECTED), readBack, queueFamily, deviceHandle, List.copyOf(notes));
     }
 
     private static int hostVisibleMemoryType(VulkanDevice device, int typeBits,
@@ -317,6 +319,7 @@ public final class McNativeComputeProbe {
         sb.append("  \"expected\": ").append(McNativeVulkanProbe.quote(r.expected())).append(",\n");
         sb.append("  \"readBack\": ").append(McNativeVulkanProbe.quote(r.readBack())).append(",\n");
         sb.append("  \"queueFamily\": ").append(r.queueFamily()).append(",\n");
+        sb.append("  \"device\": ").append(McNativeVulkanProbe.quote(r.device())).append(",\n");
         sb.append("  \"notes\": [");
         for (int i = 0; i < r.notes().size(); i++) {
             sb.append(i == 0 ? "\n    " : ",\n    ").append(McNativeVulkanProbe.quote(r.notes().get(i)));

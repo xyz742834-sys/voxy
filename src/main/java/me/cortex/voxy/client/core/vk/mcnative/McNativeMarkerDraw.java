@@ -141,6 +141,18 @@ public final class McNativeMarkerDraw implements Destroyable {
     private static final float DEPTH_FAR = 0.6f, DEPTH_NEAR = 0.3f, DEPTH_REJECTED = 0.9f;
 
     /**
+     * 「通るセル」の下敷きに書く深度。棄却色 ({@link #DEPTH_REJECTED}) より<b>奥</b>。
+     *
+     * <p>⚠ round-3 review B4: セルと箱を<b>別コマンド</b>で描いていたため、
+     * 「箱に向けたコマンドが発行された」ことは示せていなかった (セルの方だけ出ていても
+     * 同じ絵になる)。そこで棄却色は<b>1 本のコマンドで箱とセルを跨いで</b>描き、
+     * 下敷きの深度を領域ごとに変える: 箱は {@link #DEPTH_FAR} (手前) なので落ち、
+     * セルはこれ (奥) なので通る。<b>同一コマンドが二つの結果を出す</b>ことが、
+     * 発行と棄却の両方の証明になる。
+     */
+    private static final float DEPTH_CELL_BASE = 0.95f;
+
+    /**
      * <b>棄却色の対照帯</b>。深度証明の箱のすぐ下に、同じ色を<b>必ず通る設定</b>
      * (比較 ALWAYS) で置く。
      *
@@ -368,6 +380,15 @@ public final class McNativeMarkerDraw implements Destroyable {
             } else {
                 readbackProblems++;
                 if (firstReadbackProblem == null) firstReadbackProblem = best.note();
+                // ⚠ round-3 review B4: 証跡を 600 draw ごとにしか書いていなかったので、
+                // 間で起きた問題が次の清浄な読み戻しに上書きされて消え得た。
+                // 問題を見つけた瞬間に書く。
+                evidenceWrittenAt = -1;
+                var draw = instance;
+                if (draw != null) {
+                    McNativeVulkanProbe.writeFile("native-marker-draw.json",
+                        evidenceJson(draw.device, draw.colourFormat, 0, 0));
+                }
             }
             Logger.info("[native-vk] read Minecraft's colour image back: near=" + best.near()
                 + " far=" + best.far() + " rejectedInBox=" + best.rejectedInBox()
@@ -487,22 +508,21 @@ public final class McNativeMarkerDraw implements Destroyable {
                     MARKER_R, MARKER_G, MARKER_B, DEPTH_NEAR);
                 return;
             }
-            // 基準面は箱と「通るセル」の両方を覆う。セルの深度状態を既知にするため。
+            // 下敷き (比較 ALWAYS + 深度書き込み)。箱は手前、セルは奥にしておく —
+            // この差だけで、後続の 1 本のコマンドが領域ごとに別の結果になる。
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.writePipeline);
             quad(cmd, stack, BOX_X0, BOX_Y0, BOX_X1, BOX_Y1, FAR_R, FAR_G, FAR_B, DEPTH_FAR);
-            quad(cmd, stack, BOX_X0, CELL_Y0, BOX_X1, CELL_Y1, FAR_R, FAR_G, FAR_B, DEPTH_FAR);
+            quad(cmd, stack, BOX_X0, CELL_Y0, BOX_X1, CELL_Y1, FAR_R, FAR_G, FAR_B, DEPTH_CELL_BASE);
 
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.testPipeline);
             quad(cmd, stack, BOX_X0, BOX_Y0, NEAR_X1, BOX_Y1,
                 MARKER_R, MARKER_G, MARKER_B, DEPTH_NEAR);
-            // 深度に落とされるべき 3 枚目。箱のどこにも出てはいけない。
-            quad(cmd, stack, BOX_X0, BOX_Y0, BOX_X1, BOX_Y1,
+            // ⚠ 棄却色は<b>1 本のコマンド</b>で箱とセルを跨いで描く (round-3 review B4)。
+            // 箱の下敷きは手前なので落ち、セルの下敷きは奥なので通る。
+            // 「セルに出ている」=このコマンドは発行された、
+            // 「箱に出ていない」=そのコマンドが深度に落とされた。別コマンドでは前者が言えない。
+            quad(cmd, stack, BOX_X0, BOX_Y0, BOX_X1, CELL_Y1,
                 REJECTED_R, REJECTED_G, REJECTED_B, DEPTH_REJECTED);
-            // ⚠ 同じ深度テスト付きパイプラインで、セルには<b>手前</b>の深度を書く。
-            // ここに色が出ることが「棄却色の draw は発行された」の証明で、
-            // 箱に出ないことが「深度に落とされた」の証明になる (round-2 review B4)。
-            quad(cmd, stack, BOX_X0, CELL_Y0, BOX_X1, CELL_Y1,
-                REJECTED_R, REJECTED_G, REJECTED_B, DEPTH_NEAR);
             // 対照: 比較 ALWAYS でも描けること (色そのものの可視性の対照)。
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.writePipeline);
             quad(cmd, stack, BOX_X0, CONTROL_Y0, BOX_X1, CONTROL_Y1,
@@ -723,10 +743,28 @@ public final class McNativeMarkerDraw implements Destroyable {
      * {@code queueForDestroy} に預けても<b>誰も処理しない</b> — 預けたままだと
      * Minecraft が device を壊すときに「子オブジェクトが残っている」と正しく指摘される。
      */
-    public static void shutdownImmediate() {
+    /**
+     * <b>いま壊す</b>。クライアント終了時はこれ以上提出が無いので、
+     * {@code queueForDestroy} に預けても<b>誰も処理しない</b> — 預けたままだと
+     * Minecraft が device を壊すときに「子オブジェクトが残っている」と正しく指摘される。
+     *
+     * @param waitedDevice 呼び出し側がアイドルを確認した {@code VkDevice}。
+     *                     マーカーがこれと違う device のものなら<b>壊さない</b>
+     *                     (round-3 review B5: 旧 device を待って新 device のものを
+     *                     壊していた)。
+     */
+    public static void shutdownImmediate(org.lwjgl.vulkan.VkDevice waitedDevice) {
         var draw = instance;
         instance = null;
-        if (draw != null) draw.destroy();
+        if (draw == null) return;
+        if (waitedDevice == null || draw.device.vkDevice().address() != waitedDevice.address()) {
+            note("the marker pipeline belongs to a different device than the one whose idle was"
+                + " observed; leaking it on purpose rather than destroying something whose"
+                + " submissions were never confirmed to finish");
+            draw.destroyed = true;
+            return;
+        }
+        draw.destroy();
     }
 
     /** {@link #shutdownImmediate()} の呼び出し元が device のアイドルを確認済みであること。 */
@@ -783,6 +821,11 @@ public final class McNativeMarkerDraw implements Destroyable {
         String dir = System.getProperty("voxy.harness.output");
         if (dir == null || dir.isBlank()) return;
         evidenceWrittenAt = drawsRecorded;
+        McNativeVulkanProbe.writeFile("native-marker-draw.json",
+            evidenceJson(device, format, width, height));
+    }
+
+    private static String evidenceJson(VulkanDevice device, int format, int width, int height) {
         var status = status();
         var sb = new StringBuilder("{\n");
         sb.append("  \"enabled\": ").append(status.enabled()).append(",\n");
@@ -837,12 +880,6 @@ public final class McNativeMarkerDraw implements Destroyable {
             sb.append(i == 0 ? "\n    " : ",\n    ").append(McNativeVulkanProbe.quote(notes.get(i)));
         }
         sb.append(notes.isEmpty() ? "]\n}" : "\n  ]\n}");
-        try {
-            Path out = Path.of(dir);
-            Files.createDirectories(out);
-            Files.writeString(out.resolve("native-marker-draw.json"), sb.toString(), StandardCharsets.UTF_8);
-        } catch (Throwable t) {
-            note("could not write the marker evidence: " + t);
-        }
+        return sb.toString();
     }
 }

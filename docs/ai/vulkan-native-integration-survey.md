@@ -166,7 +166,7 @@ attachment stays Minecraft's. Destruction goes to `queueForDestroy`. It is off u
 
 What the run shows (`scripts/verify.py --only native`, Minecraft's own validation layers
 enabled through `--vulkanValidation`; evidence
-`build/harness/20261004T064301-067161Z/summary.json`, which passed with
+a run that passed with
 `changed_sources_during_run: []`, so the sources it fingerprinted are the ones measured):
 
 - the pipeline is created on Minecraft's device for its actual colour format
@@ -210,7 +210,7 @@ device at all, so it was measured before writing any adoption code.
 `McNativeFeatureAudit` asks two separate questions per feature `VkContext` requests —
 does the physical device support it, and did Minecraft enable it — because the answers
 have different consequences. Result on this host
-(`build/harness/20261004T073531-523575Z`):
+(measured that day; the evidence retained in the repository is [native-evidence](runs/native-evidence/), written by the run that still passes today's stricter gates):
 
 - **nothing Voxy needs is unsupported.** MoltenVK 1.4.2 on Apple M4 Pro supports all
   eight: `multiDrawIndirect`, `drawIndirectFirstInstance`, `shaderInt64`,
@@ -279,7 +279,7 @@ queue and no cross-family ownership transfer is needed — which matters here, b
 host's compute queue is a *different* family (3).
 
 **Proof that Voxy's own layers work on Minecraft's device**
-(`build/harness/20261004T144320-209089Z`): a Voxy `VkBuffer` (persistently mapped through
+(measured that day; see [native-evidence](runs/native-evidence/) for the retained proof files): a Voxy `VkBuffer` (persistently mapped through
 `VkContext.findMemoryType`), a compute shader from Voxy's own `SpirvCompiler`, and Voxy's
 own command pool and queue — wrote and read back `0x0123456789abcdef`
 (`provenByVoxyBufferAndShader: true`). That is the buffer layer, the shader layer and the
@@ -320,7 +320,7 @@ SPIR-V's own bindings), `VkFrameTracker` (Voxy's frame and command-buffer manage
 `SyntheticTerrain`. The shader is `index_probe.comp`, a real one that calls the *same*
 `resolveQuad` the vertex shader uses, for every quad ordinal.
 
-Result (`build/harness/20261004T150924-204694Z`, OVERALL true,
+Result (measured that day, OVERALL true,
 `changed_sources_during_run: []`, **zero validation diagnostics**): **189 quad ordinals
 resolved on Minecraft's device, every one matching the CPU linear-search reference**, with
 the adoption proof, the marker draw, the depth proof and the eleven-checkpoint lifecycle all
@@ -420,6 +420,16 @@ carries its own CRC, IEND, dimension and row-count bounds.
 The counterexamples the reviewer used are now tests (`scripts/tests/test_marker_gate.py`,
 47 Python tests in total), so the gate cannot drift back.
 
+## A note on how runs are cited
+
+`build/` is ignored, so a run id on its own cites nothing that anyone else can open. The
+measurements below were made on the dates given; what is checkable is the evidence the runner
+retains in the repository under [native-evidence](runs/native-evidence/) — proof files, the
+stage log, the finished summary, the source fingerprint, the candidate revision, a manifest of
+screenshot hashes and a crop of the marker region from every captured frame. Where an older
+paragraph describes a run whose output is gone, the claim stands only insofar as a later
+retained run reproduces it under stricter gates.
+
 ## Round-2 review repairs (2026-10-06)
 
 Round 2 ([native-integration-review-r2.md](runs/native-integration-review-r2.md)) closed B2
@@ -473,6 +483,41 @@ registered.
 One bug of my own is worth recording because the gate caught it: rearming the readback by
 subtracting from `Long.MIN_VALUE` overflowed, so it never ran — and the gate failed the run
 with "Minecraft's colour image was never read back" instead of quietly reporting success.
+
+## Round-3 review repairs (2026-10-06)
+
+Round 3 ([native-integration-review-r3.md](runs/native-integration-review-r3.md)) returned
+REDESIGN on four residuals — each one opening by confirming the round-2 repair and then naming
+what it did not cover.
+
+**The rejected draw is now one command, not two.** The pass cell was a *separate* draw, so it
+showed that the colour and pipeline work, never that the box-targeted command was issued —
+omitting that command looks the same. The rejected colour is now drawn by a **single quad
+spanning the box and the cell**, with the base depth differing by region (the box's base is
+nearer, the cell's is farther). One command, two outcomes decided purely by depth: the cell
+being full proves it was issued, the box being empty proves depth rejected it.
+
+**Evidence is persisted the moment a readback finds a problem**, instead of only every 600
+draws, where an intermediate failure could be overwritten by the next clean sample.
+
+**Every proof names its device.** The compute and real-shader proofs published no identity at
+all, so a contradictory one was ignored. Five identities — adopted, marker, probe, compute,
+real-shader — must now agree with each other and with the lifecycle checkpoints, and
+`attempted` and `firstMismatch` are checked rather than assumed.
+
+**Release no longer destroys across a device change.** If Minecraft's device is replaced, the
+adopted context holds the old one while the marker follows the new one; release waited on the
+old and destroyed the new. `shutdownImmediate` now takes the device whose idle was observed and
+refuses to destroy anything that does not belong to it.
+
+**The pixel gate can be replayed.** One crop could not do that, and the retained summary was
+the pre-finalization copy. The runner now keeps a crop of the marker region from **every**
+captured frame, at both ends of the image since either can hold it, and retention happens after
+the final save so the summary includes the finished verdict and the source-change check. The
+passing run is [20261006T070311-099413Z](runs/native-evidence/20261006T070311-099413Z/MANIFEST.json):
+33 files, 22 crops, 704 KB in total, readback near 12420, far 8316, cell 4224,
+rejected-in-box 0, 15 clean readbacks and no problems, every gate green, zero validation
+diagnostics.
 
 ## What is NOT answered yet, and must be measured on hardware
 

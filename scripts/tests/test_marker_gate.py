@@ -77,8 +77,8 @@ def report(**overrides):
     base = {"enabled": True, "pipelineLive": True, "drawsRecorded": 3000, "notes": [],
             "readback": {"attempted": True, "completed": True, "near": 9690, "far": 6365,
                          "rejectedInBox": 0, "control": 3230, "boxArea": 16055,
-                         "controlArea": 3230, "note": None, "timesClean": 7,
-                         "timesWithAProblem": 0, "firstProblem": None},
+                         "controlArea": 3230, "note": None, "timesClean": 7, "timesWithAProblem": 0,
+                         "firstProblem": None},
             "markerRgb": list(NEAR), "farRgb": list(FAR), "rejectedRgb": list(REJECTED),
             "depthAttached": True, "depthVkFormat": 126, "geometry": GEOMETRY,
             "device": "0xabc"}
@@ -252,8 +252,8 @@ class MarkerGateTest(unittest.TestCase):
         """Round-2 review B4: one readback says nothing about the rest of the lifecycle."""
         bad = report(readback={"attempted": True, "completed": True, "near": 9690, "far": 6365,
                                "rejectedInBox": 0, "control": 3230, "boxArea": 16055,
-                               "controlArea": 3230, "note": None, "timesClean": 1,
-                               "timesWithAProblem": 0, "firstProblem": None})
+                               "controlArea": 3230, "note": None, "timesClean": 1, "timesWithAProblem": 0,
+                               "firstProblem": None})
         result = self.run_gate({s: frame() for s in STAGES}, bad)
         self.assertFalse(result["success"])
         self.assertIn("across the run", " ".join(result["failures"]))
@@ -261,8 +261,7 @@ class MarkerGateTest(unittest.TestCase):
     def test_any_readback_problem_during_the_run_is_rejected(self):
         bad = report(readback={"attempted": True, "completed": True, "near": 9690, "far": 6365,
                                "rejectedInBox": 0, "control": 3230, "boxArea": 16055,
-                               "controlArea": 3230, "note": None, "timesClean": 6,
-                               "timesWithAProblem": 1,
+                               "controlArea": 3230, "note": None, "timesClean": 6, "timesWithAProblem": 1,
                                "firstProblem": "the near quad fills 0 of 9792 pixels"})
         result = self.run_gate({s: frame() for s in STAGES}, bad)
         self.assertFalse(result["success"])
@@ -292,12 +291,13 @@ class ProofFileGateTest(unittest.TestCase):
             "notes": []},
         "native-compute-probe.json": {"attempted": True, "succeeded": True,
             "expected": "0x123456789abcdef", "readBack": "0x123456789abcdef",
-            "queueFamily": 3, "notes": []},
+            "queueFamily": 3, "device": "0x79b569e018", "notes": []},
         "native-adopted-context.json": {"enabled": True, "attempted": True, "adopted": True,
             "queueFamily": 0, "device": "0x79b569e018", "provenByVoxyBufferAndShader": True,
             "readBack": "0x123456789abcdef", "notes": []},
         "native-real-shader.json": {"attempted": True, "succeeded": True,
-            "quadOrdinalsChecked": 189, "mismatches": 0, "firstMismatch": None, "notes": []},
+            "quadOrdinalsChecked": 189, "mismatches": 0, "firstMismatch": None,
+            "device": "0x79b569e018", "notes": []},
         "native-marker-draw.json": {"enabled": True, "pipelineLive": True,
             "drawsRecorded": 3000, "device": "0x79b569e018", "notes": []},
         "native-vulkan-probe.json": {"mcUsesVulkan": True, "vkDevice": "0x79b569e018",
@@ -369,10 +369,22 @@ class ProofFileGateTest(unittest.TestCase):
     def test_a_proof_naming_a_different_device_fails(self):
         for name in ("native-marker-draw.json", "native-vulkan-probe.json"):
             with self.subTest(name=name):
-                field = "vkDevice" if "probe" in name else "device"
+                field = "vkDevice" if name == "native-vulkan-probe.json" else "device"
                 result = self.run_gate({name: {field: "0x1234"}})
                 self.assertFalse(result["success"])
                 self.assertIn("but the lifecycle", " ".join(result["failures"]))
+
+    def test_a_named_mismatch_fails_even_when_the_count_is_zero(self):
+        result = self.run_gate({"native-real-shader.json":
+                                {"firstMismatch": "ordinal 7: GPU (1,2) vs CPU (3,4)"}})
+        self.assertFalse(result["success"])
+        self.assertIn("names a mismatch", " ".join(result["failures"]))
+
+    def test_a_proof_that_was_never_attempted_fails(self):
+        for name in ("native-compute-probe.json", "native-real-shader.json"):
+            with self.subTest(name=name):
+                result = self.run_gate({name: {"attempted": False}})
+                self.assertFalse(result["success"])
 
     def test_a_missing_field_fails_instead_of_defaulting(self):
         files = {k: dict(v) for k, v in self.FILES.items()}

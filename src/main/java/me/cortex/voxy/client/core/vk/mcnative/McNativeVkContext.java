@@ -303,9 +303,11 @@ public final class McNativeVkContext {
             return;
         }
         try {
-            // ⚠ queueForDestroy ではなく即破棄。終了時はもう誰も提出しないので、
-            // 預けたままだと device 破棄時に子オブジェクトが残る。
-            McNativeMarkerDraw.shutdownImmediate();
+            // ⚠ round-3 review B5: Minecraft の device が差し替わっていると、採用した
+            // context は旧 device A を持ち、マーカーは新 device B に属する。A のアイドルを
+            // 待って B のオブジェクトを壊すのは「完了を確かめていない破棄」である。
+            // 待った device と同じであることを渡して確認させ、違えば壊さない。
+            McNativeMarkerDraw.shutdownImmediate(VkContext.get().device);
         } catch (Throwable t) {
             Logger.warn("[native-vk] could not release the marker draw: " + t);
         }

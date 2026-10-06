@@ -51,14 +51,15 @@ public final class McNativeRealShaderProbe {
     private McNativeRealShaderProbe() {}
 
     private static boolean ran;
-    private static Result last = new Result(false, false, 0, 0, null, List.of());
+    private static Result last = new Result(false, false, 0, 0, null, null, List.of());
 
     /**
      * @param quadsChecked CPU 参照と突き合わせた通し番号の数
      * @param mismatches   食い違った件数 (0 でなければ失敗)
      */
+    /** @param device 実際に走らせた {@code VkDevice} (round-3 review B3: 同一性の出典)。 */
     public record Result(boolean attempted, boolean succeeded, int quadsChecked, int mismatches,
-                         String firstMismatch, List<String> notes) {}
+                         String firstMismatch, String device, List<String> notes) {}
 
     public static Result last() { return last; }
 
@@ -68,7 +69,7 @@ public final class McNativeRealShaderProbe {
         var notes = new ArrayList<String>();
         if (!VkContext.isAdopted()) {
             notes.add("skipped: VkContext has not adopted Minecraft's device");
-            last = new Result(false, false, 0, 0, null, List.copyOf(notes));
+            last = new Result(false, false, 0, 0, null, deviceHandle(), List.copyOf(notes));
             return last;
         }
         last = runAgainstCurrentContext();
@@ -99,7 +100,7 @@ public final class McNativeRealShaderProbe {
             notes.add("the real-shader probe failed: " + t);
             var trace = t.getStackTrace();
             for (int i = 0; i < Math.min(6, trace.length); i++) notes.add("  at " + trace[i]);
-            return new Result(true, false, 0, 0, null, List.copyOf(notes));
+            return new Result(true, false, 0, 0, null, deviceHandle(), List.copyOf(notes));
         } finally {
             if (startedTracker) {
                 try {
@@ -111,6 +112,15 @@ public final class McNativeRealShaderProbe {
                     Logger.warn("[native-vk] could not shut the frame tracker down: " + t);
                 }
             }
+        }
+    }
+
+    /** 走らせている {@code VkDevice} のハンドル。採用した context のものになる。 */
+    private static String deviceHandle() {
+        try {
+            return "0x" + Long.toHexString(VkContext.get().device.address());
+        } catch (Throwable t) {
+            return null;
         }
     }
 
@@ -140,7 +150,7 @@ public final class McNativeRealShaderProbe {
         int total = table.totalQuads();
         if (total <= 0) {
             notes.add("the synthetic table has no quads, so the check would prove nothing");
-            return new Result(true, false, 0, 0, null, List.copyOf(notes));
+            return new Result(true, false, 0, 0, null, deviceHandle(), List.copyOf(notes));
         }
 
         var resources = new VkTerrainResources(terrain.sectionCount(), terrain.totalQuads(), 4096,
@@ -199,7 +209,7 @@ public final class McNativeRealShaderProbe {
                 }
             }
             if (mismatches != 0) notes.add(mismatches + " of " + total + " ordinals disagree with the CPU reference");
-            return new Result(true, mismatches == 0, total, mismatches, firstMismatch, List.copyOf(notes));
+            return new Result(true, mismatches == 0, total, mismatches, firstMismatch, deviceHandle(), List.copyOf(notes));
         } finally {
             // ⚠ 途中で投げた場合、フレームが記録中のまま残り、提出済みのコマンドが
             // パイプラインを参照している可能性がある。先に閉じて待つ
@@ -220,7 +230,7 @@ public final class McNativeRealShaderProbe {
             if (!drained) {
                 notes.add("leaking the probe's pipeline, shader and buffers on purpose: the"
                     + " submitted frame was never observed to complete");
-                return new Result(true, false, 0, 0, null, List.copyOf(notes));
+                return new Result(true, false, 0, 0, null, deviceHandle(), List.copyOf(notes));
             }
             if (pipeline != 0) vkDestroyPipeline(VkContext.get().device, pipeline, null);
             if (shader != null) shader.free();
@@ -248,6 +258,7 @@ public final class McNativeRealShaderProbe {
         sb.append("  \"succeeded\": ").append(r.succeeded()).append(",\n");
         sb.append("  \"quadOrdinalsChecked\": ").append(r.quadsChecked()).append(",\n");
         sb.append("  \"mismatches\": ").append(r.mismatches()).append(",\n");
+        sb.append("  \"device\": ").append(McNativeVulkanProbe.quote(r.device())).append(",\n");
         sb.append("  \"firstMismatch\": ").append(McNativeVulkanProbe.quote(r.firstMismatch())).append(",\n");
         sb.append("  \"notes\": [");
         for (int i = 0; i < r.notes().size(); i++) {
