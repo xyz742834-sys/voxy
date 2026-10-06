@@ -199,3 +199,39 @@ def write_rgb_png(path, rows):
     header = struct.pack(">IIBBBBB", len(rows[0]), len(rows), 8, 2, 0, 0, 0)
     path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header)
                      + chunk(b"IDAT", zlib.compress(bytes(raw), 9)) + chunk(b"IEND", b""))
+
+
+def read_ppm(path):
+    """Read a binary P6 PPM as (rows, (width, height)).
+
+    The native marker retains its raw colour samples in this format: the gate must be able to
+    recount the pixels the implementation measured, rather than trusting the aggregate the
+    implementation reported (round-4 review B1/B4 — otherwise the gate checks its own numbers).
+    """
+    data = path.read_bytes()
+    fields, offset = [], 0
+    while len(fields) < 4:
+        while offset < len(data) and data[offset:offset + 1].isspace():
+            offset += 1
+        if offset < len(data) and data[offset:offset + 1] == b"#":
+            while offset < len(data) and data[offset:offset + 1] != b"\n":
+                offset += 1
+            continue
+        start = offset
+        while offset < len(data) and not data[offset:offset + 1].isspace():
+            offset += 1
+        fields.append(data[start:offset])
+    if fields[0] != b"P6":
+        raise ValueError("not a binary PPM")
+    width, height, maximum = (int(f) for f in fields[1:4])
+    if maximum != 255 or not 0 < width * height <= 32_000_000:
+        raise ValueError("unsupported PPM")
+    offset += 1
+    body = data[offset:offset + width * height * 3]
+    if len(body) != width * height * 3:
+        raise ValueError("truncated PPM body")
+    rows = []
+    for y in range(height):
+        base = y * width * 3
+        rows.append([tuple(body[base + x * 3:base + x * 3 + 3]) for x in range(width)])
+    return rows, (width, height)

@@ -6,6 +6,8 @@ pixel instead of the 60/40 split, no depth attachment at all, and three lifecycl
 checkpoints excused because their marker box was dark while the rest of the frame was
 bright. Each of those is a test here, and each must now fail.
 """
+import contextlib
+import io
 import json
 from pathlib import Path
 import struct
@@ -15,7 +17,9 @@ import unittest
 import zlib
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from verify import native_marker_result, native_proof_files_result
+import verify
+from verify import (native_marker_result, native_proof_files_result,
+                    retain_native_evidence, replay_evidence)
 
 WIDTH, HEIGHT = 960, 540
 NEAR, FAR, REJECTED = (255, 0, 255), (0, 255, 255), (255, 255, 0)
@@ -23,7 +27,8 @@ BACKGROUND = (100, 100, 100)
 STAGES = ("warmup", "turn", "travel", "return", "edit", "remove",
           "resize", "reload", "nether", "overworld", "reconnect")
 GEOMETRY = {"box": [-0.98, 0.98, -0.78, 0.78], "nearSplitX": -0.86,
-            "controlStrip": [-0.98, 0.76, -0.78, 0.72]}
+            "controlStrip": [-0.98, 0.76, -0.78, 0.72],
+            "depthTestedPassCell": [-0.98, 0.70, -0.78, 0.66]}
 
 
 def to_pixels(x, y, width=WIDTH, height=HEIGHT):
@@ -46,8 +51,53 @@ def write_png(path, pixels):
                      + chunk(b"IDAT", zlib.compress(bytes(raw))) + chunk(b"IEND", b""))
 
 
+def union_rect():
+    """The rect the implementation retains as its raw sample: box + cell + control strip."""
+    xs, ys = [], []
+    for key in ("box", "controlStrip", "depthTestedPassCell"):
+        ax, ay, bx, by = GEOMETRY[key]
+        xs += [int((min(ax, bx) + 1.0) * 0.5 * WIDTH), int((max(ax, bx) + 1.0) * 0.5 * WIDTH)]
+        ys += [int((1.0 - max(ay, by)) * 0.5 * HEIGHT), int((1.0 - min(ay, by)) * 0.5 * HEIGHT)]
+    return [min(xs), min(ys), max(xs), max(ys)]
+
+
+def write_ppm(path, rows):
+    body = bytearray()
+    for row in rows:
+        for px in row:
+            body.extend(px[:3])
+    path.write_bytes(f"P6\n{len(rows[0])} {len(rows)}\n255\n".encode("ascii") + bytes(body))
+
+
+def sample_from(frame_pixels):
+    """Crop the union rect out of a frame, as the implementation's raw sample would be."""
+    x0, y0, x1, y1 = union_rect()
+    return [row[x0:x1] for row in frame_pixels[y0:y1]]
+
+
+def counts_in(sample):
+    """Recount the sample the way the gate does, to build self-consistent fixtures."""
+    x0, y0, _, _ = union_rect()
+    def tally(key, want, split=None, right=False):
+        ax, ay, bx, by = GEOMETRY[key]
+        sx0 = int(((split if split is not None and right else ax) + 1.0) * 0.5 * WIDTH) - x0
+        sx1 = int(((split if split is not None and not right else bx) + 1.0) * 0.5 * WIDTH) - x0
+        sy0 = int((1.0 - max(ay, by)) * 0.5 * HEIGHT) - y0
+        sy1 = int((1.0 - min(ay, by)) * 0.5 * HEIGHT) - y0
+        hits = 0
+        for y in range(max(0, sy0), min(len(sample), sy1)):
+            for x in range(max(0, sx0), min(len(sample[0]), sx1)):
+                if all(abs(sample[y][x][i] - want[i]) <= 60 for i in range(3)):
+                    hits += 1
+        return hits
+    return {"near": tally("box", NEAR, GEOMETRY["nearSplitX"]),
+            "far": tally("box", FAR, GEOMETRY["nearSplitX"], right=True),
+            "cell": tally("depthTestedPassCell", REJECTED),
+            "rejectedInBox": tally("box", REJECTED)}
+
+
 def frame(near_fill=NEAR, far_fill=FAR, control_fill=REJECTED, box_fill=None,
-          background=BACKGROUND, lone_far_pixel=False):
+          background=BACKGROUND, lone_far_pixel=False, cell_fill=REJECTED):
     """A frame with the box split 60/40 and the control strip filled, unless overridden."""
     pixels = [[background] * WIDTH for _ in range(HEIGHT)]
     x0, y0 = to_pixels(*GEOMETRY["box"][:2])
@@ -70,15 +120,22 @@ def frame(near_fill=NEAR, far_fill=FAR, control_fill=REJECTED, box_fill=None,
         for y in range(cy0, cy1):
             for x in range(cx0, cx1):
                 pixels[y][x] = control_fill
+    if cell_fill is not None:
+        ex0, ey0 = to_pixels(*GEOMETRY["depthTestedPassCell"][:2])
+        ex1, ey1 = to_pixels(*GEOMETRY["depthTestedPassCell"][2:])
+        for y in range(ey0, ey1):
+            for x in range(ex0, ex1):
+                pixels[y][x] = cell_fill
     return pixels
 
 
 def report(**overrides):
     base = {"enabled": True, "pipelineLive": True, "drawsRecorded": 3000, "notes": [],
+            "targetWidth": WIDTH, "targetHeight": HEIGHT,
             "readback": {"attempted": True, "completed": True, "near": 9690, "far": 6365,
                          "rejectedInBox": 0, "control": 3230, "boxArea": 16055,
                          "controlArea": 3230, "note": None, "timesClean": 7, "timesWithAProblem": 0,
-                         "firstProblem": None},
+                         "firstProblem": None, "autoAgree": True},
             "markerRgb": list(NEAR), "farRgb": list(FAR), "rejectedRgb": list(REJECTED),
             "depthAttached": True, "depthVkFormat": 126, "geometry": GEOMETRY,
             "device": "0xabc"}
@@ -87,10 +144,25 @@ def report(**overrides):
 
 
 class MarkerGateTest(unittest.TestCase):
-    def run_gate(self, frames, marker_report, draws=None, covered=None):
+    def run_gate(self, frames, marker_report, draws=None, covered=None, sample_from_stage=None):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
-            (out / "native-marker-draw.json").write_text(json.dumps(marker_report))
+            report = dict(marker_report)
+            rb = report.get("readback")
+            if isinstance(rb, dict) and rb.get("sampleFile") != "":
+                stage = sample_from_stage or next(iter(frames))
+                sample = sample_from(frames[stage])
+                write_ppm(out / "sample.ppm", sample)
+                counts = counts_in(sample)
+                rb = dict(rb)
+                rb.setdefault("sampleFile", "sample.ppm")
+                rb["sampleRect"] = union_rect()
+                rb["flipped"] = False
+                if rb.pop("autoAgree", False):   # the default fixture: make it agree
+                    rb.update(near=counts["near"], far=counts["far"], control=counts["cell"],
+                              rejectedInBox=counts["rejectedInBox"])
+                report["readback"] = rb
+            (out / "native-marker-draw.json").write_text(json.dumps(report))
             for stage, pixels in frames.items():
                 write_png(out / (stage + ".png"), pixels)
             checkpoints = []
@@ -107,7 +179,7 @@ class MarkerGateTest(unittest.TestCase):
     def test_one_far_pixel_instead_of_the_split_is_rejected(self):
         result = self.run_gate({s: frame(lone_far_pixel=True) for s in STAGES}, report())
         self.assertFalse(result["success"])
-        self.assertIn("half of the box", " ".join(result["failures"]))
+        self.assertIn("too few near/far", " ".join(result["failures"]))
 
     def test_no_depth_attachment_is_rejected(self):
         result = self.run_gate({s: frame() for s in STAGES}, report(depthAttached=False))
@@ -134,9 +206,9 @@ class MarkerGateTest(unittest.TestCase):
         is a depth or draw problem, and must not be waved through."""
         frames = {s: frame() for s in STAGES}
         frames["edit"] = frame(far_fill=BACKGROUND)
-        result = self.run_gate(frames, report())
+        result = self.run_gate(frames, report(), sample_from_stage="warmup")
         self.assertFalse(result["success"])
-        self.assertIn("half of the box", " ".join(result["failures"]))
+        self.assertIn("not being depth-tested against anything", " ".join(result["failures"]))
 
     def test_frames_the_draw_never_ran_for_are_excused_up_to_the_limit(self):
         """The implementation says how many draws it had recorded; a frame whose count did
@@ -176,9 +248,19 @@ class MarkerGateTest(unittest.TestCase):
     def test_a_checkpoint_without_a_draw_count_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
-            (out / "native-marker-draw.json").write_text(json.dumps(report()))
+            pixels = frame()
+            sample = sample_from(pixels)
+            write_ppm(out / "sample.ppm", sample)
+            counts = counts_in(sample)
+            rep = report()
+            rep["readback"] = dict(rep["readback"], sampleFile="sample.ppm",
+                                   sampleRect=union_rect(), flipped=False,
+                                   near=counts["near"], far=counts["far"],
+                                   control=counts["cell"], rejectedInBox=counts["rejectedInBox"])
+            rep["readback"].pop("autoAgree", None)
+            (out / "native-marker-draw.json").write_text(json.dumps(rep))
             for stage in STAGES:
-                write_png(out / (stage + ".png"), frame())
+                write_png(out / (stage + ".png"), pixels)
             result = native_marker_result(out, [{"stage": s} for s in STAGES])
         self.assertFalse(result["success"])
         self.assertIn("how many marker draws", " ".join(result["failures"]))
@@ -186,7 +268,7 @@ class MarkerGateTest(unittest.TestCase):
     def test_a_missing_control_strip_means_the_third_draw_is_unproven(self):
         result = self.run_gate({s: frame(control_fill=None) for s in STAGES}, report())
         self.assertFalse(result["success"])
-        self.assertIn("third draw", " ".join(result["failures"]))
+        self.assertIn("unproven", " ".join(result["failures"]))
 
     def test_the_rejected_colour_inside_the_box_is_rejected(self):
         result = self.run_gate({s: frame(box_fill=REJECTED) for s in STAGES}, report())
@@ -237,7 +319,7 @@ class MarkerGateTest(unittest.TestCase):
                                "firstProblem": None})
         result = self.run_gate({s: frame() for s in STAGES}, bad)
         self.assertFalse(result["success"])
-        self.assertIn("third draw is unproven", " ".join(result["failures"]))
+        self.assertIn("unproven", " ".join(result["failures"]))
 
     def test_the_readback_missing_one_half_of_the_box_is_rejected(self):
         bad = report(readback={"attempted": True, "completed": True, "near": 16000, "far": 0,
@@ -275,6 +357,15 @@ class MarkerGateTest(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertIn("depth must reject", " ".join(result["failures"]))
 
+    def test_a_zero_target_size_is_rejected(self):
+        """Round-4: the failure path wrote 0x0, which would make every recounted region empty."""
+        for field in ("targetWidth", "targetHeight"):
+            bad = report()
+            bad[field] = 0
+            result = self.run_gate({s: frame() for s in STAGES}, bad)
+            self.assertFalse(result["success"], field)
+            self.assertIn(field, " ".join(result["failures"]))
+
     def test_missing_geometry_is_rejected(self):
         bad = report()
         del bad["geometry"]
@@ -288,7 +379,7 @@ class ProofFileGateTest(unittest.TestCase):
         "native-device-features.json": {"enabled": True, "attempted": True,
             "added": ["drawIndirectFirstInstance", "shaderInt64",
                       "fragmentStoresAndAtomics", "vertexPipelineStoresAndAtomics"],
-            "notes": []},
+            "notes": ["shaderInt64: offset 160 verified by read-back"]},
         "native-compute-probe.json": {"attempted": True, "succeeded": True,
             "expected": "0x123456789abcdef", "readBack": "0x123456789abcdef",
             "queueFamily": 3, "device": "0x79b569e018", "notes": []},
@@ -374,6 +465,17 @@ class ProofFileGateTest(unittest.TestCase):
                 self.assertFalse(result["success"])
                 self.assertIn("but the lifecycle", " ".join(result["failures"]))
 
+    def test_a_feature_note_that_is_not_a_verification_fails(self):
+        result = self.run_gate({"native-device-features.json":
+                                {"notes": ["could not find multiDrawIndirect; adding nothing"]}})
+        self.assertFalse(result["success"])
+        self.assertIn("reported a problem", " ".join(result["failures"]))
+
+    def test_an_adopted_proof_reading_back_the_wrong_value_fails(self):
+        result = self.run_gate({"native-adopted-context.json": {"readBack": "0xdeadbeef"}})
+        self.assertFalse(result["success"])
+        self.assertIn("not the expected", " ".join(result["failures"]))
+
     def test_a_named_mismatch_fails_even_when_the_count_is_zero(self):
         result = self.run_gate({"native-real-shader.json":
                                 {"firstMismatch": "ordinal 7: GPU (1,2) vs CPU (3,4)"}})
@@ -407,3 +509,94 @@ class ProofFileGateTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EvidenceRetentionTest(unittest.TestCase):
+    """Round-4 review B1: retention failed silently, and kept nothing authoritative.
+
+    The reviewer called the committed gates on a retained directory and they failed for want of
+    the full screenshots — which are too large to commit and were only ever supporting. What the
+    verdict actually rests on is the readback of Minecraft's own colour image, and none of its
+    pixels were kept. These tests require the raw sample to be retained, require a run that
+    cannot retain it to fail, and require the retained directory to replay on its own.
+    """
+
+    def populate(self, native_output, with_sample=True):
+        pixels = frame()
+        rb = {"attempted": True, "completed": True, "rejectedInBox": 0, "boxArea": 16055,
+              "controlArea": 3230, "note": None, "timesClean": 7, "timesWithAProblem": 0,
+              "firstProblem": None, "flipped": False, "sampleAtDraw": 2900,
+              "sampleRect": union_rect(), "closeFailures": 0, "failureBudget": 3}
+        sample = sample_from(pixels)
+        counts = counts_in(sample)
+        rb.update(near=counts["near"], far=counts["far"], control=counts["cell"],
+                  sampleFile="native-marker-sample-2900.ppm" if with_sample else None)
+        marker = report(readback=rb,
+                        device=ProofFileGateTest.FILES["native-marker-draw.json"]["device"])
+        marker["readback"].pop("autoAgree", None)
+        (native_output / "native-marker-draw.json").write_text(json.dumps(marker))
+        for stage in STAGES:
+            write_png(native_output / (stage + ".png"), pixels)
+        if with_sample:
+            write_ppm(native_output / "native-marker-sample-2900.ppm", sample)
+        for name, body in ProofFileGateTest.FILES.items():
+            if name == "native-marker-draw.json":
+                continue
+            (native_output / name).write_text(json.dumps(body))
+        return marker
+
+    def retain(self, with_sample=True):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        native_output = root / "native"
+        native_output.mkdir()
+        self.populate(native_output, with_sample)
+        (root / "native.log").write_text("log\n")
+        (root / "summary.json").write_text(json.dumps({"stages": {"native_environment":
+            {"gate": {"checkpoints": ProofFileGateTest.CHECKPOINTS}}}}))
+        original = verify.ROOT
+        verify.ROOT = root
+        self.addCleanup(lambda: setattr(verify, "ROOT", original))
+        kept = retain_native_evidence(root, native_output, "run", {"revision": "abc"})
+        return root, kept
+
+    def test_the_raw_colour_sample_is_retained_and_hashed(self):
+        _, kept = self.retain()
+        self.assertNotIn("error", kept)
+        self.assertEqual(kept["raw_colour_samples"], ["native-marker-sample-2900.ppm"])
+        self.assertIn("native-marker-sample-2900.ppm", kept["files"])
+
+    def test_every_crop_states_its_origin_rather_than_implying_it(self):
+        _, kept = self.retain()
+        self.assertTrue(kept["crops"])
+        for name in kept["crops"]:
+            origin = kept["crop_origins"][name]
+            self.assertEqual(origin["parent"], [WIDTH, HEIGHT])
+            self.assertEqual(len(origin["origin"]), 2)
+
+    def test_a_run_that_retains_no_raw_sample_reports_an_error(self):
+        _, kept = self.retain(with_sample=False)
+        self.assertIn("error", kept)
+        self.assertIn("authoritative", kept["error"])
+
+    def replay(self, target):
+        quiet = io.StringIO()
+        with contextlib.redirect_stdout(quiet):
+            code = replay_evidence(target)
+        return code, json.loads(quiet.getvalue())
+
+    def test_the_retained_directory_replays_on_its_own(self):
+        root, _ = self.retain()
+        code, out = self.replay(root / "docs" / "ai" / "runs" / "native-evidence" / "run")
+        self.assertEqual(code, 0, out)
+        self.assertIn("authoritative raw colour-image recount", out["replayed"])
+        self.assertEqual(out["checkpoints"], len(STAGES))
+
+    def test_replay_fails_when_a_retained_file_was_altered(self):
+        root, _ = self.retain()
+        target = root / "docs" / "ai" / "runs" / "native-evidence" / "run"
+        (target / "native-marker-sample-2900.ppm").write_bytes(b"P6\n1 1\n255\n\x00\x00\x00")
+        code, out = self.replay(target)
+        self.assertEqual(code, 1)
+        self.assertEqual(out["manifest_mismatches"], ["native-marker-sample-2900.ppm"])

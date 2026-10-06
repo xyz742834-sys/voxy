@@ -20,6 +20,17 @@ to Minecraft's Vulkan device, color/depth targets and submission/resource lifeti
 The API basis for the next priority is surveyed in [vulkan-native-integration-survey.md](vulkan-native-integration-survey.md),
 read from the actual 26.2 / Sodium 0.9.2 artifacts rather than from the historical device-sharing survey.
 
+A **diagnostic** native layer exists behind four default-off flags (`voxy.native.probe`,
+`.marker`, `.features`, `.adopt`): it reaches Minecraft's own Vulkan device, injects the four
+device features Minecraft leaves disabled, records a bounded depth-tested draw into Minecraft's
+colour image, and runs Voxy's real shader stack on that device. It is **not accepted**. Four
+independent review rounds returned REDESIGN; round 4
+([native-integration-review-r4.md](runs/native-integration-review-r4.md)) closed its inertness
+and destruction findings and stated the layer is *"not yet sound enough to use as the accepted
+foundation for terrain work"*, with terrain investigation permitted as experimental. Round 5 is
+pending. Nothing here may be cited as an accepted foundation until a round says so — see
+[harness.md](harness.md) for the rule.
+
 ## What works
 
 - **OpenGL renderer** remains the established path when GL capabilities suffice.

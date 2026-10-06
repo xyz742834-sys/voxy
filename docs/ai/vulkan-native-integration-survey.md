@@ -519,6 +519,74 @@ passing run is [20261006T070311-099413Z](runs/native-evidence/20261006T070311-09
 rejected-in-box 0, 15 clean readbacks and no problems, every gate green, zero validation
 diagnostics.
 
+## Round-4 review repairs (2026-10-06)
+
+Round 4 ([native-integration-review-r4.md](runs/native-integration-review-r4.md)) closed B5 and
+returned REDESIGN on B1, B3, B4 and one new low finding. Its verdict bounds what may be claimed
+from here: *"The diagnostic layer is not yet sound enough to use as the accepted foundation for
+terrain work... Terrain investigation can be experimental; it should not be promoted as
+continuation from an independently accepted diagnostic layer."* That sentence stands until an
+independent round says otherwise — these repairs are offered to round 5, not as a self-granted
+acceptance.
+
+**The gate no longer checks numbers the implementation produced.** This was the real content of
+B1, and it had survived three rounds of narrower repairs: the readback aggregates were the whole
+proof, the screenshots were only supporting, and nothing outside the implementation ever saw the
+pixels those aggregates came from. The implementation now retains the **raw pixels it measured**
+— the colour image's crop covering the box, the pass cell and the control strip — as a PPM,
+together with the orientation it selected, the draw count at the moment of capture, and the
+crop's rectangle in full-image coordinates. `recount_marker_sample()` in `scripts/verify.py`
+reads that sample back, resolves the published NDC geometry into it on its own, counts each
+region itself, applies the density requirement, and *then* requires the implementation's
+aggregates to equal its own counts. A missing sample fails; disagreeing counts fail. The gate's
+conclusion now rests on pixels, with the aggregate as a cross-check rather than the evidence.
+
+**Failures persist their own evidence and are counted.** B4's residual was that the exception
+paths — a readback that could not be requested, a map or classify that threw — reported through
+`note()` only: they neither incremented the problem counter nor wrote the evidence file, so disk
+kept the previous clean sample and the run looked unbroken. All of them now go through one
+`failReadback()`, which records a non-completed readback carrying the reason, counts the problem,
+and writes the evidence immediately. The evidence it writes states the target size the draw
+actually saw rather than zeros, and the gate rejects a non-positive size so that path cannot
+produce a report whose regions are all degenerate.
+
+**Proof files must not contradict themselves.** Beyond the five device identities from round 3,
+the gate now checks that the feature injection states `attempted` and that each of its notes
+records a read-back verification rather than an assumption, and that the adopted-context proof
+states `enabled` and the value it read back. A proof that was never attempted, or that read back
+something other than what it wrote, fails instead of passing on its summary field.
+
+**Readbacks are bounded and abandoned rather than retried forever** (R4-L1). Only one may be in
+flight; after three problems the implementation stops requesting them instead of re-issuing
+every 240 draws; buffers over 40 MiB are refused rather than allocated; and the number of
+readback buffers that could not be closed is published instead of swallowed, since each one is a
+frame's worth of memory held.
+
+The gate's own ordering was wrong as well: a density shortfall was reported before the
+rejected-colour check, so a depth failure could be described as a thin quad. The order is now
+geometry, readback field types, rejected colour in the box, density, then the independent recount.
+
+**The retained evidence replays, and losing it fails the run.** Round 4 called the committed
+gates directly on the retained directory and they returned false for want of the full
+screenshots — which are tens of megabytes and were never the authoritative part. Two repairs
+follow from that. First, the raw colour samples are now retained alongside the proof files and
+crops, and each crop records its parent size and origin rather than leaving the reader to
+reconstruct placement from the recording constants. Second, `scripts/verify.py
+--replay-evidence <dir>` re-checks a retained directory on its own and launches nothing: it
+verifies every manifest hash, recounts the raw colour sample, and re-runs the proof-file
+consistency gate against the checkpoints in the retained summary — and it prints what it is
+*not* replaying, so the screenshot measurement is named as unreplayable rather than implied to
+be covered. Retention failure also no longer passes quietly: if the raw sample cannot be kept,
+the stage and the run fail, because the evidence is part of the claim.
+
+The passing run is
+[20261006T073859-396220Z](runs/native-evidence/20261006T073859-396220Z/MANIFEST.json): 51 files,
+22 crops, 18 raw colour samples, 2.2 MB in total; readback near 12420 of 12420, far 8316 of
+8316, cell 4224 of 4224, rejected-in-box 0, 15 clean readbacks, no problems, no unclosed
+readback buffers; the independent recount of `native-marker-sample-3363.ppm` agrees with every
+one of those figures; every gate green and zero validation diagnostics. `--replay-evidence` on
+that directory returns 0 with all manifest hashes matching.
+
 ## What is NOT answered yet, and must be measured on hardware
 
 1. **Image-state ownership** — partly answered. Opening the pass through Minecraft's

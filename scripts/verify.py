@@ -22,7 +22,7 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 import zlib
-from pixel_oracle import read_rgb, mismatches, top_rows_rgb, png_size, write_rgb_png
+from pixel_oracle import read_rgb, mismatches, top_rows_rgb, png_size, write_rgb_png, read_ppm
 
 ROOT = Path(__file__).resolve().parents[1]
 DIAGNOSTIC = re.compile(r"\[vk-validation\]\s*\[([^\]]+)\]")
@@ -263,7 +263,21 @@ def native_marker_result(output, checkpoints):
             raise ValueError(f"the marker draw reported notes: {report['notes']}")
         if not report.get("depthAttached"):
             raise ValueError("depth was not attached, so none of the depth proof applies")
+        # ⚠ The failure path used to write 0x0 as the target size, which would make every
+        # recounted region degenerate. The size the draw actually saw is the only honest value.
+        for field in ("targetWidth", "targetHeight"):
+            if not isinstance(report.get(field), int) or report[field] < 1:
+                raise ValueError(f"the marker report states {field}={report.get(field)!r},"
+                                 f" so nothing can be resolved against the image")
 
+
+        # ⚠ Round-2 review B4: one readback says nothing about the rest of the lifecycle.
+
+        geometry = report.get("geometry") or {}
+        box, split, strip = geometry.get("box"), geometry.get("nearSplitX"), geometry.get("controlStrip")
+        if not (isinstance(box, list) and len(box) == 4 and isinstance(split, (int, float))
+                and isinstance(strip, list) and len(strip) == 4):
+            raise ValueError("the marker draw did not publish the geometry to check against")
         # ⚠ The authoritative proof is the readback of Minecraft's own colour image taken
         # right after the draw, not the screenshot: anything Minecraft draws afterwards (its
         # GUI, a loading overlay, post-processing) can hide the marker, so an absent marker in
@@ -290,15 +304,6 @@ def native_marker_result(output, checkpoints):
         # of None with trivial counts would prove nothing.
         if rb.get("note"):
             raise ValueError(f"the colour readback rejects the draw: {rb['note']}")
-        if (rb.get("near") or 0) < 500 or (rb.get("far") or 0) < 500:
-            raise ValueError(f"the readback found too few near/far pixels to mean anything: {rb}")
-        if (rb.get("control") or 0) < 500:
-            raise ValueError(f"the readback found only {rb.get('control')} rejected-colour pixels"
-                             f" in the control strip, so the third draw is unproven")
-        if rb.get("rejectedInBox"):
-            raise ValueError(f"the readback places the rejected colour inside the depth-tested"
-                             f" box: {rb}")
-        # ⚠ Round-2 review B4: one readback says nothing about the rest of the lifecycle.
         if (rb.get("timesClean") or 0) < 3:
             raise ValueError(f"the colour image was only read back cleanly"
                              f" {rb.get('timesClean')} time(s); the proof must hold across the run")
@@ -306,11 +311,20 @@ def native_marker_result(output, checkpoints):
             raise ValueError(f"{rb['timesWithAProblem']} readback(s) found a problem, first:"
                              f" {rb.get('firstProblem')}")
         result["readback"] = rb
-        geometry = report.get("geometry") or {}
-        box, split, strip = geometry.get("box"), geometry.get("nearSplitX"), geometry.get("controlStrip")
-        if not (isinstance(box, list) and len(box) == 4 and isinstance(split, (int, float))
-                and isinstance(strip, list) and len(strip) == 4):
-            raise ValueError("the marker draw did not publish the geometry to check against")
+        if rb.get("rejectedInBox"):
+            raise ValueError(f"the readback places the colour depth must reject inside the"
+                             f" depth-tested box: {rb}")
+        if (rb.get("near") or 0) < 500 or (rb.get("far") or 0) < 500:
+            raise ValueError(f"the readback found too few near/far pixels to mean anything: {rb}")
+        if (rb.get("control") or 0) < 500:
+            raise ValueError(f"the readback found only {rb.get('control')} rejected-colour pixels"
+                             f" in the cell where the third draw must pass, so that draw is"
+                             f" unproven")
+        # ⚠ Round-4 review B1/B4: trusting the aggregate means the gate checks numbers the
+        # implementation produced. Recount them from the raw sample it retained, with the
+        # published geometry, and require agreement. A sample that is missing fails.
+        result["recount"] = recount_marker_sample(output, report, rb)
+
         near_rgb = tuple(report.get("markerRgb") or ())
         far_rgb = tuple(report.get("farRgb") or ())
         rejected_rgb = tuple(report.get("rejectedRgb") or ())
@@ -417,6 +431,94 @@ def native_marker_result(output, checkpoints):
     return result
 
 
+def recount_marker_sample(output, report, rb):
+    """Recount the marker colours from the retained raw sample, independently of the report."""
+    name = rb.get("sampleFile")
+    if not name:
+        raise ValueError("the readback retained no raw colour sample, so its counts cannot be"
+                         " checked against anything")
+    sample = output / name
+    if not sample.is_file():
+        raise ValueError(f"the retained raw sample {name} is missing")
+    rect = rb.get("sampleRect")
+    if not (isinstance(rect, list) and len(rect) == 4):
+        raise ValueError("the readback does not say where its sample came from")
+    rows, (width, height) = read_ppm(sample)
+    if width != rect[2] - rect[0] or height != rect[3] - rect[1]:
+        raise ValueError(f"the raw sample is {width}x{height} but its rect says"
+                         f" {rect[2] - rect[0]}x{rect[3] - rect[1]}")
+    geometry = report.get("geometry") or {}
+    box, strip = geometry.get("box"), geometry.get("controlStrip")
+    cell = geometry.get("depthTestedPassCell")
+    split = geometry.get("nearSplitX")
+    flipped = bool(rb.get("flipped"))
+    # The sample is a crop of the full image, so the geometry is resolved in full-image pixels
+    # and then shifted into the crop. Nothing here comes from the implementation's counts.
+    full_w = report.get("targetWidth")
+    full_h = report.get("targetHeight")
+    if not isinstance(full_w, int) or not isinstance(full_h, int):
+        raise ValueError("the marker report does not state the target size")
+
+    def to_rect(ax, ay, bx, by):
+        x0 = int((min(ax, bx) + 1.0) * 0.5 * full_w) - rect[0]
+        x1 = int((max(ax, bx) + 1.0) * 0.5 * full_w) - rect[0]
+        top, bottom = max(ay, by), min(ay, by)
+        if flipped:
+            y0 = int((1.0 + bottom) * 0.5 * full_h) - rect[1]
+            y1 = int((1.0 + top) * 0.5 * full_h) - rect[1]
+        else:
+            y0 = int((1.0 - top) * 0.5 * full_h) - rect[1]
+            y1 = int((1.0 - bottom) * 0.5 * full_h) - rect[1]
+        return max(0, x0), max(0, y0), min(width, x1), min(height, y1)
+
+    near_rgb = tuple(report["markerRgb"])
+    far_rgb = tuple(report["farRgb"])
+    rejected_rgb = tuple(report["rejectedRgb"])
+
+    def matches(px, want):
+        return all(abs(px[i] - want[i]) <= 60 for i in range(3))
+
+    def tally(area, want):
+        x0, y0, x1, y1 = area
+        hits = 0
+        for y in range(y0, y1):
+            row = rows[y]
+            for x in range(x0, x1):
+                if matches(row[x], want):
+                    hits += 1
+        return hits, max(1, (x1 - x0) * (y1 - y0))
+
+    near_hits, near_area = tally(to_rect(box[0], box[1], split, box[3]), near_rgb)
+    far_hits, far_area = tally(to_rect(split, box[1], box[2], box[3]), far_rgb)
+    cell_hits, cell_area = tally(to_rect(box[0], cell[1], box[2], cell[3]), rejected_rgb)
+    strip_hits, strip_area = tally(to_rect(box[0], strip[1], box[2], strip[3]), rejected_rgb)
+    box_rejected, _ = tally(to_rect(box[0], box[1], box[2], box[3]), rejected_rgb)
+    out = {"sample": name, "flipped": flipped, "near": near_hits, "nearArea": near_area,
+           "far": far_hits, "farArea": far_area, "cell": cell_hits, "cellArea": cell_area,
+           "controlStrip": strip_hits, "controlStripArea": strip_area,
+           "rejectedInBox": box_rejected, "sampleAtDraw": rb.get("sampleAtDraw")}
+    if box_rejected:
+        raise ValueError(f"recounting the retained sample finds {box_rejected} pixels of the"
+                         f" colour depth must reject inside the box: {out}")
+    for label, hits, area in (("near", near_hits, near_area), ("far", far_hits, far_area),
+                              ("cell", cell_hits, cell_area),
+                              ("control strip", strip_hits, strip_area)):
+        if hits * 10 < area * 8:
+            raise ValueError(f"recounting the retained sample finds the {label} region only"
+                             f" {hits}/{area} filled, so the third draw is unproven"
+                             if label in ("cell", "control strip") else
+                             f"recounting the retained sample finds the {label} region only"
+                             f" {hits}/{area} filled: {out}")
+    # And the implementation's own numbers must match what the sample actually holds.
+    for label, theirs, ours in (("near", rb.get("near"), near_hits),
+                                ("far", rb.get("far"), far_hits),
+                                ("cell", rb.get("control"), cell_hits)):
+        if theirs != ours:
+            raise ValueError(f"the readback reported {label}={theirs} but the retained sample"
+                             f" holds {ours}; the aggregate does not match the pixels")
+    return out
+
+
 def native_proof_files_result(output, checkpoints):
     """Gate the proof files, their identities, and their agreement with each other.
 
@@ -464,6 +566,12 @@ def native_proof_files_result(output, checkpoints):
                              "fragmentStoresAndAtomics", "vertexPipelineStoresAndAtomics"}
         if not need(features, "native-device-features.json", "enabled", bool):
             raise ValueError("the device-feature injection was not enabled")
+        if not need(features, "native-device-features.json", "attempted", bool):
+            raise ValueError("the device-feature injection was never attempted")
+        for entry in need(features, "native-device-features.json", "notes", list):
+            # Calibration notes are expected; anything that says it gave up is not.
+            if "verified by read-back" not in str(entry):
+                raise ValueError(f"the feature injection reported a problem: {entry}")
         if set(need(features, "native-device-features.json", "added", list)) != expected_features:
             raise ValueError(f"the device features Voxy needs were not all requested: {features}")
 
@@ -485,6 +593,12 @@ def native_proof_files_result(output, checkpoints):
             raise ValueError(f"the adopted context was not proven with Voxy's own layers: {adopted}")
         if need(adopted, "native-adopted-context.json", "notes", list):
             raise ValueError(f"the adoption proof reported notes: {adopted['notes']}")
+        if not need(adopted, "native-adopted-context.json", "enabled", bool):
+            raise ValueError("adoption was not enabled, so its proof means nothing")
+        if need(adopted, "native-adopted-context.json", "readBack", str) != \
+                compute["expected"]:
+            raise ValueError(f"the adopted-context proof read back {adopted['readBack']},"
+                             f" not the expected {compute['expected']}")
         adopted_device = handle(need(adopted, "native-adopted-context.json", "device", str),
                                 "native-adopted-context.json", "device")
 
@@ -571,9 +685,26 @@ def retain_native_evidence(output, native_output, timestamp, summary):
         # the marker region for EVERY captured frame — a few hundred kilobytes in total, where
         # the screenshots themselves would be tens of megabytes — so the per-frame judgement can
         # be re-made from the repository.
-        crops = retain_marker_crops(native_output, target)
+        crops, crop_origins = retain_marker_crops(native_output, target)
         kept["files"].update(crops)
         kept["crops"] = sorted(crops)
+        # ⚠ Round-4 review B1: the reviewer had to reconstruct each crop's origin from the
+        # recording constants, which makes placement a source-based assumption rather than a
+        # retained fact. State it.
+        kept["crop_origins"] = crop_origins
+        # ⚠ Round-4 review B1: the crops are post-composition screenshots. The AUTHORITATIVE
+        # proof is the readback of Minecraft's own colour image, and none of its pixels were
+        # retained, so no reader could reclassify it. Keep the raw samples; they are the one
+        # artifact the marker verdict actually rests on.
+        samples = {}
+        for path in sorted(native_output.glob("native-marker-sample-*.ppm")):
+            shutil.copyfile(path, target / path.name)
+            samples[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        kept["files"].update(samples)
+        kept["raw_colour_samples"] = sorted(samples)
+        if not samples:
+            raise ValueError("no raw colour-image sample was produced, so the authoritative"
+                             " marker proof cannot be retained")
         (target / "MANIFEST.json").write_text(json.dumps(kept, indent=2) + "\n")
         kept["path"] = str(target.relative_to(ROOT))
     except (OSError, ValueError) as exc:
@@ -592,7 +723,7 @@ def retain_marker_crops(native_output, target):
     cell = geometry.get("depthTestedPassCell")
     if not (isinstance(box, list) and isinstance(strip, list) and isinstance(cell, list)):
         return {}
-    kept = {}
+    kept, origins = {}, {}
     for png in sorted(native_output.glob("*.png")):
         try:
             width, height = png_size(png)
@@ -613,9 +744,60 @@ def retain_marker_crops(native_output, target):
                 name = f"crop-{png.stem}-{label}.png"
                 write_rgb_png(target / name, crop)
                 kept[name] = hashlib.sha256((target / name).read_bytes()).hexdigest()
+                origins[name] = {"parent": [width, height], "origin": [x0, y0],
+                                 "size": [len(crop[0]), len(crop)], "end": label}
         except (OSError, ValueError):
             continue
-    return kept
+    return kept, origins
+
+
+def replay_evidence(directory):
+    """Re-check a retained evidence directory without launching anything.
+
+    ⚠ Round-4 review B1: the reviewer called the committed gates directly and they failed for
+    want of the full screenshots, which are far too large to commit. The screenshots were only
+    ever supporting evidence; the authoritative proof is the readback of Minecraft's own colour
+    image, whose raw pixels and proof files ARE retained. This replays exactly that part, and
+    says plainly which part it is not replaying.
+    """
+    report_path = directory / "native-marker-draw.json"
+    if not report_path.is_file():
+        print(f"{directory}: no native-marker-draw.json", file=sys.stderr)
+        return 2
+    report = json.loads(report_path.read_text())
+    outcome = {"directory": str(directory), "replayed": [], "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the "
+        "retained crops carry it, with their origins in MANIFEST.json)"]}
+    manifest = directory / "MANIFEST.json"
+    if manifest.is_file():
+        kept = json.loads(manifest.read_text())
+        bad = sorted(name for name, digest in (kept.get("files") or {}).items()
+                     if not (directory / name).is_file()
+                     or hashlib.sha256((directory / name).read_bytes()).hexdigest() != digest)
+        outcome["manifest_mismatches"] = bad
+        outcome["replayed"].append("manifest hashes")
+        if bad:
+            print(json.dumps(outcome, indent=2))
+            return 1
+    try:
+        outcome["recount"] = recount_marker_sample(directory, report, report["readback"])
+        outcome["replayed"].append("authoritative raw colour-image recount")
+        # The proofs must be tied to the lifecycle the retained summary records, not to an
+        # empty list that would make the identity check vacuous.
+        retained = directory / "summary.json"
+        if not retained.is_file():
+            raise ValueError("no retained summary.json, so the proofs cannot be tied to a run")
+        stage = (json.loads(retained.read_text()).get("stages") or {}).get("native_environment")
+        checkpoints = ((stage or {}).get("gate") or {}).get("checkpoints") or []
+        outcome["checkpoints"] = len(checkpoints)
+        outcome["proofs"] = native_proof_files_result(directory, checkpoints)["failures"]
+        outcome["replayed"].append("proof-file consistency")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        outcome["error"] = str(exc)
+        print(json.dumps(outcome, indent=2))
+        return 1
+    print(json.dumps(outcome, indent=2))
+    return 0 if not outcome["proofs"] else 1
 
 
 def main():
@@ -630,7 +812,12 @@ def main():
         help="Minecraft's preferredGraphicsBackend for the live stage. 'vulkan' asks Minecraft for its own "
              "Vulkan backend, which Voxy cannot render through yet, so the live stage is then judged by the "
              "native probe instead of the GL-hosted checkpoint gate")
+    parser.add_argument("--replay-evidence", metavar="DIR",
+        help="re-run the marker gate's authoritative recount against a retained evidence "
+             "directory (docs/ai/runs/native-evidence/<run>) and exit; launches nothing")
     args = parser.parse_args()
+    if args.replay_evidence:
+        return replay_evidence(Path(args.replay_evidence))
     if args.seconds < 1 or args.timeout < 1:
         parser.error("seconds and timeout must be positive")
     # Gradle build outputs and Loom's launch configuration are shared between runs.
@@ -782,8 +969,16 @@ def main():
         if pending:
             stage = summary.get("stages", {}).get("native_environment")
             if isinstance(stage, dict):
-                stage["retained_evidence"] = retain_native_evidence(
-                    output, Path(pending["output"]), timestamp, summary)
+                kept = retain_native_evidence(output, Path(pending["output"]), timestamp, summary)
+                stage["retained_evidence"] = kept
+                # ⚠ Round-4 review B1: a retention failure was recorded and then ignored,
+                # so a run could pass while keeping nothing to check it with. The evidence is
+                # part of the claim, so losing it fails the stage.
+                if kept.get("error") or not kept.get("raw_colour_samples"):
+                    stage["success"] = False
+                    summary["success"] = False
+                    summary.setdefault("retention_failure",
+                        kept.get("error") or "no raw colour sample was retained")
             save()
     print(f"{'PASS' if summary['success'] else 'FAIL'}: {summary_file}", flush=True)
     return 0 if summary["success"] else 1

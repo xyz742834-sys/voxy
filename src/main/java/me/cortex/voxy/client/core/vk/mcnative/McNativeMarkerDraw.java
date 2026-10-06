@@ -188,7 +188,24 @@ public final class McNativeMarkerDraw implements Destroyable {
     private static int readbackOk, readbackProblems;
     private static String firstReadbackProblem;
     private static final long READBACK_INTERVAL = 240;
+    /**
+     * 同時に 1 本だけ、そして失敗が続いたら諦める。
+     *
+     * <p>⚠ round-4 review R4-L1: 失敗しても 240 draw ごとに要求し続け、
+     * 未完了のコールバックも数えていなかった。無制限に投げ続けるのは
+     * 「測れていない」ことの放置であり、資源も使う。
+     */
+    private static final int READBACK_FAILURE_BUDGET = 3;
+    private static boolean readbackInFlight;
+    private static int readbackCloseFailures;
     private static long evidenceWrittenAt = -1;
+    /**
+     * 最後に記録した対象の寸法。
+     *
+     * <p>⚠ 失敗経路の即時保存で 0 を書いていた。測れなかったのは読み戻しであって
+     * 対象の寸法ではないので、捏造された 0 ではなく<b>最後に実際に見た値</b>を出す。
+     */
+    private static int lastWidth, lastHeight;
     private static final List<String> NOTES = new ArrayList<>();
     private static boolean complained;
 
@@ -287,10 +304,13 @@ public final class McNativeMarkerDraw implements Destroyable {
         // パスを閉じた後に読み戻す。MC の API を使うのでレイアウトは MC の持ち物のまま。
         // ⚠ round-2 review B4: 1 回だけだと以後のライフサイクル全体に対して陳腐化する。
         // 定期的に取り直し、成功回数と最後の結果を証跡に残す。
-        if (drawsRecorded >= nextReadbackAt) {
+        if (drawsRecorded >= nextReadbackAt && !readbackInFlight
+                && readbackProblems < READBACK_FAILURE_BUDGET) {
             nextReadbackAt = drawsRecorded + READBACK_INTERVAL;
             requestReadback(colour, width, height);
         }
+        lastWidth = width;
+        lastHeight = height;
         writeEvidenceIfDue(device, format, width, height);
     }
 
@@ -325,10 +345,9 @@ public final class McNativeMarkerDraw implements Destroyable {
     private static void requestReadback(GpuTextureView colour, int width, int height) {
         long bytes = (long) width * height * 4;
         if (bytes > READBACK_BUDGET_BYTES) {
-            readback = new Readback(true, false, 0, 0, 0, 0, 0, 0,
-                "the colour image is " + bytes + " bytes, over the " + READBACK_BUDGET_BYTES
-                + " byte readback budget; not measuring rather than allocating that much");
-            note("the colour image is too large to read back (" + bytes + " bytes)");
+            failReadback("the colour image is " + bytes + " bytes, over the "
+                + READBACK_BUDGET_BYTES + " byte readback budget; not measuring rather than"
+                + " allocating that much");
             return;
         }
         GpuBuffer buffer = null;
@@ -337,11 +356,12 @@ public final class McNativeMarkerDraw implements Destroyable {
             buffer = device.createBuffer(() -> "voxy native marker readback",
                 GpuBuffer.USAGE_MAP_READ | GpuBuffer.USAGE_COPY_DST, bytes);
             final GpuBuffer target = buffer;
+            readbackInFlight = true;
             device.createCommandEncoder().copyTextureToBuffer(colour.texture(), target, 0,
                 () -> classifyReadback(target, width, height), 0);
             buffer = null;   // 以後の解放は callback 側の責務
         } catch (Throwable t) {
-            readback = new Readback(true, false, 0, 0, 0, 0, 0, 0, "readback request failed: " + t);
+            failReadback("readback request failed: " + t);
             note("could not read Minecraft's colour image back: " + t);
         } finally {
             // ⚠ round-2 review R2-N1: コピーの登録前に投げた場合、バッファが迷子になっていた。
@@ -374,6 +394,10 @@ public final class McNativeMarkerDraw implements Destroyable {
                 if (result.note() == null) { best = result; break; }
                 if (best == null) best = result;
             }
+            // ⚠ round-4 review B1: 集計だけ残しても、ゲートが自分で出した数値を
+            // 自分で検算することになる (循環)。採用した向きの<b>生ピクセル</b>を
+            // PPM で残し、Python 側が独立に数え直せるようにする。
+            best = withSample(best, data, width, height);
             readback = best;
             if (best.note() == null) {
                 readbackOk++;
@@ -387,7 +411,7 @@ public final class McNativeMarkerDraw implements Destroyable {
                 var draw = instance;
                 if (draw != null) {
                     McNativeVulkanProbe.writeFile("native-marker-draw.json",
-                        evidenceJson(draw.device, draw.colourFormat, 0, 0));
+                        evidenceJson(draw.device, draw.colourFormat, lastWidth, lastHeight));
                 }
             }
             Logger.info("[native-vk] read Minecraft's colour image back: near=" + best.near()
@@ -395,10 +419,18 @@ public final class McNativeMarkerDraw implements Destroyable {
                 + " control=" + best.control()
                 + (best.note() == null ? " (as expected)" : " PROBLEM: " + best.note()));
         } catch (Throwable t) {
-            readback = new Readback(true, false, 0, 0, 0, 0, 0, 0, "readback classify failed: " + t);
+            failReadback("readback classify failed: " + t);
             note("could not classify the colour readback: " + t);
         } finally {
-            try { buffer.close(); } catch (Throwable ignored) { }
+            readbackInFlight = false;
+            try {
+                buffer.close();
+            } catch (Throwable t) {
+                // ⚠ round-4 review R4-L1: ここを黙って捨てていた。閉じられない回数は
+                // 証跡に出す (放置すれば毎回 1 枚ぶんのメモリが残り続ける)。
+                readbackCloseFailures++;
+                note("could not close the readback buffer: " + t);
+            }
         }
     }
 
@@ -415,6 +447,12 @@ public final class McNativeMarkerDraw implements Destroyable {
         Rect farRect = rect(NEAR_X1, BOX_Y0, BOX_X1, BOX_Y1, width, height, flipped);
         Rect cell = rect(BOX_X0, CELL_Y0, BOX_X1, CELL_Y1, width, height, flipped);
         Rect control = rect(BOX_X0, CONTROL_Y0, BOX_X1, CONTROL_Y1, width, height, flipped);
+        // 生標本として残す範囲: 箱・セル・対照帯を全て含む矩形。
+        Rect sample = new Rect(
+            Math.min(box.x0(), Math.min(cell.x0(), control.x0())),
+            Math.min(box.y0(), Math.min(cell.y0(), control.y0())),
+            Math.max(box.x1(), Math.max(cell.x1(), control.x1())),
+            Math.max(box.y1(), Math.max(cell.y1(), control.y1())));
 
         int near = count(data, width, height, nearRect, 0);
         int far = count(data, width, height, farRect, 1);
@@ -440,7 +478,69 @@ public final class McNativeMarkerDraw implements Destroyable {
                 + " so depth is not working";
         }
         return new Readback(true, true, near, far, rejectedInBox, cellHits,
-            box.area(), cell.area(), note);
+            box.area(), cell.area(), note, flipped, drawsRecorded, null,
+            new int[] {sample.x0(), sample.y0(), sample.x1(), sample.y1()});
+    }
+
+    /**
+     * 採用した向きの標本矩形を PPM (P6) で書き出し、{@link Readback#sampleFile} に名前を入れる。
+     * PPM にしているのは、依存を増やさず Python 側が素直に読み直せる形だから。
+     */
+    /**
+     * 失敗した読み戻しを記録する。
+     *
+     * <p>⚠ round-4 review B4: 例外経路が<b>問題カウンタも即時保存も通らず</b>、
+     * ディスクには前回の清浄な標本が残ったままになっていた。失敗もここに集約し、
+     * カウントして即座に書く。
+     */
+    private static void failReadback(String why) {
+        readback = new Readback(true, false, 0, 0, 0, 0, 0, 0, why, false, drawsRecorded,
+            null, null);
+        readbackProblems++;
+        if (firstReadbackProblem == null) firstReadbackProblem = why;
+        note(why);
+        var draw = instance;
+        if (draw != null) {
+            McNativeVulkanProbe.writeFile("native-marker-draw.json",
+                evidenceJson(draw.device, draw.colourFormat, lastWidth, lastHeight));
+        }
+    }
+
+    private static Readback withSample(Readback r, java.nio.ByteBuffer data, int width, int height) {
+        if (!r.completed() || r.sampleRect() == null) return r;
+        String dir = System.getProperty("voxy.harness.output");
+        if (dir == null || dir.isBlank()) return r;
+        int[] q = r.sampleRect();
+        int w = Math.max(0, q[2] - q[0]), h = Math.max(0, q[3] - q[1]);
+        if (w == 0 || h == 0) return r;
+        String name = "native-marker-sample-" + r.sampleAtDraw() + ".ppm";
+        try {
+            var header = ("P6\n" + w + " " + h + "\n255\n").getBytes(StandardCharsets.US_ASCII);
+            byte[] body = new byte[w * h * 3];
+            int at = 0;
+            for (int y = q[1]; y < q[3]; y++) {
+                int rowBase = y * width * 4;
+                for (int x = q[0]; x < q[2]; x++) {
+                    int src = rowBase + x * 4;
+                    if (src + 2 >= data.limit()) break;
+                    body[at++] = data.get(src);
+                    body[at++] = data.get(src + 1);
+                    body[at++] = data.get(src + 2);
+                }
+            }
+            Path out = Path.of(dir);
+            Files.createDirectories(out);
+            try (var stream = Files.newOutputStream(out.resolve(name))) {
+                stream.write(header);
+                stream.write(body);
+            }
+            return new Readback(r.attempted(), r.completed(), r.near(), r.far(), r.rejectedInBox(),
+                r.control(), r.boxArea(), r.controlArea(), r.note(), r.flipped(),
+                r.sampleAtDraw(), name, q);
+        } catch (Throwable t) {
+            note("could not retain the raw colour sample: " + t);
+            return r;
+        }
     }
 
     /** NDC の矩形を画素矩形へ。{@code flipped} なら行を反転する。 */
@@ -792,9 +892,16 @@ public final class McNativeMarkerDraw implements Destroyable {
      * <p>コピーは MC の {@code CommandEncoder.copyTextureToBuffer} で行う —
      * 画像のレイアウト遷移は MC が持ったままになる。
      */
+    /**
+     * @param flipped        採用した向き (true なら行が合成フレームと反転)
+     * @param sampleAtDraw   この標本を取った時点の draw 本数 (標本の同一性)
+     * @param sampleFile     保存した生標本のファイル名。{@code null} なら保存できていない
+     * @param sampleRect     標本の矩形 (x0,y0,x1,y1)。生標本の中での座標は 0 起点
+     */
     public record Readback(boolean attempted, boolean completed, int near, int far,
                            int rejectedInBox, int control, int boxArea, int controlArea,
-                           String note) {}
+                           String note, boolean flipped, long sampleAtDraw, String sampleFile,
+                           int[] sampleRect) {}
 
     public static Readback readback() { return readback; }
 
@@ -872,6 +979,14 @@ public final class McNativeMarkerDraw implements Destroyable {
               .append(", \"timesClean\": ").append(readbackOk)
               .append(", \"timesWithAProblem\": ").append(readbackProblems)
               .append(", \"firstProblem\": ").append(McNativeVulkanProbe.quote(firstReadbackProblem))
+              .append(", \"flipped\": ").append(rb.flipped())
+              .append(", \"sampleAtDraw\": ").append(rb.sampleAtDraw())
+              .append(", \"sampleFile\": ").append(McNativeVulkanProbe.quote(rb.sampleFile()))
+              .append(", \"closeFailures\": ").append(readbackCloseFailures)
+              .append(", \"failureBudget\": ").append(READBACK_FAILURE_BUDGET)
+              .append(", \"sampleRect\": ").append(rb.sampleRect() == null ? "null"
+                  : "[" + rb.sampleRect()[0] + ", " + rb.sampleRect()[1] + ", "
+                    + rb.sampleRect()[2] + ", " + rb.sampleRect()[3] + "]")
               .append("},\n");
         }
         sb.append("  \"notes\": [");
