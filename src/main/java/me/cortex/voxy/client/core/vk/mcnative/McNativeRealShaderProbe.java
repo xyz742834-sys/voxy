@@ -148,6 +148,7 @@ public final class McNativeRealShaderProbe {
         VkBuffer results = null;
         VkAutoBindingShader shader = null;
         long pipeline = 0;
+        boolean drained = false;
         try {
             int[] resourceStarts = terrain.writeGeometry(resources.geometry);
             var gpuTable = terrain.mergedTable(resourceStarts, SyntheticTerrain.ORIGIN);
@@ -181,6 +182,7 @@ public final class McNativeRealShaderProbe {
                 VK13.VK_PIPELINE_STAGE_2_HOST_BIT, VK13.VK_ACCESS_2_HOST_READ_BIT);
             tracker.endFrame();
             tracker.waitForFrame();
+            drained = true;
 
             int mismatches = 0;
             String firstMismatch = null;
@@ -208,9 +210,17 @@ public final class McNativeRealShaderProbe {
                     var tracker = VkFrameTracker.get();
                     tracker.endFrame();
                     tracker.waitForFrame();
+                    drained = true;
                 }
             } catch (Throwable t) {
                 notes.add("could not drain the frame before cleanup: " + t);
+            }
+            // ⚠ round-2 review B5: 排出を確認できていないのに破棄していた。
+            // 確認できないなら<b>壊さずに漏らす</b> (実行中参照の方が遥かに悪い)。
+            if (!drained) {
+                notes.add("leaking the probe's pipeline, shader and buffers on purpose: the"
+                    + " submitted frame was never observed to complete");
+                return new Result(true, false, 0, 0, null, List.copyOf(notes));
             }
             if (pipeline != 0) vkDestroyPipeline(VkContext.get().device, pipeline, null);
             if (shader != null) shader.free();

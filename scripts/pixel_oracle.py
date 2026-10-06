@@ -180,3 +180,22 @@ def png_size(path):
     if head[:8] != b"\x89PNG\r\n\x1a\n" or head[12:16] != b"IHDR":
         raise ValueError("Invalid PNG header")
     return struct.unpack_from(">II", head, 16)
+
+
+def write_rgb_png(path, rows):
+    """Write a list of rows of (r, g, b) as an RGB8 PNG. Used to retain a small crop of the
+    evidence in the repository, so a claim about pixels can be inspected without the
+    multi-megabyte screenshot it came from."""
+    raw = bytearray()
+    for row in rows:
+        raw.append(0)
+        for px in row:
+            raw.extend(px[:3])
+
+    def chunk(kind, payload):
+        return (struct.pack(">I", len(payload)) + kind + payload
+                + struct.pack(">I", zlib.crc32(kind + payload) & 0xFFFFFFFF))
+
+    header = struct.pack(">IIBBBBB", len(rows[0]), len(rows), 8, 2, 0, 0, 0)
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header)
+                     + chunk(b"IDAT", zlib.compress(bytes(raw), 9)) + chunk(b"IEND", b""))

@@ -197,9 +197,24 @@ public final class McNativeDeviceFeatures {
         return value instanceof VulkanPNextStruct s ? s : null;
     }
 
+    /**
+     * ⚠ round-2 review N1: 曖昧さと static を拒否する。候補が 2 本以上あれば諦める —
+     * どちらかを選べば黙って間違う。
+     */
     private static Object readFieldOfType(Object owner, Class<?> type) {
+        Field only = null;
         for (Field f : owner.getClass().getDeclaredFields()) {
+            if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
             if (!type.isAssignableFrom(f.getType()) && f.getType() != type) continue;
+            if (only != null) {
+                note(owner.getClass().getName() + " has more than one non-static "
+                    + type.getSimpleName() + " field; refusing to guess");
+                return null;
+            }
+            only = f;
+        }
+        if (only == null) return null;
+        for (Field f : new Field[] {only}) {
             try {
                 f.setAccessible(true);
                 return f.get(owner);

@@ -208,14 +208,33 @@ public final class VkFrameTracker {
     public boolean inFlight(long generation) { return generation > this.completed; }
 
     /** GPU をアイドルにして全世代を完了扱いにする (シャットダウンやテスト用)。 */
+    /**
+     * ⚠ 戻り値を捨ててはいけない。採用モードでは device は Minecraft のもので、
+     * 待てていないのに破棄へ進むと「実行中のコマンドが参照している」状態を作る
+     * (round-2 review B5)。
+     */
+    public boolean waitIdleChecked() {
+        return vkDeviceWaitIdle(VkContext.get().device) == org.lwjgl.vulkan.VK10.VK_SUCCESS;
+    }
+
     public void waitIdle() {
+        // 旧来の呼び出し元のために残す。結果を見る必要がある側は waitIdleChecked を使う。
         vkDeviceWaitIdle(VkContext.get().device);
         this.completed = this.current;
         this.drainPendingFree();
     }
 
     private void destroy() {
-        this.waitIdle();
+        // ⚠ round-2 review B5: 待機の結果を捨てて破棄へ進んでいた。採用モードでは device は
+        // Minecraft のものなので、待てていないまま解放すると実行中参照になる。
+        // 待てなければ<b>壊さずに漏らす</b> — フェンス 1 個とコマンドバッファ 1 本の漏れは、
+        // 使用中のオブジェクトを解放するより遥かに軽い。
+        if (!this.waitIdleChecked()) {
+            me.cortex.voxy.common.Logger.warn("[vk] vkDeviceWaitIdle did not succeed;"
+                + " leaking the frame tracker's fence and command buffer on purpose rather"
+                + " than freeing objects that may still be in use");
+            return;
+        }
         var ctx = VkContext.get();
         vkDestroyFence(ctx.device, this.fence, null);
         vkFreeCommandBuffers(ctx.device, ctx.commandPool, this.commandBuffer);

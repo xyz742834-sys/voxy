@@ -22,7 +22,7 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 import zlib
-from pixel_oracle import read_rgb, mismatches, top_rows_rgb, png_size
+from pixel_oracle import read_rgb, mismatches, top_rows_rgb, png_size, write_rgb_png
 
 ROOT = Path(__file__).resolve().parents[1]
 DIAGNOSTIC = re.compile(r"\[vk-validation\]\s*\[([^\]]+)\]")
@@ -288,7 +288,14 @@ def native_marker_result(output, checkpoints):
                              f" in the control strip, so the third draw is unproven")
         if rb.get("rejectedInBox"):
             raise ValueError(f"the readback places the rejected colour inside the depth-tested"
-                             f" rows: {rb}")
+                             f" box: {rb}")
+        # ⚠ Round-2 review B4: one readback says nothing about the rest of the lifecycle.
+        if (rb.get("timesClean") or 0) < 3:
+            raise ValueError(f"the colour image was only read back cleanly"
+                             f" {rb.get('timesClean')} time(s); the proof must hold across the run")
+        if rb.get("timesWithAProblem"):
+            raise ValueError(f"{rb['timesWithAProblem']} readback(s) found a problem, first:"
+                             f" {rb.get('firstProblem')}")
         result["readback"] = rb
         geometry = report.get("geometry") or {}
         box, split, strip = geometry.get("box"), geometry.get("nearSplitX"), geometry.get("controlStrip")
@@ -364,15 +371,17 @@ def native_marker_result(output, checkpoints):
             # marker). Neither is inferred from how the image looks — the checkpoint states
             # both. A frame can also simply show nothing because Minecraft composited over
             # it — which is why the readback above, not these screenshots, carries the proof.
+            # ⚠ Round-2 review B4: an explicit depth failure must never be excused, whatever
+            # the implementation says about the frame.
+            if rejected_in_box:
+                raise ValueError(f"{stage}: {rejected_in_box} pixels of the colour depth must"
+                                 f" reject are in the box of a captured frame")
             if drawn <= previous_draws or covered or (near_hits == 0 and far_hits == 0
                                                        and control_hits == 0):
                 skipped[stage] = {"markerDraws": drawn, "previous": previous_draws,
                                   "frameCoveredByGui": covered}
                 continue
             previous_draws = drawn
-            if rejected_in_box:
-                raise ValueError(f"{stage}: {rejected_in_box} pixels of the colour depth must"
-                                 f" reject are in the box, so depth is not working")
             if control_hits < area(cx0, cy0, cx1, cy1) // 2:
                 raise ValueError(f"{stage}: the control strip holds only {control_hits} of"
                                  f" {area(cx0, cy0, cx1, cy1)} rejected-colour pixels, so the"
@@ -400,15 +409,38 @@ def native_marker_result(output, checkpoints):
 
 
 def native_proof_files_result(output, checkpoints):
-    """Gate the proof files the native stage writes but previously never read.
+    """Gate the proof files, their identities, and their agreement with each other.
 
-    Round-1 review B3: the stage gated only environment observations and marker pixels, while
-    probe failures are logged at INFO/WARN rather than the ERROR level it rejects — so a
-    failed adoption, a feature set that was never applied, or a GPU/CPU mismatch passed.
+    Round-2 review B3: requiring the files was not enough — a fixture with a null adopted
+    device and a device mismatch returned true, because a missing identity skipped the check
+    and the marker/compute/shader files' own identities were never looked at. Every field this
+    gate relies on must now be PRESENT and of the right type, and every file that names a
+    device must name the same one.
     """
     result = {"success": False, "failures": [], "files": {}}
     wanted = ("native-device-features.json", "native-compute-probe.json",
-              "native-adopted-context.json", "native-real-shader.json")
+              "native-adopted-context.json", "native-real-shader.json",
+              "native-marker-draw.json", "native-vulkan-probe.json")
+
+    def need(body, name, field, kind):
+        if field not in body:
+            raise ValueError(f"{name} does not state {field}, so its claim cannot be checked")
+        value = body[field]
+        if not isinstance(value, kind) or isinstance(value, bool) != (kind is bool):
+            raise ValueError(f"{name}.{field} is {value!r}, which is not a {kind.__name__}")
+        return value
+
+    def handle(value, name, field):
+        """Device handles are hex in the probe files and integers in the checkpoints."""
+        if isinstance(value, int) and not isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            try:
+                return int(value, 16) if value.lower().startswith("0x") else int(value)
+            except ValueError:
+                pass
+        raise ValueError(f"{name}.{field} is {value!r}, which is not a device handle")
+
     try:
         loaded = {}
         for name in wanted:
@@ -421,63 +453,78 @@ def native_proof_files_result(output, checkpoints):
         features = loaded["native-device-features.json"]
         expected_features = {"drawIndirectFirstInstance", "shaderInt64",
                              "fragmentStoresAndAtomics", "vertexPipelineStoresAndAtomics"}
-        if not features.get("enabled") or set(features.get("added") or []) != expected_features:
+        if not need(features, "native-device-features.json", "enabled", bool):
+            raise ValueError("the device-feature injection was not enabled")
+        if set(need(features, "native-device-features.json", "added", list)) != expected_features:
             raise ValueError(f"the device features Voxy needs were not all requested: {features}")
 
         compute = loaded["native-compute-probe.json"]
-        if not compute.get("succeeded") or compute.get("readBack") != compute.get("expected"):
+        if not need(compute, "native-compute-probe.json", "succeeded", bool):
             raise ValueError(f"the int64 compute proof did not succeed: {compute}")
-        if compute.get("notes"):
+        if need(compute, "native-compute-probe.json", "readBack", str) != \
+                need(compute, "native-compute-probe.json", "expected", str):
+            raise ValueError(f"the int64 compute read back the wrong value: {compute}")
+        if need(compute, "native-compute-probe.json", "notes", list):
             raise ValueError(f"the int64 compute proof reported notes: {compute['notes']}")
 
         adopted = loaded["native-adopted-context.json"]
-        if not adopted.get("adopted") or not adopted.get("provenByVoxyBufferAndShader"):
-            raise ValueError(f"Minecraft's device was not adopted and proven: {adopted}")
-        if adopted.get("notes"):
+        if not need(adopted, "native-adopted-context.json", "adopted", bool):
+            raise ValueError(f"Minecraft's device was not adopted: {adopted}")
+        if not need(adopted, "native-adopted-context.json", "provenByVoxyBufferAndShader", bool):
+            raise ValueError(f"the adopted context was not proven with Voxy's own layers: {adopted}")
+        if need(adopted, "native-adopted-context.json", "notes", list):
             raise ValueError(f"the adoption proof reported notes: {adopted['notes']}")
+        adopted_device = handle(need(adopted, "native-adopted-context.json", "device", str),
+                                "native-adopted-context.json", "device")
 
         shader = loaded["native-real-shader.json"]
-        if not shader.get("succeeded") or shader.get("mismatches") != 0:
-            raise ValueError(f"Voxy's real shader stack did not agree with the CPU reference: {shader}")
-        if shader.get("quadOrdinalsChecked", 0) < 100:
-            raise ValueError(f"only {shader.get('quadOrdinalsChecked')} ordinals were checked")
+        if not need(shader, "native-real-shader.json", "succeeded", bool):
+            raise ValueError(f"Voxy's real shader stack did not succeed: {shader}")
+        if need(shader, "native-real-shader.json", "mismatches", int) != 0:
+            raise ValueError(f"Voxy's real shader stack disagreed with the CPU reference: {shader}")
+        if need(shader, "native-real-shader.json", "quadOrdinalsChecked", int) < 100:
+            raise ValueError(f"only {shader['quadOrdinalsChecked']} ordinals were checked")
+        if need(shader, "native-real-shader.json", "notes", list):
+            raise ValueError(f"the real-shader proof reported notes: {shader['notes']}")
 
-        # The marker and the lifecycle checkpoints must describe the same device.
-        def handle(value):
-            """Device handles appear as 0x-hex in the probe files and as integers in the
-            checkpoints; compare the numbers, not the spellings."""
-            if isinstance(value, bool) or value is None:
-                return None
-            if isinstance(value, int):
-                return value
-            try:
-                return int(str(value), 16) if str(value).lower().startswith("0x") else int(str(value))
-            except ValueError:
-                return None
-
-        devices = {handle(c.get("renderer", {}).get("vkDevice")) for c in checkpoints}
-        devices.discard(None)
-        adopted_handle = handle(adopted.get("device"))
-        # ⚠ An unreadable handle must not quietly skip the identity check.
-        if adopted.get("device") is not None and adopted_handle is None:
-            raise ValueError(f"the adopted device handle {adopted.get('device')!r} cannot be"
-                             f" read, so it cannot be matched against the lifecycle checkpoints")
-        if adopted_handle is not None and devices and adopted_handle not in devices:
-            raise ValueError(f"the adopted device {adopted.get('device')} is not the device the"
-                             f" lifecycle checkpoints observed ({sorted(devices)})")
+        # Every file that names a device must name the SAME device, and so must the
+        # lifecycle checkpoints: that is what ties these proofs to one measured run.
+        marker_device = handle(need(loaded["native-marker-draw.json"], "native-marker-draw.json",
+                                    "device", str), "native-marker-draw.json", "device")
+        probe_device = handle(need(loaded["native-vulkan-probe.json"], "native-vulkan-probe.json",
+                                   "vkDevice", str), "native-vulkan-probe.json", "vkDevice")
+        if not checkpoints:
+            raise ValueError("there are no lifecycle checkpoints to tie the proofs to")
+        checkpoint_devices = set()
+        for case in checkpoints:
+            renderer = case.get("renderer")
+            if not isinstance(renderer, dict) or "vkDevice" not in renderer:
+                raise ValueError(f"checkpoint {case.get('stage')} does not name its device")
+            checkpoint_devices.add(handle(renderer["vkDevice"], "checkpoint", "vkDevice"))
+        identities = {"adopted": adopted_device, "marker": marker_device, "probe": probe_device}
+        result["device_identities"] = {k: hex(v) for k, v in identities.items()}
+        result["checkpoint_devices"] = [hex(v) for v in sorted(checkpoint_devices)]
+        if len(checkpoint_devices) != 1:
+            raise ValueError(f"the checkpoints saw more than one device: {checkpoint_devices}")
+        expected_device = next(iter(checkpoint_devices))
+        for who, value in identities.items():
+            if value != expected_device:
+                raise ValueError(f"the {who} proof names device {hex(value)} but the lifecycle"
+                                 f" checkpoints saw {hex(expected_device)}")
         result.update(success=True)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         result["failures"].append(str(exc))
     return result
 
 
-def retain_native_evidence(native_output, timestamp):
-    """Copy the native stage's small proof files into the repository.
+def retain_native_evidence(output, native_output, timestamp, summary):
+    """Retain enough in the repository to CHECK the native claims, not merely to cite them.
 
-    Round-1 review B1: every measured claim cited paths under `build/`, which is ignored, so
-    for anyone else the evidence did not exist and the claims could not be checked. The JSON
-    proofs are a few kilobytes and are copied in; the screenshots stay ignored build output,
-    recorded here by sha256 so a later run can be compared against the one that was claimed.
+    Round-2 review B1: the first version kept the JSON assertions and screenshot hashes, which
+    is not enough to replay either gate — no log, no gate results, no binding to the candidate,
+    and no pixels at all. This keeps the stage log, the finished summary, the source
+    fingerprint, the revision and worktree state, and a small crop of the marker region from a
+    captured frame, alongside every proof file and a manifest of hashes.
     """
     kept = {"run": timestamp, "files": {}, "screenshots": {}}
     target = ROOT / "docs" / "ai" / "runs" / "native-evidence" / timestamp
@@ -486,13 +533,54 @@ def retain_native_evidence(native_output, timestamp):
         for path in sorted(native_output.glob("*.json")):
             shutil.copyfile(path, target / path.name)
             kept["files"][path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        for name in ("native.log", "summary.json", "source-sha256.json"):
+            path = output / name
+            if path.is_file():
+                shutil.copyfile(path, target / name)
+                kept["files"][name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        kept["candidate"] = {"revision": summary.get("revision"),
+                             "worktree_status": summary.get("worktree_status"),
+                             "selection": summary.get("selection"),
+                             "graphics_backend_preference": summary.get("graphics_backend_preference"),
+                             "host": summary.get("host")}
         for path in sorted(native_output.glob("*.png")):
             kept["screenshots"][path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        crop = retain_marker_crop(native_output, target)
+        if crop:
+            kept["files"].update(crop)
         (target / "MANIFEST.json").write_text(json.dumps(kept, indent=2) + "\n")
         kept["path"] = str(target.relative_to(ROOT))
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         kept["error"] = str(exc)
     return kept
+
+
+def retain_marker_crop(native_output, target):
+    """Save a small PNG of the marker region from the first frame that carries it."""
+    report_path = native_output / "native-marker-draw.json"
+    if not report_path.is_file():
+        return None
+    report = json.loads(report_path.read_text())
+    geometry = report.get("geometry") or {}
+    box, strip = geometry.get("box"), geometry.get("controlStrip")
+    cell = geometry.get("depthTestedPassCell")
+    if not (isinstance(box, list) and isinstance(strip, list) and isinstance(cell, list)):
+        return None
+    for png in sorted(native_output.glob("*.png")):
+        width, height = png_size(png)
+        xs = [int((v + 1.0) * 0.5 * width) for v in (box[0], box[2])]
+        ys = [int((1.0 - v) * 0.5 * height)
+              for v in (box[1], box[3], strip[1], strip[3], cell[1], cell[3])]
+        x0, x1 = max(0, min(xs) - 2), min(width, max(xs) + 2)
+        y0, y1 = max(0, min(ys) - 2), min(height, max(ys) + 2)
+        rows, _ = top_rows_rgb(png, y1 + 1)
+        crop = [row[x0:x1] for row in rows[y0:y1]]
+        if not crop or not crop[0]:
+            continue
+        name = "marker-crop-" + png.stem + ".png"
+        write_rgb_png(target / name, crop)
+        return {name: hashlib.sha256((target / name).read_bytes()).hexdigest()}
+    return None
 
 
 def main():
@@ -628,8 +716,12 @@ def main():
             result["unexpected_application_errors"] = [line for line in result["application_errors"]
                 if not any(message in line for message in expected_errors)]
             result["success"] &= not result["unexpected_application_errors"]
-            result["retained_evidence"] = retain_native_evidence(native_output, timestamp)
             summary["stages"]["native_environment"] = result
+            save()
+            # Retained after the summary is written, so the evidence includes the finished
+            # gate results and the log rather than a half-written snapshot.
+            result["retained_evidence"] = retain_native_evidence(
+                output, native_output, timestamp, summary)
             save()
         summary["success"] = bool(summary["stages"]) and all(r["success"] for r in summary["stages"].values())
         final_fingerprints = source_fingerprints()

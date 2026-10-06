@@ -184,7 +184,15 @@ public final class McNativeVulkanProbe {
      * マッピング次第で変わるが、{@link GpuDeviceBackend} 型であることは変わらない。
      * 見つからなければ null を返し、理由を {@code notes} に残す (例外は投げない)。
      */
+    /**
+     * ⚠ round-2 review N1: ここに独自の走査が残っていた。曖昧さと static を拒否する
+     * 実装は {@link McNativeVulkan#backendOf} の 1 本だけに寄せる。
+     */
     static GpuDeviceBackend backendOf(GpuDevice device, List<String> notes) {
+        return McNativeVulkan.backendOf(device, notes);
+    }
+
+    private static GpuDeviceBackend unusedBackendOf(GpuDevice device, List<String> notes) {
         if (device instanceof GpuDeviceBackend self) return self;   // 将来、包まなくなったとき
         for (Class<?> c = device.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
             for (Field f : c.getDeclaredFields()) {

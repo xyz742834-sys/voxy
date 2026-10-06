@@ -201,19 +201,17 @@ public final class McNativeFeatureAudit {
                 notes.add("could not enumerate Minecraft's physical devices (second call)");
                 return null;
             }
-            VkPhysicalDevice first = null;
             for (int i = 0; i < count.get(0); i++) {
                 var candidate = new VkPhysicalDevice(handles.get(i), instance);
-                if (first == null) first = candidate;
                 var props = VkPhysicalDeviceProperties.calloc(stack);
                 vkGetPhysicalDeviceProperties(candidate, props);
                 if (deviceName != null && deviceName.equals(props.deviceNameString())) return candidate;
             }
-            if (count.get(0) > 1) {
-                notes.add("could not match " + deviceName + " among " + count.get(0)
-                    + " physical devices; using the first");
-            }
-            return first;
+            // ⚠ round-2 review N2: 名前が一致しないなら測らない。
+            // 「最初のもので代用」は、別の GPU の対応状況を報告することになる。
+            notes.add("none of the " + count.get(0) + " physical devices is named "
+                + deviceName + "; not auditing against a guess");
+            return null;
         } catch (Throwable t) {
             notes.add("physical device lookup: " + t);
             return null;

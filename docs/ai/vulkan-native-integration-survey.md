@@ -420,6 +420,60 @@ carries its own CRC, IEND, dimension and row-count bounds.
 The counterexamples the reviewer used are now tests (`scripts/tests/test_marker_gate.py`,
 47 Python tests in total), so the gate cannot drift back.
 
+## Round-2 review repairs (2026-10-06)
+
+Round 2 ([native-integration-review-r2.md](runs/native-integration-review-r2.md)) closed B2
+and judged the work safe for ordinary play, but returned REDESIGN on four sharper findings.
+What changed:
+
+**The readback now checks position and density, not colour spans.** The reviewer defeated the
+previous version with three distant 500-pixel patches: taking each colour's bounding box
+across the whole image, unrelated scene pixels satisfied the relationships. The check now
+measures the *expected rectangles* — near over the left 60% of the box, far over the rest, the
+rejected colour over its cell and its control strip — and requires each to be at least 80%
+filled, with `rejectedInBox` **counted in the box** rather than inferred. Orientation is still
+not assumed: both the composited orientation and its vertical mirror are measured, and the one
+that satisfies the requirements is taken.
+
+**The depth-TESTED rejected draw is now provable.** A control strip drawn with compare `ALWAYS`
+only shows that the colour can be drawn; it does not show that the depth-tested draw was ever
+issued, because not issuing it looks the same. The marker therefore draws the rejected colour
+twice with the *same depth-testing pipeline*: into a cell where its depth is nearer than the
+base (so it must pass) and into the box where it is farther (so it must be rejected). Both
+outcomes from one pipeline and one colour is what makes "issued, then rejected by depth" a
+measurement rather than an inference.
+
+**One readback was stale for the rest of the run.** It now repeats every 240 draws and the
+gate requires at least three clean readbacks and zero problems; the passing run reports
+**20 clean, 0 problems**. A frame showing the rejected colour in the box is also no longer
+excusable for any reason the implementation gives.
+
+**The proof files must agree on one identity.** Requiring them was not enough: a missing
+adopted device skipped the comparison, and the marker/probe files' own identities were never
+read — a fixture with a null device and a mismatch passed. Every field the gate relies on must
+now be present and of the right type, and the adopted, marker, probe and lifecycle-checkpoint
+devices must all be the same handle (compared numerically, since the probes spell them in hex).
+
+**Nothing is destroyed after an unconfirmed wait, anywhere.** The real-shader cleanup destroyed
+after a drain it had not confirmed; `VkFrameTracker.destroy` ignored its `vkDeviceWaitIdle`
+result; marker shutdown destroyed when Minecraft's device was unreachable, and retirement
+queued a draw against a *replaced* device. All four now leak deliberately and say why.
+
+**The evidence can be replayed.** It keeps the stage log, the finished summary, the source
+fingerprint, the candidate revision and worktree state, every proof file, a manifest of
+screenshot hashes, and a small PNG crop of the marker region — twelve files for the passing
+run [20261006T064519-555551Z](runs/native-evidence/20261006T064519-555551Z/MANIFEST.json).
+
+Also: the duplicated reflection helpers now share the strict one that refuses ambiguity and
+ignores statics; the compute probe and feature audit no longer fall back to the first physical
+device (if none is named as Minecraft's, they do not measure); the readback carries a 40 MiB
+budget rather than allocating 126 MiB at 8K; and the buffer is closed if the copy is never
+registered.
+
+One bug of my own is worth recording because the gate caught it: rearming the readback by
+subtracting from `Long.MIN_VALUE` overflowed, so it never ran — and the gate failed the run
+with "Minecraft's colour image was never read back" instead of quietly reporting success.
+
 ## What is NOT answered yet, and must be measured on hardware
 
 1. **Image-state ownership** — partly answered. Opening the pass through Minecraft's

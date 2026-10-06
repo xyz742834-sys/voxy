@@ -281,7 +281,19 @@ public final class McNativeComputeProbe {
             }
             PointerBuffer handles = stack.mallocPointer(count.get(0));
             if (vkEnumeratePhysicalDevices(instance, count, handles) != VK_SUCCESS) return null;
-            return new VkPhysicalDevice(handles.get(0), instance);
+            // ⚠ round-2 review N2: 「最初の 1 つ」では複数 GPU で取り違える。
+            // MC が報告する名前と一致するものだけを使い、無ければ測らない。
+            String wanted = null;
+            try { wanted = device.getDeviceInfo().name(); } catch (Throwable t) { notes.add("name(): " + t); }
+            for (int i = 0; i < count.get(0); i++) {
+                var candidate = new VkPhysicalDevice(handles.get(i), instance);
+                var props = org.lwjgl.vulkan.VkPhysicalDeviceProperties.calloc(stack);
+                vkGetPhysicalDeviceProperties(candidate, props);
+                if (wanted != null && wanted.equals(props.deviceNameString())) return candidate;
+            }
+            notes.add("none of the " + count.get(0) + " physical devices is named "
+                + wanted + "; not measuring against a guess");
+            return null;
         } catch (Throwable t) {
             notes.add("physical device lookup: " + t);
             return null;
