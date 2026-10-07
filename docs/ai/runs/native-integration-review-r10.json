@@ -1,0 +1,204 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "6b2d6cc92fe9407be8361b928a5ffd7a1e4d2df0",
+  "review_round": 10,
+  "blocking_findings": [
+    {
+      "id": "B1",
+      "judgment": "REFUTED complete closure; CONFIRMED named membership/inventory repairs",
+      "reason": "A hash-listed source-sha256.json replaced by {} still replays 0, erasing meaningful source binding while satisfying presence. Actual 408 current fingerprints independently match HEAD.",
+      "evidence": [
+        "scripts/verify.py:2124",
+        "scripts/verify.py:2138",
+        ".agent-run/r10-extra.json:empty_source_fingerprint"
+      ]
+    },
+    {
+      "id": "R9-SURVEY-OVERCLAIM",
+      "judgment": "REFUTED complete closure; CONFIRMED named edits",
+      "reason": "The assertion that no terrain was loaded in the sampled frame exceeds a retained cloud-band crop; creation-test guarantee also exceeds coverage.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:1074",
+        "docs/ai/vulkan-native-integration-survey.md:1166"
+      ]
+    },
+    {
+      "id": "R10-CREATE-TEST",
+      "judgment": "REFUTED advertised creation-call regression guarantee",
+      "reason": "JVM substitution LESS to ALWAYS at the actual create() pipeline call, leaving its table and helper intact, passes all five ladder JUnit tests. The unmutated source is correct.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:625",
+        "src/test/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadderTest.java:52",
+        ".agent-run/r10-bytecode-createLessAlways.log"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R10-ANCHOR-GRAIN",
+      "judgment": "CONFIRMED coarse anchoring; REFUTED exact individual-pixel provenance if inferred",
+      "reason": "Exact floored 4x4 RGB means cover only complete blocks. Pixel permutations and an uncovered edge-pixel/report alteration replay 0 with the thumbnail unchanged; 1328 or 2304 boundary pixels per crop are not compared. This is a limit of the declared reduction, not evidence of corrupted committed samples.",
+      "evidence": [
+        "scripts/verify.py:1170",
+        ".agent-run/r10-attacks.json:within_block_pixel_permutation",
+        ".agent-run/r10-extra.json:edge_pixel_with_recounted_report"
+      ]
+    },
+    {
+      "id": "R10-LOG-DETAILS",
+      "judgment": "CONFIRMED sample-draw inventory; REFUTED full log/report equality",
+      "reason": "Draw-number lists must agree, including duplicate multiplicity; orientation/count text and stored summary measurement copies are not reconciled. Mutated log details replay 0.",
+      "evidence": [
+        "scripts/verify.py:888",
+        "scripts/verify.py:1001",
+        ".agent-run/r10-extra.json:log_counts_and_orientation_drift"
+      ]
+    },
+    {
+      "id": "R10-CONSISTENT-FORGERY",
+      "judgment": "CONFIRMED jointly rewritten records can pass",
+      "reason": "Crops/report plus repainted thumbnail blocks can forge orientation or all-violet data; report/files/log jointly omitted can forge one-sample inventory. Editable manifest hashes provide integrity, not external authenticity.",
+      "evidence": [
+        ".agent-run/r10-attacks.json"
+      ]
+    },
+    {
+      "id": "R10-DEPTH-FIXTURE",
+      "judgment": "REFUTED coverage of multi-row band averaging",
+      "reason": "All 15 DepthProbeGateTest cases pass defective band=1 because every fixture is 48x32. Actual implementation uses max(1,height//50).",
+      "evidence": [
+        "scripts/tests/test_marker_gate.py:1074",
+        ".agent-run/r10-test-escapes.json"
+      ]
+    },
+    {
+      "id": "R10-DOC-DRIFT",
+      "judgment": "CONFIRMED stale historical/task prose",
+      "reason": "Handoff still identifies round-9 candidate/task state and old cleared-value attribution. Old replay prose must be read with the explicit current eleven-run table.",
+      "evidence": [
+        "docs/ai/handoff.md:3",
+        "docs/ai/vulkan-native-integration-survey.md:1149"
+      ]
+    }
+  ],
+  "safe_for_normal_play": {
+    "opengl_backend": true,
+    "minecraft_vulkan_backend_with_voxy_disabled": true,
+    "minecraft_vulkan_backend_as_functioning_native_voxy": false,
+    "ladder_inert_without_flag": true,
+    "ladder_writes_minecraft_depth_when_flagged": false,
+    "fresh_normal_play_tested": false,
+    "basis": "Source and permitted offscreen tests support dormant changes on supported GL and disabled Voxy on Minecraft Vulkan; no native LoD delivery or fresh play session is certified."
+  },
+  "round9_findings_closed": {
+    "B1": false,
+    "R8-LADDER-GATE": true,
+    "R9-DEPTH-FINITE": true,
+    "R9-SURVEY-OVERCLAIM": false
+  },
+  "round9_closure_scope": "R8-LADDER-GATE closes the specific prior coordinated-orientation and 17-of-18 omission attacks. B1 named nested-manifest and delete-with-entry attacks fail, but semantically empty fingerprint still passes.",
+  "terrain_experiment_judgment": {
+    "judgment": "CONFIRMED bounded synthetic adopted-device comparison",
+    "pairs_independently_identical": 19,
+    "selected_non_background_pixels": 26116,
+    "selected_rgb_mismatches": 0,
+    "minecraft_scene_coexistence_established": false,
+    "actual_streamed_lod_established": false,
+    "scope": "Real terrain pipeline, synthetic scene, clears Minecraft frame/depth; not native terrain delivery."
+  },
+  "depth_result_judgment": {
+    "judgment": "CONFIRMED finite consistent retained quantised-zero observation",
+    "dimensions": [
+      1708,
+      960
+    ],
+    "quantised_zero_pixels": 1639680,
+    "nan_mutations_refused": 27,
+    "original_float_bits_independently_reproduced": false,
+    "isolated_depth_copy_launch_retained": false,
+    "copy_failure_mode_established": false,
+    "z_convention_measured": false,
+    "scope": "Completed copy and uniform retained PGM, not a proved cause or same-frame contradiction with isolated ladder."
+  },
+  "ladder_judgment": {
+    "mechanism_sound": true,
+    "complementary_control_sound": true,
+    "crop_provenance_anchored": true,
+    "sample_inventory_sound": true,
+    "isolation_retained": true,
+    "gate_sound": true,
+    "per_pixel_counts_confirmed": true,
+    "claims_supported": true,
+    "z_convention_measured": false,
+    "samples_independently_recounted": 18,
+    "crop_provenance_exact_per_pixel": false,
+    "log_details_reconciled": false,
+    "arbitrary_broken_less_calibrated": false,
+    "gate_sound_scope": "Pinned source geometry/state plus exact raw-pixel recount, complete-block mean anchoring and own-launch draw inventory. Does not authenticate jointly rewritten evidence, every pixel origin, log count/orientation details or source fingerprint content.",
+    "claims_supported_scope": "Conditional per-pixel brackets/histograms, coarse crop position and recorded isolation; excludes unsupported whole-frame terrain-loading and creation-test guarantees in survey.",
+    "complementary_control_scope": "GREATER at z0 complements empty LESS survival except equality; white refused. Not arbitrary LESS calibration."
+  },
+  "tests": {
+    "junit": {
+      "total": 331,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "skip": "VkBarriersTest.missingBarrierIsDetected()"
+    },
+    "python": {
+      "total": 158,
+      "failures": 0,
+      "seconds": 272.251
+    },
+    "requested_newest_replay": {
+      "exit": 0,
+      "checks": 9,
+      "samples": 18
+    },
+    "bytecode": {
+      "normal": [
+        5,
+        0
+      ],
+      "write_helper": [
+        4,
+        1
+      ],
+      "compare_op_table": [
+        4,
+        1
+      ],
+      "creation_call_less_to_always": [
+        5,
+        0
+      ]
+    },
+    "doubled_threshold": {
+      "gradient_positive_passes": true,
+      "literal_pin_fails": true
+    },
+    "defective_one_row_depth_band": {
+      "tests": 15,
+      "failures": 0
+    }
+  },
+  "source_binding_independently_confirmed": {
+    "manifest_files": 195,
+    "source_fingerprints": 408,
+    "mismatches": 0,
+    "recorded_revision": "fd1e10ccf679bb46dfc18379c59b9089c94ffe20",
+    "recorded_final_revision": "fd1e10ccf679bb46dfc18379c59b9089c94ffe20",
+    "changed_sources_during_run": []
+  },
+  "delivery_boundary": "Even an accepted diagnostic foundation remains REDESIGN for Minecraft-native Voxy LoD. Native result is BLOCKED_UNIMPLEMENTED; no accepted layer claimed.",
+  "not_checked": [
+    "Minecraft/native/live execution prohibited",
+    "Fresh normal play or GL visual parity",
+    "Scene-depth convention or same-pixel Minecraft depth reference",
+    "Native coexistence, streamed LoD, pressure and failure lifetime stability",
+    "Full original readback/screenshot re-extraction unavailable",
+    "Original float depth bits unavailable in quantised PGM",
+    "Native synchronization-validation activation not newly established"
+  ]
+}
