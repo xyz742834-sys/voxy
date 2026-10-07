@@ -1,0 +1,402 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "3421640fad2e909f3c5661fea5e771dde601797d",
+  "review_round": 8,
+  "reviewed_checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r8",
+  "implementation_changed": false,
+  "minecraft_launched": false,
+  "acceptance_boundary": "An independently accepted diagnostic foundation still yields REDESIGN for the native delivery target; this diagnostic foundation is not accepted.",
+  "blocking_findings": [
+    {
+      "id": "B1",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Raw sample membership and source colours repaired; consulted reports, summary, source fingerprint and logs can remain unmanifested and replay. Marker filename/capture mismatch, foreign depth identity and deletion of enabled depth proof also replay successfully.",
+      "evidence": [
+        "scripts/verify.py:1865-1873",
+        "scripts/verify.py:1952-1964",
+        "scripts/verify.py:654-773",
+        "scripts/verify.py:1154-1162",
+        "scripts/verify.py:1901-1902",
+        ".agent-run/r8-attacks.json",
+        ".agent-run/r8-extra.json"
+      ]
+    },
+    {
+      "id": "R6-TERRAIN-GATE",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Equivalent decimal adopted handle passes proof consistency but disables replay expected-device comparison; foreign terrain device then replays 0.",
+      "evidence": [
+        "scripts/verify.py:1468-1488",
+        "scripts/verify.py:1915-1918",
+        "scripts/verify.py:1323-1326",
+        ".agent-run/r8-attacks.json"
+      ]
+    },
+    {
+      "id": "R8-LADDER-MECHANISM",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "ALWAYS stripes occupy different rows, colours, pipelines and commands; they do not exclude a missing LESS path or rung-specific spatial confounds. Different columns test different Minecraft depths, so a prefix is not physically necessary.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:74-86",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:278-295",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:399-410"
+      ]
+    },
+    {
+      "id": "R8-LADDER-GATE",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "NaN source depths/bands/bounds/fills bypass pinned comparisons and recount agreement. A fabricated 48x17 crop with producer-declared 80x100 target replays as the retained 1708x960 launch. Own checkpoint-result inconsistency and unmanifested launch metadata pass.",
+      "evidence": [
+        "scripts/verify.py:883-902",
+        "scripts/verify.py:911-943",
+        "scripts/verify.py:979-996",
+        "scripts/verify.py:1043-1046",
+        "scripts/verify.py:1929-1935",
+        ".agent-run/r8-attacks.json",
+        ".agent-run/r8-extra.json"
+      ]
+    },
+    {
+      "id": "R8-LADDER-BOUND",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "All empty rungs imply only per-column upper thresholds, not a common band-wide upper bound of 0.0625. Valid d_i=z_i/2 produces the same all-empty image with depths up to 0.46875. Half of the first rung can visibly survive while replay still emits <=0.0625 because survival is thresholded at 80%.",
+      "evidence": [
+        "scripts/verify.py:918-943",
+        "scripts/verify.py:1026-1029",
+        "scripts/verify.py:1067-1070",
+        ".agent-run/r8-test-escapes.log",
+        ".agent-run/r8-attacks.json"
+      ]
+    },
+    {
+      "id": "R8-LADDER-CONCLUSION",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "One band and the invalid bound cannot establish hook-wide impossibility of coexistence under both conventions or that the depth copy is correct. Survey also incorrectly states positive LESS against near-zero reverse-Z rejects nothing.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:1005-1018",
+        "docs/ai/current-state.md:52-63",
+        "docs/ai/handoff.md:89-108"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R8-TEST",
+      "severity": "medium",
+      "judgment": "REFUTED",
+      "finding": "All three new ladder JUnit tests pass with actual pipeline depthWriteEnable mutated to true in memory. Terrain lifetime tests remain default-only; painted ladder fixtures encode invalid spatial inference. Depth readability assertion is vacuous.",
+      "evidence": [
+        ".agent-run/r8-broken-ladder-tests.log",
+        ".agent-run/R8BrokenLadderAgent.java",
+        "scripts/tests/test_ladder_gate.py:134-158",
+        "scripts/tests/test_marker_gate.py:1132",
+        "src/test/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainLifetimeTest.java:24-106"
+      ]
+    },
+    {
+      "id": "R8-DEPTH-METADATA",
+      "severity": "medium",
+      "judgment": "REFUTED",
+      "finding": "clearedValue=1,clearedShare=0 passes against zero depth and histogram; ancillary summary is not recounted. This does not change the scoped negative depth answer.",
+      "evidence": [
+        "scripts/verify.py:1171-1174",
+        "scripts/verify.py:1245-1255",
+        ".agent-run/r8-attacks.json"
+      ]
+    },
+    {
+      "id": "R8-DEPTH-QUANTIZATION",
+      "severity": "medium",
+      "judgment": "REFUTED",
+      "finding": "Source-float histogram and quantized-PGM histogram can differ at bin boundaries; valid z=0.0624999 is falsely rejected after rounding to 4096/65535. Positive fixtures summarize already quantized values and miss this difference.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthProbe.java:187-193",
+        "scripts/verify.py:1231-1244",
+        "scripts/tests/test_marker_gate.py:1081-1096",
+        ".agent-run/r8-depth-quantization.json"
+      ]
+    },
+    {
+      "id": "R8-DOC",
+      "severity": "low",
+      "judgment": "REFUTED",
+      "finding": "Current eight-run replay table is accurate, but dated unqualified replay prose, nothing-implemented opening and historical marker depth-write claims remain overstated. Ladder-specific causal, bound and hook claims are blocking findings above.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:12",
+        "docs/ai/vulkan-native-integration-survey.md:916-917",
+        "docs/ai/vulkan-native-integration-survey.md:1005-1018"
+      ]
+    }
+  ],
+  "safe_for_normal_play": {
+    "gl_backend": true,
+    "minecraft_vulkan_backend": true,
+    "minecraft_vulkan_voxy_terrain_available": false,
+    "judgment": "CONFIRMED dormant safety; would ship with diagnostics unset, Vulkan only as disabled Voxy, not functioning native integration. No fresh normal-play smoke/soak.",
+    "depthladder_unflagged_inert": true,
+    "depthladder_writes_minecraft_depth_even_when_flagged": false,
+    "evidence": [
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:179-182",
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:240-242",
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:653-655",
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:719-738",
+      "src/main/java/me/cortex/voxy/client/VoxyClient.java:82-116"
+    ]
+  },
+  "round7_findings_closed": {
+    "B1": false,
+    "B3": true,
+    "B4": true,
+    "R6-TERRAIN-GATE": false,
+    "R6-TERRAIN-DEVICE": true,
+    "R7-DEPTH-GATE": true
+  },
+  "closure_scope": "B4 closes the specifically requested rejected-crop clamping residual; marker capture association remains under B1. R7-DEPTH-GATE closes removed band inference, raw histogram/extrema/mean recount, three specified contradictions and missing replay call; ancillary depth identity/completeness and quantization limitations are separately recorded.",
+  "terrain_experiment_judgment": {
+    "judgment": "CONFIRMED",
+    "measurement_confirmed": true,
+    "all_retained_pairs_compared": 22,
+    "rgb_mismatches": 0,
+    "non_background_pixels": {
+      "1708x960": 20663,
+      "1920x1080": 26116
+    },
+    "selected_capture": 4795,
+    "scope": "Synthetic same-renderer RGB agreement on adopted device after clearing Minecraft colour/depth; not real LoD, coexistence, alpha/depth parity, or accepted foundation.",
+    "gate_sound": false
+  },
+  "depth_result_judgment": {
+    "judgment": "CONFIRMED scoped negative observation",
+    "completed_copy_retained": true,
+    "raw_depth_retained": true,
+    "raw_format": "16-bit quantized big-endian PGM",
+    "dimensions": [
+      1708,
+      960
+    ],
+    "quantized_zero_pixels": 1639680,
+    "original_float_bits_independently_confirmed": false,
+    "band_heuristic_deleted": true,
+    "three_round7_contradictions_rejected": true,
+    "replay_calls_depth_gate": true,
+    "isolated_run_independently_confirmed": false,
+    "z_convention_measured": false,
+    "copy_correctness_established": false,
+    "cause_known": false,
+    "ancillary_metadata_fully_checked": false
+  },
+  "ladder_judgment": {
+    "judgment": "REFUTED general mechanism inference, gate, bound and hook conclusion; CONFIRMED draw state, retained isolation and actual colour counts",
+    "mechanism_sound": false,
+    "draws_against_loaded_minecraft_depth": true,
+    "depth_writes_disabled": true,
+    "never_clears_minecraft_depth": true,
+    "controls_exclude_all_missing_or_covered_draws": false,
+    "isolation_retained": true,
+    "terrain_probe_enabled": false,
+    "terrain_draws_recorded": 0,
+    "marker_draw_enabled": false,
+    "marker_draws_recorded": 0,
+    "own_checkpoints_match_retained_result": true,
+    "own_checkpoint_count": 11,
+    "own_device": "0x77dfd4c018",
+    "first_launch_device": "0x77b2c00018",
+    "gate_sound": false,
+    "stage_and_replay_share_gate": true,
+    "bound_supported": false,
+    "claimed_bound": {
+      "lower": null,
+      "upper": 0.0625
+    },
+    "defensible_conditional_bound": "Only column-specific d_mc(x,y)<=z_i if rasterization/readback attribution is valid; no band-wide common upper bound follows.",
+    "conclusion_supported": false,
+    "z_convention_measured": false,
+    "cause_known": false,
+    "copy_correctness_inference_supported": false,
+    "raw_sample_dimensions": [
+      1025,
+      164
+    ],
+    "measured_rung_fill": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "inline_control_fill": [
+      0.926,
+      0.9333,
+      0.9333,
+      0.9333,
+      0.9333,
+      0.9333,
+      0.9333,
+      0.9333
+    ],
+    "control_fill": 0.9782,
+    "mutations_replaying_zero": [
+      "remove manifest member ladder/native-depth-ladder.json",
+      "remove manifest member ladder/native-result.json",
+      "remove manifest member ladder/native-ladder.log",
+      "ladder {'rungDepths': [nan, nan, nan, nan, nan, nan, nan, nan], 'upperBound': nan}",
+      "ladder {'rungFill': [nan, nan, nan, nan, nan, nan, nan, nan], 'inlineControlFill': [nan, nan, nan, nan, nan, nan, nan, nan], 'controlFill': nan}",
+      "ladder {'reversedZ': True}",
+      "ladder replace sample with 48x17 fabricated crop, claim 80x100 target",
+      "ladder half first rung survives but <=0.0625 still claimed",
+      "ladder OWN native-result checkpoint device contradicts summary",
+      "ladder all source bands NaN",
+      "remove ladder report and entry omit ladder"
+    ]
+  },
+  "tests": {
+    "junit": {
+      "exit_code": 0,
+      "cases": 329,
+      "passed": 328,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "skip": "VkBarriersTest.missingBarrierIsDetected",
+      "test_task_executed": true
+    },
+    "python": {
+      "exit_code": 0,
+      "cases": 148,
+      "seconds": 257.182
+    },
+    "newest_replay": {
+      "exit_code": 0,
+      "replayed_checks": 9
+    },
+    "adversarial_replays": {
+      "cases": 76,
+      "accepted_mutations": 22,
+      "artifacts": [
+        ".agent-run/r8-attacks.json",
+        ".agent-run/r8-extra.json"
+      ]
+    }
+  },
+  "survey_replay_table_confirmed": true,
+  "all_retained_run_replay_results": [
+    {
+      "run": "20261006T070311-099413Z",
+      "exit": 1,
+      "error": "ValueError: the readback does not state closeFailures",
+      "proofs": null,
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ]
+    },
+    {
+      "run": "20261006T073859-396220Z",
+      "exit": 1,
+      "error": "ValueError: the readback does not state leakedPipelines",
+      "proofs": null,
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ]
+    },
+    {
+      "run": "20261006T080931-279390Z",
+      "exit": 1,
+      "error": "ValueError: the readback does not state leakedPipelines",
+      "proofs": null,
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ]
+    },
+    {
+      "run": "20261006T083136-838975Z",
+      "exit": 1,
+      "error": "ValueError: the rejected orientation's pixels were not retained, so the claim that only one orientation matches cannot be checked",
+      "proofs": null,
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ]
+    },
+    {
+      "run": "20261006T084300-332469Z",
+      "exit": 1,
+      "error": "ValueError: the rejected orientation's pixels were not retained, so the claim that only one orientation matches cannot be checked",
+      "proofs": null,
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ]
+    },
+    {
+      "run": "20261006T095436-054038Z",
+      "exit": 1,
+      "error": "ValueError: depth gate: ['ValueError: the depth probe does not state zConventionMeasuredHere']",
+      "proofs": [],
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ]
+    },
+    {
+      "run": "20261006T165039-062378Z",
+      "exit": 0,
+      "error": null,
+      "proofs": [],
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything",
+        "the depth ladder: this run retained no ladder launch, so no bound on Minecraft's depth is replayed from it"
+      ]
+    },
+    {
+      "run": "20261007T005606-024013Z",
+      "exit": 0,
+      "error": null,
+      "proofs": [],
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ]
+    }
+  ],
+  "evidence_binding": {
+    "manifest_entries": 134,
+    "source_fingerprint_entries": 408,
+    "manifest_hash_mismatches": [],
+    "current_source_hash_mismatches": [],
+    "changed_sources_during_run": [],
+    "recorded_revision": "711c80371fa51408f13fbb40c2e4f32903a8c2ce",
+    "recorded_final_revision": "711c80371fa51408f13fbb40c2e4f32903a8c2ce",
+    "recorded_commit_is_reviewed_head": false,
+    "source_fingerprints_match_reviewed_head": true
+  },
+  "could_not_check": [
+    "Fresh Minecraft/native/live execution prohibited by user.",
+    "No live hook/depth convention, GPU device-loss, lifecycle stress, sustained pressure or native coexistence test.",
+    "Original full screenshots absent; crop provenance not independently re-extracted.",
+    "16-bit depth cannot attest original float bits or whole-image copy correctness.",
+    "Native synchronization-validation activation not independently established from adopted-context label.",
+    "Heap reflection and bytecode test mutations do not establish live GPU or mixin behavior."
+  ],
+  "report": "docs/ai/runs/native-integration-review.md"
+}
