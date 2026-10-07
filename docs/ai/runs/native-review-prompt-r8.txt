@@ -1,0 +1,90 @@
+You are an INDEPENDENT reviewer, round 8. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (3421640fad2e909f3c5661fea5e771dde601797d). Round 7 returned REDESIGN against
+3ac2c7b3: it closed R4-L1 and R6-TERRAIN-WAIT, left B1, B3, B4, R6-TERRAIN-GATE and
+R6-TERRAIN-DEVICE open on narrower residuals, and added R7-DEPTH-GATE. Its report is
+docs/ai/runs/native-integration-review-r7.md and its machine verdict
+docs/ai/runs/native-integration-review-r7.json.
+
+Two commits since then are unreviewed. bb91527e repairs every round-7 residual. The HEAD adds
+a NEW measurement: McNativeDepthLadder, which tests eight known NDC depths (compare LESS, depth
+writes OFF, co-located ALWAYS controls) against Minecraft's own LOADed depth attachment, in its
+OWN Minecraft launch inside `--only native` with the terrain probe and marker off. It reports
+that every rung is rejected while every control fills, i.e. Minecraft's depth at the
+LevelRenderer.render tail is <= 0.0625 in that band, and concludes that this hook cannot
+support coexistence under either Z convention. The Z convention itself is still claimed
+UNMEASURED.
+
+The boundary from rounds 4-7 still governs and the candidate accepts it: an independently
+accepted diagnostic foundation is still REDESIGN. The candidate does NOT claim an accepted
+layer. It claims (a) the six round-7 residuals are repaired, (b) the terrain and depth-copy
+results stand as before, (c) the ladder measurement and its isolation are retained and
+replayable, and (d) its conclusion about the hook is no stronger than the evidence. Judge all
+four.
+
+Read docs/ai/project-goal.md and docs/ai/vulkan-native-integration-survey.md first; the
+survey's "Minecraft's scene depth is not observable through a buffer copy" and "Minecraft's
+depth at the level-render tail, tested behaviourally" sections, and docs/ai/handoff.md, state
+what changed and why.
+
+Judge, saying CONFIRMED or REFUTED with the file/line or command for each:
+
+1. EACH ROUND-7 RESIDUAL.
+   B1 the marker's expected colours are now asserted against source constants like the
+      geometry; manifest membership covers every referenced sample including the terrain
+      reference and the rejected-orientation crop. Re-run your colour-swap and manifest-removal
+      attacks and look for any remaining reference value the producer controls.
+   B3 feature offsets must equal the member offsets of VkPhysicalDeviceFeatures the gate pins
+      (40/160/104/100). Re-run your 1000001..1000004 attack and look for a vacuous proof set.
+   B4 recount_rejected_orientation no longer clamps; a crop that does not contain the expected
+      regions fails. Re-run your 1x1 black image attack.
+   R6-TERRAIN-GATE replay passes the adopted device and requires reference/rejected samples to
+      be manifest members. Re-run your mutation table on the newest retained run.
+   R6-TERRAIN-DEVICE divergence now publishes evidence before stopping, so the on-disk report
+      cannot stay clean. Reproduce your A->B injection and read the file afterwards.
+   R7-DEPTH-GATE the band heuristic is deleted; the raw depth is retained as a 16-bit PGM and
+      recounted; replay calls the depth gate. Re-run your three contradictory mutations.
+2. THE DEPTH LADDER (new). Judge:
+   - Mechanism: does McNativeDepthLadder actually test against Minecraft's loaded depth with
+     writes off, never clearing or writing it? Is the co-located ALWAYS stripe sufficient to
+     exclude "nothing drawn" and "something covered it"? What else could make every LESS rung
+     fail while every ALWAYS stripe fills?
+   - Isolation: the ladder has its own launch with terrain and marker off, and its report
+     carries terrainProbeEnabled/terrainDrawsRecorded/markerDrawEnabled/markerDrawsRecorded.
+     Is the retained launch under ladder/ in the evidence directory actually isolated, and
+     is its identity tied to its OWN checkpoints rather than the first launch's?
+   - Gate: ladder_report_checks is shared by the stage and replay; depths and bands are
+     pinned; survivors must be a prefix; bounds derive from survivors; the sample is bound by
+     name and count; orientation is published and used; aggregates must match pixels. Run your
+     mutation table against docs/ai/runs/native-evidence/20261007T005606-024013Z/ladder/ and name
+     any mutation that replays as 0. Look especially for anything the recount trusts that the
+     producer controls.
+   - Conclusion: is "this hook cannot support coexistence under either convention" supported
+     by a bound of <= 0.0625 in ONE band? Is the Z convention correctly left unmeasured? Is
+     anything claimed about why the attachment reads near zero?
+3. TESTS. 329 (1 documented skip, 0 failures) JUnit and 148 Python cases, including McNativeDepthLadderTest and
+   scripts/tests/test_ladder_gate.py. Name any test that would pass against broken code. Note
+   again that fixtures must not be shrunk; judge whether any fixture is sized or shaped so that
+   a real defect would escape.
+4. WHETHER THE SURVEY OVERSTATES. Its replay table now lists all eight retained runs with
+   their current status. Judge what remains, and in particular whether the ladder section
+   claims more than the retained evidence supports.
+5. SAFETY FOR NORMAL PLAY. With voxy.native.probe / .marker / .features / .adopt / .terrain /
+   .depth / .depthladder all unset, would you ship this to a player on the GL backend? On
+   Minecraft's Vulkan backend? Confirm the newest flag (depthladder) cannot act unflagged and
+   never writes Minecraft's depth even when flagged.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261007T005606-024013Z
+Do NOT run scripts/verify.py --only native or --only live (it launches Minecraft and takes the
+GPU); judge the committed evidence instead.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round7_findings_closed (an
+object mapping B1, B3, B4, R6-TERRAIN-GATE, R6-TERRAIN-DEVICE, R7-DEPTH-GATE to true/false),
+terrain_experiment_judgment, depth_result_judgment, and ladder_judgment (with at least
+mechanism_sound, isolation_retained, gate_sound, bound_supported, conclusion_supported,
+z_convention_measured).

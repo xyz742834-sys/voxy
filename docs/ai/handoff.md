@@ -1,7 +1,7 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, HEAD = the commit introducing `McNativeDepthLadder` (round-8 candidate; exact SHA recorded in the follow-up docs commit).
+`vulkan-macos`, HEAD **3421640f** (`3421640fad2e909f3c5661fea5e771dde601797d`, round-8 candidate).
 
 > Read `docs/ai/project-goal.md` and `docs/ai/current-state.md` first, then this. This file is
 > task state, not source of truth; when the work moves on, update it or delete it.
@@ -122,7 +122,7 @@ runs do not replay under this gate, which is expected and tabled in the survey.
 
 ## Round 8
 
-Dispatched against that commit with `docs/ai/runs/native-review-prompt-r8.txt`. When its
+Dispatched 2026-10-07 against `3421640f` (Orca worktree `native-review-r8`, GPT-6.1-Sol Codex) with `docs/ai/runs/native-review-prompt-r8.txt`. When its
 report lands: copy it to `docs/ai/runs/native-integration-review-r8.{md,json}`, commit the
 report alone, then repair blocking findings in a separate commit.
 
