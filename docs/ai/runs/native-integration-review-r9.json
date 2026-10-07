@@ -1,0 +1,171 @@
+{
+  "final_verdict": "REDESIGN",
+  "review_round": 9,
+  "reviewed_commit": "c05e0a94cb2318e94fdfb385880d633a7285983c",
+  "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r9",
+  "diagnostic_foundation_accepted": false,
+  "native_integration_accepted": false,
+  "boundary": "Even an independently accepted diagnostic foundation remains REDESIGN for the native Minecraft-Vulkan delivery target. No layer is accepted here.",
+  "blocking_findings": [
+    {
+      "id": "B1",
+      "judgment": "REFUTED",
+      "finding": "Ordinary core membership and marker filename/capture checks are repaired, but the basename MANIFEST.json exception admits unlisted nested files. Removing source fingerprint or either log together with its manifest entry also returns replay 0; required retained source binding is not enforced.",
+      "evidence": ["scripts/verify.py:2013-2035", ".agent-run/r9-attacks.json", ".agent-run/r9-extra.json"]
+    },
+    {
+      "id": "R8-LADDER-GATE",
+      "judgment": "REFUTED",
+      "finding": "Coordinated orientation/rectangle lies pass with unchanged crops. Removing 17 samples from the report passes while their files remain listed; even corrupting an omitted crop and rehashing passes. Recount trusts producer crop origins and sample selection. NaN, tiny-extent and own-checkpoint repairs individually work.",
+      "evidence": ["scripts/verify.py:975-1067", "scripts/verify.py:1070-1116", "scripts/verify.py:2125-2127", ".agent-run/r9-attacks.json"]
+    },
+    {
+      "id": "R9-DEPTH-FINITE",
+      "judgment": "REFUTED",
+      "finding": "NaN in each of depth-copy topMean, bottomMean, clearedValue and clearedShare returns replay 0 with refreshed hashes. Type checks and tolerance comparisons do not reject nonfinite values.",
+      "evidence": ["scripts/verify.py:1266-1269", "scripts/verify.py:1348-1360", ".agent-run/r9-attacks.json"]
+    },
+    {
+      "id": "R9-SURVEY-OVERCLAIM",
+      "judgment": "REFUTED",
+      "finding": "The current survey equates d<2^-16 with the exact cleared value. Older clouds prose still infers a two-sided range across different columns and attributes the first run/copy too strongly. Whole-frame loading and exact sample scene labels exceed retained band evidence; completeness/orientation/NaN claims are refuted by replay attacks.",
+      "evidence": ["docs/ai/vulkan-native-integration-survey.md:1014-1018", "docs/ai/vulkan-native-integration-survey.md:1043-1054", "docs/ai/vulkan-native-integration-survey.md:1107-1124", "docs/ai/vulkan-native-integration-survey.md:1135"]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R9-CONTROL-LIMIT",
+      "judgment": "REFUTED",
+      "finding": "The unconditional claim that white proves a non-deciding or broken depth test omits d=z0, where both strict comparisons correctly reject. GREATER is a useful complementary same-pixel control, but does not independently calibrate a broken LESS pipeline: all-violet output from ALWAYS/disabled depth testing passes as a possible high-depth field.",
+      "evidence": ["src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:41-55", "docs/ai/vulkan-native-integration-survey.md:1107-1108", ".agent-run/r9-extra.json"]
+    },
+    {
+      "id": "R9-TEST-COVERAGE",
+      "judgment": "REFUTED",
+      "finding": "The repaired helper depth-write flip fails its state test. Actual create() LESS-to-ALWAYS mutation still passes all five ladder JUnit tests. Python fixtures lack full-frame crop provenance and share gate constants; a doubled-threshold positive test still passes. Fixtures were not shrunk.",
+      "evidence": ["src/test/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadderTest.java:52-69", "scripts/tests/test_ladder_gate.py:35-115", "scripts/tests/test_ladder_gate.py:241-246", ".agent-run/r9-bytecode-createLessAlways.log", ".agent-run/r9-python-escapes.json"]
+    },
+    {
+      "id": "R9-DOCUMENTATION-DRIFT",
+      "judgment": "REFUTED",
+      "finding": "Handoff still identifies round-8 HEAD, older test/run counts and prefix next steps; current-state and historical survey paragraphs retain refuted band bounds. The final per-pixel section and explicit unaccepted boundary are more current.",
+      "evidence": ["docs/ai/handoff.md:3-4", "docs/ai/handoff.md:123-144", "docs/ai/current-state.md:52-58", "docs/ai/vulkan-native-integration-survey.md:973-1009"]
+    }
+  ],
+  "safe_for_normal_play": {
+    "judgment": "CONFIRMED",
+    "all_seven_native_flags_unset": true,
+    "ship_on_established_voxy_gl_backend": true,
+    "ship_on_minecraft_vulkan_with_voxy_disabled": true,
+    "ship_as_functioning_native_voxy_integration": false,
+    "ladder_inert_unflagged": true,
+    "ladder_never_writes_or_clears_depth_when_flagged": true,
+    "fresh_normal_play_verified": false,
+    "scope": "Source and permitted tests support dormant safety; no fresh play-session certification. Flagged ladder writes colour and uses attachment/transfer synchronization."
+  },
+  "round8_findings_closed": {
+    "B1": false,
+    "R6-TERRAIN-GATE": true,
+    "R8-LADDER-MECHANISM": true,
+    "R8-LADDER-GATE": false,
+    "R8-LADDER-BOUND": true,
+    "R8-LADDER-CONCLUSION": true
+  },
+  "round8_closure_scope": "Mechanism closure refers to the same-band ascending-threshold redesign, with correct inspected pipeline state; not an infallible positive-control assertion. Bound closure refers to removal of common-depth/prefix/80%-fill inference from the current report and gate. Conclusion closure refers to explicit retraction of hook-wide impossibility. Separate survey overclaims remain blocking.",
+  "terrain_experiment_judgment": {
+    "judgment": "CONFIRMED",
+    "retained_native_reference_pairs": 19,
+    "all_pairs_decompressed_byte_identical": true,
+    "selected_capture": 3384,
+    "selected_size": [1920, 1080],
+    "selected_non_background_pixels": 26116,
+    "selected_rgb_mismatches": 0,
+    "decimal_adopted_identity_residual_closed": true,
+    "scope": "Synthetic scene, real terrain renderer, adopted device, Minecraft frame cleared. No actual LoD streaming/coexistence, alpha/depth parity or normal-play acceptance."
+  },
+  "depth_result_judgment": {
+    "judgment": "CONFIRMED for retained quantised zeros; REFUTED comprehensive finite-metadata gate",
+    "retained_size": [1708, 960],
+    "quantised_zero_pixels": 1639680,
+    "original_float_exact_zero_independently_confirmed": false,
+    "isolated_copy_launch_retained": false,
+    "device_checkpoint_binding_confirmed": true,
+    "nan_metadata_rejected": false,
+    "z_convention_measured": false,
+    "copy_failure_mode_identified": false
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED conditional per-pixel mechanism, retained isolation and actual counts; REFUTED complete gate and survey claims",
+    "mechanism_sound": true,
+    "mechanism_scope": "Correct source state, stable finite attachment depth, same band and ascending LESS thresholds; empty set handled by GREATER low or white equality case.",
+    "positive_control_sound": false,
+    "complementary_control_sound": true,
+    "positive_control_scope": "False for the unconditional white/fault inference and an independent validation of arbitrary LESS failure; true as a complementary low-depth path except d=z0.",
+    "isolation_retained": true,
+    "own_launch_device_and_extents_confirmed": true,
+    "own_result_equals_summary_checkpoints": true,
+    "gate_sound": false,
+    "per_pixel_counts_confirmed": true,
+    "confirmed_sample_count": 18,
+    "all_selected_other_and_anomaly_zero": true,
+    "raw_colour_exact_palette_confirmed": true,
+    "orientation_independently_bound_by_gate": false,
+    "every_retained_sample_required_by_gate": false,
+    "claims_supported": false,
+    "band_wide_bound_emitted": false,
+    "z_convention_measured": false,
+    "clouds_in_older_sample_band_visually_supported": true,
+    "whole_frame_no_terrain_loaded_proven": false,
+    "low_bin_proves_exact_clear": false,
+    "depth_write_helper_flip_detected": true,
+    "actual_create_compare_flip_detected_by_junit": false
+  },
+  "tests": {
+    "junit_command": "./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true",
+    "junit_exit": 0,
+    "junit_cases": 331,
+    "junit_passed": 330,
+    "junit_failures": 0,
+    "junit_errors": 0,
+    "junit_skipped": 1,
+    "junit_skip": "VkBarriersTest.missingBarrierIsDetected()",
+    "offscreen_validation_and_sync_validation_active": true,
+    "expected_fill_buffer_waw_control_executed": true,
+    "unexpected_vk_validation_diagnostics": 0,
+    "python_command": "python3 -m unittest discover -s scripts/tests",
+    "python_exit": 0,
+    "python_cases": 149,
+    "python_elapsed_seconds": 220.407,
+    "replay_command": "python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261007T020025-032770Z",
+    "replay_exit": 0,
+    "replayed_checks": 9,
+    "all_ten_run_replay_table_confirmed": true,
+    "main_mutation_cases": 47,
+    "additional_mutation_cases": 7,
+    "fixtures_changed": false,
+    "minecraft_launched": false
+  },
+  "evidence_binding": {
+    "manifest_entries": 177,
+    "source_fingerprint_entries": 408,
+    "manifest_hash_mismatches": [],
+    "current_source_hash_mismatches": [],
+    "changed_sources_during_run": [],
+    "recorded_revision": "25112164ca7d1483dbb1064b78a1d99c9a6e890b",
+    "recorded_final_revision": "25112164ca7d1483dbb1064b78a1d99c9a6e890b",
+    "recorded_commit_is_reviewed_head": false,
+    "source_fingerprints_match_reviewed_head": true,
+    "retained_native_and_ladder_log_vk_diagnostics": 0
+  },
+  "could_not_check": [
+    "Fresh Minecraft/native/live execution prohibited by user.",
+    "Live mixin application, actual depth direction, native coexistence, GL visual parity, pressure, reload, device loss and normal-play lifecycle.",
+    "Crop re-extraction and absolute orientation/provenance without original whole-frame colour readbacks/screenshots.",
+    "Exact original float depth bits from quantised 16-bit PGM.",
+    "Native synchronization-validation activation; adoption reports syncValidation=false.",
+    "Independent same-draw geometry attribution and projection-based physical distances for all samples.",
+    "Authentication of every dependency/environment binary; source fingerprints cover source/build/scripts.",
+    "Hardware behaviour of deliberately bytecode-mutated pipelines; those probes inspect test coverage only."
+  ],
+  "report": "docs/ai/runs/native-integration-review.md"
+}
