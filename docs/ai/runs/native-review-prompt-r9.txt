@@ -1,0 +1,85 @@
+You are an INDEPENDENT reviewer, round 9. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (c05e0a94cb2318e94fdfb385880d633a7285983c). Round 8 returned REDESIGN against
+3421640f: it closed B3, B4, R6-TERRAIN-DEVICE and R7-DEPTH-GATE, left B1 and R6-TERRAIN-GATE
+open on narrower residuals, and added R8-LADDER-MECHANISM, R8-LADDER-GATE, R8-LADDER-BOUND and
+R8-LADDER-CONCLUSION. Its report is docs/ai/runs/native-integration-review-r8.md and its
+machine verdict docs/ai/runs/native-integration-review-r8.json.
+
+Since then: the hook conclusion was retracted (fcd5ce18, before round 8 reported); the ladder
+was re-rung at 2^-16..2^-2 and found NON-ZERO depth over clouds where the buffer copy had
+reported 0.0 (25112164, retained run 20261007T011026-211934Z, still under the refuted design);
+and the HEAD REDESIGNS the ladder per pixel: one band, an ALWAYS base, a GREATER positive
+control at z_0, then eight LESS rungs ascending in distinct colours, so each pixel's final
+colour encodes its depth bracket; "other" and "anomaly" pixels must be zero; counts are
+recounted exactly from retained crops in the published orientation, the rejected orientation's
+crop must be mostly scene; samples are taken every 240 draws and all retained; the frame extent
+must be one the ladder launch's own checkpoints observed; NaN is rejected; no bound and no
+convention is emitted. B1 and R6-TERRAIN-GATE residuals are repaired (every retained file a
+manifest member; marker crops named for their capture; the adopted identity parsed one way).
+
+The boundary from rounds 4-8 still governs and the candidate accepts it: an independently
+accepted diagnostic foundation is still REDESIGN. The candidate does NOT claim an accepted
+layer. It claims (a) the round-8 residuals B1 and R6-TERRAIN-GATE are repaired, (b) the four
+ladder findings are addressed by the redesign, (c) the per-pixel measurement and its isolation
+are retained and replayable, and (d) the survey claims no more than the retained evidence.
+Judge all four.
+
+Read docs/ai/project-goal.md and docs/ai/vulkan-native-integration-survey.md first; the
+survey's "Minecraft's depth at the level-render tail, tested behaviourally" and "Round-8 review
+repairs, and the per-pixel ladder" sections, and docs/ai/handoff.md, state what changed and why.
+
+Judge, saying CONFIRMED or REFUTED with the file/line or command for each:
+
+1. EACH ROUND-8 RESIDUAL.
+   B1 replay now fails when any retained file is not a manifest member, and the marker's
+      selected/rejected crops must be named for readback.sampleAtDraw. Re-run your core
+      membership and capture-association attacks and look for any file or association that
+      can still be unbound.
+   R6-TERRAIN-GATE replay parses the adopted identity with device_handle_of (hex or decimal)
+      and fails when it is absent. Re-run your decimal attack.
+2. THE PER-PIXEL LADDER. Judge:
+   - Mechanism: with all draws over the SAME band, depth writes off (McNativeDepthLadder
+     .depthStencilState, used for all three pipelines), does a pixel's final colour encode
+     max{i: z_i < d}, and does the GREATER control make a white pixel a positive sign of a
+     non-deciding depth test? What can still produce a clean sample without measuring
+     Minecraft's depth? Is the three-level colour classification robust to Minecraft's final
+     composition, given the retained crops are the raw colour image, not the screenshot?
+   - Isolation and identity: the ladder's own launch, terrain and marker off, device and
+     frame extents tied to its OWN checkpoints, own native-result.json required to equal the
+     summary's copy. Reproduce your previous attacks.
+   - Gate: run your mutation table (NaN, tiny extent, counts vs pixels, orientation lies,
+     out-of-order samples, unlisted files) against
+     docs/ai/runs/native-evidence/20261007T020025-032770Z/ladder/ and name any mutation that
+     replays as 0. Look especially for anything the recount trusts that the producer controls.
+   - Claims: the survey states per-pixel bracket histograms per sample, no bound, no
+     convention, and leaves the buffer copy's 0.0 unexplained. Judge whether the "clouds"
+     reading of run 20261007T011026-211934Z and the per-pixel results are claimed no more
+     strongly than the retained crops support.
+3. TESTS. JUnit 331 and 149 Python cases. McNativeDepthLadderTest now inspects the
+   depth-stencil state for all three compare ops; the Python fixtures paint a synthetic depth
+   FIELD and derive colours from it. Re-run your bytecode-flip against the state helper, and
+   name any test that would pass against broken code. Fixtures must not be shrunk; judge
+   whether any fixture is sized or shaped so that a real defect would escape.
+4. WHETHER THE SURVEY OVERSTATES. Its replay table lists all ten retained runs. Judge what
+   remains, in particular the retraction paragraph, the "clouds" paragraph and the per-pixel
+   section.
+5. SAFETY FOR NORMAL PLAY. With voxy.native.probe / .marker / .features / .adopt / .terrain /
+   .depth / .depthladder all unset, would you ship this to a player on the GL backend? On
+   Minecraft's Vulkan backend? Confirm the ladder cannot act unflagged and never writes
+   Minecraft's depth even when flagged.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261007T020025-032770Z
+Do NOT run scripts/verify.py --only native or --only live (it launches Minecraft and takes the
+GPU); judge the committed evidence instead.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round8_findings_closed (an
+object mapping B1, R6-TERRAIN-GATE, R8-LADDER-MECHANISM, R8-LADDER-GATE, R8-LADDER-BOUND,
+R8-LADDER-CONCLUSION to true/false), terrain_experiment_judgment, depth_result_judgment, and
+ladder_judgment (with at least mechanism_sound, positive_control_sound, isolation_retained,
+gate_sound, per_pixel_counts_confirmed, claims_supported, z_convention_measured).

@@ -1,7 +1,7 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, HEAD **3421640f** (`3421640fad2e909f3c5661fea5e771dde601797d`, round-8 candidate).
+`vulkan-macos`, HEAD **c05e0a94** (`c05e0a94cb2318e94fdfb385880d633a7285983c`, round-9 candidate; round 8 judged `3421640f`).
 
 > Read `docs/ai/project-goal.md` and `docs/ai/current-state.md` first, then this. This file is
 > task state, not source of truth; when the work moves on, update it or delete it.
@@ -25,9 +25,8 @@ Written 2026-10-07 for a **fresh session with no conversation context**. Branch
 ## The review discipline (this is the spine)
 
 `scripts/verify.py` is the verification spine. Native work is **"measured", never "verified"**
-until a fresh independent review of a frozen commit records a verdict. Seven rounds have run,
-**all REDESIGN**. Reports are in `docs/ai/runs/native-integration-review-r1..r7.{md,json}`.
-Round 8 was dispatched against this HEAD (see "Round 8" below).
+until a fresh independent review of a frozen commit records a verdict. Eight rounds have run,
+**all REDESIGN**. Reports are in `docs/ai/runs/native-integration-review-r1..r8.{md,json}`.
 
 Dispatch procedure (works; GPT-6.1-Sol, not Astra):
 
@@ -39,34 +38,35 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8
-prompt as sent is `docs/ai/runs/native-review-prompt-r8.txt`. Start from the newest, replace
-the SHA, the round number, the findings table and the evidence directory.
+and round-9 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` / `-r9.txt`. Start
+from the newest, replace the SHA, the round number, the findings table and the evidence
+directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 7, and what this HEAD claims
+### Findings status after round 8, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
-| B2 inertness | closed (r3) |
-| B5 destruction after unconfirmed completion | closed (r4) |
-| R5-LIFETIME retired draw reachable | closed (r6) |
-| R4-L1 bounded abandonment | closed (r7) |
-| R6-TERRAIN-WAIT free without observed wait | closed (r7) |
-| **B1** authoritative/replayable evidence | open 7 rounds; r7 residuals (colour references, manifest membership) repaired in `bb91527e`, **unreviewed** |
-| **B3** fail-closed proof consistency | open 7 rounds; r7 residual (impossible offsets) repaired in `bb91527e` — offsets pinned to 40/160/104/100, **unreviewed** |
-| **B4** failure persistence / orientation / sample association | open 7 rounds; r7 residual (rejected-crop clamping, 1x1 image) repaired in `bb91527e`, **unreviewed** |
-| **R6-TERRAIN-GATE** | r7 residuals (replay device argument, reference/rejected membership) repaired in `bb91527e`, **unreviewed** |
-| **R6-TERRAIN-DEVICE** | r7 residual (stale on-disk report on divergence) repaired in `bb91527e`, **unreviewed** |
-| **R7-DEPTH-GATE** | repaired in `bb91527e` (band heuristic deleted, raw depth retained and recounted, replay calls the depth gate), **unreviewed** |
-| **Depth ladder** (new) | measured and gated in this HEAD; its isolation claim is retained this time; **unreviewed** |
+| B2, B5, R5-LIFETIME, R4-L1, R6-TERRAIN-WAIT | closed (r3, r4, r6, r7, r7) |
+| B3 feature offsets | **closed (r8)** |
+| B4 rejected-crop clamping | **closed (r8)** |
+| R6-TERRAIN-DEVICE | **closed (r8)** |
+| R7-DEPTH-GATE | **closed (r8)** |
+| **B1** evidence binding | open 8 rounds; r8 residuals (core manifest membership, marker name ↔ capture) repaired in this HEAD, **unreviewed** |
+| **R6-TERRAIN-GATE** | r8 residual (decimal adopted handle → vacuous compare) repaired in this HEAD, **unreviewed** |
+| **R8-LADDER-MECHANISM** | ladder redesigned per pixel with a GREATER positive control, **unreviewed** |
+| **R8-LADDER-GATE** | NaN, producer extent, 80 % semantics repaired, **unreviewed** |
+| **R8-LADDER-BOUND** | no bound is emitted any more; per-pixel bracket histograms only, **unreviewed** |
+| **R8-LADDER-CONCLUSION** | retracted in `fcd5ce18` before the review landed; the survey says so |
 
-B1/B3/B4 are all **evidence/gate** findings. The recurring error has one shape: **the gate
-trusted something the thing under test controls.** Repairs have removed that progressively —
-raw pixels instead of aggregates, source constants instead of published geometry/colours/
-offsets/bands, the adopted identity instead of any well-formed string, both orientations
-instead of the selected one, shared helpers so replay cannot drift from the stage gate.
+B1 has one recurring shape: **the gate trusted something the thing under test controls.**
+Repairs have removed that progressively — raw pixels instead of aggregates, source constants
+instead of published geometry/colours/offsets/bands/palette, the adopted identity instead of
+any well-formed string, both orientations instead of the selected one, shared helpers so replay
+cannot drift from the stage gate, the launch's own checkpoints for the ladder's identity and
+frame extent, every retained file a manifest member.
 
 ## What is measured (survives independent reading)
 
@@ -85,12 +85,10 @@ instead of the selected one, shared helpers so replay cannot drift from the stag
 - **Voxy's real terrain pipeline records into a pass MC opens over its own images and comes out
   RGB-identical** to the same scene on Voxy's own target (26116 non-background px, 0
   mismatches). Rounds 6 and 7 both CONFIRMED the measurement.
-- **MC's depth attachment at the `LevelRenderer.render` tail holds ≤ 0.0625** across the tested
-  band, by MC's own depth test (`McNativeDepthLadder`: all eight LESS rungs with depth writes
-  OFF rejected, every co-located ALWAYS stripe filled ~0.93, separate control ~0.98). Retained
-  as `docs/ai/runs/native-evidence/20261007T005606-024013Z/ladder/` from the ladder's **own launch**
-  with terrain and marker off; the report says so and the gate requires it. Survey section
-  "Minecraft's depth at the level-render tail, tested behaviourally".
+- **MC's depth attachment at the `LevelRenderer.render` tail holds non-zero depth** where the
+  buffer copy reported 0.0: the re-rung ladder (2⁻¹⁶…2⁻²) saw 76 % of its first column pass
+  over clouds in a frame from before the world loaded (run `20261007T011026-211934Z`, retained).
+  The per-pixel ladder in this HEAD measured: 18 samples (draw 2, then every 240 draws to 4082), **every one with `other` = 0 and `anomaly` = 0** — the band was drawn at every pixel and the depth test decided every pixel, in every sample. Draw 2 (world just opened): 42 825 px below 2⁻¹⁶ (sky), 28 131 px in (2⁻¹⁶, 2⁻¹⁴], 7 892 px in (2⁻¹⁴, 2⁻¹²] — the clouds. Draws 242–962 and 1682–2882 (overworld, spawn camera): 11–25 k px below 2⁻¹⁶ and 53–67 k px in (2⁻¹², 2⁻¹⁰], and the retained crop reads as a depth silhouette of the hills against the sky. Draws 1202 and 1442 (just after the travel teleport, chunks not yet loaded): every pixel below 2⁻¹⁶, i.e. the cleared value. From draw 3122 (after the resize, band 1152×86) the same terrain bracket; draw 3602 (nether): 80 030 px below 2⁻¹⁶, 2 738 px in (2⁻¹⁰, 2⁻⁸] and 16 304 px in (2⁻⁸, 2⁻⁶] — near walls. If the source facts about the projection hold (near 0.05, reverse-Z — direction still unmeasured), (2⁻¹², 2⁻¹⁰] is roughly 50–200 blocks and (2⁻⁸, 2⁻⁶] 3–12 blocks. Replay returns 0 with nine checks; 36 crops (both orientations of 18 samples) and 22 band crops from the screenshots are retained, 7.9 MB.
 - **MC clears its main depth to 0.0** at the start of `LevelRenderer.render` (frame-graph
   "clear" pass → `clearColorAndDepthTextures(…, 0.0)`, read from the 26.2 bytecode). That is
   the reverse-Z far value. Source evidence about the clear, not a measurement of the convention.
@@ -103,49 +101,48 @@ instead of the selected one, shared helpers so replay cannot drift from the stag
   direction. The band heuristic was deleted in `bb91527e`; `zConventionMeasuredHere: false` is
   asserted by both depth gates. Do not reintroduce it.
 - ⚠ **"The tail hook cannot support coexistence" was claimed in `3421640f` and RETRACTED the
-  same day** (docs commit after it). The ladder band covers forest terrain tens of blocks from a
-  camera at y=120, and under reverse-Z (MC clears to 0.0) everything beyond ~1 block has depth
-  below 0.0625 — the linear rungs 0.0625..0.9375 cannot tell "cleared" from "correct scene
-  depth". Whether the tail hook holds scene depth is **open**. The buffer copy's exact 0.0
-  everywhere still disagrees with a correct reverse-Z scene, so the two observations conflict.
+  same day** (`fcd5ce18`). The linear rungs 0.0625..0.9375 sat inside the first block in front
+  of the camera. Round 8 refuted the same claim independently. **Why the buffer copy read 0.0
+  everywhere** while the depth test sees non-zero values is not established.
 - No round has accepted the diagnostic layer as a foundation. Round 4's wording still governs:
   terrain investigation may be **experimental**, not "continuation from an accepted layer".
 
 ## Exact state of the tree
 
-Clean at HEAD. The native stage (`--only native`) now launches Minecraft **twice**: launch 1 as
+Clean at HEAD. The native stage (`--only native`) launches Minecraft **twice**: launch 1 as
 before (marker, features, adopt, probe, terrain, depth copy), launch 2 with only
 `-PharnessNativeDepthLadder=true` (+ native/adopt/features/probe). Both are gated; the second's
-device is tied to its **own** checkpoints. Evidence for the ladder launch is retained under
-`<run>/ladder/` and `--replay-evidence` runs `ladder_report_checks` on it (same function as the
-stage), saying explicitly "not replayed" for runs that retained none.
+device and frame extents are tied to its **own** checkpoints. Evidence for the ladder launch is
+retained under `<run>/ladder/` (report, every sample's two crops, band crops from every
+screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_checks` on it
+(same function as the stage), saying explicitly "not replayed" for runs that retained none and
+refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 329 (1 documented skip, 0 failures); Python 148 cases (41 new in
-`scripts/tests/test_ladder_gate.py`); native stage green as
-`docs/ai/runs/native-evidence/20261007T005606-024013Z` (replay 0, ladder included). Older retained
-runs do not replay under this gate, which is expected and tabled in the survey.
+Gate/test counts at this HEAD: JUnit 331 (1 documented skip, 0 failures); Python 149 cases
+(42 in `scripts/tests/test_ladder_gate.py`); native stage green as
+`docs/ai/runs/native-evidence/20261007T020025-032770Z` (replay 0, ladder included). Older retained runs
+do not replay under this gate, which is expected and tabled in the survey.
 
-## Round 8
+## Round 9
 
-Dispatched 2026-10-07 against `3421640f` (Orca worktree `native-review-r8`, GPT-6.1-Sol Codex) with `docs/ai/runs/native-review-prompt-r8.txt`. When its
-report lands: copy it to `docs/ai/runs/native-integration-review-r8.{md,json}`, commit the
-report alone, then repair blocking findings in a separate commit.
+Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r9.txt` (if not already
+done — check `git log` for a "docs: record the round-9 dispatch" commit). When its report
+lands: copy it to `docs/ai/runs/native-integration-review-r9.{md,json}`, commit the report
+alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
 
-1. Import the round-8 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 9.
-2. Then the goal work, step one: **re-rung the ladder where reverse-Z depth lives** —
-   `depths()` = 2⁻¹⁶, 2⁻¹⁴, …, 2⁻² (ascending, so the prefix rule holds), pin the same values
-   in `EXPECTED_LADDER_DEPTHS`, update `McNativeDepthLadderTest`, and retain a crop of the band
-   from the screenshot so "the band is terrain" is evidence rather than narrative. Run it in the
-   same isolated launch. A surviving prefix ending mid-ladder = real scene depth at the tail
-   (and the buffer copy was the broken part); no survivor at 2⁻¹⁶ = the attachment really is
-   ~0 there, and only then look for an earlier hook. Do not move any hook before this.
-3. Only if the tail holds no depth: the same ladder at candidate hook points (inside MC's main
-   pass via a `VulkanRenderPass` accessor, before the always-on-top pass, before the frame
-   graph executes), **measured per position before moving any hook**.
-4. Nothing in the ladder may ever write MC's depth. If a future variant needs to, it is a
+1. Import the round-9 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 10.
+2. Then the goal work. The tail attachment holds real depth values (per-pixel ladder). What is
+   still unknown and must be measured, in this order: (a) the **Z direction** — a controlled
+   experiment, e.g. the same band sampled while the camera moves a known amount toward known
+   geometry, watching the bracket histogram shift; the source facts (clear to 0.0, near/far
+   swapped in `setPerspective`) say reverse-Z but are not a measurement; (b) **why the buffer
+   copy reads 0.0** — not needed for coexistence, record as open; (c) only then a depth-tested
+   Voxy draw against MC's LOADed depth at this hook, gated the same way (per-pixel, positive
+   control, retained crops).
+3. Nothing in the ladder may ever write MC's depth. If a future variant needs to, it is a
    different probe with a different flag.
 
 ## Commands
@@ -153,7 +150,7 @@ report alone, then repair blocking findings in a separate commit.
 ```
 ./gradlew test --offline --no-daemon -PvkLibname=/opt/homebrew/lib/libvulkan.dylib \
   -PvkValidation=true -PvkSyncEnv=true          # JUnit
-python3 -m unittest discover -s scripts/tests   # 148 cases, ~130s
+python3 -m unittest discover -s scripts/tests   # 149 cases, ~150s
 python3 scripts/verify.py --only native --seconds 8 --timeout 1500   # launches MC twice, ~5 min
 python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/<run>   # no launch
 ```
@@ -188,4 +185,4 @@ not fingerprinted.
   replays; the others are tabled).
 - `docs/ai/harness.md` — the review rule.
 - `docs/ai/testing.md` — the stages and what each proves.
-- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 8 runs.
+- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 10 runs.
