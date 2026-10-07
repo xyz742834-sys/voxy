@@ -1,7 +1,7 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, HEAD **6b2d6cc9** (`6b2d6cc92fe9407be8361b928a5ffd7a1e4d2df0`, round-10 candidate; round 9 judged `c05e0a94`, round 8 `3421640f`).
+`vulkan-macos`, HEAD **867cd25d** (`867cd25d845eab4eef771fe8a479df5089200ad8`, round-11 candidate; round 10 judged `6b2d6cc9`, round 9 `c05e0a94`).
 
 > Read `docs/ai/project-goal.md` and `docs/ai/current-state.md` first, then this. This file is
 > task state, not source of truth; when the work moves on, update it or delete it.
@@ -25,8 +25,8 @@ Written 2026-10-07 for a **fresh session with no conversation context**. Branch
 ## The review discipline (this is the spine)
 
 `scripts/verify.py` is the verification spine. Native work is **"measured", never "verified"**
-until a fresh independent review of a frozen commit records a verdict. Nine rounds have run,
-**all REDESIGN**. Reports are in `docs/ai/runs/native-integration-review-r1..r9.{md,json}`.
+until a fresh independent review of a frozen commit records a verdict. Ten rounds have run,
+**all REDESIGN**. Reports are in `docs/ai/runs/native-integration-review-r1..r10.{md,json}`.
 
 Dispatch procedure (works; GPT-6.1-Sol, not Astra):
 
@@ -38,24 +38,24 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9 and -10 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` / `-r9` / `-r10`. Start
+-9, -10 and -11 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` / `-r9` / `-r10` / `-r11`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 9, and what this HEAD claims
+### Findings status after round 10, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
-| B2, B5, R5-LIFETIME, R4-L1, R6-TERRAIN-WAIT, B3, B4, R6-TERRAIN-DEVICE, R7-DEPTH-GATE | closed |
-| R6-TERRAIN-GATE, R8-LADDER-MECHANISM, R8-LADDER-BOUND, R8-LADDER-CONCLUSION | **closed (r9)** |
-| **B1** evidence binding | open 9 rounds; r9 residuals (nested MANIFEST.json exempt by basename; fingerprint/log deletable with their entry) repaired in this HEAD, **unreviewed** |
-| **R8-LADDER-GATE** | r9 residuals (coordinated orientation lie; omitted samples) repaired — frame thumbnail anchoring, crop/log inventory reconciliation, **unreviewed** |
-| **R9-DEPTH-FINITE** | NaN in the depth copy's means; repaired, **unreviewed** |
-| **R9-SURVEY-OVERCLAIM** | prose corrected in place (cleared-value attribution, cross-column cloud range, "both checkable", positive-control wording), **unreviewed** |
-| non-blocking R9-CONTROL-LIMIT / R9-TEST-COVERAGE / R9-DOCUMENTATION-DRIFT | addressed (wording; shared compare-op table pinned by the JUnit test; literal pins in Python; this file) |
+| B2, B5, R5-LIFETIME, R4-L1, R6-TERRAIN-WAIT, B3, B4, R6-TERRAIN-DEVICE, R7-DEPTH-GATE, R6-TERRAIN-GATE, R8-LADDER-MECHANISM, R8-LADDER-BOUND, R8-LADDER-CONCLUSION | closed |
+| R8-LADDER-GATE, R9-DEPTH-FINITE | **closed (r10)** |
+| **B1** evidence binding | open 10 rounds; r10 residual (fingerprint content never read) repaired — replay validates it and requires every listed file to match the checkout, **unreviewed** |
+| **R10-CREATE-TEST** | repaired — creation goes through `buildPipelines(…, creator)` and the test exercises that path with an injected creator, **unreviewed** |
+| **R9-SURVEY-OVERCLAIM** | r10 residual ("none was loaded in the sampled frame", creation-test wording) corrected, **unreviewed** |
+| non-blocking R10-LOG-DETAILS / R10-DEPTH-FIXTURE / R10-DOC-DRIFT | addressed (log orientation+counts reconciled; 100-row depth fixture; this file) |
+| non-blocking R10-ANCHOR-GRAIN / R10-CONSISTENT-FORGERY | **stated as limits** in the survey, not repaired: block anchoring skips boundary pixels; jointly rewritten records can pass any manifest-rooted check |
 
 B1 has one recurring shape: **the gate trusted something the thing under test controls.**
 Repairs have removed that progressively — raw pixels instead of aggregates, source constants
@@ -114,23 +114,23 @@ screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_ch
 (same function as the stage), saying explicitly "not replayed" for runs that retained none and
 refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 331 (1 documented skip, 0 failures); Python 158 cases
-(50 in `scripts/tests/test_ladder_gate.py`); native stage green as
-`docs/ai/runs/native-evidence/20261007T022908-162255Z` (replay 0, ladder included, frame thumbnails
-anchoring every crop). Older retained runs do not replay under this gate, which is expected and
-tabled in the survey.
+Gate/test counts at this HEAD: JUnit 332 (1 documented skip, 0 failures); Python 160 cases;
+native stage green as `docs/ai/runs/native-evidence/20261007T025423-410921Z` (replay 0 **in this
+checkout** — replay now requires the retained source fingerprint to match the tree it runs in,
+so only a run built from HEAD's sources replays). Older retained runs do not replay under this
+gate, which is expected and tabled in the survey.
 
-## Round 10
+## Round 11
 
-Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r10.txt` (if not already
-done — check `git log` for a "docs: record the round-10 dispatch" commit). When its report
-lands: copy it to `docs/ai/runs/native-integration-review-r10.{md,json}`, commit the report
+Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r11.txt` (if not already
+done — check `git log` for a "docs: record the round-11 dispatch" commit). When its report
+lands: copy it to `docs/ai/runs/native-integration-review-r11.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
 
-1. Import the round-10 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 11.
+1. Import the round-11 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 12.
 2. Then the goal work. The tail attachment holds real depth values (per-pixel ladder). What is
    still unknown and must be measured, in this order: (a) the **Z direction** — a controlled
    experiment, e.g. the same band sampled while the camera moves a known amount toward known
@@ -182,4 +182,4 @@ not fingerprinted.
   replays; the others are tabled).
 - `docs/ai/harness.md` — the review rule.
 - `docs/ai/testing.md` — the stages and what each proves.
-- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 11 runs.
+- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 12 runs.
