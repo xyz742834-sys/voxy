@@ -573,6 +573,11 @@ def recount_rejected_orientation(output, report, rb):
         raise ValueError("the readback does not say which orientation it rejected")
     if rb["rejectedOrientationFlipped"] == bool(rb.get("flipped")):
         raise ValueError("the rejected orientation is the same as the selected one")
+    prefix, suffix = "native-marker-rejected-", ".ppm.gz"
+    stem = name[len(prefix):-len(suffix)] if name.startswith(prefix) and name.endswith(suffix) else ""
+    if not stem.isdigit() or int(stem) != rb.get("sampleAtDraw"):
+        raise ValueError(f"the rejected-orientation sample is named for draw {stem!r} but the"
+                         f" readback says it was taken at {rb.get('sampleAtDraw')!r}")
     path = output / name
     if not path.is_file():
         raise ValueError(f"the retained rejected-orientation sample {name} is missing")
@@ -663,6 +668,13 @@ def recount_marker_sample(output, report, rb):
     rect = rb.get("sampleRect")
     if not (isinstance(rect, list) and len(rect) == 4):
         raise ValueError("the readback does not say where its sample came from")
+    # Round-8 review B1: the selected sample's name was never compared with the capture
+    # count, so a report pointing at another capture's crop passed. Bind them.
+    prefix, suffix = "native-marker-sample-", ".ppm"
+    stem = name[len(prefix):-len(suffix)] if name.startswith(prefix) and name.endswith(suffix) else ""
+    if not stem.isdigit() or int(stem) != rb.get("sampleAtDraw"):
+        raise ValueError(f"the retained sample is named for draw {stem!r} but the readback"
+                         f" says it was taken at {rb.get('sampleAtDraw')!r}")
     rows, (width, height) = read_ppm(sample)
     if width != rect[2] - rect[0] or height != rect[3] - rect[1]:
         raise ValueError(f"the raw sample is {width}x{height} but its rect says"
@@ -773,20 +785,83 @@ def recount_marker_sample(output, report, rb):
     return out
 
 
-# The ladder's rung depths and bands, derived the same way the source does
-# (McNativeDepthLadder: 2^-(16 - 2i), BAND_*, INLINE_CONTROL_*, CONTROL_*).
-# ⚠ Pinned for the same reason as the marker geometry: a producer-published ladder is not a
+# The ladder's rung depths, band and palette, derived the same way the source does
+# (McNativeDepthLadder: 2^-(16 - 2i), BAND_*, PALETTE).
+# Pinned for the same reason as the marker geometry: a producer-published ladder is not a
 # reference the gate can check anything against.
-# ⚠ Why these depths: Minecraft clears depth to 0.0 and builds its projection with near/far
+# Why these depths: Minecraft clears depth to 0.0 and builds its projection with near/far
 # swapped (reverse-Z), so a surface at distance d has depth of order near/d. The first ladder
-# was linear in [0.0625, 0.9375] — the first block in front of the camera — and could not tell
-# a cleared attachment from correct scene depth. These cover ~3000 blocks down to 0.2 blocks.
+# was linear in [0.0625, 0.9375] and could not tell a cleared attachment from scene depth.
 LADDER_RUNGS = 8
 EXPECTED_LADDER_DEPTHS = [2.0 ** -(16 - 2 * i) for i in range(LADDER_RUNGS)]
-EXPECTED_LADDER_BANDS = {"band": [-0.6, 0.36, 0.6, 0.2],
-                         "inlineControlBand": [-0.6, 0.4, 0.6, 0.37],
-                         "controlBand": [-0.6, 0.16, 0.6, 0.06]}
-LADDER_RUNG_RGB, LADDER_CONTROL_RGB = (255, 0, 255), (0, 255, 255)
+EXPECTED_LADDER_BAND = [-0.6, 0.36, 0.6, 0.2]
+# Palette levels per channel: 0, 0.5, 1. Index 0 = BASE (ALWAYS), 1 = LOW (GREATER at z_0),
+# 2.. = rung 0..7 (LESS at z_i, drawn ascending so the surviving colour is max{i: z_i < d}).
+EXPECTED_LADDER_PALETTE = [[1.0, 1.0, 1.0], [0.5, 0.5, 0.5], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0],
+                           [1.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0],
+                           [1.0, 0.5, 0.0], [0.5, 0.0, 1.0]]
+LADDER_BASE, LADDER_LOW, LADDER_RUNG0 = 0, 1, 2
+LADDER_OTHER = len(EXPECTED_LADDER_PALETTE)
+
+
+def finite_number(value):
+    """A real, finite number: not a bool, not NaN, not infinity.
+
+    Round-8 review R8-LADDER-GATE: NaN passed every tolerance and floor comparison, so NaN
+    depths, bands, bounds and fills made the pins and the aggregate checks vacuous.
+    """
+    return (isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(value))
+
+
+def finite_int(value):
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def ladder_level(v):
+    """The implementation's three-level quantiser (McNativeDepthLadder.level)."""
+    if v <= 64:
+        return 0
+    if 96 <= v <= 160:
+        return 1
+    if v >= 192:
+        return 2
+    return -1
+
+
+def ladder_classify(px):
+    """Palette index of a pixel, or LADDER_OTHER (McNativeDepthLadder.classify)."""
+    levels = tuple(ladder_level(c) for c in px[:3])
+    if -1 in levels:
+        return LADDER_OTHER
+    for i, colour in enumerate(EXPECTED_LADDER_PALETTE):
+        if tuple(round(c * 2) for c in colour) == levels:
+            return i
+    return LADDER_OTHER
+
+
+def ladder_band_rect(full_w, full_h, flipped):
+    """The band in frame pixels, in the given orientation (McNativeDepthLadder.bandRect).
+
+    Rasterisation covers pixel x when x + 0.5 lies in [left, right), so an edge at e pixels
+    starts coverage at ceil(e - 0.5). Truncating instead put one uncovered column inside the
+    band and every sample failed with 76 "other" pixels (measured, 2026-10-07).
+    """
+    band = EXPECTED_LADDER_BAND
+
+    def covered(edge):
+        return math.ceil(edge - 0.5)
+
+    x0 = covered((band[0] + 1.0) * 0.5 * full_w)
+    x1 = covered((band[2] + 1.0) * 0.5 * full_w)
+    top, bottom = max(band[1], band[3]), min(band[1], band[3])
+    if flipped:
+        y0 = covered((1.0 + bottom) * 0.5 * full_h)
+        y1 = covered((1.0 + top) * 0.5 * full_h)
+    else:
+        y0 = covered((1.0 - top) * 0.5 * full_h)
+        y1 = covered((1.0 - bottom) * 0.5 * full_h)
+    return [max(0, x0), max(0, y0), min(full_w, x1), min(full_h, y1)]
 
 
 def device_handle_of(value, name, field):
@@ -809,29 +884,25 @@ def device_handle_of(value, name, field):
     return handle
 
 
-def ladder_report_checks(output, report, expected_device=None):
-    """Gate the behavioural depth ladder: what Minecraft's own depth test says about its depth.
+def ladder_report_checks(output, report, expected_device=None, expected_extents=None):
+    """Gate the per-pixel depth ladder: what Minecraft's own depth test says, pixel by pixel.
 
-    ⚠ This measures a VALUE, not a convention. Which direction of that value is nearer is not
-    established here and the gate refuses to let it be claimed — the same hole round 7 found in
-    the band heuristic. What it does establish is bounds on Minecraft's depth in the tested band,
-    obtained from the depth test itself rather than from a transfer copy.
+    Every threshold is drawn over the SAME band with depth writes off, LESS rungs ascending
+    after an ALWAYS base and a GREATER positive control, so each pixel's final colour encodes
+    the bracket its depth falls in. This measures VALUES per pixel, never a convention, never a
+    band-wide bound (round-8 review R8-LADDER-BOUND / R8-LADDER-MECHANISM).
 
-    ⚠ Shared by the stage gate and `--replay-evidence`, like terrain_report_checks: rounds 5, 6
-    and 7 each found a gate the replay did not call.
+    Shared by the stage gate and --replay-evidence, like terrain_report_checks.
     """
     checks = {}
     for field, kind in (("enabled", bool), ("attempted", bool), ("completed", bool),
                         ("drawsRecorded", int), ("rungs", int), ("depthWritesEnabled", bool),
                         ("zConventionMeasuredHere", bool), ("rungDepths", list),
-                        ("rungSurvived", list), ("rungFill", list), ("inlineControlFill", list),
-                        ("controlFill", (int, float)), ("problems", int),
-                        ("closeFailures", int), ("leakedPipelines", int),
-                        ("deviceDiverged", bool), ("notes", list), ("sampleAtDraw", int),
-                        ("flipped", bool), ("targetWidth", int), ("targetHeight", int),
+                        ("band", list), ("palette", list), ("samples", list),
+                        ("problems", int), ("closeFailures", int), ("leakedPipelines", int),
+                        ("deviceDiverged", bool), ("notes", list),
                         ("terrainProbeEnabled", bool), ("terrainDrawsRecorded", int),
                         ("markerDrawEnabled", bool), ("markerDrawsRecorded", int),
-                        ("band", list), ("inlineControlBand", list), ("controlBand", list),
                         ("device", str)):
         if field not in report:
             raise ValueError(f"the depth ladder does not state {field}")
@@ -839,21 +910,24 @@ def ladder_report_checks(output, report, expected_device=None):
         if kind is bool:
             if not isinstance(value, bool):
                 raise ValueError(f"ladder.{field} is {value!r}, not a bool")
-        elif not isinstance(value, kind) or isinstance(value, bool):
-            raise ValueError(f"ladder.{field} is {value!r}, not a {kind}")
+        elif kind is int:
+            if not finite_int(value):
+                raise ValueError(f"ladder.{field} is {value!r}, not an int")
+        elif not isinstance(value, kind):
+            raise ValueError(f"ladder.{field} is {value!r}, not a {kind.__name__}")
+    for stray in ("reversedZ", "lowerBound", "upperBound", "zConvention"):
+        if stray in report:
+            raise ValueError(f"the depth ladder publishes {stray}, which it cannot measure")
     if not report["enabled"]:
         raise ValueError("the depth ladder was not enabled")
-    # ⚠ The whole point is testing against Minecraft's own depth. If writes were on, the probe
-    # would be measuring its own earlier rungs.
     if report["depthWritesEnabled"]:
         raise ValueError("the ladder enabled depth writes, so it measured its own depth rather"
                          " than Minecraft's")
     if report["zConventionMeasuredHere"]:
-        raise ValueError("the ladder claims to have measured the Z convention, which a single"
-                         " band of known depths cannot establish")
-    # ⚠ The terrain probe CLEARS Minecraft's depth and the marker WRITES its own into it. A run
-    # where either was enabled — or recorded anything — measured something other than
-    # Minecraft's scene depth, however clean its numbers look.
+        raise ValueError("the ladder claims to have measured the Z convention, which brackets"
+                         " of depth values cannot establish")
+    # The terrain probe CLEARS Minecraft's depth and the marker WRITES its own into it. A run
+    # where either was enabled or recorded anything measured something else.
     if report["terrainProbeEnabled"] or report["terrainDrawsRecorded"]:
         raise ValueError(f"the terrain probe was enabled={report['terrainProbeEnabled']} and"
                          f" recorded {report['terrainDrawsRecorded']} draw(s) in the same run;"
@@ -873,20 +947,9 @@ def ladder_report_checks(output, report, expected_device=None):
     if report["rungs"] != LADDER_RUNGS:
         raise ValueError(f"the ladder has {report['rungs']} rungs, not {LADDER_RUNGS}")
     if not report["attempted"] or not report["completed"]:
-        raise ValueError(f"the ladder never completed a measurement: {report.get('note')}")
-    if report.get("note"):
-        raise ValueError(f"the ladder rejects its own measurement: {report['note']}")
+        raise ValueError("the ladder never completed a measurement")
     if report["drawsRecorded"] < 1:
         raise ValueError("no ladder draw was recorded into Minecraft's command buffer")
-    if report["sampleAtDraw"] < 1:
-        raise ValueError(f"ladder.sampleAtDraw is {report['sampleAtDraw']}, so the sample is"
-                         f" not bound to any capture")
-    if report["sampleAtDraw"] > report["drawsRecorded"]:
-        raise ValueError(f"the ladder claims a sample at draw {report['sampleAtDraw']} but only"
-                         f" {report['drawsRecorded']} ladder draws were recorded")
-    for field in ("targetWidth", "targetHeight"):
-        if report[field] < 1:
-            raise ValueError(f"the ladder states {field}={report[field]}")
     handle = device_handle_of(report["device"], "ladder", "device")
     if expected_device is not None and handle != expected_device:
         raise ValueError(f"the ladder names device {hex(handle)} but its run's lifecycle"
@@ -894,184 +957,194 @@ def ladder_report_checks(output, report, expected_device=None):
     checks["device"] = handle
     depths = report["rungDepths"]
     if len(depths) != LADDER_RUNGS or any(
-            not isinstance(a, (int, float)) or isinstance(a, bool)
-            or abs(a - b) > 1e-9 + 1e-6 * abs(b)
+            not finite_number(a) or abs(a - b) > 1e-9 + 1e-6 * abs(b)
             for a, b in zip(depths, EXPECTED_LADDER_DEPTHS)):
         raise ValueError(f"the ladder publishes depths {depths}, not the"
                          f" {EXPECTED_LADDER_DEPTHS} its source lays out")
-    for label, want in EXPECTED_LADDER_BANDS.items():
-        got = report[label]
-        if len(got) != 4 or any(not isinstance(a, (int, float)) or isinstance(a, bool)
-                                or abs(a - b) > 1e-6 for a, b in zip(got, want)):
-            raise ValueError(f"the ladder publishes {label}={got}, not the {want} its source"
-                             f" lays out; a published band is not a reference")
-    survived, fill = report["rungSurvived"], report["rungFill"]
-    inline = report["inlineControlFill"]
-    for name, seq in (("rungSurvived", survived), ("rungFill", fill),
-                      ("inlineControlFill", inline)):
-        if len(seq) != LADDER_RUNGS:
-            raise ValueError(f"ladder.{name} has {len(seq)} entries, not {LADDER_RUNGS}")
-    # ⚠ The co-located ALWAYS control is what makes an empty rung mean "the depth test rejected
-    # it" rather than "nothing was drawn in that column". Without it the result is worthless.
-    for i, value in enumerate(inline):
-        if not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0.8:
-            raise ValueError(f"the inline always-pass control above rung {i} is {value!r};"
-                             f" without it an empty rung says nothing about depth")
-    if report["controlFill"] < 0.8:
-        raise ValueError(f"the separate control band is only {report['controlFill']} filled, so"
-                         f" the ladder's draws did not reach Minecraft's frame")
-    # survived must agree with fill, and must be a prefix: compare LESS on a monotonic ladder
-    # cannot pass a deeper rung after failing a shallower one.
-    seen_failure = False
-    for i, (ok, value) in enumerate(zip(survived, fill)):
-        if not isinstance(ok, bool):
-            raise ValueError(f"rungSurvived[{i}] is {ok!r}, not a bool")
-        if not isinstance(value, (int, float)) or isinstance(value, bool):
-            raise ValueError(f"rungFill[{i}] is {value!r}, not a number")
-        if ok != (value >= 0.8):
-            raise ValueError(f"rung {i} says survived={ok} but its fill is {value}")
-        if not ok:
-            seen_failure = True
-        elif seen_failure:
-            raise ValueError(f"rung {i} survived after an earlier rung failed, so something"
-                             f" other than the depth test decided this frame")
-    lower, upper = report.get("lowerBound"), report.get("upperBound")
-    expected_lower = max((d for d, ok in zip(depths, survived) if ok), default=None)
-    expected_upper = next((d for d, ok in zip(depths, survived) if not ok), None)
-    for label, got, want in (("lowerBound", lower, expected_lower),
-                             ("upperBound", upper, expected_upper)):
-        if want is None:
-            if got is not None:
-                raise ValueError(f"ladder.{label} is {got!r} but no rung justifies it")
-        elif (not isinstance(got, (int, float)) or isinstance(got, bool)
-              or abs(got - want) > 1e-9 + 1e-6 * abs(want)):
-            raise ValueError(f"ladder.{label} is {got!r} but the surviving set says {want}")
-    checks["bounds"] = {"lower": lower, "upper": upper}
-    checks["recount"] = recount_ladder_sample(output, report)
+    band = report["band"]
+    if len(band) != 4 or any(not finite_number(a) or abs(a - b) > 1e-6
+                             for a, b in zip(band, EXPECTED_LADDER_BAND)):
+        raise ValueError(f"the ladder publishes band={band}, not the {EXPECTED_LADDER_BAND}"
+                         f" its source lays out; a published band is not a reference")
+    palette = report["palette"]
+    if (len(palette) != len(EXPECTED_LADDER_PALETTE)
+            or any(not isinstance(c, list) or len(c) != 3
+                   or any(not finite_number(a) or abs(a - b) > 1e-6 for a, b in zip(c, want))
+                   for c, want in zip(palette, EXPECTED_LADDER_PALETTE))):
+        raise ValueError(f"the ladder publishes a palette that is not the one its source"
+                         f" lays out: {palette}")
+    samples = report["samples"]
+    if not samples:
+        raise ValueError("the ladder retained no sample, so there is nothing to recount")
+    checks["samples"] = []
+    last_at = 0
+    for index, sample in enumerate(samples):
+        if not isinstance(sample, dict):
+            raise ValueError(f"ladder sample {index} is {sample!r}, not an object")
+        for field, kind in (("at", int), ("flipped", bool), ("targetWidth", int),
+                            ("targetHeight", int), ("rect", list), ("counts", dict),
+                            ("rejectedFlipped", bool), ("rejectedRect", list),
+                            ("rejectedOther", int), ("file", str), ("rejectedFile", str)):
+            if field not in sample:
+                raise ValueError(f"ladder sample {index} does not state {field}")
+            value = sample[field]
+            if kind is bool:
+                if not isinstance(value, bool):
+                    raise ValueError(f"ladder sample {index}.{field} is {value!r}, not a bool")
+            elif kind is int:
+                if not finite_int(value):
+                    raise ValueError(f"ladder sample {index}.{field} is {value!r}, not an int")
+            elif not isinstance(value, kind):
+                raise ValueError(f"ladder sample {index}.{field} is {value!r}, not a"
+                                 f" {kind.__name__}")
+        at = sample["at"]
+        if at < 1:
+            raise ValueError(f"ladder sample {index} is at draw {at}, so it is not bound to any"
+                             f" capture")
+        if at > report["drawsRecorded"]:
+            raise ValueError(f"ladder sample {index} claims draw {at} but only"
+                             f" {report['drawsRecorded']} ladder draws were recorded")
+        if at <= last_at:
+            raise ValueError(f"ladder sample {index} at draw {at} does not follow the previous"
+                             f" sample at draw {last_at}")
+        last_at = at
+        if sample["flipped"] == sample["rejectedFlipped"]:
+            raise ValueError(f"ladder sample {index} rejects the orientation it selected")
+        full_w, full_h = sample["targetWidth"], sample["targetHeight"]
+        if full_w < 1 or full_h < 1:
+            raise ValueError(f"ladder sample {index} states a {full_w}x{full_h} frame")
+        # Round-8 review R8-LADDER-GATE: the extent was a producer-controlled reference, so a
+        # geometrically self-consistent tiny crop could stand in for the real frame. It must
+        # be an extent the ladder launch's own lifecycle checkpoints observed.
+        if expected_extents is not None and (full_w, full_h) not in expected_extents:
+            raise ValueError(f"ladder sample {index} claims a {full_w}x{full_h} frame, which no"
+                             f" lifecycle checkpoint of its launch observed"
+                             f" ({sorted(expected_extents)})")
+        for label, flipped, rect in (("rect", sample["flipped"], sample["rect"]),
+                                     ("rejectedRect", sample["rejectedFlipped"],
+                                      sample["rejectedRect"])):
+            want = ladder_band_rect(full_w, full_h, flipped)
+            if len(rect) != 4 or any(not finite_int(v) for v in rect) or rect != want:
+                raise ValueError(f"ladder sample {index}.{label} is {rect}, but the band"
+                                 f" resolves to {want} in a {full_w}x{full_h} frame"
+                                 f" (flipped={flipped})")
+        counts = sample["counts"]
+        for field in ("anomaly", "low", "other"):
+            if not finite_int(counts.get(field)) or counts[field] < 0:
+                raise ValueError(f"ladder sample {index}.counts.{field} is"
+                                 f" {counts.get(field)!r}")
+        rungs = counts.get("rungs")
+        if (not isinstance(rungs, list) or len(rungs) != LADDER_RUNGS
+                or any(not finite_int(v) or v < 0 for v in rungs)):
+            raise ValueError(f"ladder sample {index}.counts.rungs is {rungs!r}")
+        rect = sample["rect"]
+        area = (rect[2] - rect[0]) * (rect[3] - rect[1])
+        total = counts["anomaly"] + counts["low"] + counts["other"] + sum(rungs)
+        if total != area:
+            raise ValueError(f"ladder sample {index} counts {total} pixels but its band holds"
+                             f" {area}")
+        if counts["other"]:
+            raise ValueError(f"ladder sample {index}: {counts['other']} band pixel(s) are"
+                             f" outside the palette, so the band was not drawn or something"
+                             f" overwrote it; nothing is measured")
+        if counts["anomaly"]:
+            raise ValueError(f"ladder sample {index}: {counts['anomaly']} pixel(s) passed neither"
+                             f" the LESS rungs nor the GREATER control, so the depth test did not"
+                             f" decide them")
+        rrect = sample["rejectedRect"]
+        rarea = (rrect[2] - rrect[0]) * (rrect[3] - rrect[1])
+        if sample["rejectedOther"] * 2 < rarea:
+            raise ValueError(f"ladder sample {index}: the rejected orientation holds only"
+                             f" {sample['rejectedOther']} of {rarea} pixels outside the palette,"
+                             f" so both orientations look drawn and neither is identified")
+        for label, name, prefix in (("file", sample["file"], "native-depth-ladder-"),
+                                    ("rejectedFile", sample["rejectedFile"],
+                                     "native-depth-ladder-rejected-")):
+            if name != f"{prefix}{at}.ppm.gz":
+                raise ValueError(f"ladder sample {index}.{label} is {name!r}, not the crop of"
+                                 f" draw {at}")
+        checks["samples"].append(recount_ladder_sample(output, sample))
     return checks
 
 
-def recount_ladder_sample(output, report):
-    """Recount the ladder's own columns from its retained crop.
+def recount_ladder_sample(output, sample):
+    """Recount one sample's band from its retained crops, in both orientations.
 
-    The crop is a rectangle of the full readback, in the orientation the implementation
-    adopted. Every band is resolved exactly the way the implementation resolves it — the same
-    NDC-to-pixel formula over the published frame size and orientation, then shifted into the
-    crop by the published rect — from the PINNED band constants, never from the report's
-    numbers. A band the crop does not wholly contain fails instead of being clamped.
+    The selected crop must be exactly the band in the selected orientation and every pixel
+    must classify as the report says; the rejected crop must be the band in the other
+    orientation and mostly outside the palette, so the orientation is identified from
+    pixels rather than asserted.
     """
-    name = report.get("sampleFile")
-    rect = report.get("sampleRect")
-    if not name:
-        raise ValueError("the ladder retained no raw sample")
-    if not (isinstance(rect, list) and len(rect) == 4
-            and all(isinstance(v, int) and not isinstance(v, bool) for v in rect)):
-        raise ValueError("the ladder does not say where its sample came from")
-    path = output / name
+    rect, rejected_rect = sample["rect"], sample["rejectedRect"]
+    path = output / sample["file"]
     if not path.is_file():
-        raise ValueError(f"the retained ladder sample {name} is missing")
-    prefix, suffix = "native-depth-ladder-", ".ppm.gz"
-    if not (name.startswith(prefix) and name.endswith(suffix)):
-        raise ValueError(f"the ladder sample {name!r} is not named as one")
-    stem = name[len(prefix):-len(suffix)]
-    if not stem.isdigit() or int(stem) != report["sampleAtDraw"]:
-        raise ValueError(f"the sample is named for draw {stem!r} but the ladder says it was"
-                         f" taken at {report['sampleAtDraw']!r}")
+        raise ValueError(f"the retained ladder crop {sample['file']} is missing")
     rows, (width, height) = read_ppm_gz(path)
     if width != rect[2] - rect[0] or height != rect[3] - rect[1]:
-        raise ValueError(f"the ladder sample is {width}x{height} but its rect says"
-                         f" {rect[2] - rect[0]}x{rect[3] - rect[1]}")
-    full_w, full_h = report["targetWidth"], report["targetHeight"]
-    flipped = report["flipped"]
-
-    def to_rect(label, ax, ay, bx, by):
-        x0 = int((min(ax, bx) + 1.0) * 0.5 * full_w) - rect[0]
-        x1 = int((max(ax, bx) + 1.0) * 0.5 * full_w) - rect[0]
-        top, bottom = max(ay, by), min(ay, by)
-        if flipped:
-            y0 = int((1.0 + bottom) * 0.5 * full_h) - rect[1]
-            y1 = int((1.0 + top) * 0.5 * full_h) - rect[1]
-        else:
-            y0 = int((1.0 - top) * 0.5 * full_h) - rect[1]
-            y1 = int((1.0 - bottom) * 0.5 * full_h) - rect[1]
-        if x0 < 0 or y0 < 0 or x1 > width or y1 > height:
-            raise ValueError(f"the retained ladder sample does not contain the whole {label}:"
-                             f" it spans ({x0},{y0})-({x1},{y1}) of a {width}x{height} crop")
-        if x1 <= x0 or y1 <= y0:
-            raise ValueError(f"the ladder's {label} resolves to an empty rectangle")
-        return x0, y0, x1, y1
-
-    def ratio(area, want):
-        x0, y0, x1, y1 = area
-        hits = 0
-        for y in range(y0, y1):
-            row = rows[y]
-            for x in range(x0, x1):
-                px = row[x]
-                if all((px[k] >= 200) if want[k] >= 200 else (px[k] <= 60) for k in range(3)):
-                    hits += 1
-        return hits / ((x1 - x0) * (y1 - y0))
-
-    band = EXPECTED_LADDER_BANDS["band"]
-    inline_band = EXPECTED_LADDER_BANDS["inlineControlBand"]
-    control_band = EXPECTED_LADDER_BANDS["controlBand"]
-    rung_fill, inline_fill = [], []
-    for i in range(LADDER_RUNGS):
-        bx0 = band[0] + (band[2] - band[0]) * i / LADDER_RUNGS
-        bx1 = band[0] + (band[2] - band[0]) * (i + 1) / LADDER_RUNGS
-        rung_fill.append(ratio(to_rect(f"rung {i}", bx0, band[1], bx1, band[3]),
-                               LADDER_RUNG_RGB))
-        inline_fill.append(ratio(to_rect(f"inline control {i}", bx0, inline_band[1], bx1,
-                                         inline_band[3]), LADDER_CONTROL_RGB))
-    control_fill = ratio(to_rect("control band", *control_band), LADDER_CONTROL_RGB)
-    out = {"sample": name, "size": [width, height], "flipped": flipped,
-           "rungFill": [round(v, 4) for v in rung_fill],
-           "inlineControlFill": [round(v, 4) for v in inline_fill],
-           "controlFill": round(control_fill, 4),
-           "survived": [v >= 0.8 for v in rung_fill]}
-    if out["survived"] != report["rungSurvived"]:
-        raise ValueError(f"recounting the retained ladder finds survivors {out['survived']},"
-                         f" not the published {report['rungSurvived']}: {out}")
-    for i, value in enumerate(inline_fill):
-        if value < 0.8:
-            raise ValueError(f"recounting finds the inline control above rung {i} only"
-                             f" {value:.3f} filled, so that column was not drawn and its empty"
-                             f" rung says nothing about depth")
-    if control_fill < 0.8:
-        raise ValueError(f"recounting finds the separate control band only {control_fill:.3f}"
-                         f" filled, so the ladder's draws did not reach Minecraft's frame")
-    # The implementation's own fills must be what the pixels say, within the rounding a crop
-    # boundary can introduce.
-    for label, theirs, ours in (("rungFill", report["rungFill"], rung_fill),
-                                ("inlineControlFill", report["inlineControlFill"], inline_fill),
-                                ("controlFill", [report["controlFill"]], [control_fill])):
-        for i, (a, b) in enumerate(zip(theirs, ours)):
-            if abs(a - b) > 0.05:
-                raise ValueError(f"the ladder reports {label}[{i}]={a} but the retained pixels"
-                                 f" say {b:.4f}; the aggregate does not match the pixels")
+        raise ValueError(f"the ladder crop {sample['file']} is {width}x{height} but its rect"
+                         f" says {rect[2] - rect[0]}x{rect[3] - rect[1]}")
+    counts = [0] * (LADDER_OTHER + 1)
+    for row in rows:
+        for px in row:
+            counts[ladder_classify(px)] += 1
+    published = sample["counts"]
+    ours = {"anomaly": counts[LADDER_BASE], "low": counts[LADDER_LOW],
+            "rungs": counts[LADDER_RUNG0:LADDER_RUNG0 + LADDER_RUNGS],
+            "other": counts[LADDER_OTHER]}
+    for field in ("anomaly", "low", "rungs", "other"):
+        if published[field] != ours[field]:
+            raise ValueError(f"recounting {sample['file']} finds {field}={ours[field]}, not the"
+                             f" published {published[field]}; the aggregate does not match the"
+                             f" pixels")
+    rejected = output / sample["rejectedFile"]
+    if not rejected.is_file():
+        raise ValueError(f"the retained rejected-orientation ladder crop"
+                         f" {sample['rejectedFile']} is missing")
+    rrows, (rw, rh) = read_ppm_gz(rejected)
+    if rw != rejected_rect[2] - rejected_rect[0] or rh != rejected_rect[3] - rejected_rect[1]:
+        raise ValueError(f"the rejected ladder crop {sample['rejectedFile']} is {rw}x{rh} but"
+                         f" its rect says {rejected_rect[2] - rejected_rect[0]}x"
+                         f"{rejected_rect[3] - rejected_rect[1]}")
+    rejected_other = sum(1 for row in rrows for px in row if ladder_classify(px) == LADDER_OTHER)
+    if rejected_other != sample["rejectedOther"]:
+        raise ValueError(f"recounting {sample['rejectedFile']} finds {rejected_other} pixels"
+                         f" outside the palette, not the published {sample['rejectedOther']}")
+    out = dict(ours)
+    out.update(sample=sample["file"], at=sample["at"], flipped=sample["flipped"],
+               size=[width, height], rejectedOther=rejected_other,
+               brackets=ladder_brackets(ours))
     return out
 
 
-def native_ladder_result(output, expected_device=None):
+def ladder_brackets(counts):
+    """The per-pixel depth brackets a sample's counts describe, as text; no bound, no direction."""
+    z = EXPECTED_LADDER_DEPTHS
+    parts = [f"d < {z[0]:.3g}: {counts['low']} px"]
+    for i, n in enumerate(counts["rungs"]):
+        upper = f"{z[i + 1]:.3g}" if i + 1 < LADDER_RUNGS else None
+        parts.append((f"{z[i]:.3g} < d <= {upper}" if upper else f"d > {z[i]:.3g}")
+                     + f": {n} px")
+    return parts
+
+
+def native_ladder_result(output, expected_device=None, expected_extents=None):
     """Gate the depth ladder's own launch: Minecraft's loaded depth, tested, never written.
 
-    ⚠ This run is SEPARATE from the main native launch because the terrain probe clears the
+    This run is SEPARATE from the main native launch because the terrain probe clears the
     very attachment the ladder measures. The report has to say both were off and recorded
     nothing; a contaminated run is not a measurement of Minecraft's depth.
     """
     result = {"success": False, "failures": [],
-              "scope": "bounds on Minecraft's scene depth in one screen band at the"
-                       " LevelRenderer.render tail, from its own depth test; NOT the Z"
-                       " convention, which a single band of known depths cannot establish"}
+              "scope": "per-pixel brackets of Minecraft's depth values in one screen band at"
+                       " the LevelRenderer.render tail, from its own depth test; NOT the Z"
+                       " convention, NOT a band-wide bound"}
     try:
         report = json.loads((output / "native-depth-ladder.json").read_text())
         result["report"] = report
-        result.update(ladder_report_checks(output, report, expected_device))
-        bounds = result["bounds"]
-        lower, upper = bounds["lower"], bounds["upper"]
-        result["answer"] = (f"Minecraft's depth in the tested band is"
-                            + (f" <= {upper}" if lower is None else
-                               (f" > {lower}" if upper is None else f" in ({lower}, {upper}]"))
+        result.update(ladder_report_checks(output, report, expected_device, expected_extents))
+        latest = result["samples"][-1]
+        result["answer"] = (f"{len(result['samples'])} sample(s); the latest (draw"
+                            f" {latest['at']}) brackets: " + "; ".join(latest["brackets"])
                             + "; which direction is nearer is unmeasured")
         result["z_convention_measured"] = False
         result.update(success=True)
@@ -1095,7 +1168,20 @@ def single_checkpoint_device(checkpoints):
     return next(iter(devices))
 
 
-def native_depth_result(output):
+def checkpoint_extents(checkpoints):
+    """Every colour-image extent the lifecycle checkpoints observed (resize changes it)."""
+    extents = set()
+    for case in checkpoints:
+        colour = (case.get("renderer") or {}).get("colour") or {}
+        w, h = colour.get("width"), colour.get("height")
+        if finite_int(w) and finite_int(h) and w > 0 and h > 0:
+            extents.add((w, h))
+    if not extents:
+        raise ValueError("no lifecycle checkpoint states a colour-image extent")
+    return extents
+
+
+def native_depth_result(output, expected_device=None):
     """Report what the depth copy actually produced, and recount it from retained pixels.
 
     ⚠ Round-7 review R7-DEPTH-GATE rejected the previous version on two counts, both fair.
@@ -1165,6 +1251,10 @@ def native_depth_result(output):
             raise ValueError(f"depth.device is {handle!r}, which is not a device handle")
         if parsed == 0:
             raise ValueError("depth.device is a null device handle")
+        # Round-8 review: a foreign non-zero depth device passed; it must be the run's.
+        if expected_device is not None and parsed != expected_device:
+            raise ValueError(f"the depth probe names device {hex(parsed)} but the lifecycle"
+                             f" checkpoints saw {hex(expected_device)}")
         if report["depthVkFormat"] != VK_FORMAT_D32_SFLOAT:
             raise ValueError(f"the depth probe read VkFormat {report['depthVkFormat']}, not the"
                              f" D32_SFLOAT ({VK_FORMAT_D32_SFLOAT}) it knows how to interpret")
@@ -1247,6 +1337,15 @@ def recount_depth_sample(output, report):
     if histogram != report["histogram"]:
         raise ValueError(f"recounting the retained depth finds the histogram {histogram}, not"
                          f" the published {report['histogram']}")
+    # Round-8 review: clearedValue/clearedShare were type-checked but never recounted.
+    fullest = max(range(bins), key=lambda i: histogram[i])
+    total = sum(histogram)
+    out["clearedValue"] = (fullest + 0.5) / bins
+    out["clearedShare"] = histogram[fullest] / total if total else None
+    for field in ("clearedValue", "clearedShare"):
+        if out[field] is not None and abs(report[field] - out[field]) > 1e-6:
+            raise ValueError(f"the probe reports {field}={report[field]} but the retained"
+                             f" pixels say {out[field]}")
     for field, ours in (("min", low), ("max", high),
                         ("topMean", out["topMean"]), ("bottomMean", out["bottomMean"])):
         theirs = report[field]
@@ -1779,13 +1878,20 @@ def retain_native_evidence(output, native_output, timestamp, summary):
             if not report_path.is_file():
                 raise ValueError("the ladder launch wrote no native-depth-ladder.json, so its"
                                  " measurement cannot be retained")
-            wanted = json.loads(report_path.read_text()).get("sampleFile")
+            wanted = []
+            for sample in json.loads(report_path.read_text()).get("samples") or []:
+                for field in ("file", "rejectedFile"):
+                    name = (sample or {}).get(field)
+                    if not name:
+                        raise ValueError(f"a ladder sample references no {field}, so it"
+                                         f" cannot be recounted from the repository")
+                    if "ladder/" + name not in ladder_kept:
+                        raise ValueError(f"the ladder report references {name}, which was"
+                                         f" not retained; the evidence would point at nothing")
+                    wanted.append("ladder/" + name)
             if not wanted:
-                raise ValueError("the ladder report references no raw sample, so there is"
-                                 " nothing to recount from the repository")
-            if "ladder/" + wanted not in ladder_kept:
-                raise ValueError(f"the ladder report references {wanted}, which was not"
-                                 f" retained; the evidence would point at nothing")
+                raise ValueError("the ladder report lists no samples, so there is nothing to"
+                                 " recount from the repository")
             # ⚠ What the band was looking at is part of the claim ("over terrain", not
             # "over sky"); keep a crop of the band from every captured frame, both ends
             # because the frame's row order is y-ambiguous, with origins stated.
@@ -1793,7 +1899,7 @@ def retain_native_evidence(output, native_output, timestamp, summary):
             ladder_kept.update(crops)
             kept["files"].update(ladder_kept)
             kept["ladder"] = {"path": "ladder", "files": sorted(ladder_kept),
-                              "sample": "ladder/" + wanted,
+                              "samples": wanted,
                               "band_crops": sorted(crops), "band_crop_origins": crop_origins}
         (target / "MANIFEST.json").write_text(json.dumps(kept, indent=2) + "\n")
         kept["path"] = str(target.relative_to(ROOT))
@@ -1805,9 +1911,8 @@ def retain_native_evidence(output, native_output, timestamp, summary):
 def retain_ladder_band_crops(ladder_output, target):
     """Save a PNG of the ladder band (inline control top to control-band bottom) from every
     captured frame of the ladder launch. Visual record only: the gate does not read these."""
-    band = EXPECTED_LADDER_BANDS["band"]
-    top = EXPECTED_LADDER_BANDS["inlineControlBand"][1]
-    bottom = EXPECTED_LADDER_BANDS["controlBand"][3]
+    band = EXPECTED_LADDER_BAND
+    top, bottom = max(band[1], band[3]), min(band[1], band[3])
     kept, origins = {}, {}
     for png in sorted(ladder_output.glob("*.png")):
         try:
@@ -1816,7 +1921,8 @@ def retain_ladder_band_crops(ladder_output, target):
             x1 = min(width, int((band[2] + 1.0) * 0.5 * width) + 2)
             ys = [int((1.0 - v) * 0.5 * height) for v in (top, bottom)]
             for label, rows_range in (("top", ys), ("bottom", [height - y for y in ys])):
-                y0, y1 = max(0, min(rows_range) - 2), min(height, max(rows_range) + 2)
+                # a little context above and below, so the eye can see what the band covers
+                y0, y1 = max(0, min(rows_range) - 24), min(height, max(rows_range) + 24)
                 if y1 <= y0:
                     continue
                 rows, _ = top_rows_rgb(png, y1 + 1)
@@ -1914,7 +2020,19 @@ def replay_evidence(directory):
                  if not (directory / name).is_file()
                  or hashlib.sha256((directory / name).read_bytes()).hexdigest() != digest)
     outcome["manifest_mismatches"] = bad
-    outcome["replayed"].append("manifest hashes")
+    # Round-8 review B1: hashes were checked for whichever files were LISTED, so dropping the
+    # reports, the summary, the source fingerprint or the log from the manifest (files intact)
+    # replayed as 0. Every file in the directory must be a member; MANIFEST.json binds itself.
+    unlisted = sorted(str(path.relative_to(directory)) for path in directory.rglob("*")
+                      if path.is_file() and path.name != "MANIFEST.json"
+                      and str(path.relative_to(directory)) not in files)
+    outcome["manifest_unlisted"] = unlisted
+    outcome["replayed"].append("manifest hashes and completeness")
+    if unlisted:
+        outcome["error"] = (f"{len(unlisted)} retained file(s) are not manifest members, so"
+                            f" nothing binds them to the run: {unlisted[:8]}")
+        print(json.dumps(outcome, indent=2))
+        return 1
     if bad:
         print(json.dumps(outcome, indent=2))
         return 1
@@ -1941,8 +2059,13 @@ def replay_evidence(directory):
         # not list it among its omissions, so all three contradictory depth mutations replayed
         # as 0. This is the third time a gate and the replay diverged; every gate belongs here.
         depth_path = directory / "native-depth-probe.json"
+        # Round-8 review: a summary that recorded a depth gate while the report is absent
+        # replayed as 0 by silently skipping. The stage result says what ran; require it.
+        if (stage or {}).get("depth") and not depth_path.is_file():
+            raise ValueError("the retained summary records a depth gate but"
+                             " native-depth-probe.json is not retained")
         if depth_path.is_file():
-            depth = native_depth_result(directory)
+            depth = native_depth_result(directory, single_checkpoint_device(checkpoints))
             if not depth["success"]:
                 raise ValueError(f"depth gate: {depth['failures']}")
             outcome["depth"] = {"answer": depth.get("answer"),
@@ -1954,9 +2077,10 @@ def replay_evidence(directory):
             # ⚠ Round-7 review R6-TERRAIN-GATE residual: replay omitted the adopted-device
             # argument, so the terrain probe's identity was never compared on this path.
             adopted = json.loads((directory / "native-adopted-context.json").read_text())
-            adopted_handle = adopted.get("device")
-            expected = (int(adopted_handle, 16) if isinstance(adopted_handle, str)
-                        and adopted_handle.lower().startswith("0x") else None)
+            # Round-8 review R6-TERRAIN-GATE: a decimal adopted handle made this None and
+            # the terrain identity comparison vacuous. Parse it the one way, or fail.
+            expected = device_handle_of(adopted.get("device"), "native-adopted-context.json",
+                                        "device")
             terrain_checks = terrain_report_checks(directory, terrain, expected)
             outcome["terrain_recompare"] = terrain_checks["recompare"]
             outcome["replayed"].append("terrain report acceptance checks")
@@ -1967,21 +2091,40 @@ def replay_evidence(directory):
         # reference. Say so when none was retained, rather than silently skipping.
         ladder_dir = directory / "ladder"
         ladder_path = ladder_dir / "native-depth-ladder.json"
-        ladder_ref = None
+        ladder_refs = []
+        if (stage or {}).get("ladder_run") and not ladder_path.is_file():
+            raise ValueError("the retained summary records a ladder launch but"
+                             " ladder/native-depth-ladder.json is not retained")
         if ladder_path.is_file():
             ladder_stage = (stage or {}).get("ladder_run") or {}
             ladder_checkpoints = ((ladder_stage.get("environment") or {}).get("checkpoints")
                                   or [])
+            # Round-8 review: replay consumed only the summary's copy of the ladder launch's
+            # checkpoints. The launch's own native-result.json must agree with it.
+            own_path = ladder_dir / "native-result.json"
+            if not own_path.is_file():
+                raise ValueError("the ladder launch's own native-result.json is not retained")
+            own = json.loads(own_path.read_text()).get("checkpoints") or []
+            if own != ladder_checkpoints:
+                raise ValueError("the ladder launch's own checkpoints differ from the summary's"
+                                 " copy, so its identity is not established")
             ladder_device = single_checkpoint_device(ladder_checkpoints)
+            ladder_extents = checkpoint_extents(ladder_checkpoints)
             ladder = json.loads(ladder_path.read_text())
-            ladder_checks = ladder_report_checks(ladder_dir, ladder, ladder_device)
-            outcome["ladder"] = {"bounds": ladder_checks["bounds"],
-                                 "recount": ladder_checks["recount"],
-                                 "checkpoints": len(ladder_checkpoints)}
+            ladder_checks = ladder_report_checks(ladder_dir, ladder, ladder_device,
+                                                 ladder_extents)
+            outcome["ladder"] = {"samples": [
+                {k: v for k, v in sample.items() if k != "brackets"} | {"brackets": sample["brackets"]}
+                for sample in ladder_checks["samples"]],
+                "checkpoints": len(ladder_checkpoints)}
             outcome["replayed"].append("depth-ladder acceptance checks (its own launch,"
-                                       " terrain and marker off)")
-            outcome["replayed"].append("depth-ladder column recount from the retained crop")
-            ladder_ref = "ladder/" + ladder.get("sampleFile", "")
+                                       " terrain and marker off, identity from its own"
+                                       " checkpoints)")
+            outcome["replayed"].append("depth-ladder per-pixel recount of every retained crop,"
+                                       " both orientations")
+            for sample in ladder.get("samples") or []:
+                ladder_refs += ["ladder/" + sample.get("file", ""),
+                                "ladder/" + sample.get("rejectedFile", "")]
         else:
             outcome["not_replayed"].append("the depth ladder: this run retained no ladder"
                                            " launch, so no bound on Minecraft's depth is"
@@ -1993,7 +2136,7 @@ def replay_evidence(directory):
         terrain_ref = (terrain if terrain_path.is_file() else {}).get("comparison") or {}
         referenced = [rb_ref.get("sampleFile"), rb_ref.get("rejectedOrientationSample"),
                       (report.get("sampleFile") if depth_path.is_file() else None),
-                      terrain_ref.get("sampleFile"), ladder_ref]
+                      terrain_ref.get("sampleFile"), *ladder_refs]
         if terrain_ref.get("sampleFile"):
             referenced.append(terrain_ref["sampleFile"].replace(
                 "native-terrain-sample-", "native-terrain-reference-"))
@@ -2153,7 +2296,7 @@ def main():
             # ⚠ Answers a question (is Minecraft's depth readable, and which way does it run?)
             # rather than proving a claim. A "cannot be read" answer passes; a probe that
             # contradicts itself or asserts an unmeasured convention does not.
-            result["depth"] = native_depth_result(native_output)
+            result["depth"] = native_depth_result(native_output, expected_device)
             result["success"] &= result["depth"]["success"]
             native_log_checks(result, output / "native.log")
             result["scope"] = "Minecraft-native Vulkan environment only; no Voxy LoD acceptance"
@@ -2177,14 +2320,16 @@ def main():
                 "-PharnessNativeDepthLadder=true"], output, args.timeout)
             ladder_run["environment"] = native_environment_result(ladder_output)
             ladder_run["success"] &= ladder_run["environment"]["success"]
-            ladder_device = None
+            ladder_device, ladder_extents = None, None
             try:
-                ladder_device = single_checkpoint_device(
-                    ladder_run["environment"].get("checkpoints") or [])
+                ladder_checkpoints = ladder_run["environment"].get("checkpoints") or []
+                ladder_device = single_checkpoint_device(ladder_checkpoints)
+                ladder_extents = checkpoint_extents(ladder_checkpoints)
             except ValueError as exc:
                 ladder_run["device_error"] = str(exc)
                 ladder_run["success"] = False
-            ladder_run["ladder"] = native_ladder_result(ladder_output, ladder_device)
+            ladder_run["ladder"] = native_ladder_result(ladder_output, ladder_device,
+                                                        ladder_extents)
             ladder_run["success"] &= ladder_run["ladder"]["success"]
             native_log_checks(ladder_run, output / "native-ladder.log")
             ladder_run["scope"] = ("a second Minecraft launch, terrain and marker OFF, so the"

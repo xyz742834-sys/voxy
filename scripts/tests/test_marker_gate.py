@@ -215,10 +215,10 @@ class MarkerGateTest(unittest.TestCase):
             if isinstance(rb, dict) and rb.get("sampleFile") != "":
                 stage = sample_from_stage or next(iter(frames))
                 sample = sample_from(frames[stage])
-                write_ppm(out / "sample.ppm", sample)
+                write_ppm(out / "native-marker-sample-2900.ppm", sample)
                 counts = counts_in(sample)
                 rb = dict(rb)
-                rb.setdefault("sampleFile", "sample.ppm")
+                rb.setdefault("sampleFile", "native-marker-sample-2900.ppm")
                 rb["sampleRect"] = union_rect()
                 rb["flipped"] = False
                 rb.pop("autoCounts", None)
@@ -228,8 +228,8 @@ class MarkerGateTest(unittest.TestCase):
                 if rb.get("rejectedOrientationSample") != "":
                     mirror = mirror_rect()
                     rows = [row[mirror[0]:mirror[2]] for row in frames[stage][mirror[1]:mirror[3]]]
-                    write_gz_ppm(out / "rejected.ppm.gz", rows)
-                    rb.setdefault("rejectedOrientationSample", "rejected.ppm.gz")
+                    write_gz_ppm(out / "native-marker-rejected-2900.ppm.gz", rows)
+                    rb.setdefault("rejectedOrientationSample", "native-marker-rejected-2900.ppm.gz")
                     rb["rejectedOrientationRect"] = mirror
                     rb["rejectedOrientationFlipped"] = not bool(rb.get("flipped"))
                 if rb.pop("autoAgree", False):   # the default fixture: make it agree
@@ -336,18 +336,18 @@ class MarkerGateTest(unittest.TestCase):
             out = Path(tmp)
             pixels = frame()
             sample = sample_from(pixels)
-            write_ppm(out / "sample.ppm", sample)
+            write_ppm(out / "native-marker-sample-2900.ppm", sample)
             counts = counts_in(sample)
             rep = report()
-            rep["readback"] = dict(rep["readback"], sampleFile="sample.ppm",
+            rep["readback"] = dict(rep["readback"], sampleFile="native-marker-sample-2900.ppm",
                                    sampleRect=union_rect(), flipped=False,
                                    near=counts["near"], far=counts["far"],
                                    control=counts["cell"], rejectedInBox=counts["rejectedInBox"])
             rep["readback"].pop("autoAgree", None)
             mirror = mirror_rect()
-            write_gz_ppm(out / "rejected.ppm.gz",
+            write_gz_ppm(out / "native-marker-rejected-2900.ppm.gz",
                          [row[mirror[0]:mirror[2]] for row in pixels[mirror[1]:mirror[3]]])
-            rep["readback"].update(rejectedOrientationSample="rejected.ppm.gz",
+            rep["readback"].update(rejectedOrientationSample="native-marker-rejected-2900.ppm.gz",
                                    rejectedOrientationRect=mirror,
                                    rejectedOrientationFlipped=True)
             (out / "native-marker-draw.json").write_text(json.dumps(rep))
@@ -1129,7 +1129,9 @@ class DepthProbeGateTest(unittest.TestCase):
     def test_a_uniform_image_is_reported_as_not_observing_the_depth(self):
         result = self.run_gate()
         self.assertTrue(result["success"], result["failures"])
-        self.assertFalse(result["readable"] and False)
+        # ⚠ Round-8 review: this used to be `assertFalse(result["readable"] and False)`,
+        # which any value satisfies. "readable" here means the copy completed, nothing more.
+        self.assertTrue(result["readable"])
         self.assertIn("does not observe", result["answer"])
         self.assertFalse(result["z_convention_measured"])
         self.assertEqual(result["recount"]["min"], 0.0)

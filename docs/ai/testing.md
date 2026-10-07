@@ -28,7 +28,9 @@ marker, terrain, depth-copy and proof-file diagnostics; the second carries only 
 depth ladder (`-PharnessNativeDepthLadder`), because the terrain probe clears the
 depth attachment the ladder measures. Both launches are gated, logged
 (`native.log`, `native-ladder.log`) and retained; the ladder launch lives under
-`ladder/` in the evidence directory and `--replay-evidence` re-runs its gate.
+`ladder/` in the evidence directory and `--replay-evidence` re-runs its gate against
+the launch's own checkpoints. Replay also requires every retained file to be a
+manifest member and refuses to skip a gate the retained summary says ran.
 
 `python3 scripts/verify.py --only required --seconds 30 --timeout 1800` runs the GPU,
 interop, existing diagnostic live scenario and native environment scenario in order.

@@ -453,7 +453,9 @@ of the point — and the replay status of each is:
 | [20261006T084300-332469Z](runs/native-evidence/20261006T084300-332469Z/MANIFEST.json) | no — the rejected orientation's pixels were not retained (round 6 B4) |
 | [20261006T095436-054038Z](runs/native-evidence/20261006T095436-054038Z/MANIFEST.json) | no — its depth report predates `zConventionMeasuredHere` (round 7) |
 | [20261006T165039-062378Z](runs/native-evidence/20261006T165039-062378Z/MANIFEST.json) | **yes**, with the ladder listed as *not replayed* (no ladder launch was retained) |
-| [20261007T005606-024013Z](runs/native-evidence/20261007T005606-024013Z/MANIFEST.json) | **yes**, including the ladder launch under `ladder/` |
+| [20261007T005606-024013Z](runs/native-evidence/20261007T005606-024013Z/MANIFEST.json) | no — its ladder report predates the per-pixel schema (`palette`, `samples`); round-8 refuted that ladder's inference |
+| [20261007T011026-211934Z](runs/native-evidence/20261007T011026-211934Z/MANIFEST.json) | no — same schema; kept as the measurement that showed non-zero depth over clouds |
+| [20261007T020025-032770Z](runs/native-evidence/20261007T020025-032770Z/MANIFEST.json) | **yes**, including the per-pixel ladder launch under `ladder/` |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1082,6 +1084,61 @@ prefix, bounds the survivors do not justify, a sample named for another draw, a 
 orientation, a 1x1 image, a shrunken crop, a terrain- or marker-contaminated run, published
 bands that drift from the source, a ladder whose launch saw another device — and three JUnit
 cases pin inertness without the flag and the published constants.
+
+## Round-8 review repairs, and the per-pixel ladder (2026-10-07)
+
+Round 8 ([native-integration-review-r8.md](runs/native-integration-review-r8.md)) returned
+REDESIGN against `3421640f`. It **closed B3, B4, R6-TERRAIN-DEVICE and R7-DEPTH-GATE**, left
+B1 and R6-TERRAIN-GATE open on narrower residuals, and added four blocking findings against the
+ladder. Its split is the one to keep:
+
+> `REFUTED general mechanism inference, gate, bound and hook conclusion; CONFIRMED draw state,
+> retained isolation and actual colour counts`
+
+**The ladder measured eight pixel sets, not one depth** (R8-LADDER-MECHANISM, R8-LADDER-BOUND).
+Each column tested a different threshold at different pixels, so "survivors form a prefix" was
+not a physical necessity and "≤ z₀ across the band" was never implied — a valid depth field
+`d_i = z_i / 2` fails every rung and most columns exceed z₀. The adjacent `ALWAYS` stripe
+proved nearby colour work reached the copy, not that the `LESS` path worked at the rung's
+pixels; there was no positive control for the depth path at all. And "< 80 % filled" was read
+as "rejected everywhere", when half a column can visibly pass above the claimed bound.
+
+**The ladder is now per pixel.** One band; an `ALWAYS` base (white); a `GREATER` control at z₀
+(grey) — the positive control: where every `LESS` rung fails, `GREATER` must pass, so a pixel
+left white means the depth test decided nothing; then the eight `LESS` rungs ascending, each in
+its own colour, so a pixel's final colour is `max{i : z_i < d}`. Every pixel of the band ends up
+in one of ten palette colours, and the gate counts them: `other` (outside the palette) must be
+zero — the band was drawn and the orientation is right — and `anomaly` (still white) must be
+zero. The published counts must equal the recount from the retained crop exactly; the rejected
+orientation's crop is retained too and must be mostly outside the palette, so the orientation is
+identified from pixels. No prefix rule, no 80 % threshold, no band-wide bound: the output is a
+histogram of per-pixel brackets, per sample. Samples are taken from draw 2 and every 240 draws
+after it (up to 24), each retained, so the measurement is no longer one frame from before the
+world loaded; a crop of the band from every captured screenshot is retained beside them.
+
+**Gate residuals closed with it.** NaN is rejected everywhere a number is expected
+(R8-LADDER-GATE); the sample's frame extent must be one the ladder launch's own lifecycle
+checkpoints observed, so a self-consistent tiny crop cannot stand in for the real frame; the
+launch's own `native-result.json` must equal the summary's copy of its checkpoints; `reversedZ`,
+`lowerBound` and `upperBound` are rejected as keys. B1: every file in the evidence directory
+must be a manifest member — reports, summary, source fingerprint, logs — not only the samples;
+the marker's selected and rejected crops must be named for the capture the readback states.
+R6-TERRAIN-GATE: the adopted identity is parsed one way (hex or decimal) and a missing or
+unparseable one fails instead of disabling the comparison. The depth copy's device must be the
+run's checkpoint device; `clearedValue`/`clearedShare` are recounted; replay refuses to skip a
+depth or ladder gate that the retained summary says ran. The JUnit test that round 8 showed
+passing against `depthWriteEnable(true)` now inspects the depth-stencil state the pipelines
+are built from, for all three compare ops, and the depth-probe test's vacuous assertion is
+gone.
+
+Measured, run [20261007T020025-032770Z](runs/native-evidence/20261007T020025-032770Z/MANIFEST.json):
+18 samples (draw 2, then every 240 draws to 4082), **every one with `other` = 0 and `anomaly` = 0** — the band was drawn at every pixel and the depth test decided every pixel, in every sample. Draw 2 (world just opened): 42 825 px below 2⁻¹⁶ (sky), 28 131 px in (2⁻¹⁶, 2⁻¹⁴], 7 892 px in (2⁻¹⁴, 2⁻¹²] — the clouds. Draws 242–962 and 1682–2882 (overworld, spawn camera): 11–25 k px below 2⁻¹⁶ and 53–67 k px in (2⁻¹², 2⁻¹⁰], and the retained crop reads as a depth silhouette of the hills against the sky. Draws 1202 and 1442 (just after the travel teleport, chunks not yet loaded): every pixel below 2⁻¹⁶, i.e. the cleared value. From draw 3122 (after the resize, band 1152×86) the same terrain bracket; draw 3602 (nether): 80 030 px below 2⁻¹⁶, 2 738 px in (2⁻¹⁰, 2⁻⁸] and 16 304 px in (2⁻⁸, 2⁻⁶] — near walls. If the source facts about the projection hold (near 0.05, reverse-Z — direction still unmeasured), (2⁻¹², 2⁻¹⁰] is roughly 50–200 blocks and (2⁻⁸, 2⁻⁶] 3–12 blocks. Replay returns 0 with nine checks; 36 crops (both orientations of 18 samples) and 22 band crops from the screenshots are retained, 7.9 MB.
+
+**What the per-pixel ladder does and does not say.** It gives, per sample and per pixel of one
+band, the bracket of rungs the depth attachment's value falls in, by Minecraft's own depth
+test, with the depth path positively controlled. It does not say which direction is nearer
+(unmeasured, and the gate forbids claiming it), nor why the buffer copy read 0.0 where the test
+sees non-zero values, nor anything about other regions of the screen.
 
 ## What is NOT answered yet, and must be measured on hardware
 
