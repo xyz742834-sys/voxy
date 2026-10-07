@@ -1,0 +1,547 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "867cd25d845eab4eef771fe8a479df5089200ad8",
+  "review_round": 11,
+  "blocking_findings": [
+    {
+      "id": "B1",
+      "judgment": "REFUTED complete source-binding closure; CONFIRMED empty-fingerprint and listed-hash repairs",
+      "reason": "A 104-entry fingerprint of the four required names plus 100 unrelated current files passes while omitting 404 of 408 source entries. Removing one real source entry also passes, as do 103 aliases of four distinct files. The actual complete retained fingerprint independently matches HEAD.",
+      "evidence": [
+        "scripts/verify.py:2087",
+        "scripts/verify.py:2095",
+        "scripts/verify.py:2203",
+        ".agent-run/r11-source-attacks.json",
+        ".agent-run/r11-extra.json"
+      ]
+    },
+    {
+      "id": "R10-CREATE-TEST",
+      "judgment": "REFUTED full creation-path closure; CONFIRMED moved original call-site mutation detected",
+      "reason": "All six ladder tests pass LESS-to-ALWAYS and depthWriteEnable(true) mutations inside the production creator callback before vkCreateGraphicsPipelines. The injected test creator replaces that callback. Unmutated source state is correct.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:627",
+        "src/test/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadderTest.java:89",
+        ".agent-run/r11-bytecode-creatorLessAlways.log",
+        ".agent-run/r11-bytecode-creatorWrites.log"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R11-SURVEY-TABLE",
+      "judgment": "REFUTED entire replay table currency",
+      "reason": "The survey still marks 20261006T165039-062378Z yes; it returns 1 under the new required-source gate. All eleven older runs now refuse, only the newest passes.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:456",
+        ".agent-run/r11-independent-evidence.json"
+      ]
+    },
+    {
+      "id": "R10-DOC-DRIFT",
+      "judgment": "CONFIRMED stale handoff and dated replay prose",
+      "reason": "Handoff still identifies the round-10 candidate and dispatch/import status, old counts and unsupported cleared-value/chunk-loading attribution. Historical replay prose does not describe current replay.",
+      "evidence": [
+        "docs/ai/handoff.md:4",
+        "docs/ai/handoff.md:87",
+        "docs/ai/handoff.md:123"
+      ]
+    },
+    {
+      "id": "R10-ANCHOR-GRAIN",
+      "judgment": "CONFIRMED accurately disclosed provenance limit",
+      "reason": "Complete 4x4 floored RGB means match; 1328 or 2304 boundary pixels per crop remain unanchored. A within-block swap passes; boundary-pixel/report/log alteration passes with unchanged thumbnail.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:1192",
+        ".agent-run/r11-independent-evidence.json",
+        ".agent-run/r11-extra.json"
+      ]
+    },
+    {
+      "id": "R10-CONSISTENT-FORGERY",
+      "judgment": "CONFIRMED accurately disclosed consistency-only limit",
+      "reason": "Coordinated report/crop/thumbnail/log/manifest changes pass. Omission with files/log and renamed capture with log pass. This does not refute the inspected committed package or require signing infrastructure.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:1194",
+        ".agent-run/r11-attacks.json",
+        ".agent-run/r11-extra.json"
+      ]
+    },
+    {
+      "id": "R11-DEPTH-SCOPE",
+      "judgment": "CONFIRMED retained zero result; REFUTED causality or impossibility if inferred",
+      "reason": "Uniform quantized zeros do not identify copy failure or rule out a cleared attachment. The ladder is a different launch/frame; isolated depth-only copy evidence remains unavailable.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:939",
+        "docs/ai/vulkan-native-integration-survey.md:947",
+        ".agent-run/r11-retained-details.json"
+      ]
+    }
+  ],
+  "safe_for_normal_play": {
+    "opengl_backend": true,
+    "minecraft_vulkan_backend_with_voxy_disabled": true,
+    "minecraft_vulkan_backend_as_functioning_native_voxy": false,
+    "ladder_inert_without_flag": true,
+    "ladder_writes_minecraft_depth_when_flagged": false,
+    "fresh_normal_play_tested": false,
+    "basis": "Dormant source/test behaviour on supported GL and disabled Voxy on Minecraft Vulkan; native LoD delivery remains absent."
+  },
+  "round10_findings_closed": {
+    "B1": false,
+    "R10-CREATE-TEST": false,
+    "R9-SURVEY-OVERCLAIM": true
+  },
+  "round10_closure_scope": "Original empty fingerprint and moved builder-call attacks are caught, but narrower source-inventory and real-creator seams remain. R9-SURVEY-OVERCLAIM true applies to withdrawn whole-frame loaded-terrain assertion and the stated provenance/control limits, not the separate source-binding promotion.",
+  "round10_nonblocking_repairs": {
+    "R10-LOG-DETAILS": true,
+    "R10-DEPTH-FIXTURE": true
+  },
+  "candidate_claims": {
+    "all_round10_blockers_repaired": "REFUTED as complete",
+    "actual_measurement_isolation_block_provenance_and_inventory_retained_and_replayable": "CONFIRMED",
+    "entire_survey_claims_no_more_than_evidence": "REFUTED"
+  },
+  "terrain_experiment_judgment": {
+    "judgment": "CONFIRMED bounded synthetic adopted-device comparison",
+    "pairs_independently_identical": 19,
+    "selected_at_draw": 3364,
+    "selected_non_background_pixels": 26116,
+    "selected_rgb_mismatches": 0,
+    "minecraft_scene_coexistence_established": false,
+    "actual_streamed_lod_established": false,
+    "scope": "Synthetic terrain input, clears Minecraft frame/depth; not native terrain delivery."
+  },
+  "depth_result_judgment": {
+    "judgment": "CONFIRMED finite consistent retained quantized-zero observation",
+    "dimensions": [
+      1708,
+      960
+    ],
+    "quantised_zero_pixels": 1639680,
+    "nan_mutations_refused": 27,
+    "original_float_bits_independently_reproduced": false,
+    "isolated_depth_copy_launch_retained": false,
+    "copy_failure_mode_established": false,
+    "z_convention_measured": false,
+    "scope": "Completed copy and all-zero PGM; no same-frame contradiction, identified failure mode or impossibility proof."
+  },
+  "ladder_judgment": {
+    "mechanism_sound": true,
+    "complementary_control_sound": true,
+    "crop_provenance_anchored": true,
+    "sample_inventory_sound": true,
+    "source_binding_sound": false,
+    "isolation_retained": true,
+    "gate_sound": true,
+    "per_pixel_counts_confirmed": true,
+    "claims_supported": true,
+    "z_convention_measured": false,
+    "samples_independently_recounted": 18,
+    "blocks_independently_checked": 186450,
+    "unanchored_boundary_pixels_per_crop": [
+      1328,
+      2304
+    ],
+    "crop_provenance_exact_per_pixel": false,
+    "log_details_reconciled": true,
+    "arbitrary_broken_less_calibrated": false,
+    "actual_retained_source_binding_independently_confirmed": true,
+    "gate_sound_scope": "The ladder image/count/orientation/block-anchor/log-inventory/own-launch gate is sound within disclosed provenance and consistent-forgery limits. Complete source-bound replay acceptance is not sound (B1).",
+    "claims_supported_scope": "Conditional per-pixel histograms, retained isolation and complete-block crop provenance of the actual package. Excludes whole-source binding guarantee, real-creator regression guarantee and whole-survey currency.",
+    "complementary_control_scope": "GREATER at z0 complements failed LESS survival except equality, which is refused; not arbitrary LESS calibration."
+  },
+  "tests": {
+    "junit": {
+      "total": 332,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "skip": "VkBarriersTest.missingBarrierIsDetected()",
+      "command": "./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true"
+    },
+    "python": {
+      "total": 160,
+      "failures": 0,
+      "errors": 0,
+      "seconds": 286.04,
+      "command": "python3 -m unittest discover -s scripts/tests"
+    },
+    "requested_newest_replay": {
+      "exit": 0,
+      "checks": 10,
+      "samples": 18,
+      "command": "python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261007T025423-410921Z"
+    },
+    "bytecode": [
+      {
+        "mode": "normal",
+        "passed": 6,
+        "failed": 0,
+        "transformed_once": true
+      },
+      {
+        "mode": "write",
+        "passed": 4,
+        "failed": 2,
+        "transformed_once": true
+      },
+      {
+        "mode": "tableLessAlways",
+        "passed": 4,
+        "failed": 2,
+        "transformed_once": true
+      },
+      {
+        "mode": "createLessAlways",
+        "passed": 5,
+        "failed": 1,
+        "transformed_once": true
+      },
+      {
+        "mode": "pipelineInfoLessAlways",
+        "passed": 5,
+        "failed": 1,
+        "transformed_once": true
+      },
+      {
+        "mode": "creatorLessAlways",
+        "passed": 6,
+        "failed": 0,
+        "transformed_once": true
+      },
+      {
+        "mode": "creatorWrites",
+        "passed": 6,
+        "failed": 0,
+        "transformed_once": true
+      }
+    ],
+    "doubled_threshold": {
+      "gradient_positive_passes": true,
+      "literal_pin_fails": true
+    },
+    "defective_one_row_depth_band": {
+      "tests": 15,
+      "passed": 14,
+      "failed": 1,
+      "failing_test": "DepthProbeGateTest.test_a_varying_image_is_accepted_without_a_convention"
+    },
+    "full_replay_mutations": {
+      "cases": 100,
+      "exit_zero_cases": [
+        {
+          "artifact": ".agent-run/r11-attacks.json",
+          "mutation": "omit_17_report_files_and_log",
+          "replay": 0,
+          "error": null,
+          "details": null,
+          "samples": 1
+        },
+        {
+          "artifact": ".agent-run/r11-attacks.json",
+          "mutation": "within_block_pixel_permutation",
+          "replay": 0,
+          "error": null,
+          "details": {
+            "pixels_swapped": [
+              [
+                368,
+                576
+              ],
+              [
+                371,
+                576
+              ]
+            ],
+            "thumbnail_unchanged": true,
+            "counts_unchanged": true
+          },
+          "samples": 18
+        },
+        {
+          "artifact": ".agent-run/r11-attacks.json",
+          "mutation": "rename_draw_with_log",
+          "replay": 0,
+          "error": null,
+          "details": null,
+          "samples": 18
+        },
+        {
+          "artifact": ".agent-run/r11-extra.json",
+          "mutation": "omit_depth_probe_source",
+          "replay": 0,
+          "error": null,
+          "details": null,
+          "samples": 18
+        },
+        {
+          "artifact": ".agent-run/r11-extra.json",
+          "mutation": "alias_inflated_fingerprint",
+          "replay": 0,
+          "error": null,
+          "details": {
+            "entries": 103,
+            "distinct_files": 4
+          },
+          "samples": 18
+        },
+        {
+          "artifact": ".agent-run/r11-extra.json",
+          "mutation": "edge_pixel_recount_report_and_log",
+          "replay": 0,
+          "error": null,
+          "details": {
+            "pixel": [
+              342,
+              576
+            ],
+            "old": [
+              255,
+              0,
+              255
+            ],
+            "new": [
+              128,
+              0,
+              255
+            ],
+            "thumbnail_unchanged": true,
+            "log_rewritten": true
+          },
+          "samples": 18
+        },
+        {
+          "artifact": ".agent-run/r11-extra.json",
+          "mutation": "orientation_repainted_thumbnail_and_log",
+          "replay": 0,
+          "error": null,
+          "details": null,
+          "samples": 18
+        },
+        {
+          "artifact": ".agent-run/r11-extra.json",
+          "mutation": "violet_crops_counts_thumbnail_and_log",
+          "replay": 0,
+          "error": null,
+          "details": null,
+          "samples": 18
+        },
+        {
+          "artifact": ".agent-run/r11-source-attacks.json",
+          "mutation": "four_required_plus_hundred_unrelated_files",
+          "replay": 0,
+          "error": null,
+          "details": {
+            "entries": 104,
+            "distinct_files": 104,
+            "missing_source_entries": 404
+          },
+          "samples": 18
+        }
+      ],
+      "log_detail_mutations_refused": 12
+    },
+    "fixtures": {
+      "marker_frame": [
+        960,
+        540
+      ],
+      "ladder_frame": [
+        960,
+        540
+      ],
+      "ladder_band": [
+        576,
+        43
+      ],
+      "depth": [
+        48,
+        100
+      ],
+      "shrunk_during_review": false
+    }
+  },
+  "source_binding_independently_confirmed": {
+    "manifest_files": 195,
+    "source_fingerprints": 408,
+    "mismatches": 0,
+    "selected_source_keyset_complete": true,
+    "recorded_revision": "b9c3754ba524dfc3cfffe16cd1a11c1b4b4b644d",
+    "recorded_final_revision": "b9c3754ba524dfc3cfffe16cd1a11c1b4b4b644d",
+    "changed_sources_during_run": [],
+    "dependency_binaries_and_environment_bound": false
+  },
+  "replays": [
+    {
+      "run": "20261006T070311-099413Z",
+      "exit": 1,
+      "error": "source-sha256.json does not bind the run: the fingerprint does not name src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java",
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ],
+      "checks": 1,
+      "samples": 0
+    },
+    {
+      "run": "20261006T073859-396220Z",
+      "exit": 1,
+      "error": "source-sha256.json does not bind the run: the fingerprint does not name src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java",
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ],
+      "checks": 1,
+      "samples": 0
+    },
+    {
+      "run": "20261006T080931-279390Z",
+      "exit": 1,
+      "error": "source-sha256.json does not bind the run: the fingerprint does not name src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java",
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ],
+      "checks": 1,
+      "samples": 0
+    },
+    {
+      "run": "20261006T083136-838975Z",
+      "exit": 1,
+      "error": "source-sha256.json does not bind the run: the fingerprint does not name src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java",
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ],
+      "checks": 1,
+      "samples": 0
+    },
+    {
+      "run": "20261006T084300-332469Z",
+      "exit": 1,
+      "error": "source-sha256.json does not bind the run: the fingerprint does not name src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java",
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ],
+      "checks": 1,
+      "samples": 0
+    },
+    {
+      "run": "20261006T095436-054038Z",
+      "exit": 1,
+      "error": "source-sha256.json does not bind the run: the fingerprint does not name src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java",
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ],
+      "checks": 1,
+      "samples": 0
+    },
+    {
+      "run": "20261006T165039-062378Z",
+      "exit": 1,
+      "error": "source-sha256.json does not bind the run: the fingerprint does not name src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java",
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ],
+      "checks": 1,
+      "samples": 0
+    },
+    {
+      "run": "20261007T005606-024013Z",
+      "exit": 1,
+      "error": "the retained source fingerprint disagrees with this checkout: 5 file(s) differ, 0 absent; the run was not built from these sources: ['scripts/tests/test_ladder_gate.py', 'scripts/tests/test_marker_gate.py', 'scripts/verify.py', 'src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java', 'src/test/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadderTest.java']",
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ],
+      "checks": 2,
+      "samples": 0
+    },
+    {
+      "run": "20261007T011026-211934Z",
+      "exit": 1,
+      "error": "the retained source fingerprint disagrees with this checkout: 5 file(s) differ, 0 absent; the run was not built from these sources: ['scripts/tests/test_ladder_gate.py', 'scripts/tests/test_marker_gate.py', 'scripts/verify.py', 'src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java', 'src/test/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadderTest.java']",
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ],
+      "checks": 2,
+      "samples": 0
+    },
+    {
+      "run": "20261007T020025-032770Z",
+      "exit": 1,
+      "error": "the retained source fingerprint disagrees with this checkout: 5 file(s) differ, 0 absent; the run was not built from these sources: ['scripts/tests/test_ladder_gate.py', 'scripts/tests/test_marker_gate.py', 'scripts/verify.py', 'src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java', 'src/test/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadderTest.java']",
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ],
+      "checks": 2,
+      "samples": 0
+    },
+    {
+      "run": "20261007T022908-162255Z",
+      "exit": 1,
+      "error": "the retained source fingerprint disagrees with this checkout: 5 file(s) differ, 0 absent; the run was not built from these sources: ['scripts/tests/test_ladder_gate.py', 'scripts/tests/test_marker_gate.py', 'scripts/verify.py', 'src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java', 'src/test/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadderTest.java']",
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ],
+      "checks": 2,
+      "samples": 0
+    },
+    {
+      "run": "20261007T025423-410921Z",
+      "exit": 0,
+      "error": null,
+      "not_replayed": [
+        "per-checkpoint screenshot measurement (the full frames are not committed; the retained crops carry it, with their origins in MANIFEST.json)",
+        "the environment gate, the validation-layer loader evidence and the stage log's diagnostic scan \u2014 these read the run's log and checkpoints, not this directory's proof files",
+        "the Minecraft-side behaviour itself: this replays the recorded evidence, it does not re-run anything"
+      ],
+      "checks": 10,
+      "samples": 18
+    }
+  ],
+  "delivery_boundary": "Even an accepted diagnostic foundation remains REDESIGN for Minecraft-native Voxy LoD. BLOCKED_UNIMPLEMENTED remains; no accepted layer claimed.",
+  "not_checked": [
+    "Minecraft/native/live execution prohibited",
+    "Fresh normal play or GL visual parity",
+    "Scene-depth direction or same-pixel Minecraft scene/depth reference",
+    "Native coexistence, streamed LoD, lifecycle, pressure/device-loss retirement",
+    "Original full readback/screenshots unavailable; only crops/thumbnails retained",
+    "Original float depth bits unavailable in quantized PGM",
+    "Isolated depth-copy-only launch unavailable",
+    "Dependency/runtime binary equivalence, environment equivalence or GPU authenticity",
+    "Native synchronization-validation activation not newly established; adopted-context log states syncValidation=false"
+  ],
+  "review_artifacts": [
+    "docs/ai/runs/native-integration-review.md",
+    ".agent-run/r11-gradle.log",
+    ".agent-run/r11-python.log",
+    ".agent-run/r11-replay.log",
+    ".agent-run/r11-attacks.json",
+    ".agent-run/r11-extra.json",
+    ".agent-run/r11-source-attacks.json",
+    ".agent-run/r11-log-attacks.json",
+    ".agent-run/r11-bytecode.json",
+    ".agent-run/r11-test-escapes.json",
+    ".agent-run/r11-independent-evidence.json",
+    ".agent-run/r11-retained-details.json"
+  ]
+}
