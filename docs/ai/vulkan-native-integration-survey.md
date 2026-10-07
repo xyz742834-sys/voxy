@@ -1002,28 +1002,46 @@ recounted by the gate from the retained crop in the orientation the report publi
 earlier scratchpad runs of the same probe gave the same numbers (0.926–0.933, 0.978, all rungs
 empty) and are cited here only as narrative, since they were not retained.
 
-**What this establishes.** At the `LevelRenderer.render` tail, the depth attachment Voxy can
-reach holds a value ≤ 0.0625 across the tested band, by Minecraft's own depth test with no
-transfer involved. It agrees with the buffer copy's all-zero, so the copy was not the broken
-part. Two consequences follow without knowing the convention:
+**What this establishes — less than this section first said.** At the `LevelRenderer.render`
+tail, the depth attachment Voxy can reach holds a value ≤ 0.0625 across the tested band, by
+Minecraft's own depth test with no transfer involved. That is all.
 
-- If Minecraft is reverse-Z like Voxy (0.0 = far), a `LESS`-style test against this attachment
-  rejects nothing: Voxy's terrain would draw over Minecraft's world at any distance.
-- If Minecraft is conventional-Z (0.0 = near), the same test rejects everything.
+⚠ **Retracted (2026-10-07, same day, before round 8 reported):** the first version of this
+section concluded that "a depth test at this hook cannot compose Voxy's terrain against
+Minecraft's scene" and that coexistence needs an earlier hook. That conclusion is **withdrawn**.
+Two facts, both checkable, undo it:
 
-Either way, **a depth test at this hook cannot compose Voxy's terrain against Minecraft's
-scene**, and every existing probe (marker, terrain, depth, ladder) sits on this hook. Coexistence
-needs an earlier point in Minecraft's frame, where the attachment still holds scene depth. The
-next step is the same ladder at candidate hook points, measured per position before the hook is
-moved.
+1. The band is not sky. In the run's screenshots (not retained — the next revision retains a
+   crop of the band) the region between the two cyan stripes is forest terrain tens of blocks
+   from a camera at y=120. So the ladder was testing against real scene geometry.
+2. Minecraft's frame graph clears the main target's depth to **0.0** — `LevelRenderer.render`'s
+   first pass calls `CommandEncoder.clearColorAndDepthTextures(colour, …, depth, 0.0)` (26.2
+   bytecode, `dconst_0`). 0.0 is the reverse-Z *far* value, and under a reverse-Z perspective
+   projection the depth of a surface at distance *d* is of order near/*d*: with a near plane of
+   0.05, everything beyond about one block has depth below 0.0625. The ladder's rungs were
+   linear in [0.0625, 0.9375], i.e. entirely inside the first block in front of the camera.
+
+So "every rung rejected over terrain" is **exactly what a correct reverse-Z scene depth looks
+like** to this ladder, and also what a cleared attachment looks like. The measurement does not
+distinguish them. The buffer copy's *exact* 0.0 for every pixel still stands as a separate
+observation and now pulls the other way — a correct reverse-Z scene would show small non-zero
+values there — so the two results disagree about what the attachment holds, and neither is
+promoted. The clear-to-0.0 is source evidence about Minecraft's clear value, **not** a
+measurement of which direction is nearer; the convention remains unmeasured.
+
+**What decides it:** the same ladder with rungs placed where reverse-Z depth actually lives,
+2⁻¹⁶ … 2⁻² (about 3000 blocks down to 0.2 blocks at near 0.05), over the same terrain band, in
+the same isolated launch. A surviving prefix that ends somewhere in the middle bounds a real
+scene depth and shows the copy was the broken part; no survivor down to 2⁻¹⁶ says the
+attachment really is ~0 at this hook. The gate's prefix rule, pinned depths and recount carry
+over unchanged.
 
 **What this does not establish.** The Z convention: a single band of known depths bounds a
 *value*, and which direction of that value is nearer cannot be read from one band — the same
 hole round 7 found in the band heuristic, which is not reintroduced; the report asserts
-`zConventionMeasuredHere: false` and the gate fails any other value. *Why* the attachment reads
-near zero there (cleared after the scene, a different attachment than the scene was drawn into,
-or something else) is not established either. The band is one region of the screen; nothing is
-claimed about other regions.
+`zConventionMeasuredHere: false` and the gate fails any other value. Whether the attachment at
+this hook holds scene depth at all is, per the retraction above, **open**. The band is one
+region of the screen; nothing is claimed about other regions.
 
 **The gate.** `ladder_report_checks` is one function called by the stage and by
 `--replay-evidence`; the rung depths and the three band rectangles are asserted against the

@@ -91,6 +91,9 @@ instead of the selected one, shared helpers so replay cannot drift from the stag
   as `docs/ai/runs/native-evidence/20261007T005606-024013Z/ladder/` from the ladder's **own launch**
   with terrain and marker off; the report says so and the gate requires it. Survey section
   "Minecraft's depth at the level-render tail, tested behaviourally".
+- **MC clears its main depth to 0.0** at the start of `LevelRenderer.render` (frame-graph
+  "clear" pass → `clearColorAndDepthTextures(…, 0.0)`, read from the 26.2 bytecode). That is
+  the reverse-Z far value. Source evidence about the clear, not a measurement of the convention.
 
 ## What is NOT established — do not claim these
 
@@ -99,10 +102,12 @@ instead of the selected one, shared helpers so replay cannot drift from the stag
 - The **Z convention is unmeasured.** A single band of known depths bounds a value, not a
   direction. The band heuristic was deleted in `bb91527e`; `zConventionMeasuredHere: false` is
   asserted by both depth gates. Do not reintroduce it.
-- **Why** MC's attachment reads ≤ 0.0625 at the tail (cleared after the scene? a different
-  attachment than the scene was drawn into?) is not established. What IS established is that a
-  depth test at that hook composes nothing under either convention, so **coexistence needs an
-  earlier hook** — and every existing probe sits on the tail hook.
+- ⚠ **"The tail hook cannot support coexistence" was claimed in `3421640f` and RETRACTED the
+  same day** (docs commit after it). The ladder band covers forest terrain tens of blocks from a
+  camera at y=120, and under reverse-Z (MC clears to 0.0) everything beyond ~1 block has depth
+  below 0.0625 — the linear rungs 0.0625..0.9375 cannot tell "cleared" from "correct scene
+  depth". Whether the tail hook holds scene depth is **open**. The buffer copy's exact 0.0
+  everywhere still disagrees with a correct reverse-Z scene, so the two observations conflict.
 - No round has accepted the diagnostic layer as a foundation. Round 4's wording still governs:
   terrain investigation may be **experimental**, not "continuation from an accepted layer".
 
@@ -130,13 +135,17 @@ report alone, then repair blocking findings in a separate commit.
 
 1. Import the round-8 report; repair its blocking findings; re-run `--only native`, commit,
    push to `myfork`, dispatch round 9.
-2. Then the goal work: find which point in MC's rendering **does** hold scene depth. Use the
-   same ladder (same flag, same gate) at candidate hook points — e.g. before Sodium's terrain
-   pass ends, before MC's post-processing, before whatever discards the depth. **Measure per
-   position before moving any hook.** A survived prefix that is not all-or-nothing is the
-   signal that the attachment holds scene depth there; only then can a convention experiment
-   (move the camera a known amount, watch the bound move) be designed.
-3. Nothing in the ladder may ever write MC's depth. If a future variant needs to, it is a
+2. Then the goal work, step one: **re-rung the ladder where reverse-Z depth lives** —
+   `depths()` = 2⁻¹⁶, 2⁻¹⁴, …, 2⁻² (ascending, so the prefix rule holds), pin the same values
+   in `EXPECTED_LADDER_DEPTHS`, update `McNativeDepthLadderTest`, and retain a crop of the band
+   from the screenshot so "the band is terrain" is evidence rather than narrative. Run it in the
+   same isolated launch. A surviving prefix ending mid-ladder = real scene depth at the tail
+   (and the buffer copy was the broken part); no survivor at 2⁻¹⁶ = the attachment really is
+   ~0 there, and only then look for an earlier hook. Do not move any hook before this.
+3. Only if the tail holds no depth: the same ladder at candidate hook points (inside MC's main
+   pass via a `VulkanRenderPass` accessor, before the always-on-top pass, before the frame
+   graph executes), **measured per position before moving any hook**.
+4. Nothing in the ladder may ever write MC's depth. If a future variant needs to, it is a
    different probe with a different flag.
 
 ## Commands

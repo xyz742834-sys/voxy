@@ -49,11 +49,15 @@ Measured behaviourally (2026-10-07), behind a sixth default-off flag (`voxy.nati
 a ladder of eight known NDC depths drawn `LESS` with depth writes off against Minecraft's
 `LOAD`ed attachment at that same hook **all fail**, while co-located `ALWAYS` stripes fill, so
 **Minecraft's depth in that band is ≤ 0.0625 at the `LevelRenderer.render` tail** by its own
-depth test. This agrees with the copy and means **that hook cannot support coexistence** under
-either Z convention; every current probe sits on it. The ladder runs in its own launch inside
-`--only native` (terrain and marker off, the report says so, the gate requires it) and that
-launch is retained and replays. The Z convention remains unmeasured and the gate forbids claiming
-it. See the survey section "Minecraft's depth at the level-render tail, tested behaviourally".
+depth test. ⚠ That bound does **not** show the hook holds no scene depth: the band covers forest
+terrain tens of blocks away, Minecraft clears its depth to 0.0 (reverse-Z far), and under
+reverse-Z everything beyond about one block has depth below 0.0625 — the linear rungs could not
+resolve the region where real depth lives. A conclusion that the hook cannot support coexistence
+was drawn and retracted the same day; the next ladder uses rungs at 2⁻¹⁶…2⁻². The ladder runs in
+its own launch inside `--only native` (terrain and marker off, the report says so, the gate
+requires it) and that launch is retained and replays. The Z convention remains unmeasured and the
+gate forbids claiming it. See the survey section "Minecraft's depth at the level-render tail,
+tested behaviourally".
 
 ## What works
 
