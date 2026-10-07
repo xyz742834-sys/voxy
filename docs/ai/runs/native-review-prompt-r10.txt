@@ -1,0 +1,75 @@
+You are an INDEPENDENT reviewer, round 10. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (6b2d6cc92fe9407be8361b928a5ffd7a1e4d2df0). Round 9 returned REDESIGN against
+c05e0a94: it closed R6-TERRAIN-GATE, R8-LADDER-MECHANISM, R8-LADDER-BOUND and
+R8-LADDER-CONCLUSION, confirmed the per-pixel counts of all 18 retained samples, and left
+B1 and R8-LADDER-GATE open on concrete attacks, adding R9-DEPTH-FINITE and
+R9-SURVEY-OVERCLAIM. Its report is docs/ai/runs/native-integration-review-r9.md and its
+machine verdict docs/ai/runs/native-integration-review-r9.json.
+
+The HEAD repairs each: (1) a quarter-scale thumbnail of the WHOLE colour readback is retained
+per sample (native-depth-ladder-frame-<at>.ppm.gz) and both crops must average, block by
+block, to the thumbnail at their stated rectangles, so the coordinated orientation lie lands
+on scene pixels; (2) every retained ladder crop must belong to a listed sample and the set of
+sampled draws must equal the ones the launch's log records, so omitted samples fail; (3) only
+the ROOT MANIFEST.json is exempt from membership; (4) replay requires a fixed inventory
+(summary, source fingerprint, logs, every proof file, and the ladder/terrain/depth files the
+summary says ran); (5) the depth copy's min/max/means/cleared fields must be finite;
+(6) McNativeDepthLadder.create() and record() index one PIPELINE_COMPARE_OPS table that the
+JUnit test pins, so swapping LESS for ALWAYS in creation cannot escape; (7) the Python tests
+pin the depth/band/palette literals; (8) the survey's overstatements are corrected in place
+and the round-9 repairs are recorded in its "Round-9 review repairs" paragraph.
+
+The boundary from rounds 4-9 still governs and the candidate accepts it: an independently
+accepted diagnostic foundation is still REDESIGN. The candidate does NOT claim an accepted
+layer. It claims (a) the round-9 findings are repaired, (b) the per-pixel measurement, its
+isolation and its crop provenance are retained and replayable, and (c) the survey claims no
+more than the retained evidence. Judge all three.
+
+Read docs/ai/project-goal.md and docs/ai/vulkan-native-integration-survey.md first; the
+survey's "Minecraft's depth at the level-render tail, tested behaviourally" and "Round-8
+review repairs, and the per-pixel ladder" sections (including "Round-9 review repairs"), and
+docs/ai/handoff.md, state what changed and why.
+
+Judge, saying CONFIRMED or REFUTED with the file/line or command for each:
+
+1. EACH ROUND-9 FINDING.
+   B1 nested-manifest exemption and required inventory. Re-run your nested MANIFEST.json and
+      delete-with-entry attacks; look for any retained artifact that can still be unbound.
+   R8-LADDER-GATE thumbnail anchoring and sample inventory. Re-run your coordinated
+      orientation lie and your 17-of-18 omission; then try to forge a consistent set (crops +
+      thumbnail + report + log) and say what it would take.
+   R9-DEPTH-FINITE re-run your NaN mutations on every depth-copy number.
+   R9-SURVEY-OVERCLAIM read the corrected passages and judge whether anything still exceeds
+      the retained evidence.
+2. THE PER-PIXEL LADDER, again. Judge the mechanism and the complementary-control wording as
+   now stated; the thumbnail anchoring (is the block-mean comparison exact, and what does it
+   bind?); the log reconciliation (can the log and report drift and still pass?); and run your
+   mutation table against docs/ai/runs/native-evidence/20261007T022908-162255Z/ladder/ naming any
+   mutation that replays as 0.
+3. TESTS. JUnit 331 (1 documented skip, 0 failures) and 158 Python cases. Re-run your bytecode flips (state
+   helper; create() compare op) and your doubled-threshold mutation; name any test that would
+   pass against broken code. Fixtures must not be shrunk; judge whether any fixture is sized or
+   shaped so that a real defect would escape.
+4. WHETHER THE SURVEY OVERSTATES. Its replay table lists all eleven retained runs. Judge what
+   remains.
+5. SAFETY FOR NORMAL PLAY. With voxy.native.probe / .marker / .features / .adopt / .terrain /
+   .depth / .depthladder all unset, would you ship this to a player on the GL backend? On
+   Minecraft's Vulkan backend? Confirm the ladder cannot act unflagged and never writes
+   Minecraft's depth even when flagged.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261007T022908-162255Z
+Do NOT run scripts/verify.py --only native or --only live (it launches Minecraft and takes the
+GPU); judge the committed evidence instead.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round9_findings_closed (an
+object mapping B1, R8-LADDER-GATE, R9-DEPTH-FINITE, R9-SURVEY-OVERCLAIM to true/false),
+terrain_experiment_judgment, depth_result_judgment, and ladder_judgment (with at least
+mechanism_sound, complementary_control_sound, crop_provenance_anchored, sample_inventory_sound,
+isolation_retained, gate_sound, per_pixel_counts_confirmed, claims_supported,
+z_convention_measured).
