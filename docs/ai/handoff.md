@@ -1,7 +1,7 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, HEAD **867cd25d** (`867cd25d845eab4eef771fe8a479df5089200ad8`, round-11 candidate; round 10 judged `6b2d6cc9`, round 9 `c05e0a94`).
+`vulkan-macos`, HEAD **9b6a1816** (`9b6a18160b8111cf241787d4ca28c363af8b524b`, round-12 candidate; round 11 judged `867cd25d`, round 10 `6b2d6cc9`).
 
 > Read `docs/ai/project-goal.md` and `docs/ai/current-state.md` first, then this. This file is
 > task state, not source of truth; when the work moves on, update it or delete it.
@@ -25,8 +25,8 @@ Written 2026-10-07 for a **fresh session with no conversation context**. Branch
 ## The review discipline (this is the spine)
 
 `scripts/verify.py` is the verification spine. Native work is **"measured", never "verified"**
-until a fresh independent review of a frozen commit records a verdict. Ten rounds have run,
-**all REDESIGN**. Reports are in `docs/ai/runs/native-integration-review-r1..r10.{md,json}`.
+until a fresh independent review of a frozen commit records a verdict. Eleven rounds have run,
+**all REDESIGN**. Reports are in `docs/ai/runs/native-integration-review-r1..r11.{md,json}`.
 
 Dispatch procedure (works; GPT-6.1-Sol, not Astra):
 
@@ -38,24 +38,22 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9, -10 and -11 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` / `-r9` / `-r10` / `-r11`. Start
+-9 … -12 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r12`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 10, and what this HEAD claims
+### Findings status after round 11, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
-| B2, B5, R5-LIFETIME, R4-L1, R6-TERRAIN-WAIT, B3, B4, R6-TERRAIN-DEVICE, R7-DEPTH-GATE, R6-TERRAIN-GATE, R8-LADDER-MECHANISM, R8-LADDER-BOUND, R8-LADDER-CONCLUSION | closed |
-| R8-LADDER-GATE, R9-DEPTH-FINITE | **closed (r10)** |
-| **B1** evidence binding | open 10 rounds; r10 residual (fingerprint content never read) repaired — replay validates it and requires every listed file to match the checkout, **unreviewed** |
-| **R10-CREATE-TEST** | repaired — creation goes through `buildPipelines(…, creator)` and the test exercises that path with an injected creator, **unreviewed** |
-| **R9-SURVEY-OVERCLAIM** | r10 residual ("none was loaded in the sampled frame", creation-test wording) corrected, **unreviewed** |
-| non-blocking R10-LOG-DETAILS / R10-DEPTH-FIXTURE / R10-DOC-DRIFT | addressed (log orientation+counts reconciled; 100-row depth fixture; this file) |
-| non-blocking R10-ANCHOR-GRAIN / R10-CONSISTENT-FORGERY | **stated as limits** in the survey, not repaired: block anchoring skips boundary pixels; jointly rewritten records can pass any manifest-rooted check |
+| everything up to R8-LADDER-GATE, R9-DEPTH-FINITE, R9-SURVEY-OVERCLAIM, R10-LOG-DETAILS, R10-DEPTH-FIXTURE | closed |
+| **B1** evidence binding | open 11 rounds; r11 residual (partial/aliased fingerprint inventory) repaired — key set must equal the checkout's source inventory, **unreviewed** |
+| **R10-CREATE-TEST** | r11 residual (mutation inside the production creator) repaired — state read back after the creator returns, published as `pipelineStates`, pinned by the gate, JUnit-tested, **unreviewed**; the Vulkan call itself stays outside any test |
+| non-blocking R11-SURVEY-TABLE / R10-DOC-DRIFT / R11-DEPTH-SCOPE | addressed (table: only the newest run replays; this file; copy wording softened) |
+| non-blocking R10-ANCHOR-GRAIN / R10-CONSISTENT-FORGERY | **stated as limits** in the survey, not repaired |
 
 B1 has one recurring shape: **the gate trusted something the thing under test controls.**
 Repairs have removed that progressively — raw pixels instead of aggregates, source constants
@@ -84,7 +82,7 @@ frame extent, every retained file a manifest member.
 - **MC's depth attachment at the `LevelRenderer.render` tail holds non-zero depth** where the
   buffer copy reported 0.0: the re-rung ladder (2⁻¹⁶…2⁻²) saw 76 % of its first column pass
   over clouds in a frame from before the world loaded (run `20261007T011026-211934Z`, retained).
-  The per-pixel ladder in this HEAD measured: 18 samples (draw 2, then every 240 draws to 4082), **every one with `other` = 0 and `anomaly` = 0** — the band was drawn at every pixel and the depth test decided every pixel, in every sample. Draw 2 (world just opened): 42 825 px below 2⁻¹⁶ (sky), 28 131 px in (2⁻¹⁶, 2⁻¹⁴], 7 892 px in (2⁻¹⁴, 2⁻¹²] — the clouds. Draws 242–962 and 1682–2882 (overworld, spawn camera): 11–25 k px below 2⁻¹⁶ and 53–67 k px in (2⁻¹², 2⁻¹⁰], and the retained crop reads as a depth silhouette of the hills against the sky. Draws 1202 and 1442 (just after the travel teleport, chunks not yet loaded): every pixel below 2⁻¹⁶, i.e. the cleared value. From draw 3122 (after the resize, band 1152×86) the same terrain bracket; draw 3602 (nether): 80 030 px below 2⁻¹⁶, 2 738 px in (2⁻¹⁰, 2⁻⁸] and 16 304 px in (2⁻⁸, 2⁻⁶] — near walls. If the source facts about the projection hold (near 0.05, reverse-Z — direction still unmeasured), (2⁻¹², 2⁻¹⁰] is roughly 50–200 blocks and (2⁻⁸, 2⁻⁶] 3–12 blocks. Replay returns 0 with nine checks; 36 crops (both orientations of 18 samples) and 22 band crops from the screenshots are retained, 7.9 MB.
+  The per-pixel ladder in this HEAD measured: 18 samples (draw 2, then every 240 draws to 4082), **every one with `other` = 0 and `anomaly` = 0** — the band was drawn at every pixel and the depth test decided every pixel, in every sample. Draw 2 (world just opened): 42 825 px below 2⁻¹⁶ (sky), 28 131 px in (2⁻¹⁶, 2⁻¹⁴], 7 892 px in (2⁻¹⁴, 2⁻¹²] — the clouds. Draws 242–962 and 1682–2882 (overworld, spawn camera): 11–25 k px below 2⁻¹⁶ and 53–67 k px in (2⁻¹², 2⁻¹⁰], and the retained crop reads as a depth silhouette of the hills against the sky. Draws 1202 and 1442 (just after the travel teleport): every pixel below 2⁻¹⁶ — consistent with the cleared value, not shown to be it. From draw 3122 (after the resize, band 1152×86) the same terrain bracket; draw 3602 (nether): 80 030 px below 2⁻¹⁶, 2 738 px in (2⁻¹⁰, 2⁻⁸] and 16 304 px in (2⁻⁸, 2⁻⁶] — near walls. If the source facts about the projection hold (near 0.05, reverse-Z — direction still unmeasured), (2⁻¹², 2⁻¹⁰] is roughly 50–200 blocks and (2⁻⁸, 2⁻⁶] 3–12 blocks. Replay returns 0 with nine checks; 36 crops (both orientations of 18 samples) and 22 band crops from the screenshots are retained, 7.9 MB.
 - **MC clears its main depth to 0.0** at the start of `LevelRenderer.render` (frame-graph
   "clear" pass → `clearColorAndDepthTextures(…, 0.0)`, read from the 26.2 bytecode). That is
   the reverse-Z far value. Source evidence about the clear, not a measurement of the convention.
@@ -114,23 +112,23 @@ screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_ch
 (same function as the stage), saying explicitly "not replayed" for runs that retained none and
 refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 332 (1 documented skip, 0 failures); Python 160 cases;
-native stage green as `docs/ai/runs/native-evidence/20261007T025423-410921Z` (replay 0 **in this
-checkout** — replay now requires the retained source fingerprint to match the tree it runs in,
-so only a run built from HEAD's sources replays). Older retained runs do not replay under this
-gate, which is expected and tabled in the survey.
+Gate/test counts at this HEAD: JUnit 333 (1 documented skip, 0 failures); Python 161 cases;
+native stage green as `docs/ai/runs/native-evidence/20261007T031630-708042Z` (replay 0 **in this
+checkout** — replay requires the retained source fingerprint to equal the tree's source
+inventory, so only a run built from HEAD's sources replays). Older retained runs do not replay
+under this gate, which is expected and tabled in the survey.
 
-## Round 11
+## Round 12
 
-Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r11.txt` (if not already
-done — check `git log` for a "docs: record the round-11 dispatch" commit). When its report
-lands: copy it to `docs/ai/runs/native-integration-review-r11.{md,json}`, commit the report
+Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r12.txt` (if not already
+done — check `git log` for a "docs: record the round-12 dispatch" commit). When its report
+lands: copy it to `docs/ai/runs/native-integration-review-r12.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
 
-1. Import the round-11 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 12.
+1. Import the round-12 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 13.
 2. Then the goal work. The tail attachment holds real depth values (per-pixel ladder). What is
    still unknown and must be measured, in this order: (a) the **Z direction** — a controlled
    experiment, e.g. the same band sampled while the camera moves a known amount toward known
@@ -182,4 +180,4 @@ not fingerprinted.
   replays; the others are tabled).
 - `docs/ai/harness.md` — the review rule.
 - `docs/ai/testing.md` — the stages and what each proves.
-- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 12 runs.
+- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 13 runs.

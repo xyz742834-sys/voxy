@@ -1,0 +1,75 @@
+You are an INDEPENDENT reviewer, round 12. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (9b6a18160b8111cf241787d4ca28c363af8b524b). Round 11 returned REDESIGN against
+867cd25d: it closed R9-SURVEY-OVERCLAIM, R10-LOG-DETAILS and R10-DEPTH-FIXTURE, confirmed all
+18 per-pixel counts and 186,450 anchored blocks, and left two blocking residuals: B1 (a partial,
+minus-one or aliased fingerprint inventory passed) and R10-CREATE-TEST (a mutation inside the
+production creator, after the injected test seam, escaped all six tests). Its report is
+docs/ai/runs/native-integration-review-r11.md and its machine verdict
+docs/ai/runs/native-integration-review-r11.json.
+
+The HEAD repairs each: (1) source_binding requires the fingerprint's key set to EQUAL the
+checkout's own source inventory (the same src/, scripts/, build.gradle, gradle.properties
+selection the launch fingerprints), rejects non-normalized names, and compares every byte;
+(2) buildPipelines reads the depth-stencil state back from each create-info AFTER the creator
+returns, refuses the pipelines if it is not the table's op with the test on and writes off,
+publishes the observed states as `pipelineStates` (and derives `depthWritesEnabled` from them
+instead of a literal), and the gate pins both; a JUnit test injects a state-rewriting creator
+and requires the refusal; the production creator is now `vulkanCreator`, three lines whose only
+act is the Vulkan call. The survey states, as limits it does not claim to repair: the Vulkan
+call itself is outside any test; block-grain anchoring skips boundary pixels; jointly
+rewritten records pass any manifest-rooted check; the binding covers the selected sources, not
+dependency binaries, the JVM, the driver or GPU execution. The replay table now says only the
+newest run replays, by design.
+
+The boundary from rounds 4-11 still governs and the candidate accepts it: an independently
+accepted diagnostic foundation is still REDESIGN. The candidate does NOT claim an accepted
+layer. It claims (a) the round-11 blocking residuals are repaired, (b) the per-pixel
+measurement, its isolation, crop provenance (at block grain), sample inventory and source
+binding are retained and replayable in this checkout, and (c) the survey claims no more than
+the retained evidence, with its limits stated. Judge all three.
+
+Read docs/ai/project-goal.md and docs/ai/vulkan-native-integration-survey.md first; the
+survey's "Minecraft's depth at the level-render tail, tested behaviourally" and "Round-8
+review repairs, and the per-pixel ladder" sections (including the round-9, -10 and -11
+paragraphs), and docs/ai/handoff.md, state what changed and why.
+
+Judge, saying CONFIRMED or REFUTED with the file/line or command for each:
+
+1. EACH ROUND-11 FINDING.
+   B1 re-run your partial-inventory, minus-one and alias attacks; then look for any way a
+      fingerprint can differ from this checkout's inventory and still replay, and say what the
+      binding does and does not cover.
+   R10-CREATE-TEST re-run your mutations inside the production creator (state rewrite before
+      the Vulkan call; writes on) and judge whether the post-return read-back, the published
+      pipelineStates and the gate's pin catch them at the gate even though JUnit cannot run
+      the Vulkan call; name any mutation of the real creation path that all seven ladder JUnit
+      tests still pass AND that the gate would still accept.
+2. THE PER-PIXEL LADDER. Run your mutation table against
+   docs/ai/runs/native-evidence/20261007T031630-708042Z/ladder/ naming any mutation that replays as
+   0; judge whether the stated limits are accurate and whether anything in the survey still
+   relies on what they exclude.
+3. TESTS. JUnit 333 (1 documented skip, 0 failures) and 161 Python cases. Re-run your bytecode
+   flips; name any test that would pass against broken code. Fixtures must not be shrunk.
+4. WHETHER THE SURVEY OVERSTATES. Its replay table lists all thirteen retained runs; only the
+   newest replays, by design. Judge what remains.
+5. SAFETY FOR NORMAL PLAY. With voxy.native.probe / .marker / .features / .adopt / .terrain /
+   .depth / .depthladder all unset, would you ship this to a player on the GL backend? On
+   Minecraft's Vulkan backend? Confirm the ladder cannot act unflagged and never writes
+   Minecraft's depth even when flagged.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261007T031630-708042Z
+Do NOT run scripts/verify.py --only native or --only live (it launches Minecraft and takes the
+GPU); judge the committed evidence instead.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round11_findings_closed (an
+object mapping B1 and R10-CREATE-TEST to true/false), terrain_experiment_judgment,
+depth_result_judgment, and ladder_judgment (with at least mechanism_sound,
+complementary_control_sound, crop_provenance_anchored, sample_inventory_sound,
+source_binding_sound, pipeline_state_pinned, isolation_retained, gate_sound,
+per_pixel_counts_confirmed, claims_supported, z_convention_measured).
