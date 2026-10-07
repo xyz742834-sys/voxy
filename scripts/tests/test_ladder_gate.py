@@ -102,6 +102,28 @@ def band_size(flipped=False):
     return rect[2] - rect[0], rect[3] - rect[1]
 
 
+def thumbnail(selected, rect, rejected, rejected_rect):
+    """The quarter-scale thumbnail of a full frame that holds the two crops at their rects
+    over scene colour: the integer block mean the implementation retains."""
+    scale = verify.LADDER_FRAME_SCALE
+    frame = [[SCENE] * FULL_W for _ in range(FULL_H)]
+    for crop, r in ((selected, rect), (rejected, rejected_rect)):
+        for y, row in enumerate(crop):
+            frame[r[1] + y][r[0]:r[0] + len(row)] = row
+    thumb = []
+    for by in range(FULL_H // scale):
+        trow = []
+        for bx in range(FULL_W // scale):
+            sums = [0, 0, 0]
+            for y in range(by * scale, (by + 1) * scale):
+                for x in range(bx * scale, (bx + 1) * scale):
+                    for k in range(3):
+                        sums[k] += frame[y][x][k]
+            trow.append(tuple(v // (scale * scale) for v in sums))
+        thumb.append(trow)
+    return thumb
+
+
 def sample(at=2, flipped=False, kind="gradient", field=None):
     w, h = band_size(flipped)
     field = depth_field(w, h, kind) if field is None else field
@@ -112,7 +134,8 @@ def sample(at=2, flipped=False, kind="gradient", field=None):
             "rect": rect, "counts": counts_of(field), "rejectedFlipped": not flipped,
             "rejectedRect": rejected_rect, "rejectedOther": rw * rh,
             "file": f"native-depth-ladder-{at}.ppm.gz",
-            "rejectedFile": f"native-depth-ladder-rejected-{at}.ppm.gz"}
+            "rejectedFile": f"native-depth-ladder-rejected-{at}.ppm.gz",
+            "frameFile": f"native-depth-ladder-frame-{at}.ppm.gz"}
     return body, field
 
 
@@ -121,7 +144,7 @@ def report(samples=None, **overrides):
             "rungs": RUNGS, "depthWritesEnabled": False, "zConventionMeasuredHere": False,
             "rungDepths": list(D), "band": list(verify.EXPECTED_LADDER_BAND),
             "palette": [list(c) for c in verify.EXPECTED_LADDER_PALETTE],
-            "readbackInterval": 240, "sampleLimit": 24,
+            "readbackInterval": 240, "sampleLimit": 24, "frameScale": 4,
             "samples": samples if samples is not None else [sample()[0]],
             "problems": 0, "firstProblem": None, "closeFailures": 0, "leakedPipelines": 0,
             "deviceDiverged": False, "terrainProbeEnabled": False, "terrainDrawsRecorded": 0,
@@ -131,17 +154,31 @@ def report(samples=None, **overrides):
     return body
 
 
-def write_sample_files(out, body, field, selected=None, rejected=None):
+def write_sample_files(out, body, field, selected=None, rejected=None, frame_from=None):
+    """Write the two crops and the frame thumbnail. The thumbnail is built from the crops at
+    the rects the body states unless `frame_from` gives other (rects) to anchor to."""
     sel, rej = crops(field, body.get("flipped", False))
+    sel = selected if selected is not None else sel
+    rej = rejected if rejected is not None else rej
     if body.get("file"):
-        write_gz_ppm(out / body["file"], selected if selected is not None else sel)
+        write_gz_ppm(out / body["file"], sel)
     if body.get("rejectedFile"):
-        write_gz_ppm(out / body["rejectedFile"], rejected if rejected is not None else rej)
+        write_gz_ppm(out / body["rejectedFile"], rej)
+    if body.get("frameFile"):
+        rect, rrect = frame_from or (body.get("rect"), body.get("rejectedRect"))
+        if rect and rrect:
+            write_gz_ppm(out / body["frameFile"], thumbnail(sel, rect, rej, rrect))
+
+
+def log_for(samples):
+    return "".join(f"[native-vk] depth ladder sample at draw {s.get('at', 0)} flipped=x\n"
+                   for s in samples)
 
 
 class LadderGateTest(unittest.TestCase):
     def run_gate(self, body=None, fields=None, drop=(), skip_files=False, expected_device=DEVICE,
-                 expected_extents=EXTENTS, selected=None, rejected=None):
+                 expected_extents=EXTENTS, selected=None, rejected=None, frame_from=None,
+                 log=None, extra_files=()):
         if body is None:
             s, field = sample()
             body, fields = report(samples=[s]), [field]
@@ -151,9 +188,12 @@ class LadderGateTest(unittest.TestCase):
             out = Path(tmp)
             if not skip_files:
                 for s, field in zip(body.get("samples") or [], fields or []):
-                    write_sample_files(out, s, field, selected, rejected)
+                    write_sample_files(out, s, field, selected, rejected, frame_from)
+            for name, field in extra_files:
+                write_sample_files(out, name, field)
             (out / "native-depth-ladder.json").write_text(json.dumps(body))
-            return native_ladder_result(out, expected_device, expected_extents)
+            return native_ladder_result(out, expected_device, expected_extents,
+                                        log_for(body.get("samples") or []) if log is None else log)
 
     def one(self, **kw):
         """A report with one sample built from kw, plus its field."""
@@ -244,6 +284,67 @@ class LadderGateTest(unittest.TestCase):
         body["samples"][0]["flipped"] = False
         body["samples"][0]["rejectedFlipped"] = True
         self.assertFails(self.run_gate(body, fields), "rect")
+
+    def test_a_coordinated_orientation_lie_fails_on_the_frame(self):
+        """Round-9: flip both booleans AND recompute both rectangles, same crop bytes. The
+        retained frame thumbnail still holds the crops where they really were."""
+        body, fields = self.one(flipped=True, kind="clouds")
+        truth = (list(body["samples"][0]["rect"]), list(body["samples"][0]["rejectedRect"]))
+        s = body["samples"][0]
+        s["flipped"], s["rejectedFlipped"] = False, True
+        s["rect"] = verify.ladder_band_rect(FULL_W, FULL_H, False)
+        s["rejectedRect"] = verify.ladder_band_rect(FULL_W, FULL_H, True)
+        self.assertFails(self.run_gate(body, fields, frame_from=truth),
+                         "did not come from there")
+
+    def test_a_missing_or_wrong_sized_frame_thumbnail_fails(self):
+        body, fields = self.one()
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            write_sample_files(out, body["samples"][0], fields[0])
+            (out / body["samples"][0]["frameFile"]).unlink()
+            (out / "native-depth-ladder.json").write_text(json.dumps(body))
+            self.assertFails(native_ladder_result(out, DEVICE, EXTENTS, log_for(body["samples"])),
+                             "thumbnail")
+        # a thumbnail of the wrong size for the stated frame
+        body, fields = self.one()
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            write_sample_files(out, body["samples"][0], fields[0])
+            write_gz_ppm(out / body["samples"][0]["frameFile"], [[SCENE] * 10 for _ in range(10)])
+            (out / "native-depth-ladder.json").write_text(json.dumps(body))
+            self.assertFails(native_ladder_result(out, DEVICE, EXTENTS, log_for(body["samples"])),
+                             "thumbnail is 10x10")
+
+    def test_a_retained_crop_the_report_omits_fails(self):
+        """Round-9: a report listing one of two retained samples passed."""
+        s1, f1 = sample(at=2)
+        s2, f2 = sample(at=242, kind="clouds")
+        body = report(samples=[s1])
+        self.assertFails(self.run_gate(body, [f1], extra_files=[(s2, f2)],
+                                       log=log_for([s1])), "belong to no listed sample")
+
+    def test_a_logged_sample_the_report_omits_fails(self):
+        s1, f1 = sample(at=2)
+        s2, f2 = sample(at=242, kind="clouds")
+        body = report(samples=[s1])
+        self.assertFails(self.run_gate(body, [f1], log=log_for([s1, s2])), "logged samples")
+        self.assertFails(self.run_gate(body, [f1], log=""), "logged samples")
+
+    def test_the_pinned_constants_are_the_literal_ones(self):
+        """Round-9: the fixtures share the gate's constants, so doubling them in memory kept
+        the positive case green. The literal values are the contract with the Java side."""
+        self.assertEqual(verify.EXPECTED_LADDER_DEPTHS,
+                         [1.52587890625e-05, 6.103515625e-05, 0.000244140625, 0.0009765625,
+                          0.00390625, 0.015625, 0.0625, 0.25])
+        self.assertEqual(verify.EXPECTED_LADDER_BAND, [-0.6, 0.36, 0.6, 0.2])
+        self.assertEqual(verify.EXPECTED_LADDER_PALETTE,
+                         [[1.0, 1.0, 1.0], [0.5, 0.5, 0.5], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0],
+                          [1.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0],
+                          [1.0, 0.5, 0.0], [0.5, 0.0, 1.0]])
+        self.assertEqual(verify.LADDER_FRAME_SCALE, 4)
+        self.assertEqual(verify.ladder_band_rect(1708, 960, False), [342, 307, 1366, 384])
+        self.assertEqual(verify.ladder_band_rect(1708, 960, True), [342, 576, 1366, 653])
 
     def test_a_rejected_other_count_the_pixels_contradict_fails(self):
         body, fields = self.one()
@@ -391,7 +492,8 @@ class LadderGateTest(unittest.TestCase):
             self.assertFalse(result["success"], field)
             self.assertIn(field, " ".join(result["failures"]))
         for field in ("at", "flipped", "targetWidth", "targetHeight", "rect", "counts",
-                      "rejectedFlipped", "rejectedRect", "rejectedOther", "file", "rejectedFile"):
+                      "rejectedFlipped", "rejectedRect", "rejectedOther", "file", "rejectedFile",
+                      "frameFile"):
             body, fields = self.one()
             body["samples"][0].pop(field)
             result = self.run_gate(body, fields)
@@ -424,6 +526,7 @@ class LadderRetentionTest(unittest.TestCase):
         helper = test_marker_gate.EvidenceRetentionTest()
         helper.populate(native_output)
         (root / "native.log").write_text("log\n")
+        (root / "source-sha256.json").write_text("{}\n")
         # The shared checkpoint fixture names a device; the ladder also needs the colour
         # extent each checkpoint observed, which is what pins the sample's frame size.
         checkpoints = json.loads(json.dumps(test_marker_gate.ProofFileGateTest.CHECKPOINTS))
@@ -446,7 +549,7 @@ class LadderRetentionTest(unittest.TestCase):
                 (ladder_output / "native-result.json").write_text(json.dumps(
                     {"complete": True, "success": True, "failures": [],
                      "checkpoints": checkpoints}))
-            (root / "native-ladder.log").write_text("ladder log\n")
+            (root / "native-ladder.log").write_text("ladder log\n" + log_for(body["samples"]))
             stage["ladder_run"] = {"environment": {"checkpoints": checkpoints}}
         (root / "summary.json").write_text(json.dumps(
             {"stages": {"native_environment": stage}}))
@@ -472,7 +575,8 @@ class LadderRetentionTest(unittest.TestCase):
         self.assertNotIn("error", kept)
         self.assertEqual(kept["ladder"]["samples"],
                          ["ladder/native-depth-ladder-2.ppm.gz",
-                          "ladder/native-depth-ladder-rejected-2.ppm.gz"])
+                          "ladder/native-depth-ladder-rejected-2.ppm.gz",
+                          "ladder/native-depth-ladder-frame-2.ppm.gz"])
         for name in ("ladder/native-depth-ladder.json", "ladder/native-depth-ladder-2.ppm.gz",
                      "ladder/native-depth-ladder-rejected-2.ppm.gz",
                      "ladder/native-result.json", "ladder/native-ladder.log"):
@@ -509,7 +613,7 @@ class LadderRetentionTest(unittest.TestCase):
         (target / "MANIFEST.json").write_text(json.dumps(manifest))
         code, out = self.replay(target)
         self.assertEqual(code, 1)
-        self.assertIn("not retained", out["error"])
+        self.assertIn("ladder/native-depth-ladder.json", out["error"])
 
     def test_replay_rejects_a_ladder_that_records_its_own_failure(self):
         """Every mutation the stage gate rejects must be rejected on replay too."""
@@ -558,7 +662,8 @@ class LadderRetentionTest(unittest.TestCase):
     def test_a_core_file_outside_the_manifest_is_rejected(self):
         """Round-8 B1: reports, summary, source fingerprint and log could be unlisted."""
         for name in ("native-marker-draw.json", "summary.json", "native.log",
-                     "ladder/native-result.json", "ladder/native-ladder.log"):
+                     "source-sha256.json", "ladder/native-result.json",
+                     "ladder/native-ladder.log"):
             target, _ = self.build()
             manifest = json.loads((target / "MANIFEST.json").read_text())
             del manifest["files"][name]
@@ -566,6 +671,41 @@ class LadderRetentionTest(unittest.TestCase):
             code, out = self.replay(target)
             self.assertEqual(code, 1, name)
             self.assertIn(name, out["error"])
+
+    def test_a_required_file_deleted_with_its_entry_is_rejected(self):
+        """Round-9 B1: deleting the fingerprint or a log AND its entry replayed as 0."""
+        for name in ("source-sha256.json", "native.log", "ladder/native-ladder.log",
+                     "ladder/native-result.json"):
+            target, _ = self.build()
+            (target / name).unlink()
+            manifest = json.loads((target / "MANIFEST.json").read_text())
+            del manifest["files"][name]
+            (target / "MANIFEST.json").write_text(json.dumps(manifest))
+            code, out = self.replay(target)
+            self.assertEqual(code, 1, name)
+            self.assertIn(name, out["error"])
+
+    def test_a_nested_manifest_is_not_exempt(self):
+        """Round-9 B1: the exemption matched by basename, so ladder/MANIFEST.json passed."""
+        target, _ = self.build()
+        (target / "ladder" / "MANIFEST.json").write_text("anything\n")
+        code, out = self.replay(target)
+        self.assertEqual(code, 1)
+        self.assertIn("ladder/MANIFEST.json", out["error"])
+
+    def test_replay_rejects_a_report_that_omits_a_retained_sample(self):
+        """Round-9: 17 of 18 samples dropped from the report replayed as 0."""
+        s1, f1 = sample(at=2)
+        s2, f2 = sample(at=242, kind="clouds")
+        target, _ = self.build(samples=[(s1, f1), (s2, f2)])
+        path = target / "ladder" / "native-depth-ladder.json"
+        body = json.loads(path.read_text())
+        body["samples"] = body["samples"][:1]
+        path.write_text(json.dumps(body))
+        self.rehash(target, "ladder/native-depth-ladder.json")
+        code, out = self.replay(target)
+        self.assertEqual(code, 1)
+        self.assertIn("belong to no listed sample", out["error"])
 
     def test_a_ladder_whose_launch_saw_another_device_is_rejected(self):
         """The ladder is a second process; its identity is tied to ITS checkpoints."""

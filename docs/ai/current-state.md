@@ -47,17 +47,17 @@ See the survey section of the same name.
 
 Measured behaviourally (2026-10-07), behind a sixth default-off flag (`voxy.native.depthladder`):
 a ladder of eight known NDC depths drawn `LESS` with depth writes off against Minecraft's
-`LOAD`ed attachment at that same hook **all fail**, while co-located `ALWAYS` stripes fill, so
-**Minecraft's depth in that band is ≤ 0.0625 at the `LevelRenderer.render` tail** by its own
-depth test. ⚠ That bound does **not** show the hook holds no scene depth: the band covers forest
-terrain tens of blocks away, Minecraft clears its depth to 0.0 (reverse-Z far), and under
-reverse-Z everything beyond about one block has depth below 0.0625 — the linear rungs could not
-resolve the region where real depth lives. A conclusion that the hook cannot support coexistence
-was drawn and retracted the same day. Re-rung at 2⁻¹⁶…2⁻², the ladder found **non-zero depth**
-over clouds in a frame from before the world loaded, which the buffer copy had reported as 0.0.
-Round 8 refuted that ladder's inference (per-column thresholds are not one measurement); it is
-now **per pixel** — all thresholds over the same band, a GREATER positive control, colour-coded
-brackets counted exactly from retained crops, sampled through the session. The ladder runs in
+`LOAD`ed attachment at that same hook were all rejected in the first run. ⚠ That was never a
+band-wide bound (round 8: each column tested different pixels) and the linear rungs sat inside
+the first block in front of the camera; a conclusion that the hook cannot support coexistence
+was drawn from it and retracted the same day. Re-rung at 2⁻¹⁶…2⁻², the ladder found pixels with
+**non-zero depth** over clouds in a frame from before the world loaded, where the buffer copy had
+reported 0.0. The ladder is now **per pixel** — all thresholds over the same band, a GREATER
+complementary control, colour-coded brackets counted exactly from retained crops anchored to a
+retained thumbnail of the whole readback, sampled through the session. Measured (18 samples,
+run `20261007T020025-032770Z` and later): sky pixels below 2⁻¹⁶, overworld terrain pixels in
+(2⁻¹², 2⁻¹⁰], nether pixels in (2⁻¹⁰, 2⁻⁶] — the tail attachment holds scene depth that changes
+with the scene. The ladder runs in
 its own launch inside `--only native` (terrain and marker off, the report says so, the gate
 requires it) and that launch is retained and replays. The Z convention remains unmeasured and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,

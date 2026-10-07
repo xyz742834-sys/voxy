@@ -743,6 +743,7 @@ class EvidenceRetentionTest(unittest.TestCase):
         native_output.mkdir()
         self.populate(native_output, with_sample)
         (root / "native.log").write_text("log\n")
+        (root / "source-sha256.json").write_text("{}\n")
         (root / "summary.json").write_text(json.dumps({"stages": {"native_environment":
             {"gate": {"checkpoints": ProofFileGateTest.CHECKPOINTS}}}}))
         original = verify.ROOT
@@ -1206,6 +1207,14 @@ class DepthProbeGateTest(unittest.TestCase):
         result = self.run_gate({"attempted": False})
         self.assertFalse(result["success"])
         self.assertIn("never tried", " ".join(result["failures"]))
+
+    def test_nan_in_any_summary_number_fails(self):
+        """Round-9 R9-DEPTH-FINITE: NaN passed the type check and every tolerance test."""
+        import math
+        for field in ("min", "max", "topMean", "bottomMean", "clearedValue", "clearedShare"):
+            result = self.run_gate({field: math.nan})
+            self.assertFalse(result["success"], field)
+            self.assertIn("finite", " ".join(result["failures"]))
 
     def test_a_missing_field_fails_instead_of_defaulting(self):
         for field in ("enabled", "attempted", "completed", "uniform",

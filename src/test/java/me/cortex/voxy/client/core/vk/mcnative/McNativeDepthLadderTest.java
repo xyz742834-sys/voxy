@@ -49,9 +49,16 @@ public class McNativeDepthLadderTest {
      */
     @Test
     void everyPipelineTestsDepthWithoutWritingIt() {
+        // ⚠ round-9 review R9-TEST-COVERAGE: the test used to iterate its own list, so
+        // create() passing ALWAYS where LESS belonged escaped. create() and record() now read
+        // PIPELINE_COMPARE_OPS by the OP_* indices; this pins the table and the indices.
         int[] ops = McNativeDepthLadder.compareOps();
-        assertArrayEquals(new int[] {VK_COMPARE_OP_LESS, VK_COMPARE_OP_ALWAYS, VK_COMPARE_OP_GREATER},
-            ops);
+        assertArrayEquals(McNativeDepthLadder.PIPELINE_COMPARE_OPS, ops);
+        assertEquals(VK_COMPARE_OP_LESS, ops[McNativeDepthLadder.OP_LESS], "the rungs must be LESS");
+        assertEquals(VK_COMPARE_OP_ALWAYS, ops[McNativeDepthLadder.OP_ALWAYS], "the base must be ALWAYS");
+        assertEquals(VK_COMPARE_OP_GREATER, ops[McNativeDepthLadder.OP_GREATER],
+            "the complementary control must be GREATER");
+        assertEquals(3, ops.length);
         try (MemoryStack stack = MemoryStack.stackPush()) {
             for (int op : ops) {
                 var state = McNativeDepthLadder.depthStencilState(stack, op);
@@ -139,5 +146,7 @@ public class McNativeDepthLadderTest {
         assertFalse(json.contains("reversedZ"), "no convention may be published: " + json);
         assertFalse(json.contains("lowerBound") || json.contains("upperBound"),
             "a band-wide bound is not a thing this ladder measures: " + json);
+        assertTrue(json.contains("\"frameScale\": 4"), json);
+        assertEquals(4, McNativeDepthLadder.FRAME_SCALE);
     }
 }

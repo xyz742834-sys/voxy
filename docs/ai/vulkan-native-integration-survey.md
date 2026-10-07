@@ -9,7 +9,8 @@ class files in those artifacts (`javap` on
 from the historical [device-sharing survey](../phase6-device-sharing-survey.md),
 whose assumptions this replaces where they differ.
 
-Nothing here is implemented. This is the API basis for deciding the first step.
+This was the API basis for deciding the first step; the dated sections below record what has
+been implemented as diagnostics since, and what each review accepted or refuted.
 
 ## Minecraft 26.2 has a real Vulkan backend
 
@@ -455,7 +456,8 @@ of the point — and the replay status of each is:
 | [20261006T165039-062378Z](runs/native-evidence/20261006T165039-062378Z/MANIFEST.json) | **yes**, with the ladder listed as *not replayed* (no ladder launch was retained) |
 | [20261007T005606-024013Z](runs/native-evidence/20261007T005606-024013Z/MANIFEST.json) | no — its ladder report predates the per-pixel schema (`palette`, `samples`); round-8 refuted that ladder's inference |
 | [20261007T011026-211934Z](runs/native-evidence/20261007T011026-211934Z/MANIFEST.json) | no — same schema; kept as the measurement that showed non-zero depth over clouds |
-| [20261007T020025-032770Z](runs/native-evidence/20261007T020025-032770Z/MANIFEST.json) | **yes**, including the per-pixel ladder launch under `ladder/` |
+| [20261007T020025-032770Z](runs/native-evidence/20261007T020025-032770Z/MANIFEST.json) | no — its samples predate the frame thumbnails round 9 asked for; kept as the first per-pixel measurement (18 samples, counts confirmed by round 9) |
+| [20261007T022908-162255Z](runs/native-evidence/20261007T022908-162255Z/MANIFEST.json) | **yes**, per-pixel ladder with frame-anchored crops under `ladder/` |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1011,7 +1013,8 @@ Minecraft's own depth test with no transfer involved. That is all.
 ⚠ **Retracted (2026-10-07, same day, before round 8 reported):** the first version of this
 section concluded that "a depth test at this hook cannot compose Voxy's terrain against
 Minecraft's scene" and that coexistence needs an earlier hook. That conclusion is **withdrawn**.
-Two facts, both checkable, undo it:
+Two facts undo it (the first from the run's screenshots, which are not retained; the second
+from the 26.2 bytecode, which anyone can read):
 
 1. The band is not sky. In the run's screenshots (not retained — the next revision retains a
    crop of the band) the region between the two cyan stripes is forest terrain tens of blocks
@@ -1042,16 +1045,18 @@ over unchanged.
 [20261007T011026-211934Z](runs/native-evidence/20261007T011026-211934Z/MANIFEST.json), its own
 isolated launch, retained under `ladder/`):** with rungs 2⁻¹⁶ … 2⁻², column 0 (z = 2⁻¹⁶) is
 **76 % magenta**, column 1 (2⁻¹⁴) 7 %, column 2 (2⁻¹²) 0.1 %, the rest 0; every control filled
-as before. So the attachment at the tail holds **non-zero depth**. The retained crop
-(`ladder/native-depth-ladder-2.ppm.gz`) also shows what the band was looking at when the sample
-was taken — draw 2, the first frames after the world opened: **clouds over sky, no terrain loaded
-yet**, and the magenta survives exactly over the clouds. Under Minecraft's swapped-near/far
-projection the depth of a surface at distance *d* is about 0.05/*d* − 10⁻⁴, so 1.5×10⁻⁵ < z ≤
-6×10⁻⁵ is roughly 300–3000 blocks: the cloud layer. This is what a correct reverse-Z scene looks
-like, and it is **inconsistent with the buffer copy's exact 0.0 at every pixel**. The copy, not
-the attachment, is now the suspect; its failure mode is not identified and nothing more is
-claimed. The first run's all-rungs-rejected result is explained the same way: its rungs started
-at 0.0625, above anything in that frame.
+as before. So **at the pixels where column 0's rung passed, the attachment holds depth above
+2⁻¹⁶** — non-zero. The retained crop (`ladder/native-depth-ladder-2.ppm.gz`) also shows what
+the band was looking at when the sample was taken — draw 2, the first frames after the world
+opened: clouds over sky in this band, and the magenta lies over the cloud shapes. ⚠ Round 9
+held the first version of this paragraph to the round-8 standard, correctly: columns 0 and 1 are
+different pixel sets, so "7 % of column 1" does not bracket any cloud pixel from above, and the
+clouds' distance cannot be put in a two-sided range from this ladder (the per-pixel ladder
+below can). Nothing is claimed about the rest of the frame or the world. The observation is
+nonetheless **inconsistent with the buffer copy's exact 0.0 at every pixel** of a frame taken
+at the same hook in a different launch; the copy is the suspect, its failure mode is not
+identified, and the two observations are not the same frame. The first run's all-rungs-rejected
+result is consistent with this: its rungs started at 0.0625.
 
 ⚠ Round 8 ([r8](runs/native-integration-review-r8.md)) refuted this ladder's *inference*, not
 its colour counts: eight columns test eight different pixel sets, so a prefix of survivors is
@@ -1104,20 +1109,29 @@ pixels; there was no positive control for the depth path at all. And "< 80 % fil
 as "rejected everywhere", when half a column can visibly pass above the claimed bound.
 
 **The ladder is now per pixel.** One band; an `ALWAYS` base (white); a `GREATER` control at z₀
-(grey) — the positive control: where every `LESS` rung fails, `GREATER` must pass, so a pixel
-left white means the depth test decided nothing; then the eight `LESS` rungs ascending, each in
+(grey) — the complementary control: where every `LESS` rung fails, `GREATER` passes unless
+the depth is *exactly* z₀, so a pixel left white is either that equality or a depth test that
+decided nothing — in both cases the sample is refused, not interpreted. (Round 9: this is a
+same-pixel complement, not a calibration of an arbitrarily broken `LESS` path — a `LESS`
+pipeline that behaved as `ALWAYS` would paint everything violet and pass as "d > z₇"; the
+retained crops are spatially structured and the source state is inspected, but the gate alone
+cannot exclude that.) Then the eight `LESS` rungs ascending, each in
 its own colour, so a pixel's final colour is `max{i : z_i < d}`. Every pixel of the band ends up
 in one of ten palette colours, and the gate counts them: `other` (outside the palette) must be
 zero — the band was drawn and the orientation is right — and `anomaly` (still white) must be
 zero. The published counts must equal the recount from the retained crop exactly; the rejected
-orientation's crop is retained too and must be mostly outside the palette, so the orientation is
-identified from pixels. No prefix rule, no 80 % threshold, no band-wide bound: the output is a
+orientation's crop is retained too and must be mostly outside the palette; and since round 9 a
+quarter-scale thumbnail of the **whole readback** is retained per sample and both crops must
+average to it at their stated positions, so a crop's position and orientation are anchored to
+independently retained pixels rather than asserted. No prefix rule, no 80 % threshold, no
+band-wide bound: the output is a
 histogram of per-pixel brackets, per sample. Samples are taken from draw 2 and every 240 draws
 after it (up to 24), each retained, so the measurement is no longer one frame from before the
 world loaded; a crop of the band from every captured screenshot is retained beside them.
 
-**Gate residuals closed with it.** NaN is rejected everywhere a number is expected
-(R8-LADDER-GATE); the sample's frame extent must be one the ladder launch's own lifecycle
+**Gate residuals closed with it.** NaN is rejected in every number the ladder and depth-copy
+gates read (R8-LADDER-GATE; round 9 found the depth copy's means still accepted it, fixed
+with the rest of the round-9 repairs below); the sample's frame extent must be one the ladder launch's own lifecycle
 checkpoints observed, so a self-consistent tiny crop cannot stand in for the real frame; the
 launch's own `native-result.json` must equal the summary's copy of its checkpoints; `reversedZ`,
 `lowerBound` and `upperBound` are rejected as keys. B1: every file in the evidence directory
@@ -1132,7 +1146,28 @@ are built from, for all three compare ops, and the depth-probe test's vacuous as
 gone.
 
 Measured, run [20261007T020025-032770Z](runs/native-evidence/20261007T020025-032770Z/MANIFEST.json):
-18 samples (draw 2, then every 240 draws to 4082), **every one with `other` = 0 and `anomaly` = 0** — the band was drawn at every pixel and the depth test decided every pixel, in every sample. Draw 2 (world just opened): 42 825 px below 2⁻¹⁶ (sky), 28 131 px in (2⁻¹⁶, 2⁻¹⁴], 7 892 px in (2⁻¹⁴, 2⁻¹²] — the clouds. Draws 242–962 and 1682–2882 (overworld, spawn camera): 11–25 k px below 2⁻¹⁶ and 53–67 k px in (2⁻¹², 2⁻¹⁰], and the retained crop reads as a depth silhouette of the hills against the sky. Draws 1202 and 1442 (just after the travel teleport, chunks not yet loaded): every pixel below 2⁻¹⁶, i.e. the cleared value. From draw 3122 (after the resize, band 1152×86) the same terrain bracket; draw 3602 (nether): 80 030 px below 2⁻¹⁶, 2 738 px in (2⁻¹⁰, 2⁻⁸] and 16 304 px in (2⁻⁸, 2⁻⁶] — near walls. If the source facts about the projection hold (near 0.05, reverse-Z — direction still unmeasured), (2⁻¹², 2⁻¹⁰] is roughly 50–200 blocks and (2⁻⁸, 2⁻⁶] 3–12 blocks. Replay returns 0 with nine checks; 36 crops (both orientations of 18 samples) and 22 band crops from the screenshots are retained, 7.9 MB.
+18 samples (draw 2, then every 240 draws to 4082), **every one with `other` = 0 and `anomaly` = 0** — the band was drawn at every pixel and the depth test decided every pixel, in every sample. Draw 2 (world just opened): 42 825 px below 2⁻¹⁶ (sky), 28 131 px in (2⁻¹⁶, 2⁻¹⁴], 7 892 px in (2⁻¹⁴, 2⁻¹²] — the clouds. Draws 242–962 and 1682–2882 (overworld, spawn camera): 11–25 k px below 2⁻¹⁶ and 53–67 k px in (2⁻¹², 2⁻¹⁰], and the retained crop reads as a depth silhouette of the hills against the sky. Draws 1202 and 1442 (just after the travel teleport): every pixel below 2⁻¹⁶ — consistent with the cleared value, which is one such value, not shown to be it. From draw 3122 (after the resize, band 1152×86) the same terrain bracket; draw 3602 (nether): 80 030 px below 2⁻¹⁶, 2 738 px in (2⁻¹⁰, 2⁻⁸] and 16 304 px in (2⁻⁸, 2⁻⁶] — near walls. If the source facts about the projection hold (near 0.05, reverse-Z — direction still unmeasured), (2⁻¹², 2⁻¹⁰] is roughly 50–200 blocks and (2⁻⁸, 2⁻⁶] 3–12 blocks. Replay returns 0 with nine checks; 36 crops (both orientations of 18 samples) and 22 band crops from the screenshots are retained, 7.9 MB.
+
+**Round-9 review repairs (2026-10-07).** Round 9
+([native-integration-review-r9.md](runs/native-integration-review-r9.md)) returned REDESIGN
+against `c05e0a94`: it closed R6-TERRAIN-GATE, R8-LADDER-MECHANISM, R8-LADDER-BOUND and
+R8-LADDER-CONCLUSION, confirmed the per-pixel counts of all 18 samples by independent exact-RGB
+recount, and refuted the gate on four concrete attacks, all repaired in the commit after it:
+(1) flipping both orientation booleans *and* recomputing both rectangles, with the same crop
+bytes, passed — the recount knew the crop, not where it came from; now a quarter-scale
+thumbnail of the whole readback is retained per sample and both crops must average to it at
+their stated rectangles. (2) Dropping 17 of 18 samples from the report, with their crops still
+retained, passed; now every retained ladder crop must belong to a listed sample and the set of
+sampled draws must equal the ones the launch's log records. (3) A nested `ladder/MANIFEST.json`
+was exempt by basename; only the root manifest is. (4) Deleting the source fingerprint or a log
+together with its manifest entry passed; replay now requires a fixed inventory (summary,
+fingerprint, logs, every proof file, and the ladder/terrain/depth files the summary says ran).
+Also: NaN in the depth copy's means (R9-DEPTH-FINITE); the JUnit test now pins the compare-op
+table that `create()` and `record()` themselves index, so swapping `LESS` for `ALWAYS` in
+creation cannot escape it; the Python tests pin the depth/band/palette literals rather than
+reading them back from the gate; and the overstatements round 9 named in this document are
+corrected in place above (the "cleared value" attribution, the clouds paragraph's cross-column
+range, "both checkable", the unconditional positive-control wording).
 
 **What the per-pixel ladder does and does not say.** It gives, per sample and per pixel of one
 band, the bracket of rungs the depth attachment's value falls in, by Minecraft's own depth

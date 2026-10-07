@@ -107,6 +107,19 @@ public final class McNativeDepthLadder implements Destroyable {
     };
     public static final int BASE = 0, LOW = 1, RUNG0 = 2;
 
+    /**
+     * 三つのパイプラインの比較演算、添字で引く。{@link #create} はこの配列からパイプラインを
+     * 作り、{@link #record} は同じ添字で束縛する。テストはこの配列と添字を検査する
+     * (round-9 review R9-TEST-COVERAGE: テストが別のリストを見ていては create の取り違えを
+     * 見逃す)。
+     */
+    static final int[] PIPELINE_COMPARE_OPS = {VK_COMPARE_OP_LESS, VK_COMPARE_OP_ALWAYS,
+        VK_COMPARE_OP_GREATER};
+    static final int OP_LESS = 0, OP_ALWAYS = 1, OP_GREATER = 2;
+
+    /** 全フレームのサムネイルの縮尺。4x4 ブロックの整数平均。 */
+    public static final int FRAME_SCALE = 4;
+
     private static final long READBACK_BUDGET_BYTES = 40L << 20;
     private static final int FAILURE_BUDGET = 3;
     private static final long READBACK_INTERVAL = 240;
@@ -140,10 +153,15 @@ public final class McNativeDepthLadder implements Destroyable {
      * @param rejectedOther  棄却した向きで帯の画素のうちパレット外だった数
      * @param file           採用した向きの crop (PPM gzip)
      * @param rejectedFile   棄却した向きの crop (PPM gzip)
+     * @param frameFile      読み戻した<b>全フレーム</b>の 1/4 サムネイル (PPM gzip)。gate は
+     *                       両 crop をこのサムネイルの述べた位置に重ね、一致を要求する —
+     *                       crop がどこから切り出されたかを producer の言葉以外で縛るため
+     *                       (round-9 review R8-LADDER-GATE: 向きと矩形を揃って偽ると通った)
      */
     public record Sample(long at, boolean flipped, int targetWidth, int targetHeight, int[] rect,
                          long[] counts, boolean rejectedFlipped, int[] rejectedRect,
-                         long rejectedOther, String file, String rejectedFile) {}
+                         long rejectedOther, String file, String rejectedFile,
+                         String frameFile) {}
 
     // ---------------- 保持するもの ----------------
 
@@ -151,18 +169,13 @@ public final class McNativeDepthLadder implements Destroyable {
     private final long ownerDevice;
     private final int colourFormat, depthFormat;
     private final long vertexModule, fragmentModule, layout;
-    /** 比較 LESS・深度書き込み無効。 */
-    private final long testPipeline;
-    /** 比較 ALWAYS・深度書き込み無効 (BASE)。 */
-    private final long alwaysPipeline;
-    /** 比較 GREATER・深度書き込み無効 (LOW、正の対照)。 */
-    private final long greaterPipeline;
+    /** {@link #PIPELINE_COMPARE_OPS} と同じ添字。すべて深度書き込み無効。 */
+    private final long[] pipelines;
     private boolean destroyed;
 
     private McNativeDepthLadder(VulkanDevice device, long ownerDevice, int colourFormat,
                                 int depthFormat, long vertexModule, long fragmentModule,
-                                long layout, long testPipeline, long alwaysPipeline,
-                                long greaterPipeline) {
+                                long layout, long[] pipelines) {
         this.device = device;
         this.ownerDevice = ownerDevice;
         this.colourFormat = colourFormat;
@@ -170,9 +183,7 @@ public final class McNativeDepthLadder implements Destroyable {
         this.vertexModule = vertexModule;
         this.fragmentModule = fragmentModule;
         this.layout = layout;
-        this.testPipeline = testPipeline;
-        this.alwaysPipeline = alwaysPipeline;
-        this.greaterPipeline = greaterPipeline;
+        this.pipelines = pipelines;
     }
 
     // ---------------- 入口 ----------------
@@ -301,13 +312,13 @@ public final class McNativeDepthLadder implements Destroyable {
             vkCmdSetScissor(cmd, 0, scissor);
 
             float[] z = depths();
-            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.alwaysPipeline);
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.pipelines[OP_ALWAYS]);
             push(cmd, stack, PALETTE[BASE], 0.5f);
             vkCmdDraw(cmd, 6, 1, 0, 0);
-            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.greaterPipeline);
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.pipelines[OP_GREATER]);
             push(cmd, stack, PALETTE[LOW], z[0]);
             vkCmdDraw(cmd, 6, 1, 0, 0);
-            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.testPipeline);
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.pipelines[OP_LESS]);
             for (int i = 0; i < RUNGS; i++) {
                 push(cmd, stack, PALETTE[RUNG0 + i], z[i]);
                 vkCmdDraw(cmd, 6, 1, 0, 0);
@@ -381,8 +392,11 @@ public final class McNativeDepthLadder implements Destroyable {
                 "native-depth-ladder-" + at + ".ppm.gz");
             String rejectedFile = writeCrop(data, width, rects[1 - chosen],
                 "native-depth-ladder-rejected-" + at + ".ppm.gz");
+            String frameFile = writeFrame(data, width, height,
+                "native-depth-ladder-frame-" + at + ".ppm.gz");
             var sample = new Sample(at, flipped, width, height, rects[chosen], c,
-                !flipped, rects[1 - chosen], counts[1 - chosen][other], file, rejectedFile);
+                !flipped, rects[1 - chosen], counts[1 - chosen][other], file, rejectedFile,
+                frameFile);
             String why = null;
             if (c[other] != 0) {
                 why = "sample at draw " + at + ": " + c[other] + " pixel(s) of the band are"
@@ -390,7 +404,8 @@ public final class McNativeDepthLadder implements Destroyable {
                     + " or something overwrote it";
             } else if (c[BASE] != 0) {
                 why = "sample at draw " + at + ": " + c[BASE] + " pixel(s) passed neither the"
-                    + " LESS rungs nor the GREATER control, so the depth test did not decide them";
+                    + " LESS rungs nor the GREATER control (depth exactly z_0, or a depth test"
+                    + " that did not decide); the sample is not a measurement";
             }
             synchronized (SAMPLES) {
                 SAMPLES.add(sample);
@@ -517,6 +532,46 @@ public final class McNativeDepthLadder implements Destroyable {
         }
     }
 
+    /**
+     * 全フレームの 1/{@link #FRAME_SCALE} サムネイル。各出力画素は {@code FRAME_SCALE}² 画素の
+     * チャネル別整数平均 (切り捨て)。端の端数ブロックは落とす。gate は crop から同じ平均を
+     * 計算し、述べた矩形の位置で一致することを要求する。
+     */
+    private static String writeFrame(ByteBuffer data, int width, int height, String name) {
+        String dir = System.getProperty("voxy.harness.output");
+        if (dir == null || dir.isBlank()) return null;
+        int w = width / FRAME_SCALE, h = height / FRAME_SCALE;
+        if (w <= 0 || h <= 0) return null;
+        try {
+            var header = ("P6\n" + w + " " + h + "\n255\n").getBytes(StandardCharsets.US_ASCII);
+            byte[] body = new byte[w * h * 3];
+            int into = 0;
+            for (int by = 0; by < h; by++) {
+                for (int bx = 0; bx < w; bx++) {
+                    int r = 0, g = 0, b = 0;
+                    for (int y = by * FRAME_SCALE; y < (by + 1) * FRAME_SCALE; y++) {
+                        long rowBase = (long) y * width * 4;
+                        for (int x = bx * FRAME_SCALE; x < (bx + 1) * FRAME_SCALE; x++) {
+                            long src = rowBase + (long) x * 4;
+                            r += data.get((int) src) & 0xFF;
+                            g += data.get((int) src + 1) & 0xFF;
+                            b += data.get((int) src + 2) & 0xFF;
+                        }
+                    }
+                    int n = FRAME_SCALE * FRAME_SCALE;
+                    body[into++] = (byte) (r / n);
+                    body[into++] = (byte) (g / n);
+                    body[into++] = (byte) (b / n);
+                }
+            }
+            McNativeVulkanProbe.writeGzipFileBytes(name, header, body);
+            return name;
+        } catch (Throwable t) {
+            note("could not retain the ladder frame thumbnail " + name + ": " + t);
+            return null;
+        }
+    }
+
     private static void fail(String why) {
         problems++;
         if (firstProblem == null) firstProblem = why;
@@ -539,7 +594,8 @@ public final class McNativeDepthLadder implements Destroyable {
             return null;
         }
         var vk = device.vkDevice();
-        long vertexModule = 0, fragmentModule = 0, layout = 0, test = 0, always = 0, greater = 0;
+        long vertexModule = 0, fragmentModule = 0, layout = 0;
+        long[] pipelines = new long[PIPELINE_COMPARE_OPS.length];
         try (MemoryStack stack = stackPush()) {
             // ⚠ シェーダは marker のものを<b>そのまま</b>使う。push constant の形が同じで、
             // 既に MC のデバイス上で動くことが測られているので、新しい未知を持ち込まない。
@@ -548,7 +604,7 @@ public final class McNativeDepthLadder implements Destroyable {
             fragmentModule = module(vk, stack, VkShaderType.FRAGMENT,
                 McNativeMarkerDraw.FRAGMENT_SOURCE, "depth-ladder.frag");
             if (vertexModule == 0 || fragmentModule == 0) {
-                destroy(vk, vertexModule, fragmentModule, 0, 0, 0, 0);
+                destroy(vk, vertexModule, fragmentModule, 0, pipelines);
                 return null;
             }
             var range = org.lwjgl.vulkan.VkPushConstantRange.calloc(1, stack)
@@ -559,27 +615,27 @@ public final class McNativeDepthLadder implements Destroyable {
             long[] handle = new long[1];
             if (vkCreatePipelineLayout(vk, layoutInfo, null, handle) != VK_SUCCESS) {
                 note("vkCreatePipelineLayout failed for the depth ladder");
-                destroy(vk, vertexModule, fragmentModule, 0, 0, 0, 0);
+                destroy(vk, vertexModule, fragmentModule, 0, pipelines);
                 return null;
             }
             layout = handle[0];
-            test = pipeline(vk, stack, vertexModule, fragmentModule, layout, colourFormat,
-                depthFormat, VK_COMPARE_OP_LESS);
-            always = pipeline(vk, stack, vertexModule, fragmentModule, layout, colourFormat,
-                depthFormat, VK_COMPARE_OP_ALWAYS);
-            greater = pipeline(vk, stack, vertexModule, fragmentModule, layout, colourFormat,
-                depthFormat, VK_COMPARE_OP_GREATER);
-            if (test == 0 || always == 0 || greater == 0) {
-                destroy(vk, vertexModule, fragmentModule, layout, test, always, greater);
+            boolean complete = true;
+            for (int i = 0; i < PIPELINE_COMPARE_OPS.length; i++) {
+                pipelines[i] = pipeline(vk, stack, vertexModule, fragmentModule, layout,
+                    colourFormat, depthFormat, PIPELINE_COMPARE_OPS[i]);
+                complete &= pipelines[i] != 0;
+            }
+            if (!complete) {
+                destroy(vk, vertexModule, fragmentModule, layout, pipelines);
                 return null;
             }
             Logger.info("[native-vk] created the depth-ladder pipelines on Minecraft's device"
                 + " (colour " + colourFormat + ", depth " + depthFormat + ", depth writes OFF)");
             return new McNativeDepthLadder(device, mcDevice, colourFormat, depthFormat,
-                vertexModule, fragmentModule, layout, test, always, greater);
+                vertexModule, fragmentModule, layout, pipelines);
         } catch (Throwable t) {
             note("could not build the depth ladder: " + t);
-            destroy(vk, vertexModule, fragmentModule, layout, test, always, greater);
+            destroy(vk, vertexModule, fragmentModule, layout, pipelines);
             return null;
         }
     }
@@ -613,9 +669,9 @@ public final class McNativeDepthLadder implements Destroyable {
             .depthCompareOp(depthCompare).depthBoundsTestEnable(false).stencilTestEnable(false);
     }
 
-    /** 比較演算の一覧 (梯子 LESS、対照 ALWAYS、正の対照 GREATER)。 */
+    /** {@link #PIPELINE_COMPARE_OPS} のコピー (梯子 LESS、対照 ALWAYS、補対照 GREATER)。 */
     static int[] compareOps() {
-        return new int[] {VK_COMPARE_OP_LESS, VK_COMPARE_OP_ALWAYS, VK_COMPARE_OP_GREATER};
+        return PIPELINE_COMPARE_OPS.clone();
     }
 
     private static long pipeline(org.lwjgl.vulkan.VkDevice vk, MemoryStack stack,
@@ -668,11 +724,11 @@ public final class McNativeDepthLadder implements Destroyable {
     }
 
     private static void destroy(org.lwjgl.vulkan.VkDevice vk, long vertexModule,
-                                long fragmentModule, long layout, long test, long always,
-                                long greater) {
-        if (greater != 0) vkDestroyPipeline(vk, greater, null);
-        if (always != 0) vkDestroyPipeline(vk, always, null);
-        if (test != 0) vkDestroyPipeline(vk, test, null);
+                                long fragmentModule, long layout, long[] pipelines) {
+        for (int i = pipelines.length - 1; i >= 0; i--) {
+            if (pipelines[i] != 0) vkDestroyPipeline(vk, pipelines[i], null);
+            pipelines[i] = 0;
+        }
         if (layout != 0) vkDestroyPipelineLayout(vk, layout, null);
         if (fragmentModule != 0) vkDestroyShaderModule(vk, fragmentModule, null);
         if (vertexModule != 0) vkDestroyShaderModule(vk, vertexModule, null);
@@ -683,7 +739,7 @@ public final class McNativeDepthLadder implements Destroyable {
         if (this.destroyed) return;
         this.destroyed = true;
         destroy(this.device.vkDevice(), this.vertexModule, this.fragmentModule, this.layout,
-            this.testPipeline, this.alwaysPipeline, this.greaterPipeline);
+            this.pipelines);
     }
 
     /** 退役は MC の提出寿命に預ける。預けられなければ壊さずに漏らし、数える。 */
@@ -769,6 +825,7 @@ public final class McNativeDepthLadder implements Destroyable {
         }
         sb.append("],\n");
         sb.append("  \"readbackInterval\": ").append(READBACK_INTERVAL).append(",\n");
+        sb.append("  \"frameScale\": ").append(FRAME_SCALE).append(",\n");
         sb.append("  \"sampleLimit\": ").append(SAMPLE_LIMIT).append(",\n");
         sb.append("  \"samples\": [");
         for (int i = 0; i < samples.size(); i++) {
@@ -789,6 +846,7 @@ public final class McNativeDepthLadder implements Destroyable {
             sb.append(", \"rejectedOther\": ").append(s.rejectedOther());
             sb.append(", \"file\": ").append(McNativeVulkanProbe.quote(s.file()));
             sb.append(", \"rejectedFile\": ").append(McNativeVulkanProbe.quote(s.rejectedFile()));
+            sb.append(", \"frameFile\": ").append(McNativeVulkanProbe.quote(s.frameFile()));
             sb.append('}');
         }
         sb.append(samples.isEmpty() ? "],\n" : "\n  ],\n");

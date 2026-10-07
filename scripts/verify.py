@@ -884,7 +884,12 @@ def device_handle_of(value, name, field):
     return handle
 
 
-def ladder_report_checks(output, report, expected_device=None, expected_extents=None):
+LADDER_FRAME_SCALE = 4
+LADDER_SAMPLE_LOG = re.compile(r"depth ladder sample at draw (\d+) ")
+
+
+def ladder_report_checks(output, report, expected_device=None, expected_extents=None,
+                         retained_crops=None, log_text=None):
     """Gate the per-pixel depth ladder: what Minecraft's own depth test says, pixel by pixel.
 
     Every threshold is drawn over the SAME band with depth writes off, LESS rungs ascending
@@ -973,9 +978,32 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
                    for c, want in zip(palette, EXPECTED_LADDER_PALETTE))):
         raise ValueError(f"the ladder publishes a palette that is not the one its source"
                          f" lays out: {palette}")
+    if report.get("frameScale") != LADDER_FRAME_SCALE:
+        raise ValueError(f"the ladder publishes frameScale={report.get('frameScale')!r}, not"
+                         f" the {LADDER_FRAME_SCALE} its source lays out")
     samples = report["samples"]
     if not samples:
         raise ValueError("the ladder retained no sample, so there is nothing to recount")
+    # ⚠ Round-9 review R8-LADDER-GATE: the gate iterated only report.samples, so a report
+    # listing one of eighteen retained samples passed, even with an omitted crop corrupted.
+    # Every retained crop must belong to a listed sample, and every sample the launch logged
+    # must be listed.
+    if retained_crops is not None:
+        referenced = set()
+        for sample in samples:
+            if isinstance(sample, dict):
+                referenced.update(str(sample.get(k)) for k in ("file", "rejectedFile",
+                                                              "frameFile"))
+        stray = sorted(set(retained_crops) - referenced)
+        if stray:
+            raise ValueError(f"{len(stray)} retained ladder crop(s) belong to no listed sample,"
+                             f" so the report omits measurements: {stray[:6]}")
+    if log_text is not None:
+        logged = sorted(int(m) for m in LADDER_SAMPLE_LOG.findall(log_text))
+        listed = sorted(s.get("at") for s in samples if isinstance(s, dict))
+        if logged != listed:
+            raise ValueError(f"the ladder launch logged samples at draws {logged} but the"
+                             f" report lists {listed}")
     checks["samples"] = []
     last_at = 0
     for index, sample in enumerate(samples):
@@ -984,7 +1012,8 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
         for field, kind in (("at", int), ("flipped", bool), ("targetWidth", int),
                             ("targetHeight", int), ("rect", list), ("counts", dict),
                             ("rejectedFlipped", bool), ("rejectedRect", list),
-                            ("rejectedOther", int), ("file", str), ("rejectedFile", str)):
+                            ("rejectedOther", int), ("file", str), ("rejectedFile", str),
+                            ("frameFile", str)):
             if field not in sample:
                 raise ValueError(f"ladder sample {index} does not state {field}")
             value = sample[field]
@@ -1059,7 +1088,9 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
                              f" so both orientations look drawn and neither is identified")
         for label, name, prefix in (("file", sample["file"], "native-depth-ladder-"),
                                     ("rejectedFile", sample["rejectedFile"],
-                                     "native-depth-ladder-rejected-")):
+                                     "native-depth-ladder-rejected-"),
+                                    ("frameFile", sample["frameFile"],
+                                     "native-depth-ladder-frame-")):
             if name != f"{prefix}{at}.ppm.gz":
                 raise ValueError(f"ladder sample {index}.{label} is {name!r}, not the crop of"
                                  f" draw {at}")
@@ -1109,11 +1140,57 @@ def recount_ladder_sample(output, sample):
     if rejected_other != sample["rejectedOther"]:
         raise ValueError(f"recounting {sample['rejectedFile']} finds {rejected_other} pixels"
                          f" outside the palette, not the published {sample['rejectedOther']}")
+    # ⚠ Round-9 review R8-LADDER-GATE: with both booleans flipped and both rectangles
+    # recomputed, the same crop bytes passed — the recount knew the crop, not where it came
+    # from. The retained quarter-scale thumbnail of the WHOLE readback anchors both crops:
+    # every fully covered block of each crop must average to the thumbnail's pixel at the
+    # stated position. A crop moved to another position lands on scene, not on itself.
+    frame = output / sample["frameFile"]
+    if not frame.is_file():
+        raise ValueError(f"the retained ladder frame thumbnail {sample['frameFile']} is missing")
+    trows, (tw, th) = read_ppm_gz(frame)
+    full_w, full_h = sample["targetWidth"], sample["targetHeight"]
+    if (tw, th) != (full_w // LADDER_FRAME_SCALE, full_h // LADDER_FRAME_SCALE):
+        raise ValueError(f"the ladder frame thumbnail is {tw}x{th}, not the"
+                         f" {full_w // LADDER_FRAME_SCALE}x{full_h // LADDER_FRAME_SCALE} a"
+                         f" {full_w}x{full_h} frame scales to")
+    for label, crop_rows, crop_rect in (("selected", rows, rect),
+                                        ("rejected", rrows, rejected_rect)):
+        anchored = ladder_anchor_blocks(crop_rows, crop_rect, trows)
+        if anchored == 0:
+            raise ValueError(f"the {label} ladder crop covers no whole thumbnail block, so its"
+                             f" position cannot be checked")
     out = dict(ours)
     out.update(sample=sample["file"], at=sample["at"], flipped=sample["flipped"],
                size=[width, height], rejectedOther=rejected_other,
-               brackets=ladder_brackets(ours))
+               brackets=ladder_brackets(ours), frame=sample["frameFile"])
     return out
+
+
+def ladder_anchor_blocks(crop_rows, crop_rect, thumb_rows):
+    """Check a crop against the frame thumbnail at its stated rect; return blocks checked."""
+    scale = LADDER_FRAME_SCALE
+    x0, y0, x1, y1 = crop_rect
+    checked = 0
+    bx0, bx1 = -(-x0 // scale), x1 // scale
+    by0, by1 = -(-y0 // scale), y1 // scale
+    for by in range(by0, by1):
+        for bx in range(bx0, bx1):
+            sums = [0, 0, 0]
+            for y in range(by * scale, (by + 1) * scale):
+                row = crop_rows[y - y0]
+                for x in range(bx * scale, (bx + 1) * scale):
+                    px = row[x - x0]
+                    for k in range(3):
+                        sums[k] += px[k]
+            want = tuple(v // (scale * scale) for v in sums)
+            got = tuple(thumb_rows[by][bx][:3])
+            if got != want:
+                raise ValueError(f"the crop at {crop_rect} does not match the retained frame"
+                                 f" thumbnail at block ({bx},{by}): crop averages {want},"
+                                 f" frame holds {got}; the crop did not come from there")
+            checked += 1
+    return checked
 
 
 def ladder_brackets(counts):
@@ -1127,7 +1204,8 @@ def ladder_brackets(counts):
     return parts
 
 
-def native_ladder_result(output, expected_device=None, expected_extents=None):
+def native_ladder_result(output, expected_device=None, expected_extents=None,
+                         log_text=None):
     """Gate the depth ladder's own launch: Minecraft's loaded depth, tested, never written.
 
     This run is SEPARATE from the main native launch because the terrain probe clears the
@@ -1141,7 +1219,9 @@ def native_ladder_result(output, expected_device=None, expected_extents=None):
     try:
         report = json.loads((output / "native-depth-ladder.json").read_text())
         result["report"] = report
-        result.update(ladder_report_checks(output, report, expected_device, expected_extents))
+        retained_crops = [p.name for p in output.glob("native-depth-ladder-*.ppm.gz")]
+        result.update(ladder_report_checks(output, report, expected_device, expected_extents,
+                                           retained_crops, log_text))
         latest = result["samples"][-1]
         result["answer"] = (f"{len(result['samples'])} sample(s); the latest (draw"
                             f" {latest['at']}) brackets: " + "; ".join(latest["brackets"])
@@ -1263,10 +1343,14 @@ def native_depth_result(output, expected_device=None):
         if len(report["histogram"]) != report["bins"]:
             raise ValueError(f"the histogram has {len(report['histogram'])} bins but the probe"
                              f" says {report['bins']}")
+        # Round-9 review R9-DEPTH-FINITE: NaN passed the type check and every tolerance
+        # comparison. A number here has to be finite.
         for field in ("min", "max", "topMean", "bottomMean", "clearedValue", "clearedShare"):
             value = report.get(field)
-            if not isinstance(value, (int, float)) or isinstance(value, bool):
-                raise ValueError(f"depth.{field} is {value!r}, not a number")
+            if not finite_number(value):
+                raise ValueError(f"depth.{field} is {value!r}, not a finite number")
+        if any(not finite_int(v) or v < 0 for v in report["histogram"]):
+            raise ValueError(f"the depth histogram holds a non-count: {report['histogram']}")
         if not (0.0 <= report["min"] <= 1.0) or not (0.0 <= report["max"] <= 1.0):
             raise ValueError(f"the depth values are outside [0,1]: min={report['min']}"
                              f" max={report['max']}")
@@ -1880,7 +1964,7 @@ def retain_native_evidence(output, native_output, timestamp, summary):
                                  " measurement cannot be retained")
             wanted = []
             for sample in json.loads(report_path.read_text()).get("samples") or []:
-                for field in ("file", "rejectedFile"):
+                for field in ("file", "rejectedFile", "frameFile"):
                     name = (sample or {}).get(field)
                     if not name:
                         raise ValueError(f"a ladder sample references no {field}, so it"
@@ -2023,14 +2107,39 @@ def replay_evidence(directory):
     # Round-8 review B1: hashes were checked for whichever files were LISTED, so dropping the
     # reports, the summary, the source fingerprint or the log from the manifest (files intact)
     # replayed as 0. Every file in the directory must be a member; MANIFEST.json binds itself.
+    # ⚠ Round-9 review B1: the exemption matched by BASENAME, so a nested ladder/MANIFEST.json
+    # holding anything passed. Only the root manifest binds itself.
     unlisted = sorted(str(path.relative_to(directory)) for path in directory.rglob("*")
-                      if path.is_file() and path.name != "MANIFEST.json"
+                      if path.is_file() and str(path.relative_to(directory)) != "MANIFEST.json"
                       and str(path.relative_to(directory)) not in files)
     outcome["manifest_unlisted"] = unlisted
     outcome["replayed"].append("manifest hashes and completeness")
     if unlisted:
         outcome["error"] = (f"{len(unlisted)} retained file(s) are not manifest members, so"
                             f" nothing binds them to the run: {unlisted[:8]}")
+        print(json.dumps(outcome, indent=2))
+        return 1
+    # ⚠ Round-9 review B1: membership of whatever survived is not an inventory. Deleting the
+    # source fingerprint or a log together with its entry replayed as 0. These must exist.
+    required = ["summary.json", "source-sha256.json", "native.log", "native-marker-draw.json",
+                "native-adopted-context.json", "native-vulkan-probe.json",
+                "native-device-features.json", "native-compute-probe.json",
+                "native-real-shader.json"]
+    stage_for_inventory = ((json.loads((directory / "summary.json").read_text())
+                            .get("stages") or {}).get("native_environment")
+                           if (directory / "summary.json").is_file() else None) or {}
+    if stage_for_inventory.get("ladder_run"):
+        required += ["ladder/native-depth-ladder.json", "ladder/native-result.json",
+                     "ladder/native-ladder.log"]
+    if stage_for_inventory.get("terrain"):
+        required.append("native-terrain-probe.json")
+    if stage_for_inventory.get("depth"):
+        required.append("native-depth-probe.json")
+    missing = [name for name in required if name not in files or not (directory / name).is_file()]
+    outcome["required_missing"] = missing
+    if missing:
+        outcome["error"] = (f"required retained file(s) are absent or unlisted, so the run is"
+                            f" not fully bound: {missing}")
         print(json.dumps(outcome, indent=2))
         return 1
     if bad:
@@ -2111,8 +2220,14 @@ def replay_evidence(directory):
             ladder_device = single_checkpoint_device(ladder_checkpoints)
             ladder_extents = checkpoint_extents(ladder_checkpoints)
             ladder = json.loads(ladder_path.read_text())
-            ladder_checks = ladder_report_checks(ladder_dir, ladder, ladder_device,
-                                                 ladder_extents)
+            ladder_log = ladder_dir / "native-ladder.log"
+            if not ladder_log.is_file():
+                raise ValueError("the ladder launch's log is not retained, so its sample"
+                                 " inventory cannot be reconciled")
+            ladder_checks = ladder_report_checks(
+                ladder_dir, ladder, ladder_device, ladder_extents,
+                [p.name for p in ladder_dir.glob("native-depth-ladder-*.ppm.gz")],
+                ladder_log.read_text(errors="replace"))
             outcome["ladder"] = {"samples": [
                 {k: v for k, v in sample.items() if k != "brackets"} | {"brackets": sample["brackets"]}
                 for sample in ladder_checks["samples"]],
@@ -2124,7 +2239,8 @@ def replay_evidence(directory):
                                        " both orientations")
             for sample in ladder.get("samples") or []:
                 ladder_refs += ["ladder/" + sample.get("file", ""),
-                                "ladder/" + sample.get("rejectedFile", "")]
+                                "ladder/" + sample.get("rejectedFile", ""),
+                                "ladder/" + sample.get("frameFile", "")]
         else:
             outcome["not_replayed"].append("the depth ladder: this run retained no ladder"
                                            " launch, so no bound on Minecraft's depth is"
@@ -2328,8 +2444,9 @@ def main():
             except ValueError as exc:
                 ladder_run["device_error"] = str(exc)
                 ladder_run["success"] = False
-            ladder_run["ladder"] = native_ladder_result(ladder_output, ladder_device,
-                                                        ladder_extents)
+            ladder_run["ladder"] = native_ladder_result(
+                ladder_output, ladder_device, ladder_extents,
+                (output / "native-ladder.log").read_text(errors="replace"))
             ladder_run["success"] &= ladder_run["ladder"]["success"]
             native_log_checks(ladder_run, output / "native-ladder.log")
             ladder_run["scope"] = ("a second Minecraft launch, terrain and marker OFF, so the"
