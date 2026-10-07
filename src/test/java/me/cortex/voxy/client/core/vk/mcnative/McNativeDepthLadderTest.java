@@ -50,13 +50,16 @@ public class McNativeDepthLadderTest {
         float[] z = McNativeDepthLadder.depths();
         assertEquals(8, McNativeDepthLadder.RUNGS);
         assertEquals(8, z.length);
+        var expected = new StringBuilder("\"rungDepths\": [");
         for (int i = 0; i < z.length; i++) {
-            assertEquals((i + 0.5f) / 8, z[i], 1e-7f, "rung " + i);
+            // 2^-16 .. 2^-2, ascending: reverse-Z depth of order near/d, ~3000 down to 0.2 blocks
+            assertEquals(Math.scalb(1.0f, -(16 - 2 * i)), z[i], 0f, "rung " + i);
+            if (i > 0) assertTrue(z[i] > z[i - 1], "rungs must ascend so survivors form a prefix");
+            expected.append(i > 0 ? ", " : "").append(z[i]);
         }
         String json = McNativeDepthLadder.json();
         assertTrue(json.contains("\"rungs\": 8"), json);
-        assertTrue(json.contains("\"rungDepths\": [0.0625, 0.1875, 0.3125, 0.4375, 0.5625,"
-            + " 0.6875, 0.8125, 0.9375]"), json);
+        assertTrue(json.contains(expected.append(']').toString()), json);
         assertTrue(json.contains("\"band\": [-0.6, 0.36, 0.6, 0.2]"), json);
         assertTrue(json.contains("\"inlineControlBand\": [-0.6, 0.4, 0.6, 0.37]"), json);
         assertTrue(json.contains("\"controlBand\": [-0.6, 0.16, 0.6, 0.06]"), json);

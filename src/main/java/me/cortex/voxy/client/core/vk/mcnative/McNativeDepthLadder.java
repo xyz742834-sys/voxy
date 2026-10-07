@@ -49,11 +49,22 @@ import static org.lwjgl.vulkan.VK10.*;
  * {@code depthWriteEnable = false}。カラーには書く (梯子が見える) が、深度は読むだけである。
  * {@link McNativeTerrainProbe} と違い MC のシーンをクリアもしない。
  *
- * <h2>反証可能な予測</h2>
- * Voxy は逆Z ({@code VkDepth.CLEAR = FAR = 0.0}) である。もし MC の深度が本当に全画素 0.0 なら、
- * すべての段の {@code z_i > 0} なので <b>1 本も残らない</b>。一方 ALWAYS で描く対照帯は残る。
- * 逆に<b>どれかが残れば</b>、深度は 0.0 ではなく {@link McNativeDepthProbe} の読み戻しが
- * 中身を運べていないことになる。どちらに転んでも、前の結果の曖昧さが解ける。
+ * <h2>段の置き方 — 逆Z の深度が実際に住む場所に置く</h2>
+ * 最初の版は段を {@code (i+0.5)/8} と<b>線形</b>に置き、地形の帯で全段が落ちた。それは
+ * 「深度がクリアされている」と「正しい逆Z のシーン深度」を<b>区別しない</b>結果だった:
+ * MC は frame graph の先頭で深度を 0.0 にクリアし ({@code LevelRenderer.render} の clear pass、
+ * 26.2 bytecode)、投影は {@code setPerspective(fov, aspect, zFar, zNear, ..)} と near/far を
+ * 入れ替えて組む (同 {@code Projection})。つまり逆Z で、距離 d の面の深度は near/d 程度
+ * (near 0.05 なら 1 ブロック先で 0.05、30 ブロック先で 0.0017) — 線形の段は全部
+ * 「カメラから 1 ブロック以内」を試していた。
+ *
+ * <p>段はいま {@code 2^-16 .. 2^-2} (昇順) に置く。near 0.05 なら約 3000 ブロックから
+ * 0.2 ブロックまでを覆う。残った接頭辞が途中で途切れれば、その帯のシーン深度が
+ * <b>本当に残っている</b>ことと、その値の範囲が分かる。{@code 2^-16} すら残らなければ、
+ * この hook の深度は本当に ~0 である。
+ *
+ * <p>⚠ 上の near/far 入れ替えとクリア値は<b>ソースから読んだ事実</b>で、この probe が測った
+ * ものではない。この probe は規約を主張しない (下)。
  *
  * <h2>⚠ 規約 (逆Zか否か) は<b>まだ述べない</b></h2>
  * 梯子は「その帯の深度値」を測るだけである。0.3 が残って 0.7 が落ちたとして、それが
@@ -169,10 +180,16 @@ public final class McNativeDepthLadder implements Destroyable {
         }
     }
 
-    /** 各段の NDC 深度。等間隔に置く。 */
+    /**
+     * 各段の NDC 深度。{@code 2^-16, 2^-14, …, 2^-2} の昇順。
+     *
+     * <p>昇順でなければならない: 比較 LESS では残る集合が接頭辞になる、という gate の
+     * 規則がそれに依る。間隔は {@code scripts/verify.py} の {@code EXPECTED_LADDER_DEPTHS} と
+     * <b>同じ式</b>で固定されている。
+     */
     public static float[] depths() {
         float[] z = new float[RUNGS];
-        for (int i = 0; i < RUNGS; i++) z[i] = (i + 0.5f) / RUNGS;
+        for (int i = 0; i < RUNGS; i++) z[i] = Math.scalb(1.0f, -(16 - 2 * i));
         return z;
     }
 

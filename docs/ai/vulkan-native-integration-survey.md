@@ -1036,12 +1036,36 @@ scene depth and shows the copy was the broken part; no survivor down to 2⁻¹�
 attachment really is ~0 at this hook. The gate's prefix rule, pinned depths and recount carry
 over unchanged.
 
+**Measured with the re-rung ladder (2026-10-07, run
+[20261007T011026-211934Z](runs/native-evidence/20261007T011026-211934Z/MANIFEST.json), its own
+isolated launch, retained under `ladder/`):** with rungs 2⁻¹⁶ … 2⁻², column 0 (z = 2⁻¹⁶) is
+**76 % magenta**, column 1 (2⁻¹⁴) 7 %, column 2 (2⁻¹²) 0.1 %, the rest 0; every control filled
+as before. So the attachment at the tail holds **non-zero depth**. The retained crop
+(`ladder/native-depth-ladder-2.ppm.gz`) also shows what the band was looking at when the sample
+was taken — draw 2, the first frames after the world opened: **clouds over sky, no terrain loaded
+yet**, and the magenta survives exactly over the clouds. Under Minecraft's swapped-near/far
+projection the depth of a surface at distance *d* is about 0.05/*d* − 10⁻⁴, so 1.5×10⁻⁵ < z ≤
+6×10⁻⁵ is roughly 300–3000 blocks: the cloud layer. This is what a correct reverse-Z scene looks
+like, and it is **inconsistent with the buffer copy's exact 0.0 at every pixel**. The copy, not
+the attachment, is now the suspect; its failure mode is not identified and nothing more is
+claimed. The first run's all-rungs-rejected result is explained the same way: its rungs started
+at 0.0625, above anything in that frame.
+
+⚠ Round 8 ([r8](runs/native-integration-review-r8.md)) refuted this ladder's *inference*, not
+its colour counts: eight columns test eight different pixel sets, so a prefix of survivors is
+not a bound on one depth; the adjacent ALWAYS stripe is not a same-pixel control and there is
+no positive control for the LESS path; "< 80 % filled" is not "rejected at every pixel"; NaN
+and a producer-controlled target extent pass the gate. The next revision stacks every threshold
+on the **same pixels** and encodes each pixel's bracket in colour, adds a GREATER draw as the
+positive control, and samples repeatedly through the session rather than once at draw 2.
+
 **What this does not establish.** The Z convention: a single band of known depths bounds a
 *value*, and which direction of that value is nearer cannot be read from one band — the same
 hole round 7 found in the band heuristic, which is not reintroduced; the report asserts
-`zConventionMeasuredHere: false` and the gate fails any other value. Whether the attachment at
-this hook holds scene depth at all is, per the retraction above, **open**. The band is one
-region of the screen; nothing is claimed about other regions.
+`zConventionMeasuredHere: false` and the gate fails any other value. Minecraft's clear-to-0.0
+and swapped near/far are source facts, not this probe's measurement. The band is one region of
+the screen; nothing is claimed about other regions, about terrain (none was loaded in the
+sampled frame), or about the copy's failure mode.
 
 **The gate.** `ladder_report_checks` is one function called by the stage and by
 `--replay-evidence`; the rung depths and the three band rectangles are asserted against the

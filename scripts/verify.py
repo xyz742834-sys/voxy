@@ -774,11 +774,15 @@ def recount_marker_sample(output, report, rb):
 
 
 # The ladder's rung depths and bands, derived the same way the source does
-# (McNativeDepthLadder: (i + 0.5) / RUNGS, BAND_*, INLINE_CONTROL_*, CONTROL_*).
+# (McNativeDepthLadder: 2^-(16 - 2i), BAND_*, INLINE_CONTROL_*, CONTROL_*).
 # ⚠ Pinned for the same reason as the marker geometry: a producer-published ladder is not a
 # reference the gate can check anything against.
+# ⚠ Why these depths: Minecraft clears depth to 0.0 and builds its projection with near/far
+# swapped (reverse-Z), so a surface at distance d has depth of order near/d. The first ladder
+# was linear in [0.0625, 0.9375] — the first block in front of the camera — and could not tell
+# a cleared attachment from correct scene depth. These cover ~3000 blocks down to 0.2 blocks.
 LADDER_RUNGS = 8
-EXPECTED_LADDER_DEPTHS = [(i + 0.5) / LADDER_RUNGS for i in range(LADDER_RUNGS)]
+EXPECTED_LADDER_DEPTHS = [2.0 ** -(16 - 2 * i) for i in range(LADDER_RUNGS)]
 EXPECTED_LADDER_BANDS = {"band": [-0.6, 0.36, 0.6, 0.2],
                          "inlineControlBand": [-0.6, 0.4, 0.6, 0.37],
                          "controlBand": [-0.6, 0.16, 0.6, 0.06]}
@@ -890,7 +894,8 @@ def ladder_report_checks(output, report, expected_device=None):
     checks["device"] = handle
     depths = report["rungDepths"]
     if len(depths) != LADDER_RUNGS or any(
-            not isinstance(a, (int, float)) or isinstance(a, bool) or abs(a - b) > 1e-6
+            not isinstance(a, (int, float)) or isinstance(a, bool)
+            or abs(a - b) > 1e-9 + 1e-6 * abs(b)
             for a, b in zip(depths, EXPECTED_LADDER_DEPTHS)):
         raise ValueError(f"the ladder publishes depths {depths}, not the"
                          f" {EXPECTED_LADDER_DEPTHS} its source lays out")
@@ -939,7 +944,7 @@ def ladder_report_checks(output, report, expected_device=None):
             if got is not None:
                 raise ValueError(f"ladder.{label} is {got!r} but no rung justifies it")
         elif (not isinstance(got, (int, float)) or isinstance(got, bool)
-              or abs(got - want) > 1e-6):
+              or abs(got - want) > 1e-9 + 1e-6 * abs(want)):
             raise ValueError(f"ladder.{label} is {got!r} but the surviving set says {want}")
     checks["bounds"] = {"lower": lower, "upper": upper}
     checks["recount"] = recount_ladder_sample(output, report)
@@ -1781,14 +1786,51 @@ def retain_native_evidence(output, native_output, timestamp, summary):
             if "ladder/" + wanted not in ladder_kept:
                 raise ValueError(f"the ladder report references {wanted}, which was not"
                                  f" retained; the evidence would point at nothing")
+            # ⚠ What the band was looking at is part of the claim ("over terrain", not
+            # "over sky"); keep a crop of the band from every captured frame, both ends
+            # because the frame's row order is y-ambiguous, with origins stated.
+            crops, crop_origins = retain_ladder_band_crops(ladder_output, ladder_target)
+            ladder_kept.update(crops)
             kept["files"].update(ladder_kept)
             kept["ladder"] = {"path": "ladder", "files": sorted(ladder_kept),
-                              "sample": "ladder/" + wanted}
+                              "sample": "ladder/" + wanted,
+                              "band_crops": sorted(crops), "band_crop_origins": crop_origins}
         (target / "MANIFEST.json").write_text(json.dumps(kept, indent=2) + "\n")
         kept["path"] = str(target.relative_to(ROOT))
     except (OSError, ValueError) as exc:
         kept["error"] = str(exc)
     return kept
+
+
+def retain_ladder_band_crops(ladder_output, target):
+    """Save a PNG of the ladder band (inline control top to control-band bottom) from every
+    captured frame of the ladder launch. Visual record only: the gate does not read these."""
+    band = EXPECTED_LADDER_BANDS["band"]
+    top = EXPECTED_LADDER_BANDS["inlineControlBand"][1]
+    bottom = EXPECTED_LADDER_BANDS["controlBand"][3]
+    kept, origins = {}, {}
+    for png in sorted(ladder_output.glob("*.png")):
+        try:
+            width, height = png_size(png)
+            x0 = max(0, int((band[0] + 1.0) * 0.5 * width) - 2)
+            x1 = min(width, int((band[2] + 1.0) * 0.5 * width) + 2)
+            ys = [int((1.0 - v) * 0.5 * height) for v in (top, bottom)]
+            for label, rows_range in (("top", ys), ("bottom", [height - y for y in ys])):
+                y0, y1 = max(0, min(rows_range) - 2), min(height, max(rows_range) + 2)
+                if y1 <= y0:
+                    continue
+                rows, _ = top_rows_rgb(png, y1 + 1)
+                crop = [row[x0:x1] for row in rows[y0:y1]]
+                if not crop or not crop[0]:
+                    continue
+                name = f"crop-{png.stem}-band-{label}.png"
+                write_rgb_png(target / name, crop)
+                kept["ladder/" + name] = hashlib.sha256((target / name).read_bytes()).hexdigest()
+                origins["ladder/" + name] = {"parent": [width, height], "origin": [x0, y0],
+                                             "size": [len(crop[0]), len(crop)], "end": label}
+        except (OSError, ValueError):
+            continue
+    return kept, origins
 
 
 def retain_marker_crops(native_output, target):

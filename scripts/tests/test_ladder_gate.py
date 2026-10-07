@@ -30,6 +30,7 @@ from test_marker_gate import write_gz_ppm
 # the suite faster without checking every band still resolves to a non-empty rectangle.
 FULL_W, FULL_H = 960, 540
 RUNGS = verify.LADDER_RUNGS
+D = verify.EXPECTED_LADDER_DEPTHS
 BANDS = verify.EXPECTED_LADDER_BANDS
 MAGENTA, CYAN, BACKGROUND = (255, 0, 255), (0, 255, 255), (90, 90, 90)
 # The device the shared lifecycle-checkpoint fixture names; the ladder must name the same one.
@@ -138,8 +139,8 @@ class LadderGateTest(unittest.TestCase):
         """What the isolated run produced: every LESS rung empty, every control filled."""
         result = self.run_gate()
         self.assertTrue(result["success"], result["failures"])
-        self.assertEqual(result["bounds"], {"lower": None, "upper": 0.0625})
-        self.assertIn("<= 0.0625", result["answer"])
+        self.assertEqual(result["bounds"], {"lower": None, "upper": D[0]})
+        self.assertIn(f"<= {D[0]}", result["answer"])
         self.assertIn("unmeasured", result["answer"])
         self.assertFalse(result["z_convention_measured"])
         self.assertEqual(result["recount"]["survived"], [False] * RUNGS)
@@ -148,20 +149,20 @@ class LadderGateTest(unittest.TestCase):
     def test_a_surviving_prefix_bounds_the_depth_from_both_sides(self):
         result = self.run_gate(report(survivors=3), crop(survivors=3))
         self.assertTrue(result["success"], result["failures"])
-        self.assertEqual(result["bounds"], {"lower": 0.3125, "upper": 0.4375})
-        self.assertIn("in (0.3125, 0.4375]", result["answer"])
+        self.assertEqual(result["bounds"], {"lower": D[2], "upper": D[3]})
+        self.assertIn(f"in ({D[2]}, {D[3]}]", result["answer"])
 
     def test_every_rung_surviving_gives_only_a_lower_bound(self):
         result = self.run_gate(report(survivors=RUNGS), crop(survivors=RUNGS))
         self.assertTrue(result["success"], result["failures"])
-        self.assertEqual(result["bounds"], {"lower": 0.9375, "upper": None})
+        self.assertEqual(result["bounds"], {"lower": D[7], "upper": None})
 
     # ---- orientation: the recount must not guess ----
 
     def test_a_flipped_sample_passes_when_the_orientation_is_published(self):
         result = self.run_gate(report(survivors=2, flipped=True), crop(survivors=2, flipped=True))
         self.assertTrue(result["success"], result["failures"])
-        self.assertEqual(result["bounds"], {"lower": 0.1875, "upper": 0.3125})
+        self.assertEqual(result["bounds"], {"lower": D[1], "upper": D[2]})
         self.assertTrue(result["recount"]["flipped"])
 
     def test_lying_about_the_orientation_fails(self):
@@ -203,7 +204,7 @@ class LadderGateTest(unittest.TestCase):
         self.assertFails(self.run_gate(body), "survived after an earlier rung failed")
 
     def test_bounds_disagreeing_with_the_surviving_set_fail(self):
-        self.assertFails(self.run_gate(report(survivors=3, lowerBound=0.0625),
+        self.assertFails(self.run_gate(report(survivors=3, lowerBound=D[0]),
                                        crop(survivors=3)), "lowerBound")
         self.assertFails(self.run_gate(report(survivors=3, upperBound=None),
                                        crop(survivors=3)), "upperBound")
@@ -212,8 +213,8 @@ class LadderGateTest(unittest.TestCase):
     def test_a_survived_flag_contradicting_its_fill_fails(self):
         body = report()
         body["rungSurvived"][0] = True
-        body["lowerBound"] = 0.0625
-        body["upperBound"] = 0.1875
+        body["lowerBound"] = D[0]
+        body["upperBound"] = D[1]
         self.assertFails(self.run_gate(body), "says survived=True but its fill is 0.0")
 
     def test_published_survivors_the_pixels_do_not_show_fail(self):
@@ -283,7 +284,7 @@ class LadderGateTest(unittest.TestCase):
 
     def test_published_depths_that_differ_from_the_source_fail(self):
         body = report()
-        body["rungDepths"][0] = 0.01
+        body["rungDepths"][0] = D[0] * 2
         self.assertFails(self.run_gate(body), "not the")
 
     def test_published_bands_that_differ_from_the_source_fail(self):
@@ -400,7 +401,7 @@ class LadderRetentionTest(unittest.TestCase):
         target, _ = self.build(survivors=3, flipped=True)
         code, out = self.replay(target)
         self.assertEqual(code, 0, out)
-        self.assertEqual(out["ladder"]["bounds"], {"lower": 0.3125, "upper": 0.4375})
+        self.assertEqual(out["ladder"]["bounds"], {"lower": D[2], "upper": D[3]})
         self.assertEqual(out["ladder"]["recount"]["survived"],
                          [True, True, True] + [False] * (RUNGS - 3))
         self.assertTrue(out["ladder"]["recount"]["flipped"])
@@ -425,7 +426,7 @@ class LadderRetentionTest(unittest.TestCase):
                       {"device": "0xdead"}, {"lowerBound": 0.5},
                       {"rungSurvived": [True] + [False] * (RUNGS - 1),
                        "rungFill": [1.0] + [0.0] * (RUNGS - 1),
-                       "lowerBound": 0.0625, "upperBound": 0.1875}):
+                       "lowerBound": D[0], "upperBound": D[1]}):
             target, _ = self.build()
             path = target / "ladder" / "native-depth-ladder.json"
             body = json.loads(path.read_text())
