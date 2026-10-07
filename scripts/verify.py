@@ -886,6 +886,9 @@ def device_handle_of(value, name, field):
 
 LADDER_FRAME_SCALE = 4
 LADDER_SAMPLE_LOG = re.compile(r"depth ladder sample at draw (\d+) ")
+LADDER_SAMPLE_LOG_DETAIL = re.compile(
+    r"depth ladder sample at draw (\d+) flipped=(true|false) counts=\[anomaly=(\d+) low=(\d+)"
+    r" r0=(\d+) r1=(\d+) r2=(\d+) r3=(\d+) r4=(\d+) r5=(\d+) r6=(\d+) r7=(\d+) other=(\d+)\]")
 
 
 def ladder_report_checks(output, report, expected_device=None, expected_extents=None,
@@ -1004,6 +1007,24 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
         if logged != listed:
             raise ValueError(f"the ladder launch logged samples at draws {logged} but the"
                              f" report lists {listed}")
+        # ⚠ Round-10 review R10-LOG-DETAILS: only the draw numbers were reconciled, so the
+        # log's orientation and counts could drift from the report. Each logged line must
+        # state the orientation and the eleven counts the report publishes for that draw.
+        details = {int(m[0]): m[1:] for m in LADDER_SAMPLE_LOG_DETAIL.findall(log_text)}
+        for sample in samples:
+            if not isinstance(sample, dict) or not finite_int(sample.get("at")):
+                continue
+            line = details.get(sample["at"])
+            if line is None:
+                raise ValueError(f"the ladder log line for draw {sample['at']} does not state"
+                                 f" its orientation and counts")
+            counts = sample.get("counts") or {}
+            want = [str(sample.get("flipped")).lower(), str(counts.get("anomaly")),
+                    str(counts.get("low"))] + [str(v) for v in (counts.get("rungs") or [])] \
+                   + [str(counts.get("other"))]
+            if list(line) != want:
+                raise ValueError(f"the ladder log for draw {sample['at']} says"
+                                 f" flipped/counts {list(line)} but the report says {want}")
     checks["samples"] = []
     last_at = 0
     for index, sample in enumerate(samples):
@@ -2062,6 +2083,39 @@ def retain_marker_crops(native_output, target):
     return kept, origins
 
 
+REPO = Path(__file__).resolve().parent.parent
+SOURCE_BINDING_MINIMUM = 100
+SOURCE_BINDING_REQUIRED = ("scripts/verify.py", "build.gradle",
+                           "src/main/java/me/cortex/voxy/client/core/vk/mcnative/"
+                           "McNativeDepthLadder.java",
+                           "src/main/java/me/cortex/voxy/client/core/vk/mcnative/"
+                           "McNativeMarkerDraw.java")
+
+
+def source_binding(fingerprints):
+    """Check a retained source fingerprint against the repository this replay runs in."""
+    if not isinstance(fingerprints, dict):
+        raise ValueError("the fingerprint is not a map of file to sha256")
+    if len(fingerprints) < SOURCE_BINDING_MINIMUM:
+        raise ValueError(f"the fingerprint names only {len(fingerprints)} file(s); a run of"
+                         f" this tree fingerprints hundreds")
+    for name in SOURCE_BINDING_REQUIRED:
+        if name not in fingerprints:
+            raise ValueError(f"the fingerprint does not name {name}")
+    mismatched, absent = [], []
+    for name, digest in fingerprints.items():
+        if not isinstance(name, str) or not isinstance(digest, str) \
+                or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise ValueError(f"the fingerprint entry {name!r}: {digest!r} is not a sha256")
+        path = REPO / name
+        if not path.is_file():
+            absent.append(name)
+        elif hashlib.sha256(path.read_bytes()).hexdigest() != digest:
+            mismatched.append(name)
+    return {"entries": len(fingerprints), "mismatched": sorted(mismatched),
+            "absent": sorted(absent), "checkout": str(REPO)}
+
+
 def replay_evidence(directory):
     """Re-check a retained evidence directory without launching anything.
 
@@ -2140,6 +2194,24 @@ def replay_evidence(directory):
     if missing:
         outcome["error"] = (f"required retained file(s) are absent or unlisted, so the run is"
                             f" not fully bound: {missing}")
+        print(json.dumps(outcome, indent=2))
+        return 1
+    # ⚠ Round-10 review B1: the fingerprint only had to exist. Replaced by `{}` it still
+    # replayed as 0. It must name the sources the run was built from, and they must be the
+    # sources of THIS checkout — that is what binds the retained run to the candidate.
+    try:
+        binding = source_binding(json.loads((directory / "source-sha256.json").read_text()))
+    except (ValueError, TypeError, OSError) as exc:
+        outcome["error"] = f"source-sha256.json does not bind the run: {exc}"
+        print(json.dumps(outcome, indent=2))
+        return 1
+    outcome["source_binding"] = binding
+    outcome["replayed"].append("source fingerprint against this checkout")
+    if binding["mismatched"] or binding["absent"]:
+        outcome["error"] = (f"the retained source fingerprint disagrees with this checkout:"
+                            f" {len(binding['mismatched'])} file(s) differ,"
+                            f" {len(binding['absent'])} absent; the run was not built from"
+                            f" these sources: {(binding['mismatched'] + binding['absent'])[:6]}")
         print(json.dumps(outcome, indent=2))
         return 1
     if bad:

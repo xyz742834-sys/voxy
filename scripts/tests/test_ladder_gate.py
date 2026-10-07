@@ -26,6 +26,9 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import verify
+# Fingerprinted once, from the real repository, before any test swaps verify.ROOT for a
+# temporary directory: replay now requires the retained fingerprint to match the checkout.
+REAL_FINGERPRINTS = verify.source_fingerprints()
 from verify import native_ladder_result, retain_native_evidence, replay_evidence
 import test_marker_gate
 from test_marker_gate import write_gz_ppm
@@ -171,8 +174,15 @@ def write_sample_files(out, body, field, selected=None, rejected=None, frame_fro
 
 
 def log_for(samples):
-    return "".join(f"[native-vk] depth ladder sample at draw {s.get('at', 0)} flipped=x\n"
-                   for s in samples)
+    """Log lines in the implementation's format, derived from the samples' own fields."""
+    lines = []
+    for s in samples:
+        c = s.get("counts") or {}
+        rungs = " ".join(f"r{i}={v}" for i, v in enumerate(c.get("rungs") or []))
+        lines.append(f"[native-vk] depth ladder sample at draw {s.get('at', 0)}"
+                     f" flipped={str(s.get('flipped', False)).lower()} counts=[anomaly="
+                     f"{c.get('anomaly')} low={c.get('low')} {rungs} other={c.get('other')}]\n")
+    return "".join(lines)
 
 
 class LadderGateTest(unittest.TestCase):
@@ -330,6 +340,19 @@ class LadderGateTest(unittest.TestCase):
         body = report(samples=[s1])
         self.assertFails(self.run_gate(body, [f1], log=log_for([s1, s2])), "logged samples")
         self.assertFails(self.run_gate(body, [f1], log=""), "logged samples")
+
+    def test_log_details_that_disagree_with_the_report_fail(self):
+        """Round-10 R10-LOG-DETAILS: orientation and counts in the log drifted unnoticed."""
+        body, fields = self.one()
+        text = log_for(body["samples"]).replace("flipped=false", "flipped=true")
+        self.assertFails(self.run_gate(body, fields, log=text), "flipped/counts")
+        body, fields = self.one()
+        low = body["samples"][0]["counts"]["low"]
+        text = log_for(body["samples"]).replace(f"low={low}", "low=999999")
+        self.assertFails(self.run_gate(body, fields, log=text), "flipped/counts")
+        body, fields = self.one()
+        text = f"[native-vk] depth ladder sample at draw {body['samples'][0]['at']} \n"
+        self.assertFails(self.run_gate(body, fields, log=text), "orientation and counts")
 
     def test_the_pinned_constants_are_the_literal_ones(self):
         """Round-9: the fixtures share the gate's constants, so doubling them in memory kept
@@ -526,7 +549,7 @@ class LadderRetentionTest(unittest.TestCase):
         helper = test_marker_gate.EvidenceRetentionTest()
         helper.populate(native_output)
         (root / "native.log").write_text("log\n")
-        (root / "source-sha256.json").write_text("{}\n")
+        (root / "source-sha256.json").write_text(json.dumps(REAL_FINGERPRINTS))
         # The shared checkpoint fixture names a device; the ladder also needs the colour
         # extent each checkpoint observed, which is what pins the sample's frame size.
         checkpoints = json.loads(json.dumps(test_marker_gate.ProofFileGateTest.CHECKPOINTS))
@@ -684,6 +707,23 @@ class LadderRetentionTest(unittest.TestCase):
             code, out = self.replay(target)
             self.assertEqual(code, 1, name)
             self.assertIn(name, out["error"])
+
+    def test_an_empty_or_disagreeing_source_fingerprint_is_rejected(self):
+        """Round-10 B1: a hash-listed `{}` fingerprint replayed as 0."""
+        for content, fragment in (("{}", "names only 0"),
+                                  (json.dumps({"scripts/verify.py": "00" * 32,
+                                               **{f"src/x{i}.java": "11" * 32
+                                                  for i in range(120)}}),
+                                   "does not name build.gradle"),
+                                  (json.dumps({**REAL_FINGERPRINTS,
+                                               "scripts/verify.py": "ab" * 32}),
+                                   "disagrees with this checkout")):
+            target, _ = self.build()
+            (target / "source-sha256.json").write_text(content)
+            self.rehash(target, "source-sha256.json")
+            code, out = self.replay(target)
+            self.assertEqual(code, 1, content[:40])
+            self.assertIn(fragment, out["error"])
 
     def test_a_nested_manifest_is_not_exempt(self):
         """Round-9 B1: the exemption matched by basename, so ladder/MANIFEST.json passed."""

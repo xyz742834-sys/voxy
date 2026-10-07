@@ -73,6 +73,41 @@ public class McNativeDepthLadderTest {
     }
 
     /**
+     * <b>作成経路そのものが、表の添字どおりの比較演算と書き込み無効を create-info に入れること。</b>
+     *
+     * <p>round-10 review R10-CREATE-TEST: 表と helper を検査するテストは、create() の呼び出し
+     * 箇所で LESS を ALWAYS に差し替える変異を見逃した。ここでは {@code buildPipelines} —
+     * {@code create()} が本番で使う同じ経路 — を偽の creator で呼び、渡された create-info の
+     * 深度状態を添字ごとに検査する。デバイスは要らない (作成関数を呼ばないので)。
+     */
+    @Test
+    void creationHandsTheCreatorTheTablesCompareOpsWithWritesOff() {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            var seen = new java.util.ArrayList<int[]>();
+            long[] handles = McNativeDepthLadder.buildPipelines(stack, 0L, 0L, 0L, 37, 126,
+                info -> {
+                    var ds = info.get(0).pDepthStencilState();
+                    assertNotNull(ds, "every pipeline must carry a depth-stencil state");
+                    seen.add(new int[] {ds.depthCompareOp(), ds.depthTestEnable() ? 1 : 0,
+                        ds.depthWriteEnable() ? 1 : 0});
+                    assertEquals(126, info.get(0).pNext() == 0 ? -1
+                        : org.lwjgl.vulkan.VkPipelineRenderingCreateInfo.create(info.get(0).pNext())
+                            .depthAttachmentFormat(), "the depth attachment format must be passed");
+                    return 1000 + seen.size();
+                });
+            assertEquals(3, seen.size(), "exactly three pipelines are built");
+            assertArrayEquals(new long[] {1001, 1002, 1003}, handles);
+            assertEquals(VK_COMPARE_OP_LESS, seen.get(McNativeDepthLadder.OP_LESS)[0]);
+            assertEquals(VK_COMPARE_OP_ALWAYS, seen.get(McNativeDepthLadder.OP_ALWAYS)[0]);
+            assertEquals(VK_COMPARE_OP_GREATER, seen.get(McNativeDepthLadder.OP_GREATER)[0]);
+            for (int[] state : seen) {
+                assertEquals(1, state[1], "depth test on");
+                assertEquals(0, state[2], "depth writes OFF in the create-info the creator receives");
+            }
+        }
+    }
+
+    /**
      * <b>gate が固定している基準と同じ定数を出すこと。</b>
      *
      * <p>{@code scripts/verify.py} は段の深度、帯、パレットを<b>自分の定数</b>と比べる

@@ -19,6 +19,9 @@ import zlib
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import verify
+# Fingerprinted once, from the real repository, before any test swaps verify.ROOT for a
+# temporary directory: replay now requires the retained fingerprint to match the checkout.
+REAL_FINGERPRINTS = verify.source_fingerprints()
 from pixel_oracle import top_rows_rgb
 from verify import (native_marker_result, native_proof_files_result,
                     retain_native_evidence, replay_evidence)
@@ -743,7 +746,7 @@ class EvidenceRetentionTest(unittest.TestCase):
         native_output.mkdir()
         self.populate(native_output, with_sample)
         (root / "native.log").write_text("log\n")
-        (root / "source-sha256.json").write_text("{}\n")
+        (root / "source-sha256.json").write_text(json.dumps(REAL_FINGERPRINTS))
         (root / "summary.json").write_text(json.dumps({"stages": {"native_environment":
             {"gate": {"checkpoints": ProofFileGateTest.CHECKPOINTS}}}}))
         original = verify.ROOT
@@ -1071,7 +1074,10 @@ class DepthProbeGateTest(unittest.TestCase):
     bands separated — forcing certainty from an unproven premise. The inference is gone; these
     cases hold both repairs in place.
     """
-    W, H = 48, 32
+    # ⚠ Round-10 review R10-DEPTH-FIXTURE: at 32 rows the band mean covers one row, so a
+    # recount that averaged a single row instead of height // 50 passed every case. 100 rows
+    # make the band two rows, which that defect cannot reproduce.
+    W, H = 48, 100
 
     def pixels(self, uniform=True, value=0.0):
         if uniform:

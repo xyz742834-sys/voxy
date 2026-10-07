@@ -619,12 +619,24 @@ public final class McNativeDepthLadder implements Destroyable {
                 return null;
             }
             layout = handle[0];
+            // ⚠ round-10 review R10-CREATE-TEST: the test must exercise THIS path, not a copy
+            // of its table. buildPipelines builds every create-info and hands it to the
+            // creator; the test injects a creator that inspects the info instead of Vulkan.
+            final var device$ = vk;
+            long[] built = buildPipelines(stack, vertexModule, fragmentModule, layout,
+                colourFormat, depthFormat, info -> {
+                    long[] out = new long[1];
+                    if (vkCreateGraphicsPipelines(device$, VK_NULL_HANDLE, info, null, out)
+                            != VK_SUCCESS) {
+                        note("vkCreateGraphicsPipelines failed for the depth ladder (compare "
+                            + info.get(0).pDepthStencilState().depthCompareOp() + ")");
+                        return 0;
+                    }
+                    return out[0];
+                });
+            System.arraycopy(built, 0, pipelines, 0, built.length);
             boolean complete = true;
-            for (int i = 0; i < PIPELINE_COMPARE_OPS.length; i++) {
-                pipelines[i] = pipeline(vk, stack, vertexModule, fragmentModule, layout,
-                    colourFormat, depthFormat, PIPELINE_COMPARE_OPS[i]);
-                complete &= pipelines[i] != 0;
-            }
+            for (long handle$ : pipelines) complete &= handle$ != 0;
             if (!complete) {
                 destroy(vk, vertexModule, fragmentModule, layout, pipelines);
                 return null;
@@ -674,9 +686,32 @@ public final class McNativeDepthLadder implements Destroyable {
         return PIPELINE_COMPARE_OPS.clone();
     }
 
-    private static long pipeline(org.lwjgl.vulkan.VkDevice vk, MemoryStack stack,
-                                 long vertexModule, long fragmentModule, long layout,
-                                 int colourFormat, int depthFormat, int depthCompare) {
+    /** 作成の注入点: 実運用では {@code vkCreateGraphicsPipelines}、テストでは検査。 */
+    @FunctionalInterface
+    interface PipelineCreator {
+        long create(org.lwjgl.vulkan.VkGraphicsPipelineCreateInfo.Buffer info);
+    }
+
+    /**
+     * {@link #PIPELINE_COMPARE_OPS} の各演算について create-info を組み、{@code creator} に渡す。
+     * 返り値は同じ添字のハンドル (0 = 失敗)。{@link #create} はこれを本物の作成関数で呼び、
+     * テストは偽の creator で<b>同じ経路</b>が組んだ深度状態を検査する。
+     */
+    static long[] buildPipelines(MemoryStack stack, long vertexModule, long fragmentModule,
+                                 long layout, int colourFormat, int depthFormat,
+                                 PipelineCreator creator) {
+        long[] handles = new long[PIPELINE_COMPARE_OPS.length];
+        for (int i = 0; i < PIPELINE_COMPARE_OPS.length; i++) {
+            var info = pipelineInfo(stack, vertexModule, fragmentModule, layout, colourFormat,
+                depthFormat, PIPELINE_COMPARE_OPS[i]);
+            handles[i] = creator.create(info);
+        }
+        return handles;
+    }
+
+    private static org.lwjgl.vulkan.VkGraphicsPipelineCreateInfo.Buffer pipelineInfo(
+            MemoryStack stack, long vertexModule, long fragmentModule, long layout,
+            int colourFormat, int depthFormat, int depthCompare) {
         var stages = org.lwjgl.vulkan.VkPipelineShaderStageCreateInfo.calloc(2, stack);
         stages.get(0).sType$Default().stage(VK_SHADER_STAGE_VERTEX_BIT)
             .module(vertexModule).pName(stack.UTF8("main"));
@@ -708,19 +743,12 @@ public final class McNativeDepthLadder implements Destroyable {
         var rendering = org.lwjgl.vulkan.VkPipelineRenderingCreateInfo.calloc(stack)
             .sType$Default().pColorAttachmentFormats(stack.ints(colourFormat))
             .depthAttachmentFormat(depthFormat);
-        var info = org.lwjgl.vulkan.VkGraphicsPipelineCreateInfo.calloc(1, stack).sType$Default()
+        return org.lwjgl.vulkan.VkGraphicsPipelineCreateInfo.calloc(1, stack).sType$Default()
             .pNext(rendering).pStages(stages).pVertexInputState(vertexInput)
             .pInputAssemblyState(assembly).pViewportState(viewportState)
             .pRasterizationState(raster).pMultisampleState(multisample)
             .pDepthStencilState(depthStencil).pColorBlendState(blend).pDynamicState(dynamic)
             .layout(layout);
-        long[] handle = new long[1];
-        if (vkCreateGraphicsPipelines(vk, VK_NULL_HANDLE, info, null, handle) != VK_SUCCESS) {
-            note("vkCreateGraphicsPipelines failed for the depth ladder (compare "
-                + depthCompare + ")");
-            return 0;
-        }
-        return handle[0];
     }
 
     private static void destroy(org.lwjgl.vulkan.VkDevice vk, long vertexModule,

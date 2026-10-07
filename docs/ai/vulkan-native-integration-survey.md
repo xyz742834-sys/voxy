@@ -457,7 +457,8 @@ of the point — and the replay status of each is:
 | [20261007T005606-024013Z](runs/native-evidence/20261007T005606-024013Z/MANIFEST.json) | no — its ladder report predates the per-pixel schema (`palette`, `samples`); round-8 refuted that ladder's inference |
 | [20261007T011026-211934Z](runs/native-evidence/20261007T011026-211934Z/MANIFEST.json) | no — same schema; kept as the measurement that showed non-zero depth over clouds |
 | [20261007T020025-032770Z](runs/native-evidence/20261007T020025-032770Z/MANIFEST.json) | no — its samples predate the frame thumbnails round 9 asked for; kept as the first per-pixel measurement (18 samples, counts confirmed by round 9) |
-| [20261007T022908-162255Z](runs/native-evidence/20261007T022908-162255Z/MANIFEST.json) | **yes**, per-pixel ladder with frame-anchored crops under `ladder/` |
+| [20261007T022908-162255Z](runs/native-evidence/20261007T022908-162255Z/MANIFEST.json) | no — its source fingerprint is of the tree before the round-10 repairs, which the replay now requires to match the checkout (round 10 confirmed its 18 samples) |
+| [20261007T025423-410921Z](runs/native-evidence/20261007T025423-410921Z/MANIFEST.json) | **yes**, per-pixel ladder, frame-anchored crops, source fingerprint matching this tree |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1071,8 +1072,9 @@ positive control, and samples repeatedly through the session rather than once at
 hole round 7 found in the band heuristic, which is not reintroduced; the report asserts
 `zConventionMeasuredHere: false` and the gate fails any other value. Minecraft's clear-to-0.0
 and swapped near/far are source facts, not this probe's measurement. The band is one region of
-the screen; nothing is claimed about other regions, about terrain (none was loaded in the
-sampled frame), or about the copy's failure mode.
+the screen; nothing is claimed about other regions, about whether terrain was loaded anywhere
+in that frame or world (the retained crop shows clouds over sky in this band and nothing else),
+or about the copy's failure mode.
 
 **The gate.** `ladder_report_checks` is one function called by the stage and by
 `--replay-evidence`; the rung depths and the three band rectangles are asserted against the
@@ -1162,12 +1164,37 @@ sampled draws must equal the ones the launch's log records. (3) A nested `ladder
 was exempt by basename; only the root manifest is. (4) Deleting the source fingerprint or a log
 together with its manifest entry passed; replay now requires a fixed inventory (summary,
 fingerprint, logs, every proof file, and the ladder/terrain/depth files the summary says ran).
-Also: NaN in the depth copy's means (R9-DEPTH-FINITE); the JUnit test now pins the compare-op
-table that `create()` and `record()` themselves index, so swapping `LESS` for `ALWAYS` in
-creation cannot escape it; the Python tests pin the depth/band/palette literals rather than
+Also: NaN in the depth copy's means (R9-DEPTH-FINITE); the JUnit test pins the compare-op
+table that `create()` and `record()` index (round 10 showed that a substitution at the creation
+call itself still escaped that test; see the round-10 paragraph); the Python tests pin the depth/band/palette literals rather than
 reading them back from the gate; and the overstatements round 9 named in this document are
 corrected in place above (the "cleared value" attribution, the clouds paragraph's cross-column
 range, "both checkable", the unconditional positive-control wording).
+
+**Round-10 review repairs (2026-10-07).** Round 10
+([native-integration-review-r10.md](runs/native-integration-review-r10.md)) returned REDESIGN
+against `6b2d6cc9`: it closed R8-LADDER-GATE's two attacks and R9-DEPTH-FINITE, confirmed all
+18 per-pixel counts and every anchored block, and left three blocking items, repaired in the
+commit after it: (1) B1 — `source-sha256.json` only had to exist and be hash-listed; replaced
+by `{}` it still replayed. Replay now parses it, requires hundreds of entries including the
+runner, the build file and the ladder/marker sources, and **requires every listed file to hash
+to the same bytes in the checkout the replay runs in** — so a retained run replays as 0 only
+in the tree it was built from. (2) R10-CREATE-TEST — pinning the table was not enough: a
+substitution at `create()`'s own call site escaped. Pipeline creation now goes through
+`buildPipelines(..., creator)`, and the JUnit test calls that same method with an injected
+creator that inspects the create-infos it is handed: three pipelines, `LESS`/`ALWAYS`/`GREATER`
+at the table's indices, depth test on, depth writes off, in the structs the real path builds.
+(3) R9-SURVEY-OVERCLAIM — "none was loaded in the sampled frame" is withdrawn above; the
+crop shows clouds over sky in one band and says nothing about the rest. Non-blocking items:
+the log's orientation and eleven counts per sample are now reconciled with the report
+(R10-LOG-DETAILS); the depth fixture is 100 rows so its band mean covers two rows
+(R10-DEPTH-FIXTURE). **Stated limits that remain** (R10-ANCHOR-GRAIN, R10-CONSISTENT-FORGERY):
+the thumbnail anchors complete 4×4 blocks — about 1300–2300 boundary pixels per crop are not
+compared, and a within-block permutation is invisible to it; and every gate here is an
+internal-consistency check over editable records — a jointly rewritten report, crops,
+thumbnail, log and manifest can pass, as no hash rooted in an editable manifest can prove GPU
+origin. The replay's claim is "these records agree with each other, with the pinned source
+constants and with this checkout's sources", not authenticity against a forger.
 
 **What the per-pixel ladder does and does not say.** It gives, per sample and per pixel of one
 band, the bracket of rungs the depth attachment's value falls in, by Minecraft's own depth
