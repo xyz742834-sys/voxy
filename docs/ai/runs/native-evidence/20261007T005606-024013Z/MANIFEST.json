@@ -1,0 +1,622 @@
+{
+  "run": "20261007T005606-024013Z",
+  "files": {
+    "native-adopted-context.json": "a1afbb93c6691d0d2da505887b2e9909c5d36c791f3110d7d2daca3289ff3a10",
+    "native-compute-probe.json": "5dabff8a76bd4144fda96f7a9feefedc0db2eea90b3d12f8741dd49dcb34a6b2",
+    "native-depth-probe.json": "6b866699d0042b5c6c660223f6217538147d7a58dc6925132d046295ebd5821f",
+    "native-device-features.json": "44e5441831c5a5b22faf62b1bc95c82ec6330066ba3a57fc59f8532bae54b954",
+    "native-feature-audit.json": "5265e2ba3a8d0fcc03cfb81282dafedea69592a90df1cd8a477a9cd1b2fafc3d",
+    "native-marker-draw.json": "b53c4e3d978e97c9d9a2c30b44d2ad778872e213914a067e5ef63f6fe6c3fcb6",
+    "native-real-shader.json": "367e388c0ab02526d6362570b539ca49b8b6d803bdc77930eef282ab39cefc82",
+    "native-result.json": "5944a98644b9777295c30fe58f657e2b1636c857c6ab99046be562d24975436a",
+    "native-terrain-probe.json": "a48000645f890046023696d168269da10a0ad4d526f87b41722790e91f480c74",
+    "native-vulkan-probe.json": "e1315d9779d50b4fb696164fee0b826e5e89404fe1b995c2be346176c1f14bc1",
+    "native.log": "f61cb038534b88fa82f7b4fcb27287de8d72eddfa96aaf3b5fc6ac514556914c",
+    "summary.json": "5bae8991d618b9981f04ffd65db6179a9f37819471fa9d1fe079730eff651b8b",
+    "source-sha256.json": "3099c7b8dd5bbfa0a4334106a92d22f61b13e555f300388e25896b524d9a3e4d",
+    "crop-edit-top.png": "799103584c1d2a0e335a491f091e5e7742c5faf5909a1478c280d480401dc3ae",
+    "crop-edit-bottom.png": "a9e545f5713005c782a9d54271c1f9ed8d42e5ff16f2006743fa4f0ecbb669a8",
+    "crop-nether-top.png": "224c319dd0fe94829cbab14d8b79f92a3110c4e692a463262961e9bed3634b51",
+    "crop-nether-bottom.png": "c089a8140079ebf187996e0a3286ec8ee3db98e4a827fe95a7eca81b940d181e",
+    "crop-overworld-top.png": "b8e2350d564085304982605f94ff489fdafb9ccdae1c7c273daff169d81be8fd",
+    "crop-overworld-bottom.png": "6cfffa186b92f1706eca75ffa22f028740cd0ffe7273dbee781c1f417f6e9b9d",
+    "crop-reconnect-top.png": "5dcdb283004397a7a33613bcf97b1df913084098c14d9573480af9693dcb2a98",
+    "crop-reconnect-bottom.png": "a9de561e992f6f712ef7dbf2bc08b8eb511665c2496e411f3d888da1240fa3a6",
+    "crop-reload-top.png": "018d630f604d18b9a1a0b5c1519dbcbbc83f6d15128ab4ba2646e2cfd557a16f",
+    "crop-reload-bottom.png": "a8d2dff4af001c64e35f7c2f8159e8178bcedce8ef467cd98ce9d955350adb48",
+    "crop-remove-top.png": "799103584c1d2a0e335a491f091e5e7742c5faf5909a1478c280d480401dc3ae",
+    "crop-remove-bottom.png": "a9e545f5713005c782a9d54271c1f9ed8d42e5ff16f2006743fa4f0ecbb669a8",
+    "crop-resize-top.png": "018d630f604d18b9a1a0b5c1519dbcbbc83f6d15128ab4ba2646e2cfd557a16f",
+    "crop-resize-bottom.png": "a8d2dff4af001c64e35f7c2f8159e8178bcedce8ef467cd98ce9d955350adb48",
+    "crop-return-top.png": "799103584c1d2a0e335a491f091e5e7742c5faf5909a1478c280d480401dc3ae",
+    "crop-return-bottom.png": "01666d86833f5fbefd96f8e3b095a833dc9b928824b5c024db2cd0f51b35f441",
+    "crop-travel-top.png": "2963cb9b6269a58579672f663edf9dd3195bae042c5d50fbfa2dcc9f8dda3033",
+    "crop-travel-bottom.png": "01666d86833f5fbefd96f8e3b095a833dc9b928824b5c024db2cd0f51b35f441",
+    "crop-turn-top.png": "6bbf692d141346232a4df0e81875091927faddd38848a2f229645b4d2229117e",
+    "crop-turn-bottom.png": "b696ee6cc275178dc538fdd2e23bfc33f79915dd00402b9f67d65dc70b7a392e",
+    "crop-warmup-top.png": "bdba27a0b15392555508ce3170528dd17d99b220eb464957b32f7b92ea25c975",
+    "crop-warmup-bottom.png": "bb09bfa8b3f39102236ef8da7e68f0eaf5601999fb3bccb9c7b91b74df6ebc69",
+    "native-marker-sample-1202.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-1442.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-1682.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-1922.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-2.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-2162.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-2402.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-242.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-2642.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-2882.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-3122.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-3362.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-3602.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-3842.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-4082.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-4322.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-4562.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-4802.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-482.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-5042.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-722.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-962.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-rejected-1202.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-1442.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-1682.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-1922.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-2.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-2162.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-2402.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-242.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-2642.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-2882.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-3122.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-3362.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-3602.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-3842.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-4082.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-4322.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-4562.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-4802.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-482.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-5042.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-722.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-962.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-depth-sample.pgm.gz": "ad26dfa3f97ad83eb6307282fd50c21e89999ab37188fb0ce80d74ffc29e89a1",
+    "native-terrain-sample-1202.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-1442.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-1682.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-1922.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-2.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-2162.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-2402.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-242.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-2642.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-2875.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-3115.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-3355.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-3595.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-3835.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-4075.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-4315.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-4555.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-4795.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-482.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-5035.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-722.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-962.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-1202.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-1442.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-1682.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-1922.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-2.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-2162.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-2402.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-242.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-2642.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-2875.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-3115.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-3355.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-3595.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-3835.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-4075.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-4315.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-4555.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-4795.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-482.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-5035.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-722.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-962.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "ladder/native-adopted-context.json": "bd689af29d4f3f7a8f620e445c6af7bc19a4ea07042100a85cf55a1b7c34ca30",
+    "ladder/native-compute-probe.json": "74e95af7b225f9c031c83fd15bc9a27d230a052c25efe53d9d2849ba778a66ef",
+    "ladder/native-depth-ladder.json": "14b28a632df9c9cf6833b92d8878954ce11397703d3962f81d8c8ef5ed7e0f73",
+    "ladder/native-device-features.json": "44e5441831c5a5b22faf62b1bc95c82ec6330066ba3a57fc59f8532bae54b954",
+    "ladder/native-feature-audit.json": "3ab4c1897a5f664acb16fe4832f5ab601b03226cc5935cd12d3c20abc65c05a7",
+    "ladder/native-real-shader.json": "213c5f881cda992a0479c8a804bfc54a8ebc1299c6810319b371c795f332080b",
+    "ladder/native-result.json": "57dcc136c887c890e7ac1245799a95492f1118a3f8d899a2da0452d2aeb12980",
+    "ladder/native-vulkan-probe.json": "b1e0cd43bbe7c9acd90d6672d788bc7ee77d50307b4aa429889848c4b0d941dc",
+    "ladder/native-depth-ladder-2.ppm.gz": "669dbd56e211d8ef9f76f7eb15fafd616cd33461d1c25558b42a49c5736c13d5",
+    "ladder/native-ladder.log": "f472713781b0d2cffd86aeed47673a4128fa9eb6c6a79e30add158cef68db0fa"
+  },
+  "screenshots": {
+    "edit.png": "f694237b6d3cf4126c875a2eca01521c6d2cb4beb1c577ba440c8d16cc81a6dc",
+    "nether.png": "9c89f92f3c8b0b3064d0bcd13d6d62b71d25356e32a0012c4670265324fe6b2f",
+    "overworld.png": "1f5ce434b7f10e837b61de5c2b981f11a6325b56c3a801a05dbe6869aed4ba76",
+    "reconnect.png": "9545d4c7cbe9a98a5aa9d2a2f9fea4bb5a6ff44a83c69aa34b7eaa52037fbb25",
+    "reload.png": "829c04fb424aa0e03b6c3dd42c48049058de5c612719a64796856f7d65592887",
+    "remove.png": "f694237b6d3cf4126c875a2eca01521c6d2cb4beb1c577ba440c8d16cc81a6dc",
+    "resize.png": "829c04fb424aa0e03b6c3dd42c48049058de5c612719a64796856f7d65592887",
+    "return.png": "6a938adedaee9e6cc745251dc417687058061e26f6a91f0bad7366af63259a11",
+    "travel.png": "70a03fb7eac3e31422c97db1002db2135b3bf37fe9b54c291be817a84daf506b",
+    "turn.png": "e40385a78636f1a8e5e55b1f3b4e2c59321576df745dc77ad80c002296e83b65",
+    "warmup.png": "69a3dd83b97341b7fe69534e07a39615403f06788957f619607cb39c3477b9b2"
+  },
+  "candidate": {
+    "revision": "711c80371fa51408f13fbb40c2e4f32903a8c2ce",
+    "worktree_status": " M build.gradle\n M scripts/verify.py\n M src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeVkContext.java\n M src/main/java/me/cortex/voxy/client/mixin/minecraft/MixinLevelRenderer.java\n?? scripts/tests/test_ladder_gate.py\n?? src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java\n?? src/test/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadderTest.java\n",
+    "selection": "native",
+    "graphics_backend_preference": "default",
+    "host": "macOS-27.0-arm64-arm-64bit-Mach-O"
+  },
+  "crops": [
+    "crop-edit-bottom.png",
+    "crop-edit-top.png",
+    "crop-nether-bottom.png",
+    "crop-nether-top.png",
+    "crop-overworld-bottom.png",
+    "crop-overworld-top.png",
+    "crop-reconnect-bottom.png",
+    "crop-reconnect-top.png",
+    "crop-reload-bottom.png",
+    "crop-reload-top.png",
+    "crop-remove-bottom.png",
+    "crop-remove-top.png",
+    "crop-resize-bottom.png",
+    "crop-resize-top.png",
+    "crop-return-bottom.png",
+    "crop-return-top.png",
+    "crop-travel-bottom.png",
+    "crop-travel-top.png",
+    "crop-turn-bottom.png",
+    "crop-turn-top.png",
+    "crop-warmup-bottom.png",
+    "crop-warmup-top.png"
+  ],
+  "crop_origins": {
+    "crop-edit-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-edit-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    },
+    "crop-nether-top.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        8
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "top"
+    },
+    "crop-nether-bottom.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        895
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "bottom"
+    },
+    "crop-overworld-top.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        8
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "top"
+    },
+    "crop-overworld-bottom.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        895
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "bottom"
+    },
+    "crop-reconnect-top.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        8
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "top"
+    },
+    "crop-reconnect-bottom.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        895
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "bottom"
+    },
+    "crop-reload-top.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        8
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "top"
+    },
+    "crop-reload-bottom.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        895
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "bottom"
+    },
+    "crop-remove-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-remove-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    },
+    "crop-resize-top.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        8
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "top"
+    },
+    "crop-resize-bottom.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        895
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "bottom"
+    },
+    "crop-return-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-return-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    },
+    "crop-travel-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-travel-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    },
+    "crop-turn-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-turn-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    },
+    "crop-warmup-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-warmup-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    }
+  },
+  "raw_colour_samples": [
+    "native-depth-sample.pgm.gz",
+    "native-marker-rejected-1202.ppm.gz",
+    "native-marker-rejected-1442.ppm.gz",
+    "native-marker-rejected-1682.ppm.gz",
+    "native-marker-rejected-1922.ppm.gz",
+    "native-marker-rejected-2.ppm.gz",
+    "native-marker-rejected-2162.ppm.gz",
+    "native-marker-rejected-2402.ppm.gz",
+    "native-marker-rejected-242.ppm.gz",
+    "native-marker-rejected-2642.ppm.gz",
+    "native-marker-rejected-2882.ppm.gz",
+    "native-marker-rejected-3122.ppm.gz",
+    "native-marker-rejected-3362.ppm.gz",
+    "native-marker-rejected-3602.ppm.gz",
+    "native-marker-rejected-3842.ppm.gz",
+    "native-marker-rejected-4082.ppm.gz",
+    "native-marker-rejected-4322.ppm.gz",
+    "native-marker-rejected-4562.ppm.gz",
+    "native-marker-rejected-4802.ppm.gz",
+    "native-marker-rejected-482.ppm.gz",
+    "native-marker-rejected-5042.ppm.gz",
+    "native-marker-rejected-722.ppm.gz",
+    "native-marker-rejected-962.ppm.gz",
+    "native-marker-sample-1202.ppm",
+    "native-marker-sample-1442.ppm",
+    "native-marker-sample-1682.ppm",
+    "native-marker-sample-1922.ppm",
+    "native-marker-sample-2.ppm",
+    "native-marker-sample-2162.ppm",
+    "native-marker-sample-2402.ppm",
+    "native-marker-sample-242.ppm",
+    "native-marker-sample-2642.ppm",
+    "native-marker-sample-2882.ppm",
+    "native-marker-sample-3122.ppm",
+    "native-marker-sample-3362.ppm",
+    "native-marker-sample-3602.ppm",
+    "native-marker-sample-3842.ppm",
+    "native-marker-sample-4082.ppm",
+    "native-marker-sample-4322.ppm",
+    "native-marker-sample-4562.ppm",
+    "native-marker-sample-4802.ppm",
+    "native-marker-sample-482.ppm",
+    "native-marker-sample-5042.ppm",
+    "native-marker-sample-722.ppm",
+    "native-marker-sample-962.ppm",
+    "native-terrain-reference-1202.ppm.gz",
+    "native-terrain-reference-1442.ppm.gz",
+    "native-terrain-reference-1682.ppm.gz",
+    "native-terrain-reference-1922.ppm.gz",
+    "native-terrain-reference-2.ppm.gz",
+    "native-terrain-reference-2162.ppm.gz",
+    "native-terrain-reference-2402.ppm.gz",
+    "native-terrain-reference-242.ppm.gz",
+    "native-terrain-reference-2642.ppm.gz",
+    "native-terrain-reference-2875.ppm.gz",
+    "native-terrain-reference-3115.ppm.gz",
+    "native-terrain-reference-3355.ppm.gz",
+    "native-terrain-reference-3595.ppm.gz",
+    "native-terrain-reference-3835.ppm.gz",
+    "native-terrain-reference-4075.ppm.gz",
+    "native-terrain-reference-4315.ppm.gz",
+    "native-terrain-reference-4555.ppm.gz",
+    "native-terrain-reference-4795.ppm.gz",
+    "native-terrain-reference-482.ppm.gz",
+    "native-terrain-reference-5035.ppm.gz",
+    "native-terrain-reference-722.ppm.gz",
+    "native-terrain-reference-962.ppm.gz",
+    "native-terrain-sample-1202.ppm.gz",
+    "native-terrain-sample-1442.ppm.gz",
+    "native-terrain-sample-1682.ppm.gz",
+    "native-terrain-sample-1922.ppm.gz",
+    "native-terrain-sample-2.ppm.gz",
+    "native-terrain-sample-2162.ppm.gz",
+    "native-terrain-sample-2402.ppm.gz",
+    "native-terrain-sample-242.ppm.gz",
+    "native-terrain-sample-2642.ppm.gz",
+    "native-terrain-sample-2875.ppm.gz",
+    "native-terrain-sample-3115.ppm.gz",
+    "native-terrain-sample-3355.ppm.gz",
+    "native-terrain-sample-3595.ppm.gz",
+    "native-terrain-sample-3835.ppm.gz",
+    "native-terrain-sample-4075.ppm.gz",
+    "native-terrain-sample-4315.ppm.gz",
+    "native-terrain-sample-4555.ppm.gz",
+    "native-terrain-sample-4795.ppm.gz",
+    "native-terrain-sample-482.ppm.gz",
+    "native-terrain-sample-5035.ppm.gz",
+    "native-terrain-sample-722.ppm.gz",
+    "native-terrain-sample-962.ppm.gz"
+  ],
+  "ladder": {
+    "path": "ladder",
+    "files": [
+      "ladder/native-adopted-context.json",
+      "ladder/native-compute-probe.json",
+      "ladder/native-depth-ladder-2.ppm.gz",
+      "ladder/native-depth-ladder.json",
+      "ladder/native-device-features.json",
+      "ladder/native-feature-audit.json",
+      "ladder/native-ladder.log",
+      "ladder/native-real-shader.json",
+      "ladder/native-result.json",
+      "ladder/native-vulkan-probe.json"
+    ],
+    "sample": "ladder/native-depth-ladder-2.ppm.gz"
+  }
+}

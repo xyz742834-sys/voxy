@@ -309,6 +309,7 @@ public final class McNativeVkContext {
             // 待った device と同じであることを渡して確認させ、違えば壊さない。
             McNativeMarkerDraw.shutdownImmediate(VkContext.get().device);
             McNativeTerrainProbe.shutdownImmediate(VkContext.get().device);
+            McNativeDepthLadder.shutdownImmediate(VkContext.get().device);
         } catch (Throwable t) {
             Logger.warn("[native-vk] could not release the marker draw: " + t);
         }

@@ -444,12 +444,16 @@ The retained files stay readable and their figures stay checkable by hand, but t
 deliberately — deleting them would turn their measurements into narrative, which is the opposite
 of the point — and the replay status of each is:
 
-| Run | Replays under the current gate |
+| Run | Replays under the current gate (2026-10-07) |
 | --- | --- |
 | [20261006T070311-099413Z](runs/native-evidence/20261006T070311-099413Z/MANIFEST.json) | no — predates raw-sample retention entirely |
 | [20261006T073859-396220Z](runs/native-evidence/20261006T073859-396220Z/MANIFEST.json) | no — no `leakedPipelines` counter |
 | [20261006T080931-279390Z](runs/native-evidence/20261006T080931-279390Z/MANIFEST.json) | no — no `leakedPipelines` counter |
-| [20261006T083136-838975Z](runs/native-evidence/20261006T083136-838975Z/MANIFEST.json) | **yes** |
+| [20261006T083136-838975Z](runs/native-evidence/20261006T083136-838975Z/MANIFEST.json) | no — the rejected orientation's pixels were not retained (round 6 B4) |
+| [20261006T084300-332469Z](runs/native-evidence/20261006T084300-332469Z/MANIFEST.json) | no — the rejected orientation's pixels were not retained (round 6 B4) |
+| [20261006T095436-054038Z](runs/native-evidence/20261006T095436-054038Z/MANIFEST.json) | no — its depth report predates `zConventionMeasuredHere` (round 7) |
+| [20261006T165039-062378Z](runs/native-evidence/20261006T165039-062378Z/MANIFEST.json) | **yes**, with the ladder listed as *not replayed* (no ladder launch was retained) |
+| [20261007T005606-024013Z](runs/native-evidence/20261007T005606-024013Z/MANIFEST.json) | **yes**, including the ladder launch under `ladder/` |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -958,6 +962,84 @@ What this changes about the next step: depth coexistence should be approached **
 rather than by readback — draws at known depths against a `LOAD`ed depth attachment, which is
 the technique `McNativeMarkerDraw` already demonstrates works on Minecraft's own depth image.
 That infers the convention from what survives the depth test instead of from a transfer.
+
+## Minecraft's depth at the level-render tail, tested behaviourally (2026-10-07)
+
+The buffer copy gave 0.0 for every pixel, and round 7 was right that a completed copy is not
+an observation. So the question was put to Minecraft's **own depth test** instead.
+
+`McNativeDepthLadder` (flag `voxy.native.depthladder`, default off) opens Minecraft's pass with
+colour **and depth `LOAD`ed**, and draws eight narrow columns across one screen band at known
+NDC depths `z_i = (i + 0.5) / 8`, **compare `LESS`, `depthWriteEnable = false`**. Column `i`
+survives exactly when `z_i < d_mc`. Above every column it draws a co-located `ALWAYS` stripe, and
+below the band a separate `ALWAYS` band. Nothing is written to Minecraft's depth and nothing is
+cleared; the colour writes are the measurement. The co-located stripe is what gives an empty
+rung its meaning: if the stripe above column `i` is filled and the rung is not, the only
+difference between the two draws is the depth comparison, so "nothing was drawn there" and
+"something covered it" are both excluded.
+
+**Isolation is retained this time, not asserted.** The terrain probe clears the very attachment
+the ladder measures, and the marker writes its own depth, so the ladder gets its **own Minecraft
+launch** inside `--only native`, with those two off. The ladder's report publishes
+`terrainProbeEnabled`, `terrainDrawsRecorded`, `markerDrawEnabled` and `markerDrawsRecorded`
+(the flag *and* the count, since a flag alone cannot tell "enabled but drew nothing" from
+"off"), and the gate refuses a run where any of them is set. That launch's evidence is retained
+under `ladder/` in the run directory — report, raw crop, checkpoints and log, all manifest
+members — and replays with the same gate the stage used. Round 7 refused the depth probe's
+isolation claim because the isolated run had never been retained; that is the defect this
+closes.
+
+Measured, in the retained run tabled above:
+
+```
+inline ALWAYS control (per column)   ~0.93 filled, all eight columns
+separate ALWAYS control band          ~0.98 filled
+LESS rungs z = 0.0625 .. 0.9375       all empty, fill 0.0
+=> Minecraft's depth in that band is <= 0.0625
+```
+
+recounted by the gate from the retained crop in the orientation the report publishes — the
+earlier scratchpad runs of the same probe gave the same numbers (0.926–0.933, 0.978, all rungs
+empty) and are cited here only as narrative, since they were not retained.
+
+**What this establishes.** At the `LevelRenderer.render` tail, the depth attachment Voxy can
+reach holds a value ≤ 0.0625 across the tested band, by Minecraft's own depth test with no
+transfer involved. It agrees with the buffer copy's all-zero, so the copy was not the broken
+part. Two consequences follow without knowing the convention:
+
+- If Minecraft is reverse-Z like Voxy (0.0 = far), a `LESS`-style test against this attachment
+  rejects nothing: Voxy's terrain would draw over Minecraft's world at any distance.
+- If Minecraft is conventional-Z (0.0 = near), the same test rejects everything.
+
+Either way, **a depth test at this hook cannot compose Voxy's terrain against Minecraft's
+scene**, and every existing probe (marker, terrain, depth, ladder) sits on this hook. Coexistence
+needs an earlier point in Minecraft's frame, where the attachment still holds scene depth. The
+next step is the same ladder at candidate hook points, measured per position before the hook is
+moved.
+
+**What this does not establish.** The Z convention: a single band of known depths bounds a
+*value*, and which direction of that value is nearer cannot be read from one band — the same
+hole round 7 found in the band heuristic, which is not reintroduced; the report asserts
+`zConventionMeasuredHere: false` and the gate fails any other value. *Why* the attachment reads
+near zero there (cleared after the scene, a different attachment than the scene was drawn into,
+or something else) is not established either. The band is one region of the screen; nothing is
+claimed about other regions.
+
+**The gate.** `ladder_report_checks` is one function called by the stage and by
+`--replay-evidence`; the rung depths and the three band rectangles are asserted against the
+source constants, not read from the report; the surviving set must be a prefix (compare `LESS`
+on a monotonic ladder cannot pass a deeper rung after failing a shallower one) and the published
+bounds must be the ones that set implies; the sample is bound to its capture by name and count;
+the orientation is published and the recount resolves every band through the implementation's
+own formula in that orientation, refusing a crop that does not contain a band rather than
+clamping it; the report's fills must be what the pixels say; the device must be the one the
+ladder launch's own eleven checkpoints saw (a second process has a second `VkDevice`, so the
+first launch's identity is the wrong reference). 41 Python cases cover the counterexamples —
+the inline control below the floor in the report and in the pixels, survivors that are not a
+prefix, bounds the survivors do not justify, a sample named for another draw, a lie about the
+orientation, a 1x1 image, a shrunken crop, a terrain- or marker-contaminated run, published
+bands that drift from the source, a ladder whose launch saw another device — and three JUnit
+cases pin inertness without the flag and the published constants.
 
 ## What is NOT answered yet, and must be measured on hardware
 

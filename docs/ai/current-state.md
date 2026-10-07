@@ -42,10 +42,18 @@ is synthetic and the probe clears Minecraft's frame to make the comparison meani
 
 Measured and negative, so it does not become a hidden assumption: **Minecraft's scene depth is
 not observable through `copyTextureToBuffer`** at the level-render tail. The copy completes and
-every pixel of the 1708x960 D32_SFLOAT image is 0.0, including in an isolated run with nothing
-writing to that image. The Z convention is therefore unmeasured, and depth coexistence needs the
-behavioural route (draws at known depths against a `LOAD`ed attachment) rather than a readback.
+every pixel of the 1708x960 D32_SFLOAT image is 0.0. The Z convention is therefore unmeasured.
 See the survey section of the same name.
+
+Measured behaviourally (2026-10-07), behind a sixth default-off flag (`voxy.native.depthladder`):
+a ladder of eight known NDC depths drawn `LESS` with depth writes off against Minecraft's
+`LOAD`ed attachment at that same hook **all fail**, while co-located `ALWAYS` stripes fill, so
+**Minecraft's depth in that band is ≤ 0.0625 at the `LevelRenderer.render` tail** by its own
+depth test. This agrees with the copy and means **that hook cannot support coexistence** under
+either Z convention; every current probe sits on it. The ladder runs in its own launch inside
+`--only native` (terrain and marker off, the report says so, the gate requires it) and that
+launch is retained and replays. The Z convention remains unmeasured and the gate forbids claiming
+it. See the survey section "Minecraft's depth at the level-render tail, tested behaviourally".
 
 ## What works
 

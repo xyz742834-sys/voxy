@@ -773,6 +773,323 @@ def recount_marker_sample(output, report, rb):
     return out
 
 
+# The ladder's rung depths and bands, derived the same way the source does
+# (McNativeDepthLadder: (i + 0.5) / RUNGS, BAND_*, INLINE_CONTROL_*, CONTROL_*).
+# ⚠ Pinned for the same reason as the marker geometry: a producer-published ladder is not a
+# reference the gate can check anything against.
+LADDER_RUNGS = 8
+EXPECTED_LADDER_DEPTHS = [(i + 0.5) / LADDER_RUNGS for i in range(LADDER_RUNGS)]
+EXPECTED_LADDER_BANDS = {"band": [-0.6, 0.36, 0.6, 0.2],
+                         "inlineControlBand": [-0.6, 0.4, 0.6, 0.37],
+                         "controlBand": [-0.6, 0.16, 0.6, 0.06]}
+LADDER_RUNG_RGB, LADDER_CONTROL_RGB = (255, 0, 255), (0, 255, 255)
+
+
+def device_handle_of(value, name, field):
+    """A device handle that is actually a handle: hex in the probe files, int in checkpoints.
+
+    Zero is not one (round-5 review B3: all-zero handles agreed with each other and passed).
+    """
+    handle = None
+    if isinstance(value, int) and not isinstance(value, bool):
+        handle = value
+    elif isinstance(value, str):
+        try:
+            handle = int(value, 16) if value.lower().startswith("0x") else int(value)
+        except ValueError:
+            handle = None
+    if handle is None:
+        raise ValueError(f"{name}.{field} is {value!r}, which is not a device handle")
+    if handle == 0:
+        raise ValueError(f"{name}.{field} is a null device handle")
+    return handle
+
+
+def ladder_report_checks(output, report, expected_device=None):
+    """Gate the behavioural depth ladder: what Minecraft's own depth test says about its depth.
+
+    ⚠ This measures a VALUE, not a convention. Which direction of that value is nearer is not
+    established here and the gate refuses to let it be claimed — the same hole round 7 found in
+    the band heuristic. What it does establish is bounds on Minecraft's depth in the tested band,
+    obtained from the depth test itself rather than from a transfer copy.
+
+    ⚠ Shared by the stage gate and `--replay-evidence`, like terrain_report_checks: rounds 5, 6
+    and 7 each found a gate the replay did not call.
+    """
+    checks = {}
+    for field, kind in (("enabled", bool), ("attempted", bool), ("completed", bool),
+                        ("drawsRecorded", int), ("rungs", int), ("depthWritesEnabled", bool),
+                        ("zConventionMeasuredHere", bool), ("rungDepths", list),
+                        ("rungSurvived", list), ("rungFill", list), ("inlineControlFill", list),
+                        ("controlFill", (int, float)), ("problems", int),
+                        ("closeFailures", int), ("leakedPipelines", int),
+                        ("deviceDiverged", bool), ("notes", list), ("sampleAtDraw", int),
+                        ("flipped", bool), ("targetWidth", int), ("targetHeight", int),
+                        ("terrainProbeEnabled", bool), ("terrainDrawsRecorded", int),
+                        ("markerDrawEnabled", bool), ("markerDrawsRecorded", int),
+                        ("band", list), ("inlineControlBand", list), ("controlBand", list),
+                        ("device", str)):
+        if field not in report:
+            raise ValueError(f"the depth ladder does not state {field}")
+        value = report[field]
+        if kind is bool:
+            if not isinstance(value, bool):
+                raise ValueError(f"ladder.{field} is {value!r}, not a bool")
+        elif not isinstance(value, kind) or isinstance(value, bool):
+            raise ValueError(f"ladder.{field} is {value!r}, not a {kind}")
+    if not report["enabled"]:
+        raise ValueError("the depth ladder was not enabled")
+    # ⚠ The whole point is testing against Minecraft's own depth. If writes were on, the probe
+    # would be measuring its own earlier rungs.
+    if report["depthWritesEnabled"]:
+        raise ValueError("the ladder enabled depth writes, so it measured its own depth rather"
+                         " than Minecraft's")
+    if report["zConventionMeasuredHere"]:
+        raise ValueError("the ladder claims to have measured the Z convention, which a single"
+                         " band of known depths cannot establish")
+    # ⚠ The terrain probe CLEARS Minecraft's depth and the marker WRITES its own into it. A run
+    # where either was enabled — or recorded anything — measured something other than
+    # Minecraft's scene depth, however clean its numbers look.
+    if report["terrainProbeEnabled"] or report["terrainDrawsRecorded"]:
+        raise ValueError(f"the terrain probe was enabled={report['terrainProbeEnabled']} and"
+                         f" recorded {report['terrainDrawsRecorded']} draw(s) in the same run;"
+                         f" it clears Minecraft's depth, so the ladder did not measure it")
+    if report["markerDrawEnabled"] or report["markerDrawsRecorded"]:
+        raise ValueError(f"the marker draw was enabled={report['markerDrawEnabled']} and"
+                         f" recorded {report['markerDrawsRecorded']} draw(s) in the same run;"
+                         f" it writes depth, so the ladder's frame was not Minecraft's alone")
+    if report["notes"]:
+        raise ValueError(f"the depth ladder reported notes: {report['notes']}")
+    if report["problems"] or report["closeFailures"] or report["leakedPipelines"]:
+        raise ValueError(f"the ladder reports problems={report['problems']},"
+                         f" closeFailures={report['closeFailures']},"
+                         f" leakedPipelines={report['leakedPipelines']}")
+    if report["deviceDiverged"]:
+        raise ValueError("Minecraft's device diverged during the ladder run")
+    if report["rungs"] != LADDER_RUNGS:
+        raise ValueError(f"the ladder has {report['rungs']} rungs, not {LADDER_RUNGS}")
+    if not report["attempted"] or not report["completed"]:
+        raise ValueError(f"the ladder never completed a measurement: {report.get('note')}")
+    if report.get("note"):
+        raise ValueError(f"the ladder rejects its own measurement: {report['note']}")
+    if report["drawsRecorded"] < 1:
+        raise ValueError("no ladder draw was recorded into Minecraft's command buffer")
+    if report["sampleAtDraw"] < 1:
+        raise ValueError(f"ladder.sampleAtDraw is {report['sampleAtDraw']}, so the sample is"
+                         f" not bound to any capture")
+    if report["sampleAtDraw"] > report["drawsRecorded"]:
+        raise ValueError(f"the ladder claims a sample at draw {report['sampleAtDraw']} but only"
+                         f" {report['drawsRecorded']} ladder draws were recorded")
+    for field in ("targetWidth", "targetHeight"):
+        if report[field] < 1:
+            raise ValueError(f"the ladder states {field}={report[field]}")
+    handle = device_handle_of(report["device"], "ladder", "device")
+    if expected_device is not None and handle != expected_device:
+        raise ValueError(f"the ladder names device {hex(handle)} but its run's lifecycle"
+                         f" checkpoints saw {hex(expected_device)}")
+    checks["device"] = handle
+    depths = report["rungDepths"]
+    if len(depths) != LADDER_RUNGS or any(
+            not isinstance(a, (int, float)) or isinstance(a, bool) or abs(a - b) > 1e-6
+            for a, b in zip(depths, EXPECTED_LADDER_DEPTHS)):
+        raise ValueError(f"the ladder publishes depths {depths}, not the"
+                         f" {EXPECTED_LADDER_DEPTHS} its source lays out")
+    for label, want in EXPECTED_LADDER_BANDS.items():
+        got = report[label]
+        if len(got) != 4 or any(not isinstance(a, (int, float)) or isinstance(a, bool)
+                                or abs(a - b) > 1e-6 for a, b in zip(got, want)):
+            raise ValueError(f"the ladder publishes {label}={got}, not the {want} its source"
+                             f" lays out; a published band is not a reference")
+    survived, fill = report["rungSurvived"], report["rungFill"]
+    inline = report["inlineControlFill"]
+    for name, seq in (("rungSurvived", survived), ("rungFill", fill),
+                      ("inlineControlFill", inline)):
+        if len(seq) != LADDER_RUNGS:
+            raise ValueError(f"ladder.{name} has {len(seq)} entries, not {LADDER_RUNGS}")
+    # ⚠ The co-located ALWAYS control is what makes an empty rung mean "the depth test rejected
+    # it" rather than "nothing was drawn in that column". Without it the result is worthless.
+    for i, value in enumerate(inline):
+        if not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0.8:
+            raise ValueError(f"the inline always-pass control above rung {i} is {value!r};"
+                             f" without it an empty rung says nothing about depth")
+    if report["controlFill"] < 0.8:
+        raise ValueError(f"the separate control band is only {report['controlFill']} filled, so"
+                         f" the ladder's draws did not reach Minecraft's frame")
+    # survived must agree with fill, and must be a prefix: compare LESS on a monotonic ladder
+    # cannot pass a deeper rung after failing a shallower one.
+    seen_failure = False
+    for i, (ok, value) in enumerate(zip(survived, fill)):
+        if not isinstance(ok, bool):
+            raise ValueError(f"rungSurvived[{i}] is {ok!r}, not a bool")
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise ValueError(f"rungFill[{i}] is {value!r}, not a number")
+        if ok != (value >= 0.8):
+            raise ValueError(f"rung {i} says survived={ok} but its fill is {value}")
+        if not ok:
+            seen_failure = True
+        elif seen_failure:
+            raise ValueError(f"rung {i} survived after an earlier rung failed, so something"
+                             f" other than the depth test decided this frame")
+    lower, upper = report.get("lowerBound"), report.get("upperBound")
+    expected_lower = max((d for d, ok in zip(depths, survived) if ok), default=None)
+    expected_upper = next((d for d, ok in zip(depths, survived) if not ok), None)
+    for label, got, want in (("lowerBound", lower, expected_lower),
+                             ("upperBound", upper, expected_upper)):
+        if want is None:
+            if got is not None:
+                raise ValueError(f"ladder.{label} is {got!r} but no rung justifies it")
+        elif (not isinstance(got, (int, float)) or isinstance(got, bool)
+              or abs(got - want) > 1e-6):
+            raise ValueError(f"ladder.{label} is {got!r} but the surviving set says {want}")
+    checks["bounds"] = {"lower": lower, "upper": upper}
+    checks["recount"] = recount_ladder_sample(output, report)
+    return checks
+
+
+def recount_ladder_sample(output, report):
+    """Recount the ladder's own columns from its retained crop.
+
+    The crop is a rectangle of the full readback, in the orientation the implementation
+    adopted. Every band is resolved exactly the way the implementation resolves it — the same
+    NDC-to-pixel formula over the published frame size and orientation, then shifted into the
+    crop by the published rect — from the PINNED band constants, never from the report's
+    numbers. A band the crop does not wholly contain fails instead of being clamped.
+    """
+    name = report.get("sampleFile")
+    rect = report.get("sampleRect")
+    if not name:
+        raise ValueError("the ladder retained no raw sample")
+    if not (isinstance(rect, list) and len(rect) == 4
+            and all(isinstance(v, int) and not isinstance(v, bool) for v in rect)):
+        raise ValueError("the ladder does not say where its sample came from")
+    path = output / name
+    if not path.is_file():
+        raise ValueError(f"the retained ladder sample {name} is missing")
+    prefix, suffix = "native-depth-ladder-", ".ppm.gz"
+    if not (name.startswith(prefix) and name.endswith(suffix)):
+        raise ValueError(f"the ladder sample {name!r} is not named as one")
+    stem = name[len(prefix):-len(suffix)]
+    if not stem.isdigit() or int(stem) != report["sampleAtDraw"]:
+        raise ValueError(f"the sample is named for draw {stem!r} but the ladder says it was"
+                         f" taken at {report['sampleAtDraw']!r}")
+    rows, (width, height) = read_ppm_gz(path)
+    if width != rect[2] - rect[0] or height != rect[3] - rect[1]:
+        raise ValueError(f"the ladder sample is {width}x{height} but its rect says"
+                         f" {rect[2] - rect[0]}x{rect[3] - rect[1]}")
+    full_w, full_h = report["targetWidth"], report["targetHeight"]
+    flipped = report["flipped"]
+
+    def to_rect(label, ax, ay, bx, by):
+        x0 = int((min(ax, bx) + 1.0) * 0.5 * full_w) - rect[0]
+        x1 = int((max(ax, bx) + 1.0) * 0.5 * full_w) - rect[0]
+        top, bottom = max(ay, by), min(ay, by)
+        if flipped:
+            y0 = int((1.0 + bottom) * 0.5 * full_h) - rect[1]
+            y1 = int((1.0 + top) * 0.5 * full_h) - rect[1]
+        else:
+            y0 = int((1.0 - top) * 0.5 * full_h) - rect[1]
+            y1 = int((1.0 - bottom) * 0.5 * full_h) - rect[1]
+        if x0 < 0 or y0 < 0 or x1 > width or y1 > height:
+            raise ValueError(f"the retained ladder sample does not contain the whole {label}:"
+                             f" it spans ({x0},{y0})-({x1},{y1}) of a {width}x{height} crop")
+        if x1 <= x0 or y1 <= y0:
+            raise ValueError(f"the ladder's {label} resolves to an empty rectangle")
+        return x0, y0, x1, y1
+
+    def ratio(area, want):
+        x0, y0, x1, y1 = area
+        hits = 0
+        for y in range(y0, y1):
+            row = rows[y]
+            for x in range(x0, x1):
+                px = row[x]
+                if all((px[k] >= 200) if want[k] >= 200 else (px[k] <= 60) for k in range(3)):
+                    hits += 1
+        return hits / ((x1 - x0) * (y1 - y0))
+
+    band = EXPECTED_LADDER_BANDS["band"]
+    inline_band = EXPECTED_LADDER_BANDS["inlineControlBand"]
+    control_band = EXPECTED_LADDER_BANDS["controlBand"]
+    rung_fill, inline_fill = [], []
+    for i in range(LADDER_RUNGS):
+        bx0 = band[0] + (band[2] - band[0]) * i / LADDER_RUNGS
+        bx1 = band[0] + (band[2] - band[0]) * (i + 1) / LADDER_RUNGS
+        rung_fill.append(ratio(to_rect(f"rung {i}", bx0, band[1], bx1, band[3]),
+                               LADDER_RUNG_RGB))
+        inline_fill.append(ratio(to_rect(f"inline control {i}", bx0, inline_band[1], bx1,
+                                         inline_band[3]), LADDER_CONTROL_RGB))
+    control_fill = ratio(to_rect("control band", *control_band), LADDER_CONTROL_RGB)
+    out = {"sample": name, "size": [width, height], "flipped": flipped,
+           "rungFill": [round(v, 4) for v in rung_fill],
+           "inlineControlFill": [round(v, 4) for v in inline_fill],
+           "controlFill": round(control_fill, 4),
+           "survived": [v >= 0.8 for v in rung_fill]}
+    if out["survived"] != report["rungSurvived"]:
+        raise ValueError(f"recounting the retained ladder finds survivors {out['survived']},"
+                         f" not the published {report['rungSurvived']}: {out}")
+    for i, value in enumerate(inline_fill):
+        if value < 0.8:
+            raise ValueError(f"recounting finds the inline control above rung {i} only"
+                             f" {value:.3f} filled, so that column was not drawn and its empty"
+                             f" rung says nothing about depth")
+    if control_fill < 0.8:
+        raise ValueError(f"recounting finds the separate control band only {control_fill:.3f}"
+                         f" filled, so the ladder's draws did not reach Minecraft's frame")
+    # The implementation's own fills must be what the pixels say, within the rounding a crop
+    # boundary can introduce.
+    for label, theirs, ours in (("rungFill", report["rungFill"], rung_fill),
+                                ("inlineControlFill", report["inlineControlFill"], inline_fill),
+                                ("controlFill", [report["controlFill"]], [control_fill])):
+        for i, (a, b) in enumerate(zip(theirs, ours)):
+            if abs(a - b) > 0.05:
+                raise ValueError(f"the ladder reports {label}[{i}]={a} but the retained pixels"
+                                 f" say {b:.4f}; the aggregate does not match the pixels")
+    return out
+
+
+def native_ladder_result(output, expected_device=None):
+    """Gate the depth ladder's own launch: Minecraft's loaded depth, tested, never written.
+
+    ⚠ This run is SEPARATE from the main native launch because the terrain probe clears the
+    very attachment the ladder measures. The report has to say both were off and recorded
+    nothing; a contaminated run is not a measurement of Minecraft's depth.
+    """
+    result = {"success": False, "failures": [],
+              "scope": "bounds on Minecraft's scene depth in one screen band at the"
+                       " LevelRenderer.render tail, from its own depth test; NOT the Z"
+                       " convention, which a single band of known depths cannot establish"}
+    try:
+        report = json.loads((output / "native-depth-ladder.json").read_text())
+        result["report"] = report
+        result.update(ladder_report_checks(output, report, expected_device))
+        bounds = result["bounds"]
+        lower, upper = bounds["lower"], bounds["upper"]
+        result["answer"] = (f"Minecraft's depth in the tested band is"
+                            + (f" <= {upper}" if lower is None else
+                               (f" > {lower}" if upper is None else f" in ({lower}, {upper}]"))
+                            + "; which direction is nearer is unmeasured")
+        result["z_convention_measured"] = False
+        result.update(success=True)
+    except (OSError, ValueError, KeyError, TypeError, EOFError, zlib.error) as exc:
+        result["failures"].append(f"{type(exc).__name__}: {exc}")
+    return result
+
+
+def single_checkpoint_device(checkpoints):
+    """The one device the lifecycle checkpoints saw, or a ValueError."""
+    if not checkpoints:
+        raise ValueError("there are no lifecycle checkpoints to tie the proofs to")
+    devices = set()
+    for case in checkpoints:
+        renderer = case.get("renderer")
+        if not isinstance(renderer, dict) or "vkDevice" not in renderer:
+            raise ValueError(f"checkpoint {case.get('stage')} does not name its device")
+        devices.add(device_handle_of(renderer["vkDevice"], "checkpoint", "vkDevice"))
+    if len(devices) != 1:
+        raise ValueError(f"the checkpoints saw more than one device: {devices}")
+    return next(iter(devices))
+
+
 def native_depth_result(output):
     """Report what the depth copy actually produced, and recount it from retained pixels.
 
@@ -1340,6 +1657,24 @@ def native_proof_files_result(output, checkpoints):
     return result
 
 
+def native_log_checks(result, logfile):
+    """Judge a native launch's log: validation output, loader evidence, application errors."""
+    text = logfile.read_text(errors="replace")
+    result["diagnostics"] = [line.strip() for line in text.splitlines()
+        if re.search(r"\[vk-validation\]|Validation (Error|Warning)|SYNC-HAZARD-|VUID-", line)]
+    result["success"] &= not result["diagnostics"]
+    result["validation_layer_loader_evidence"] = [line.strip() for line in text.splitlines()
+        if "VK_LAYER_KHRONOS_validation" in line and "Insert" in line]
+    result["success"] &= bool(result["validation_layer_loader_evidence"])
+    result["application_errors"] = [line.strip() for line in text.splitlines()
+        if "/ERROR]" in line and "(Voxy)" in line]
+    expected_errors = ("Minecraft is not using the OpenGL backend; Voxy's Vulkan path still ",
+                       "Voxy is unsupported on your system.")
+    result["unexpected_application_errors"] = [line for line in result["application_errors"]
+        if not any(message in line for message in expected_errors)]
+    result["success"] &= not result["unexpected_application_errors"]
+
+
 def retain_native_evidence(output, native_output, timestamp, summary):
     """Retain enough in the repository to CHECK the native claims, not merely to cite them.
 
@@ -1416,6 +1751,39 @@ def retain_native_evidence(output, native_output, timestamp, summary):
                 if pair not in samples:
                     raise ValueError(f"{name} references {wanted} but its reference image"
                                      f" {pair} was not retained, so it cannot be recompared")
+        # ⚠ The ladder's own launch is evidence too, and round 7 recorded
+        # `isolated_run_independently_confirmed: false` against an isolation claim whose run
+        # was never retained. Keep the ladder launch under ladder/: its proof files, its raw
+        # crop and its log, all manifest members, and require the referenced crop.
+        ladder_output = native_output.parent / "native-ladder"
+        kept["ladder"] = None
+        if ladder_output.is_dir():
+            ladder_target = target / "ladder"
+            ladder_target.mkdir(exist_ok=True)
+            ladder_kept = {}
+            for pattern in ("*.json", "native-depth-ladder-*.ppm.gz"):
+                for path in sorted(ladder_output.glob(pattern)):
+                    shutil.copyfile(path, ladder_target / path.name)
+                    ladder_kept["ladder/" + path.name] = hashlib.sha256(
+                        path.read_bytes()).hexdigest()
+            log = output / "native-ladder.log"
+            if log.is_file():
+                shutil.copyfile(log, ladder_target / log.name)
+                ladder_kept["ladder/" + log.name] = hashlib.sha256(log.read_bytes()).hexdigest()
+            report_path = ladder_output / "native-depth-ladder.json"
+            if not report_path.is_file():
+                raise ValueError("the ladder launch wrote no native-depth-ladder.json, so its"
+                                 " measurement cannot be retained")
+            wanted = json.loads(report_path.read_text()).get("sampleFile")
+            if not wanted:
+                raise ValueError("the ladder report references no raw sample, so there is"
+                                 " nothing to recount from the repository")
+            if "ladder/" + wanted not in ladder_kept:
+                raise ValueError(f"the ladder report references {wanted}, which was not"
+                                 f" retained; the evidence would point at nothing")
+            kept["files"].update(ladder_kept)
+            kept["ladder"] = {"path": "ladder", "files": sorted(ladder_kept),
+                              "sample": "ladder/" + wanted}
         (target / "MANIFEST.json").write_text(json.dumps(kept, indent=2) + "\n")
         kept["path"] = str(target.relative_to(ROOT))
     except (OSError, ValueError) as exc:
@@ -1551,6 +1919,31 @@ def replay_evidence(directory):
             outcome["terrain_recompare"] = terrain_checks["recompare"]
             outcome["replayed"].append("terrain report acceptance checks")
             outcome["replayed"].append("terrain frame-vs-reference recomparison")
+        # ⚠ The depth ladder has its own launch and its own directory. Its gate is the same
+        # function the stage calls, with the device tied to THAT launch's checkpoints — a
+        # second process has a second VkDevice, so the main launch's identity is the wrong
+        # reference. Say so when none was retained, rather than silently skipping.
+        ladder_dir = directory / "ladder"
+        ladder_path = ladder_dir / "native-depth-ladder.json"
+        ladder_ref = None
+        if ladder_path.is_file():
+            ladder_stage = (stage or {}).get("ladder_run") or {}
+            ladder_checkpoints = ((ladder_stage.get("environment") or {}).get("checkpoints")
+                                  or [])
+            ladder_device = single_checkpoint_device(ladder_checkpoints)
+            ladder = json.loads(ladder_path.read_text())
+            ladder_checks = ladder_report_checks(ladder_dir, ladder, ladder_device)
+            outcome["ladder"] = {"bounds": ladder_checks["bounds"],
+                                 "recount": ladder_checks["recount"],
+                                 "checkpoints": len(ladder_checkpoints)}
+            outcome["replayed"].append("depth-ladder acceptance checks (its own launch,"
+                                       " terrain and marker off)")
+            outcome["replayed"].append("depth-ladder column recount from the retained crop")
+            ladder_ref = "ladder/" + ladder.get("sampleFile", "")
+        else:
+            outcome["not_replayed"].append("the depth ladder: this run retained no ladder"
+                                           " launch, so no bound on Minecraft's depth is"
+                                           " replayed from it")
         # ⚠ Round-6 review R6-TERRAIN-GATE: manifest success is not provenance. Require the
         # samples the reports reference to be manifest MEMBERS, so a file dropped in beside
         # the evidence cannot stand in for one the run produced.
@@ -1558,7 +1951,7 @@ def replay_evidence(directory):
         terrain_ref = (terrain if terrain_path.is_file() else {}).get("comparison") or {}
         referenced = [rb_ref.get("sampleFile"), rb_ref.get("rejectedOrientationSample"),
                       (report.get("sampleFile") if depth_path.is_file() else None),
-                      terrain_ref.get("sampleFile")]
+                      terrain_ref.get("sampleFile"), ladder_ref]
         if terrain_ref.get("sampleFile"):
             referenced.append(terrain_ref["sampleFile"].replace(
                 "native-terrain-sample-", "native-terrain-reference-"))
@@ -1720,21 +2113,43 @@ def main():
             # contradicts itself or asserts an unmeasured convention does not.
             result["depth"] = native_depth_result(native_output)
             result["success"] &= result["depth"]["success"]
-            text = (output / "native.log").read_text(errors="replace")
-            result["diagnostics"] = [line.strip() for line in text.splitlines()
-                if re.search(r"\[vk-validation\]|Validation (Error|Warning)|SYNC-HAZARD-|VUID-", line)]
-            result["success"] &= not result["diagnostics"]
+            native_log_checks(result, output / "native.log")
             result["scope"] = "Minecraft-native Vulkan environment only; no Voxy LoD acceptance"
             result["voxy_integration_status"] = "BLOCKED_UNIMPLEMENTED"
-            result["validation_layer_loader_evidence"] = [line.strip() for line in text.splitlines()
-                if "VK_LAYER_KHRONOS_validation" in line and "Insert" in line]
-            result["success"] &= bool(result["validation_layer_loader_evidence"])
-            result["application_errors"] = [line.strip() for line in text.splitlines() if "/ERROR]" in line and "(Voxy)" in line]
-            expected_errors = ("Minecraft is not using the OpenGL backend; Voxy's Vulkan path still ",
-                               "Voxy is unsupported on your system.")
-            result["unexpected_application_errors"] = [line for line in result["application_errors"]
-                if not any(message in line for message in expected_errors)]
-            result["success"] &= not result["unexpected_application_errors"]
+            # ⚠ The depth LADDER measures Minecraft's own loaded depth, and the terrain probe
+            # above CLEARS that attachment every frame. They cannot share a launch, so the
+            # ladder gets its own, with terrain and marker off and the ladder's report
+            # required to say so. Its device is tied to its own run's checkpoints, not to the
+            # first launch's: a second process has a second VkDevice.
+            ladder_output = output / "native-ladder"
+            ladder_output.mkdir()
+            ladder_game = ladder_output / "game"
+            ladder_game.mkdir()
+            (ladder_game / ".voxy-harness").write_text(timestamp)
+            (ladder_game / "options.txt").write_text((game / "options.txt").read_text())
+            ladder_run = run_stage("native-ladder", ["runHarnessClient", *native_common,
+                f"-PharnessOutput={ladder_output}", f"-PharnessRunDir={ladder_game}",
+                f"-PharnessSeconds={args.seconds}", "-PharnessNative=true",
+                "-PharnessGraphicsBackend=vulkan", "-PharnessNativeFeatures=true",
+                "-PharnessNativeAdopt=true", "-PharnessNativeProbe=true",
+                "-PharnessNativeDepthLadder=true"], output, args.timeout)
+            ladder_run["environment"] = native_environment_result(ladder_output)
+            ladder_run["success"] &= ladder_run["environment"]["success"]
+            ladder_device = None
+            try:
+                ladder_device = single_checkpoint_device(
+                    ladder_run["environment"].get("checkpoints") or [])
+            except ValueError as exc:
+                ladder_run["device_error"] = str(exc)
+                ladder_run["success"] = False
+            ladder_run["ladder"] = native_ladder_result(ladder_output, ladder_device)
+            ladder_run["success"] &= ladder_run["ladder"]["success"]
+            native_log_checks(ladder_run, output / "native-ladder.log")
+            ladder_run["scope"] = ("a second Minecraft launch, terrain and marker OFF, so the"
+                                   " ladder tests Minecraft's own depth; bounds only, no"
+                                   " convention")
+            result["ladder_run"] = ladder_run
+            result["success"] &= ladder_run["success"]
             summary["stages"]["native_environment"] = result
             save()
             # Retained after the summary is written, so the evidence includes the finished

@@ -23,6 +23,12 @@ validation and synchronization validation through the loader environment and req
 loader evidence that the validation layer was inserted. It never creates Voxy's
 private Vulkan context or calls the GL interop probe in this mode. Voxy currently
 disables itself; this environment gate cannot certify Voxy native LoD rendering.
+Since 2026-10-07 the stage launches Minecraft **twice**: the first launch carries the
+marker, terrain, depth-copy and proof-file diagnostics; the second carries only the
+depth ladder (`-PharnessNativeDepthLadder`), because the terrain probe clears the
+depth attachment the ladder measures. Both launches are gated, logged
+(`native.log`, `native-ladder.log`) and retained; the ladder launch lives under
+`ladder/` in the evidence directory and `--replay-evidence` re-runs its gate.
 
 `python3 scripts/verify.py --only required --seconds 30 --timeout 1800` runs the GPU,
 interop, existing diagnostic live scenario and native environment scenario in order.

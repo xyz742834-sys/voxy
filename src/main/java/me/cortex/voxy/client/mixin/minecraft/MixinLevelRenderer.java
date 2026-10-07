@@ -34,6 +34,7 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
     @Inject(method = "close", at = @At("HEAD"))
     private void voxy$injectClose(CallbackInfo ci) {
         this.voxy$shutdownRenderer();
+        me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.shutdown();
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.shutdown();
         me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.shutdown();
     }
@@ -53,6 +54,10 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
         // ⚠ 深度 probe は<b>いちばん先</b>に、まだ誰も上書きしていない MC のシーン深度を読む。
         // 読み戻すだけで何も書かない。既定では何もしない。
         me.cortex.voxy.client.core.vk.mcnative.McNativeDepthProbe.probeOnce();
+        // ⚠ 深度の梯子は MC のシーン深度に対して<b>テストだけ</b>する (深度は書かない)。
+        // terrain probe より先に呼ぶ: あちらは有効なとき MC の深度をクリアするので、
+        // 後に呼ぶと測る対象が消える。既定ではどちらも何もしない。
+        me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.renderIfEnabled();
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.renderIfEnabled();
         me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.renderIfEnabled();
     }

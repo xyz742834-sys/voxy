@@ -590,6 +590,12 @@ loom {
             if (project.hasProperty('harnessNativeDepth')) {
                 vmArg '-Dvoxy.native.depth=true'
             }
+            // Test a ladder of known depths against Minecraft's OWN loaded scene depth, with
+            // depth writes disabled. This is how the Z convention has to be approached: the
+            // buffer-copy route returns all zeros. Off by default like everything native.
+            if (project.hasProperty('harnessNativeDepthLadder')) {
+                vmArg '-Dvoxy.native.depthladder=true'
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')
