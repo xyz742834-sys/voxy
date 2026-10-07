@@ -1,0 +1,78 @@
+You are an INDEPENDENT reviewer, round 7. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (3ac2c7b39535b9fcb97a4f5cf41f00973d2af2a0). Round 6 returned
+REDESIGN: it closed R5-LIFETIME, left B1, B3, B4 and R4-L1 open on narrower residuals, and
+added three blocking findings against the terrain experiment (R6-TERRAIN-GATE,
+R6-TERRAIN-DEVICE, R6-TERRAIN-WAIT). Its report is docs/ai/runs/native-integration-review-r6.md
+and its machine verdict docs/ai/runs/native-integration-review-r6.json.
+
+The boundary from rounds 4-6 still governs and the candidate accepts it: an independently
+accepted diagnostic foundation is still REDESIGN. The candidate does NOT claim an accepted
+layer. It claims (a) the seven open findings are repaired, (b) an EXPERIMENTAL terrain result
+holds within round 6's own stated scope, and (c) a NEGATIVE result about Minecraft's depth.
+Judge all three.
+
+Read docs/ai/project-goal.md and docs/ai/vulkan-native-integration-survey.md first; the
+survey's "Round-6 review repairs" and "Minecraft's scene depth is not observable through a
+buffer copy" sections state what changed and why.
+
+Judge, saying CONFIRMED or REFUTED with the file/line or command for each:
+
+1. EACH OPEN FINDING FROM ROUND 6.
+   B1 the gate now asserts EXPECTED_MARKER_GEOMETRY against the source constants instead of
+      accepting the producer's published geometry, and an empty manifest fails. Re-run your
+      geometry-shifting attack and look for any remaining reference value the producer controls.
+   B3 feature offsets must be distinct and non-negative, and `added` must not repeat. Find a
+      vacuous or contradictory proof set that still passes.
+   B4 both orientations' pixels are retained and recount_rejected_orientation requires the
+      pattern to be ABSENT in the rejected crop. Judge whether that actually substantiates
+      "exactly one orientation matches", and judge the stated limit (that a single y-ambiguous
+      image cannot establish WHICH orientation produced the draw) — is the survey's claim now
+      no stronger than the evidence?
+   R4-L1 both shutdown leak paths count against leakedPipelines and its build budget. Is
+      abandonment bounded now, on every path?
+   R6-TERRAIN-GATE terrain_report_checks is shared by the stage gate and replay; device must be
+      a non-zero handle equal to the adopted identity; sampleAtDraw must be positive and within
+      the recorded total; flipped is required; referenced samples must be manifest members;
+      truncated gzip gives a structured failure. Re-run your whole mutation table and look for
+      a check the stage gate makes that replay still skips, or vice versa.
+   R6-TERRAIN-DEVICE ownership is now judged against Minecraft's current VkDevice via
+      McNativeVulkan.vkDeviceHandle, divergence halts the probe for the session and fails the
+      gate. Reproduce your A->B injection.
+   R6-TERRAIN-WAIT "submitted" and "wait observed" are separate, and nothing is freed without
+      the second. Reproduce your wait-failure route.
+2. THE DEPTH RESULT (new). McNativeDepthProbe reports that copyTextureToBuffer on Minecraft's
+   depth attachment completes and yields all zeros, measured twice including in isolation. The
+   candidate claims this is a NEGATIVE result: the path does not observe Minecraft's scene
+   depth, the Z convention is unmeasured, and why the image is uniform is not established.
+   Judge: is that conclusion supported, or is it over- or under-claimed? Is the gate's asymmetry
+   (strict on the measurement, permissive on the answer) sound, or can it be used to launder an
+   unmeasured convention into the survey? Is the probe genuinely read-only and inert unflagged?
+   Judge also whether the suggested next route (behavioural depth inference via draws against a
+   LOADed attachment) is stated as a plan rather than as a result.
+3. TESTS. 326 JUnit and 107 Python cases, including McNativeMarkerOrientationTest and
+   McNativeTerrainLifetimeTest. Name any test that would pass against broken code. Note the
+   commit's claim that the fixtures must not be shrunk (at 640x360 the pass cell falls below the
+   gate's 500-pixel floor) — judge whether any fixture is now sized or shaped so that a real
+   defect would escape.
+4. WHETHER THE SURVEY OVERSTATES. It now tables the replay status of every retained run,
+   corrects two sentences in place, marks one paragraph superseded by the code, and records the
+   depth result as negative. Judge what remains, and in particular whether the terrain section
+   and the new "Measured:" paragraph claim more than the retained evidence supports.
+5. SAFETY FOR NORMAL PLAY. With voxy.native.probe / .marker / .features / .adopt / .terrain /
+   .depth all unset, would you ship this to a player on the GL backend? On Minecraft's Vulkan
+   backend? Confirm the two newest flags (terrain, which clears Minecraft's colour and depth,
+   and depth, which reads it back) cannot act unflagged.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261006T095436-054038Z
+Do NOT run scripts/verify.py --only native or --only live (it launches Minecraft and takes the
+GPU); judge the committed evidence instead.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round6_findings_closed (an
+object mapping B1, B3, B4, R4-L1, R6-TERRAIN-GATE, R6-TERRAIN-DEVICE, R6-TERRAIN-WAIT to
+true/false), terrain_experiment_judgment, and depth_result_judgment.

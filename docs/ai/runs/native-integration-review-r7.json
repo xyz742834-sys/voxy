@@ -1,0 +1,273 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "3ac2c7b39535b9fcb97a4f5cf41f00973d2af2a0",
+  "review_round": 7,
+  "blocking_findings": [
+    {
+      "id": "B1",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Geometry-shifting and empty-manifest attacks now fail, but producer-controlled markerRgb makes a cyan-only box stand in for the source-defined magenta near draw. Core consulted reports, summary, source fingerprint and log can be omitted from manifest binding and still replay.",
+      "evidence": [
+        "scripts/verify.py:657-670",
+        "scripts/verify.py:1381-1389",
+        "scripts/verify.py:1423-1429",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:124-133",
+        "nearRgbRedefined -> replay 0; unmanifestedReports -> replay 0"
+      ]
+    },
+    {
+      "id": "B3",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Duplicate/nonnegative checks repaired; distinct impossible offsets outside the 220-byte feature struct pass proof helper and replay.",
+      "evidence": [
+        "scripts/verify.py:1096-1117",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDeviceFeatures.java:124-142",
+        "offsets 1000001..1000004 -> proof success=true, replay 0"
+      ]
+    },
+    {
+      "id": "B4",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Actual retained two-crop narrowed orientation result confirmed; a one-pixel unrelated rejected crop passes the purported absent-pattern/clean-opposite-box proof because regions are clipped.",
+      "evidence": [
+        "scripts/verify.py:551-572",
+        "scripts/verify.py:593-599",
+        "rejected crop 1x1 black, rect [0,0,1,1] -> replay 0"
+      ]
+    },
+    {
+      "id": "R6-TERRAIN-GATE",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Shared checker repaired most mutations, but replay omits expected adopted-device argument and reference/rejected sample manifest membership.",
+      "evidence": [
+        "scripts/verify.py:893",
+        "scripts/verify.py:1416",
+        "scripts/verify.py:1423-1429",
+        "scripts/verify.py:1570-1574",
+        "device 0xdead -> stage false, replay 0; unmanifested reference/opposite crop -> replay 0"
+      ]
+    },
+    {
+      "id": "R6-TERRAIN-DEVICE",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "A-to-B recording halt and sticky session stop repaired. Divergence does not publish the failing state, leaving prior clean on-disk terrain proof unchanged.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java:212-230",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java:844-850",
+        "real heap A->B->A: ownership false, instance null, deviceDiverged true, leaks 1; clean disk report unchanged"
+      ]
+    },
+    {
+      "id": "R7-DEPTH-GATE",
+      "severity": "high",
+      "judgment": "REFUTED",
+      "finding": "Depth gate accepts contradictory measurement statistics and unmeasured positive Z convention; band separation is not known near/far geometry. Replay ignores depth checks.",
+      "evidence": [
+        "scripts/verify.py:766-831",
+        "scripts/verify.py:1394-1437",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthProbe.java:227-236",
+        "keep zero histogram, set uniform=false,min=0,max=1,top=0,bottom=.8,reversedZ=true -> gate success/readable reverse-Z, replay 0"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R5-TEST",
+      "severity": "medium",
+      "judgment": "REFUTED",
+      "finding": "Lifetime tests cover only disabled/initial state; replay fixture lacks terrain and still passes if rejected-orientation checker is stubbed empty. Proof and depth positive fixtures carry inconsistent measurements.",
+      "evidence": [
+        "src/test/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainLifetimeTest.java:24-79",
+        "scripts/tests/test_marker_gate.py:469-472",
+        "scripts/tests/test_marker_gate.py:689-722",
+        "scripts/tests/test_marker_gate.py:784-800",
+        "scripts/tests/test_marker_gate.py:1058-1091"
+      ]
+    },
+    {
+      "id": "R5-DOC",
+      "severity": "medium",
+      "judgment": "REFUTED",
+      "finding": "Experimental boundary and actual latest measurements confirmed. Replay table falsely lists 083136 as passing and omits two runs; broad device-retirement, depth-write and initial implementation statements remain too strong.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:12",
+        "docs/ai/vulkan-native-integration-survey.md:297-307",
+        "docs/ai/vulkan-native-integration-survey.md:449-452",
+        "docs/ai/vulkan-native-integration-survey.md:819-820",
+        "docs/ai/vulkan-native-integration-survey.md:833"
+      ]
+    },
+    {
+      "id": "R7-DEPTH-EVIDENCE",
+      "severity": "medium",
+      "judgment": "REFUTED",
+      "finding": "Two combined runs retain zero-depth reports/logs, but no raw depth pixels or bound isolated depth-only run. Isolation basis text is unconditional; self-contamination exclusion is unproven.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:926-937",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthProbe.java:218-220",
+        "retained 084300 and 095436 both contain enabled terrain/marker results and terrain draw logs"
+      ]
+    },
+    {
+      "id": "R5-API",
+      "severity": "low",
+      "judgment": "REFUTED",
+      "finding": "Legacy unchecked waitIdle and direct context destruction remain unsafe as general future integration APIs.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/VkFrameTracker.java:220-224",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkContext.java:103-106"
+      ]
+    },
+    {
+      "id": "R5-IO",
+      "severity": "low",
+      "judgment": "REFUTED",
+      "finding": "Diagnostic I/O is synchronous, cumulative disk growth is unbounded, JSON publication is non-atomic/swallowed and some registration-close accounting/publication remains incomplete.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java:469-474",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:408-425",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeVulkanProbe.java:359-390"
+      ]
+    }
+  ],
+  "safe_for_normal_play": {
+    "gl_backend": true,
+    "minecraft_vulkan_backend": true,
+    "scope": "All six native flags unset. Source/test-supported dormant safety; on Minecraft Vulkan, Voxy remains disabled. No fresh Minecraft smoke/soak.",
+    "terrain_cannot_clear_unflagged": true,
+    "depth_cannot_read_back_unflagged": true,
+    "native_lod_functionality_accepted": false
+  },
+  "round6_findings_closed": {
+    "B1": false,
+    "B3": false,
+    "B4": false,
+    "R4-L1": true,
+    "R6-TERRAIN-GATE": false,
+    "R6-TERRAIN-DEVICE": false,
+    "R6-TERRAIN-WAIT": true
+  },
+  "round6_repair_judgments": {
+    "R4-L1": {
+      "judgment": "CONFIRMED",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:1012-1018",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:1040-1049",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeMarkerDraw.java:815-823",
+        "three shutdown leaks each route counted; budget prevents create before device dereference"
+      ]
+    },
+    "R6-TERRAIN-WAIT": {
+      "judgment": "CONFIRMED",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java:334-335",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java:364-367",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainProbe.java:395-425",
+        "unchanged build bytecode with stub GPU dependencies: throwing wait -> zero resource frees, leakedProbes=1; successful-wait/read-failure control -> all three free counters=1"
+      ]
+    }
+  },
+  "prior_R5_LIFETIME_closed": true,
+  "terrain_experiment_judgment": {
+    "judgment": "CONFIRMED_BOUNDED_MEASUREMENT; REFUTED_GENERAL_GATE_SOUNDNESS",
+    "experimental_only": true,
+    "same_device_draw_into_minecraft_image": "CONFIRMED from inspected source, bound source fingerprints and retained nonblank pairs under stable device",
+    "retained_rgb_comparison": {
+      "confirmed": true,
+      "sampleAtDraw": 4580,
+      "size": [
+        1920,
+        1080
+      ],
+      "nativeSet": 26116,
+      "referenceSet": 26116,
+      "mismatches": 0
+    },
+    "all_22_retained_pairs_match": true,
+    "split_recording_test": "CONFIRMED tested warmed same-renderer offscreen RGB equality; broader fresh-state/depth equivalence unproven",
+    "unobserved_reference_wait_cleanup": "CONFIRMED_REPAIRED_BY_SOURCE_AND_FAULT_INJECTION",
+    "recording_device_guard": "CONFIRMED_REPAIRED",
+    "divergence_gate_publication_sound": false,
+    "general_gate_sound": false,
+    "normal_play_integration_accepted": false,
+    "limitations": [
+      "synthetic input and same-renderer reference permit common-mode errors",
+      "clears Minecraft colour/depth, no scene coexistence",
+      "normalized vertical orientation; alpha/depth not compared",
+      "no real world mesh/atlas/LoD or compute-fed production draw-count proof",
+      "replay omits expected terrain identity and full referenced-artifact membership"
+    ]
+  },
+  "depth_result_judgment": {
+    "judgment": "CONFIRMED_REPORTED_BOUNDED_NEGATIVE; REFUTED_ISOLATION_PROOF_AND_GATE_SOUNDNESS",
+    "reported_uniform_negative_supported": true,
+    "reported_pixels": 1639680,
+    "reported_size": [
+      1708,
+      960
+    ],
+    "reported_value": 0.0,
+    "raw_depth_independently_recounted": false,
+    "z_convention_measured": false,
+    "uniform_cause_established": false,
+    "isolated_run_independently_confirmed": false,
+    "read_only_image_contents": true,
+    "inert_unflagged": true,
+    "gate_strict_about_measurement": false,
+    "gate_can_launder_unmeasured_convention": true,
+    "replay_checks_depth": false,
+    "behavioural_loaded_attachment_route": "CONFIRMED_PLAN_ONLY",
+    "limits": "Retained aggregates/logs support absence of useful observed variation in those captures, not universal impossibility of scene-depth copying or exclusion of contamination."
+  },
+  "verification": {
+    "gradle": {
+      "command": "./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true",
+      "exit_code": 0,
+      "tests": 326,
+      "passed": 325,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "known_skip": "VkBarriersTest.missingBarrierIsDetected",
+      "strict_junit_result_success": true,
+      "unexpected_diagnostics": []
+    },
+    "python": {
+      "command": "python3 -m unittest discover -s scripts/tests",
+      "exit_code": 0,
+      "tests": 107,
+      "seconds": 91.125
+    },
+    "replay": {
+      "command": "python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261006T095436-054038Z",
+      "exit_code": 0,
+      "listed_checks": 6,
+      "does_not_validate_all_five_stage_gates": true
+    }
+  },
+  "evidence_binding": {
+    "directory": "docs/ai/runs/native-evidence/20261006T095436-054038Z",
+    "listed_files": 121,
+    "listed_payload_bytes": 2359194,
+    "all_manifest_hashes_match": true,
+    "source_fingerprint_entries": 405,
+    "all_listed_source_hashes_match_head": true,
+    "recorded_revision": "35aff16fbda3e2f93564dfe7af3ccb8ee9cfc257",
+    "recorded_revision_dirty": true,
+    "changed_sources_during_run": [],
+    "native_sync_validation_independently_established": false
+  },
+  "not_checked": [
+    "Fresh Minecraft startup/native/live/gameplay, excluded by user",
+    "Real GPU device-loss/fence-failure/device-replacement timing; injections used heap wrappers or stubbed GPU dependencies",
+    "Raw depth, isolated depth-only evidence and full parent screenshots absent",
+    "Real-world mesh/atlas/LoD, alpha/depth terrain equivalence, performance and loaded-scene coexistence absent",
+    "Native synchronization-validation enablement not established"
+  ],
+  "review_artifact": "docs/ai/runs/native-integration-review.md"
+}
