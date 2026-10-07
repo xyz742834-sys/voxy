@@ -1,0 +1,169 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "9b6a18160b8111cf241787d4ca28c363af8b524b",
+  "review_round": 12,
+  "accepted_layer": false,
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "detail": "Rounds 4-11 boundary retained: bounded diagnostic observations do not constitute an accepted foundation or deliver native streamed Voxy LoD/coexistence/normal-play acceptance.",
+      "evidence": [
+        "docs/ai/project-goal.md",
+        "docs/ai/vulkan-native-integration-survey.md:567",
+        "docs/ai/vulkan-native-integration-survey.md:780"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R12-NATIVE-CALL-LIMIT",
+      "judgment": "CONFIRMED",
+      "detail": "All seven ladder JUnit tests pass restoring mutations inside the production creator. Changing state for the call then restoring it publishes pinned states and is accepted by replay. The original persistent rewrites are refused. No actual Vulkan call was executed by the probe.",
+      "evidence": [
+        ".agent-run/r12-production-probe.json",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:707",
+        "docs/ai/vulkan-native-integration-survey.md:1219"
+      ]
+    },
+    {
+      "id": "R12-HANDOFF-STALE",
+      "judgment": "CONFIRMED",
+      "detail": "Handoff still names prior HEAD, totals, replayable run, dispatch state and refuted loading/clear-value inferences.",
+      "evidence": [
+        "docs/ai/handoff.md:4",
+        "docs/ai/handoff.md:87",
+        "docs/ai/handoff.md:117"
+      ]
+    },
+    {
+      "id": "R10-ANCHOR-GRAIN",
+      "judgment": "CONFIRMED",
+      "detail": "Complete-block means do not bind boundary pixels or within-block ordering; stated limit.",
+      "evidence": [
+        ".agent-run/r12-extra.json",
+        ".agent-run/r12-attacks.json",
+        "scripts/verify.py:1203"
+      ]
+    },
+    {
+      "id": "R10-CONSISTENT-FORGERY",
+      "judgment": "CONFIRMED",
+      "detail": "Coordinated record rewrites pass; replay establishes internal consistency, not GPU authenticity or calibration of arbitrary broken compare paths.",
+      "evidence": [
+        ".agent-run/r12-extra.json",
+        ".agent-run/r12-magenta-attack.json"
+      ]
+    }
+  ],
+  "safe_for_normal_play": {
+    "gl_backend": true,
+    "minecraft_vulkan_backend_dormant": true,
+    "minecraft_vulkan_native_voxy_delivery": false,
+    "ladder_inert_unflagged": true,
+    "ladder_writes_minecraft_depth_flagged": false,
+    "qualification": "Dormant source/test judgment on supported GL and Vulkan with Voxy disabled; no fresh normal-play run or whole-project certification."
+  },
+  "round11_findings_closed": {
+    "B1": true,
+    "R10-CREATE-TEST": true
+  },
+  "round11_closure_scope": "B1 full selected-source inventory; R10-CREATE-TEST named persistent creator rewrites caught by post-return refusal and gate, not universal native-call authentication.",
+  "candidate_claims": {
+    "a": "CONFIRMED within stated closure scope",
+    "b": "CONFIRMED",
+    "c": "CONFIRMED for current conditional observations and disclosed limits; REFUTED as unconditional native-call-state or calibration guarantee"
+  },
+  "terrain_experiment_judgment": {
+    "judgment": "CONFIRMED bounded synthetic experiment",
+    "native_reference_pairs": 23,
+    "all_pairs_byte_identical": true,
+    "gate_sample_draw": 4579,
+    "non_background_pixels": 26116,
+    "rgb_mismatches": 0,
+    "streamed_lod_or_coexistence_accepted": false
+  },
+  "depth_result_judgment": {
+    "judgment": "CONFIRMED quantized zero copy; cause and Z direction unmeasured",
+    "quantized_zero_pixels": 1639680,
+    "size": [
+      1708,
+      960
+    ],
+    "original_float_bits_retained": false,
+    "depth_only_isolation_retained": false,
+    "failure_mode_identified": false,
+    "z_convention_measured": false
+  },
+  "ladder_judgment": {
+    "mechanism_sound": true,
+    "complementary_control_sound": true,
+    "crop_provenance_anchored": true,
+    "sample_inventory_sound": true,
+    "source_binding_sound": true,
+    "pipeline_state_pinned": true,
+    "isolation_retained": true,
+    "gate_sound": true,
+    "per_pixel_counts_confirmed": true,
+    "claims_supported": true,
+    "z_convention_measured": false,
+    "qualification": "Booleans describe the inspected current mechanism and internal-consistency gate. Crop anchoring is at complete 4x4 block means; pipeline pinning concerns post-return observed structs. Arbitrary creator/native-call substitutions, coherent record forgery and runtime-binary identity are excluded.",
+    "native_call_state_authenticated": false,
+    "arbitrary_less_path_calibrated": false,
+    "gpu_authenticity_proven": false,
+    "samples": 19,
+    "anchored_blocks": 198546,
+    "source_inventory_entries": 408,
+    "all_anomaly_and_other_zero": true,
+    "ladder_device": "0x7a496d4018",
+    "main_launch_device": "0x7672f93018"
+  },
+  "tests": {
+    "junit": {
+      "total": 333,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "skip": "VkBarriersTest.missingBarrierIsDetected()"
+    },
+    "python": {
+      "total": 161,
+      "failures": 0,
+      "errors": 0,
+      "seconds": 304.721
+    },
+    "replay": {
+      "exit": 0,
+      "checks": 10,
+      "ladder_samples": 19
+    },
+    "fixtures_shrunk": false
+  },
+  "previous_round_evidence_independently_confirmed": {
+    "samples": 18,
+    "anchored_blocks": 186450
+  },
+  "survey_replay_table": {
+    "judgment": "CONFIRMED",
+    "retained_runs": 13,
+    "replayable_runs": [
+      "20261007T031630-708042Z"
+    ]
+  },
+  "unverified": [
+    "Fresh Minecraft/native/live execution excluded by user",
+    "GPU/driver consumption of creation state",
+    "Original depth floats and isolated depth-only run",
+    "Native synchronization-validation activation",
+    "Same-pixel independent scene depth and Z direction",
+    "Normal-play GL parity and lifecycle/pressure/coexistence"
+  ],
+  "review_artifacts": [
+    "docs/ai/runs/native-integration-review.md",
+    ".agent-run/r12-independent-evidence.json",
+    ".agent-run/r12-production-probe.json",
+    ".agent-run/r12-bytecode.json"
+  ],
+  "production_modified": false,
+  "minecraft_launched": false
+}
