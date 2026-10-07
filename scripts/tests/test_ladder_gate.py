@@ -148,6 +148,7 @@ def report(samples=None, **overrides):
             "rungDepths": list(D), "band": list(verify.EXPECTED_LADDER_BAND),
             "palette": [list(c) for c in verify.EXPECTED_LADDER_PALETTE],
             "readbackInterval": 240, "sampleLimit": 24, "frameScale": 4,
+            "pipelineStates": [[1, 1, 0], [7, 1, 0], [4, 1, 0]],
             "samples": samples if samples is not None else [sample()[0]],
             "problems": 0, "firstProblem": None, "closeFailures": 0, "leakedPipelines": 0,
             "deviceDiverged": False, "terrainProbeEnabled": False, "terrainDrawsRecorded": 0,
@@ -454,6 +455,14 @@ class LadderGateTest(unittest.TestCase):
         body["depthWritesEnabled"] = True
         self.assertFails(self.run_gate(body, fields), "measured its own depth")
 
+    def test_pipeline_states_other_than_the_ladders_fail(self):
+        """Round-11 R10-CREATE-TEST: the state read back after creation is published and pinned."""
+        for states in ([[7, 1, 0], [7, 1, 0], [4, 1, 0]], [[1, 1, 1], [7, 1, 0], [4, 1, 0]],
+                       [[1, 0, 0], [7, 1, 0], [4, 1, 0]], [], None, [[1, 1, 0], [7, 1, 0]]):
+            body, fields = self.one()
+            body["pipelineStates"] = states
+            self.assertFails(self.run_gate(body, fields), "depth states")
+
     def test_claiming_the_convention_or_a_bound_fails(self):
         for patch in ({"zConventionMeasuredHere": True}, {"reversedZ": True},
                       {"upperBound": 0.1}, {"lowerBound": None}):
@@ -709,15 +718,27 @@ class LadderRetentionTest(unittest.TestCase):
             self.assertIn(name, out["error"])
 
     def test_an_empty_or_disagreeing_source_fingerprint_is_rejected(self):
-        """Round-10 B1: a hash-listed `{}` fingerprint replayed as 0."""
+        """Round-10 B1: a hash-listed `{}` fingerprint replayed as 0. Round-11 B1: so did a
+        partial inventory, the real one minus a source, and aliases of one file."""
+        real = REAL_FINGERPRINTS
+        required = {k: real[k] for k in verify.SOURCE_BINDING_REQUIRED}
+        minus_one = dict(real)
+        minus_one.pop("src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthProbe.java")
+        docs = {f"docs/ai/x{i}.md": "22" * 32 for i in range(100)}
+        aliases = {**required, **{f"./{'/'.join(['.'] * i)}/scripts/verify.py": real["scripts/verify.py"]
+                                  for i in range(1, 100)}}
         for content, fragment in (("{}", "names only 0"),
                                   (json.dumps({"scripts/verify.py": "00" * 32,
                                                **{f"src/x{i}.java": "11" * 32
                                                   for i in range(120)}}),
                                    "does not name build.gradle"),
-                                  (json.dumps({**REAL_FINGERPRINTS,
-                                               "scripts/verify.py": "ab" * 32}),
-                                   "disagrees with this checkout")):
+                                  (json.dumps({**real, "scripts/verify.py": "ab" * 32}),
+                                   "disagrees with this checkout"),
+                                  (json.dumps({**required, **docs}), "source inventory"),
+                                  (json.dumps(minus_one), "source inventory"),
+                                  (json.dumps({**real, "src/extra.java": "33" * 32}),
+                                   "source inventory"),
+                                  (json.dumps(aliases), "normalized")):
             target, _ = self.build()
             (target / "source-sha256.json").write_text(content)
             self.rehash(target, "source-sha256.json")

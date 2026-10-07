@@ -120,6 +120,14 @@ public final class McNativeDepthLadder implements Destroyable {
     /** 全フレームのサムネイルの縮尺。4x4 ブロックの整数平均。 */
     public static final int FRAME_SCALE = 4;
 
+    /**
+     * 作成後に create-info から読み戻した深度状態、パイプラインごと {compareOp, testEnable,
+     * writeEnable}。{@link #buildPipelines} が creator の<b>戻った後</b>に構造体から読む。
+     * creator の中で構造体を書き換える変異 (round-11 review R10-CREATE-TEST) は作成関数には
+     * 届くが、ここに写り、buildPipelines は失敗を返し、証跡は書き込み有効を公開する。
+     */
+    private static int[][] pipelineStates = new int[0][];
+
     private static final long READBACK_BUDGET_BYTES = 40L << 20;
     private static final int FAILURE_BUDGET = 3;
     private static final long READBACK_INTERVAL = 240;
@@ -622,18 +630,8 @@ public final class McNativeDepthLadder implements Destroyable {
             // ⚠ round-10 review R10-CREATE-TEST: the test must exercise THIS path, not a copy
             // of its table. buildPipelines builds every create-info and hands it to the
             // creator; the test injects a creator that inspects the info instead of Vulkan.
-            final var device$ = vk;
             long[] built = buildPipelines(stack, vertexModule, fragmentModule, layout,
-                colourFormat, depthFormat, info -> {
-                    long[] out = new long[1];
-                    if (vkCreateGraphicsPipelines(device$, VK_NULL_HANDLE, info, null, out)
-                            != VK_SUCCESS) {
-                        note("vkCreateGraphicsPipelines failed for the depth ladder (compare "
-                            + info.get(0).pDepthStencilState().depthCompareOp() + ")");
-                        return 0;
-                    }
-                    return out[0];
-                });
+                colourFormat, depthFormat, vulkanCreator(vk));
             System.arraycopy(built, 0, pipelines, 0, built.length);
             boolean complete = true;
             for (long handle$ : pipelines) complete &= handle$ != 0;
@@ -701,12 +699,56 @@ public final class McNativeDepthLadder implements Destroyable {
                                  long layout, int colourFormat, int depthFormat,
                                  PipelineCreator creator) {
         long[] handles = new long[PIPELINE_COMPARE_OPS.length];
+        int[][] observed = new int[PIPELINE_COMPARE_OPS.length][];
+        boolean intact = true;
         for (int i = 0; i < PIPELINE_COMPARE_OPS.length; i++) {
             var info = pipelineInfo(stack, vertexModule, fragmentModule, layout, colourFormat,
                 depthFormat, PIPELINE_COMPARE_OPS[i]);
             handles[i] = creator.create(info);
+            // ⚠ round-11 review R10-CREATE-TEST: the creator is the seam the test cannot
+            // cross. Read the state back from the struct the creator was handed, AFTER it
+            // returns: whatever it changed before calling Vulkan is what Vulkan received.
+            var ds = info.get(0).pDepthStencilState();
+            observed[i] = ds == null ? new int[] {-1, 0, 1}
+                : new int[] {ds.depthCompareOp(), ds.depthTestEnable() ? 1 : 0,
+                    ds.depthWriteEnable() ? 1 : 0};
+            if (observed[i][0] != PIPELINE_COMPARE_OPS[i] || observed[i][1] != 1
+                    || observed[i][2] != 0) {
+                intact = false;
+            }
+        }
+        synchronized (NOTES) {
+            pipelineStates = observed;
+        }
+        if (!intact) {
+            note("the depth-stencil state handed to pipeline creation is not the one the ladder"
+                + " built (compare ops " + java.util.Arrays.deepToString(observed) + "); the"
+                + " pipelines are not used");
+            return new long[PIPELINE_COMPARE_OPS.length];
         }
         return handles;
+    }
+
+    /** 作成後に観測した深度状態のコピー ({compareOp, testEnable, writeEnable} × 3)。 */
+    static int[][] pipelineStates() {
+        synchronized (NOTES) {
+            var out = new int[pipelineStates.length][];
+            for (int i = 0; i < out.length; i++) out[i] = pipelineStates[i].clone();
+            return out;
+        }
+    }
+
+    /** 本番の creator: Vulkan を呼ぶだけ。これより先はテストでは検査できず、測定で検査する。 */
+    static PipelineCreator vulkanCreator(org.lwjgl.vulkan.VkDevice vk) {
+        return info -> {
+            long[] out = new long[1];
+            if (vkCreateGraphicsPipelines(vk, VK_NULL_HANDLE, info, null, out) != VK_SUCCESS) {
+                note("vkCreateGraphicsPipelines failed for the depth ladder (compare "
+                    + info.get(0).pDepthStencilState().depthCompareOp() + ")");
+                return 0;
+            }
+            return out[0];
+        };
     }
 
     private static org.lwjgl.vulkan.VkGraphicsPipelineCreateInfo.Buffer pipelineInfo(
@@ -841,7 +883,18 @@ public final class McNativeDepthLadder implements Destroyable {
         sb.append("  \"completed\": ").append(!samples.isEmpty()).append(",\n");
         sb.append("  \"drawsRecorded\": ").append(drawsRecorded).append(",\n");
         sb.append("  \"rungs\": ").append(RUNGS).append(",\n");
-        sb.append("  \"depthWritesEnabled\": false,\n");
+        // ⚠ Not a literal: derived from the depth-stencil state read back after creation.
+        int[][] states = pipelineStates();
+        boolean writes = false;
+        for (int[] st : states) writes |= st[2] != 0;
+        sb.append("  \"depthWritesEnabled\": ").append(writes).append(",\n");
+        sb.append("  \"pipelineStates\": [");
+        for (int i = 0; i < states.length; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append("[").append(states[i][0]).append(", ").append(states[i][1]).append(", ")
+              .append(states[i][2]).append("]");
+        }
+        sb.append("],\n");
         sb.append("  \"zConventionMeasuredHere\": false,\n");
         sb.append("  \"rungDepths\": ").append(floats(depths())).append(",\n");
         sb.append("  \"band\": [").append(BAND_X0).append(", ").append(BAND_Y0).append(", ")

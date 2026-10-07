@@ -37,7 +37,8 @@ public class McNativeDepthLadderTest {
         assertTrue(json.contains("\"enabled\": false"), json);
         assertTrue(json.contains("\"drawsRecorded\": 0"), json);
         assertTrue(json.contains("\"samples\": []"), json);
-        assertTrue(json.contains("\"notes\": []"), json);
+        // (another test in this class deliberately leaves a creation-refusal note; a disabled
+        // ladder must add none of its own, which is what `after` above establishes)
     }
 
     /**
@@ -104,6 +105,57 @@ public class McNativeDepthLadderTest {
                 assertEquals(1, state[1], "depth test on");
                 assertEquals(0, state[2], "depth writes OFF in the create-info the creator receives");
             }
+        }
+    }
+
+    /**
+     * <b>creator の中で状態を書き換えられたら、buildPipelines はそれを観測して失敗すること。</b>
+     *
+     * <p>round-11 review R10-CREATE-TEST: 本番の creator (Vulkan を呼ぶ 3 行) はテストが差し替える
+     * 継ぎ目で、その中で LESS→ALWAYS や書き込み有効に変える変異は 6 テストを通った。いまは
+     * buildPipelines が creator の戻った後に構造体を読み戻し、違えば 0 を返して note を残し、
+     * 証跡が {@code depthWritesEnabled: true} / 違う pipelineStates を公開する — gate が落とす。
+     */
+    @Test
+    void aCreatorThatRewritesTheStateIsObservedAndRefused() {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            long[] handles = McNativeDepthLadder.buildPipelines(stack, 0L, 0L, 0L, 37, 126,
+                info -> {
+                    var ds = info.get(0).pDepthStencilState();
+                    if (ds.depthCompareOp() == VK_COMPARE_OP_LESS) ds.depthCompareOp(VK_COMPARE_OP_ALWAYS);
+                    return 7;
+                });
+            assertArrayEquals(new long[] {0, 0, 0}, handles, "a rewritten state must yield no pipelines");
+            int[][] states = McNativeDepthLadder.pipelineStates();
+            assertEquals(VK_COMPARE_OP_ALWAYS, states[McNativeDepthLadder.OP_LESS][0],
+                "the observed state is what the creator handed on");
+            assertTrue(McNativeDepthLadder.json().contains("\"notes\": [\"the depth-stencil state handed"),
+                McNativeDepthLadder.json());
+        }
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            long[] handles = McNativeDepthLadder.buildPipelines(stack, 0L, 0L, 0L, 37, 126,
+                info -> {
+                    info.get(0).pDepthStencilState().depthWriteEnable(true);
+                    return 7;
+                });
+            assertArrayEquals(new long[] {0, 0, 0}, handles);
+            assertTrue(McNativeDepthLadder.json().contains("\"depthWritesEnabled\": true"),
+                "the evidence must say writes were enabled: " + McNativeDepthLadder.json());
+        }
+        // and the honest creator restores the observed states to the intended ones
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            long[] handles = McNativeDepthLadder.buildPipelines(stack, 0L, 0L, 0L, 37, 126, info -> 9);
+            assertArrayEquals(new long[] {9, 9, 9}, handles);
+            int[][] states = McNativeDepthLadder.pipelineStates();
+            assertEquals(3, states.length);
+            for (int i = 0; i < 3; i++) {
+                assertEquals(McNativeDepthLadder.PIPELINE_COMPARE_OPS[i], states[i][0]);
+                assertEquals(1, states[i][1]);
+                assertEquals(0, states[i][2]);
+            }
+            assertTrue(McNativeDepthLadder.json().contains("\"depthWritesEnabled\": false"));
+            assertTrue(McNativeDepthLadder.json().contains("\"pipelineStates\": [[1, 1, 0], [7, 1, 0], [4, 1, 0]]"),
+                McNativeDepthLadder.json());
         }
     }
 

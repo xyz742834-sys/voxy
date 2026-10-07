@@ -57,7 +57,7 @@ complementary control, colour-coded brackets counted exactly from retained crops
 retained thumbnail of the whole readback, sampled through the session. Measured (18 samples,
 run `20261007T020025-032770Z` and later): sky pixels below 2⁻¹⁶, overworld terrain pixels in
 (2⁻¹², 2⁻¹⁰], nether pixels in (2⁻¹⁰, 2⁻⁶] — the tail attachment holds scene depth that changes
-with the scene. The ladder runs in
+with the scene; why the buffer copy read 0.0 there is not established. The ladder runs in
 its own launch inside `--only native` (terrain and marker off, the report says so, the gate
 requires it) and that launch is retained and replays. The Z convention remains unmeasured and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,

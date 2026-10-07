@@ -305,10 +305,11 @@ def native_environment_result(output):
     return result
 
 
-def source_fingerprints():
-    names = subprocess.check_output(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=ROOT).decode().split("\0")
-    return {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in names
-        if name and (ROOT / name).is_file()
+def source_fingerprints(root=None):
+    root = ROOT if root is None else root
+    names = subprocess.check_output(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z"], cwd=root).decode().split("\0")
+    return {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in names
+        if name and (root / name).is_file()
         and (name.startswith(("src/", "scripts/")) or name in ("build.gradle", "gradle.properties"))}
 
 
@@ -885,6 +886,7 @@ def device_handle_of(value, name, field):
 
 
 LADDER_FRAME_SCALE = 4
+VK_COMPARE_OP_LESS, VK_COMPARE_OP_GREATER, VK_COMPARE_OP_ALWAYS = 1, 4, 7
 LADDER_SAMPLE_LOG = re.compile(r"depth ladder sample at draw (\d+) ")
 LADDER_SAMPLE_LOG_DETAIL = re.compile(
     r"depth ladder sample at draw (\d+) flipped=(true|false) counts=\[anomaly=(\d+) low=(\d+)"
@@ -981,6 +983,16 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
                    for c, want in zip(palette, EXPECTED_LADDER_PALETTE))):
         raise ValueError(f"the ladder publishes a palette that is not the one its source"
                          f" lays out: {palette}")
+    # ⚠ Round-11 review R10-CREATE-TEST: the depth state is read back from the create-info
+    # after the creator returns and published; a ladder whose pipelines were created with
+    # any other state is not a measurement of Minecraft's depth.
+    states = report.get("pipelineStates")
+    want_states = [[VK_COMPARE_OP_LESS, 1, 0], [VK_COMPARE_OP_ALWAYS, 1, 0],
+                   [VK_COMPARE_OP_GREATER, 1, 0]]
+    if states != want_states:
+        raise ValueError(f"the ladder's pipelines were created with depth states {states!r},"
+                         f" not LESS/ALWAYS/GREATER with the test on and writes off"
+                         f" {want_states}")
     if report.get("frameScale") != LADDER_FRAME_SCALE:
         raise ValueError(f"the ladder publishes frameScale={report.get('frameScale')!r}, not"
                          f" the {LADDER_FRAME_SCALE} its source lays out")
@@ -2093,7 +2105,14 @@ SOURCE_BINDING_REQUIRED = ("scripts/verify.py", "build.gradle",
 
 
 def source_binding(fingerprints):
-    """Check a retained source fingerprint against the repository this replay runs in."""
+    """Check a retained source fingerprint against the repository this replay runs in.
+
+    ⚠ Round-11 review B1: comparing the LISTED files bound only what the producer chose to
+    list — four required names plus a hundred unrelated files, or the real list minus one
+    source, or a hundred aliases of one file, all passed. The fingerprint's key set must be
+    exactly the checkout's own source inventory (the same selection `source_fingerprints`
+    makes at launch), with normalized repository-relative names, and every byte must match.
+    """
     if not isinstance(fingerprints, dict):
         raise ValueError("the fingerprint is not a map of file to sha256")
     if len(fingerprints) < SOURCE_BINDING_MINIMUM:
@@ -2102,18 +2121,25 @@ def source_binding(fingerprints):
     for name in SOURCE_BINDING_REQUIRED:
         if name not in fingerprints:
             raise ValueError(f"the fingerprint does not name {name}")
-    mismatched, absent = [], []
     for name, digest in fingerprints.items():
         if not isinstance(name, str) or not isinstance(digest, str) \
                 or not re.fullmatch(r"[0-9a-f]{64}", digest):
             raise ValueError(f"the fingerprint entry {name!r}: {digest!r} is not a sha256")
-        path = REPO / name
-        if not path.is_file():
-            absent.append(name)
-        elif hashlib.sha256(path.read_bytes()).hexdigest() != digest:
-            mismatched.append(name)
-    return {"entries": len(fingerprints), "mismatched": sorted(mismatched),
-            "absent": sorted(absent), "checkout": str(REPO)}
+        if name.startswith(("/", "./", "../")) or "/./" in name or "/../" in name \
+                or "//" in name or name != name.strip():
+            raise ValueError(f"the fingerprint names {name!r}, which is not a normalized"
+                             f" repository-relative path")
+    inventory = source_fingerprints(REPO)
+    extra = sorted(set(fingerprints) - set(inventory))
+    omitted = sorted(set(inventory) - set(fingerprints))
+    if extra or omitted:
+        raise ValueError(f"the fingerprint's file set is not this checkout's source inventory:"
+                         f" {len(omitted)} source file(s) omitted, {len(extra)} unknown name(s)"
+                         f" listed: {(omitted + extra)[:6]}")
+    mismatched = sorted(name for name, digest in fingerprints.items()
+                        if inventory[name] != digest)
+    return {"entries": len(fingerprints), "inventory": len(inventory),
+            "mismatched": mismatched, "absent": [], "checkout": str(REPO)}
 
 
 def replay_evidence(directory):

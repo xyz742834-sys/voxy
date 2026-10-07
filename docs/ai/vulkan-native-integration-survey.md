@@ -453,12 +453,13 @@ of the point — and the replay status of each is:
 | [20261006T083136-838975Z](runs/native-evidence/20261006T083136-838975Z/MANIFEST.json) | no — the rejected orientation's pixels were not retained (round 6 B4) |
 | [20261006T084300-332469Z](runs/native-evidence/20261006T084300-332469Z/MANIFEST.json) | no — the rejected orientation's pixels were not retained (round 6 B4) |
 | [20261006T095436-054038Z](runs/native-evidence/20261006T095436-054038Z/MANIFEST.json) | no — its depth report predates `zConventionMeasuredHere` (round 7) |
-| [20261006T165039-062378Z](runs/native-evidence/20261006T165039-062378Z/MANIFEST.json) | **yes**, with the ladder listed as *not replayed* (no ladder launch was retained) |
+| [20261006T165039-062378Z](runs/native-evidence/20261006T165039-062378Z/MANIFEST.json) | no — its source fingerprint is not this checkout's inventory (round 11) |
 | [20261007T005606-024013Z](runs/native-evidence/20261007T005606-024013Z/MANIFEST.json) | no — its ladder report predates the per-pixel schema (`palette`, `samples`); round-8 refuted that ladder's inference |
 | [20261007T011026-211934Z](runs/native-evidence/20261007T011026-211934Z/MANIFEST.json) | no — same schema; kept as the measurement that showed non-zero depth over clouds |
 | [20261007T020025-032770Z](runs/native-evidence/20261007T020025-032770Z/MANIFEST.json) | no — its samples predate the frame thumbnails round 9 asked for; kept as the first per-pixel measurement (18 samples, counts confirmed by round 9) |
 | [20261007T022908-162255Z](runs/native-evidence/20261007T022908-162255Z/MANIFEST.json) | no — its source fingerprint is of the tree before the round-10 repairs, which the replay now requires to match the checkout (round 10 confirmed its 18 samples) |
-| [20261007T025423-410921Z](runs/native-evidence/20261007T025423-410921Z/MANIFEST.json) | **yes**, per-pixel ladder, frame-anchored crops, source fingerprint matching this tree |
+| [20261007T025423-410921Z](runs/native-evidence/20261007T025423-410921Z/MANIFEST.json) | no — predates the published pipeline states; its fingerprint is of the tree before the round-11 repairs (round 11 confirmed its 18 samples) |
+| [20261007T031630-708042Z](runs/native-evidence/20261007T031630-708042Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1038,9 +1039,9 @@ measurement of which direction is nearer; the convention remains unmeasured.
 **What decides it:** the same ladder with rungs placed where reverse-Z depth actually lives,
 2⁻¹⁶ … 2⁻² (about 3000 blocks down to 0.2 blocks at near 0.05), over the same terrain band, in
 the same isolated launch. A surviving prefix that ends somewhere in the middle bounds a real
-scene depth and shows the copy was the broken part; no survivor down to 2⁻¹⁶ says the
-attachment really is ~0 at this hook. The gate's prefix rule, pinned depths and recount carry
-over unchanged.
+scene depth there and leaves the copy's 0.0 unexplained; no survivor down to 2⁻¹⁶ says the
+attachment reads below that at this hook. (Written before round 8; the prefix rule and the
+per-column reading it assumes were refuted there — see the sections that follow.)
 
 **Measured with the re-rung ladder (2026-10-07, run
 [20261007T011026-211934Z](runs/native-evidence/20261007T011026-211934Z/MANIFEST.json), its own
@@ -1178,8 +1179,9 @@ against `6b2d6cc9`: it closed R8-LADDER-GATE's two attacks and R9-DEPTH-FINITE, 
 commit after it: (1) B1 — `source-sha256.json` only had to exist and be hash-listed; replaced
 by `{}` it still replayed. Replay now parses it, requires hundreds of entries including the
 runner, the build file and the ladder/marker sources, and **requires every listed file to hash
-to the same bytes in the checkout the replay runs in** — so a retained run replays as 0 only
-in the tree it was built from. (2) R10-CREATE-TEST — pinning the table was not enough: a
+to the same bytes in the checkout the replay runs in**. (Round 11: that still bound only the
+*listed* files — a partial inventory passed; the key set must now equal the checkout's own
+source inventory, see the round-11 paragraph.) (2) R10-CREATE-TEST — pinning the table was not enough: a
 substitution at `create()`'s own call site escaped. Pipeline creation now goes through
 `buildPipelines(..., creator)`, and the JUnit test calls that same method with an injected
 creator that inspects the create-infos it is handed: three pipelines, `LESS`/`ALWAYS`/`GREATER`
@@ -1195,6 +1197,29 @@ internal-consistency check over editable records — a jointly rewritten report,
 thumbnail, log and manifest can pass, as no hash rooted in an editable manifest can prove GPU
 origin. The replay's claim is "these records agree with each other, with the pinned source
 constants and with this checkout's sources", not authenticity against a forger.
+
+**Round-11 review repairs (2026-10-07).** Round 11
+([native-integration-review-r11.md](runs/native-integration-review-r11.md)) returned REDESIGN
+against `867cd25d`: it closed R9-SURVEY-OVERCLAIM, R10-LOG-DETAILS and R10-DEPTH-FIXTURE,
+confirmed all 18 counts and 186 450 anchored blocks, and left two blocking residuals, repaired
+in the commit after it. (1) B1 — the fingerprint comparison bound only the files the fingerprint
+*listed*: four required names plus a hundred `docs/` files, the real list minus one source, or a
+hundred `./` aliases of one file all passed. `source_binding` now requires the key set to equal
+the checkout's own source inventory (the same `src/`, `scripts/`, `build.gradle`,
+`gradle.properties` selection the launch fingerprints), rejects non-normalized names, and
+compares every byte. What that binds is the selected sources of this checkout to the run — not
+commit identity, dependency jars, Minecraft/Sodium binaries, the JVM, the driver or the GPU
+execution, which the reviewer correctly lists as outside it. (2) R10-CREATE-TEST — the test's
+injected creator replaces the production one, so a mutation *inside* the production creator
+(rewriting the already-built state before `vkCreateGraphicsPipelines`) escaped. `buildPipelines`
+now reads the depth state back from the create-info **after the creator returns** and refuses
+the pipelines if it is not the table's op with the test on and writes off; the observed states
+are published as `pipelineStates` and `depthWritesEnabled` is derived from them rather than
+written as a literal; the gate pins both. A JUnit test injects a creator that rewrites the state
+and requires the refusal. The production creator is now a three-line `vulkanCreator` whose only
+act is the Vulkan call; a mutation that builds its own struct inside it is beyond any test
+without a device and is what the measurement itself (depth-tested colours) checks. Replay table:
+after this change **only the newest run replays**, by design; every older cell says "no".
 
 **What the per-pixel ladder does and does not say.** It gives, per sample and per pixel of one
 band, the bracket of rungs the depth attachment's value falls in, by Minecraft's own depth
