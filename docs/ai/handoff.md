@@ -1,8 +1,9 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-20 candidate **39584eba** (`39584eba58731109ee4b0d38e180f173b55104ba`, dispatched
-2026-10-09 in Orca worktree `native-review-r20`, terminal `term_e3520629-8023-431f-a21e-0c01e804a05b`). Round 19 judged `9a6ca051`: REDESIGN on DELIVERY-BOUNDARY only; R18 items closed;
+`vulkan-macos`, round-21 candidate = the docs commit on top of the run-evidence commit (the dispatch commit after
+it names the exact SHA). Round 20 judged `39584eba`: REDESIGN on DELIVERY-BOUNDARY only; R19 items closed;
+real-LOAD and the Blaze3D atlas read confirmed; six non-blocking items repaired in `da91d70e`. Round 19 judged `9a6ca051`: REDESIGN on DELIVERY-BOUNDARY only; R18 items closed;
 instance mode and matrix capture confirmed. Round 18 judged `a6e1c3a3`: REDESIGN on DELIVERY-BOUNDARY only;
 R16-COEXIST-LAUNCH-SEMANTICS and R14-DOC-DRIFT closed; terrain-LOAD measurement confirmed; four
 non-blocking items repaired in `bb55f53b`. (Round 17 judged `19b2444a`: coexistence CONFIRMED a third time,
@@ -31,10 +32,10 @@ stage's literal tokens as the authority; the terrain-LOAD experiment is now in t
 ## The review discipline (this is the spine)
 
 `scripts/verify.py` is the verification spine. Native work is **"measured", never "verified"**
-until a fresh independent review of a frozen commit records a verdict. Nineteen rounds have
+until a fresh independent review of a frozen commit records a verdict. Twenty rounds have
 run, **all REDESIGN** — the standing delivery boundary (native LoD is not implemented) is
-always blocking. Rounds 18 and 19 had **no blocking finding besides the boundary**.
-Reports are in `docs/ai/runs/native-integration-review-r1..r19.{md,json}`.
+always blocking. Rounds 18–20 had **no blocking finding besides the boundary**.
+Reports are in `docs/ai/runs/native-integration-review-r1..r20.{md,json}`.
 
 **Owner directive (2026-10-09, via the coordination mail):** do not spend effort on waste; the
 parallel agents watch each other for it. Take the shortest safe route to real-world native
@@ -56,14 +57,14 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9 … -20 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r20`. Start
+-9 … -21 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r21`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 19, and what this HEAD claims
+### Findings status after round 20, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
@@ -78,7 +79,7 @@ report separately from any repair.
 | R14-DOC-DRIFT | closed by r18 |
 | **Terrain-LOAD experiment** (Voxy's real terrain pipeline, depth writes on, into a pass that LOADs MC colour+depth) | **confirmed by r18** as a bounded measurement |
 | **Native instance mode** + MC matrix capture + `horizon` stage | confirmed by r19 (bounded); R19-INSTANCE-INVENTORY / R19-TEST-INSTANCE / R19-DOC-DRIFT repaired in `9caf152d`; **unreviewed** |
-| **Real-section LOAD** + Blaze3D atlas read | in this HEAD, measured; **unreviewed** |
+| **Real-section LOAD** + Blaze3D atlas read | **confirmed by r20** (bounded: visible half only); six non-blocking R20 items repaired in `da91d70e`, re-measured; **unreviewed** |
 | non-blocking limits (anchor grain, consistent forgery, creator restore, geometry scope, depth-copy scope, recorder binding untested in JUnit) | **stated as limits** |
 
 B1 has one recurring shape: **the gate trusted something the thing under test controls.**
@@ -185,11 +186,11 @@ screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_ch
 (same function as the stage), saying explicitly "not replayed" for runs that retained none and
 refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 346 (1 documented skip, 0 failures; 8 for the
+Gate/test counts at this HEAD: JUnit 347 (1 documented skip, 0 failures; 8 for the
 terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode,
 3 for real-LOAD);
-Python 274 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T100957-766731Z` (replay 0 **in this
+Python 278 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T105825-290625Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
 round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
@@ -198,17 +199,17 @@ terrain at x ≈ 768 from spawn, yaw -90, pitch 15 — added 2026-10-09 for the 
 experiment). Older retained runs do not replay under this
 gate, which is expected and tabled in the survey.
 
-## Round 20
+## Round 21
 
-Dispatched against `39584eba` with `docs/ai/runs/native-review-prompt-r20.txt` (worktree
-`native-review-r20`, terminal `term_e3520629-8023-431f-a21e-0c01e804a05b`). When its report
-lands: copy it to `docs/ai/runs/native-integration-review-r20.{md,json}`, commit the report
+Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r21.txt` (if not already
+done — check `git log` for a "docs: record the round-21 dispatch" commit). When its report
+lands: copy it to `docs/ai/runs/native-integration-review-r21.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
 
-1. Import the round-20 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 21. Do the goal work alongside; do not wait for an overall
+1. Import the round-21 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 22. Do the goal work alongside; do not wait for an overall
    PASS (owner directive).
 2. The goal work, done in this HEAD: **Voxy's real terrain pipeline in a LOADed pass** as a
    separate probe (`McNativeTerrainLoad`, `voxy.native.terrainload`,

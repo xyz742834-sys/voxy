@@ -468,7 +468,8 @@ of the point — and the replay status of each is:
 | [20261009T073850-255416Z](runs/native-evidence/20261009T073850-255416Z/MANIFEST.json) | no — predates native instance mode (round 18 judged it) |
 | [20261009T080812-119439Z](runs/native-evidence/20261009T080812-119439Z/MANIFEST.json) | no — predates the pinned terrain-LOAD view, the camera capture and the `horizon` stage |
 | [20261009T085529-037358Z](runs/native-evidence/20261009T085529-037358Z/MANIFEST.json) | no — predates real-LOAD and the complete instance inventory (round 19 judged it) |
-| [20261009T100957-766731Z](runs/native-evidence/20261009T100957-766731Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction, coexistence, terrain-LOAD, instance mode and real-LOAD judged |
+| [20261009T100957-766731Z](runs/native-evidence/20261009T100957-766731Z/MANIFEST.json) | no — predates the round-20 real-LOAD reconciliation (round 20 confirmed its 10 judged samples) |
+| [20261009T105825-290625Z](runs/native-evidence/20261009T105825-290625Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction, coexistence, terrain-LOAD, instance mode and real-LOAD judged |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1576,6 +1577,20 @@ show occlusion of Voxy by nearer Minecraft geometry: no judged pixel had to be h
 half of the composition is untested here. It is not LoD selection, traversal, culling,
 translucency, lighting or a delivered renderer: one coarse level around the camera, opaque only,
 experimental and flagged. The depth state is declared, not read back.
+
+**Round-20 review (2026-10-09).** Round 20 ([native-integration-review-r20.md](runs/native-integration-review-r20.md))
+**confirmed the real-section measurement** (10 judged samples recounted, zero violations) and the
+Blaze3D atlas read, and raised six non-blocking findings, repaired in `da91d70e`: skip reasons are
+now corroborated (log order, probe state, the instance log, the ladder sample); the published
+depth extrema, both projections, far plane, captures, scene facts and stage are reconciled; the
+scene is bound to its world engine and atlas generation and rebuilt when either changes (the gate
+refuses reuse, including across disconnect/reconnect); free failures are counted; the atlas is
+re-read when Minecraft replaces it and dropped at shutdown; a test per surviving guard.
+**Re-measured** (run [20261009T105825-290625Z](runs/native-evidence/20261009T105825-290625Z/MANIFEST.json), replay 0 in this checkout):
+7 judged samples, zero violations, 85 359 pixels that had to show Voxy did, 0 that had to be
+hidden; the atlas was read twice — the resource-reload stage replaced it, the next scene was
+rebuilt with the new generation; no free failures. Occlusion by nearer Minecraft geometry is
+still untested.
 
 ## What is NOT answered yet, and must be measured on hardware
 
