@@ -93,7 +93,10 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     static final String JUDGED = "judged", NO_ENGINE = "no-world-engine",
         NO_CAMERA = "no-camera-this-frame", EXTENT = "camera-extent-mismatch",
         NOTHING_MESHED = "nothing-meshed", BUILD_BUDGET_SPENT = "build-budget-spent",
-        ATLAS_PENDING = "atlas-pending";
+        ATLAS_PENDING = "atlas-pending",
+        /** Normal play (no ladder): the last build attempt was under REBUILD_INTERVAL_FRAMES ago. */
+        REBUILD_WAIT = "rebuild-wait";
+    static final int REBUILD_INTERVAL_FRAMES = 60;
 
     private static final long READBACK_BUDGET_BYTES = 40L << 20;
     private static final int FAILURE_BUDGET = 3;
@@ -105,6 +108,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private static long drawsRecorded, lastCaptureSeen = -1;
     /** Every-frame composites recorded into Minecraft's frames (not judged; not in drawsRecorded). */
     private static long framesComposited;
+    /** Calls of {@link #renderIfEnabled} that ran (the frame clock of the rebuild rate limit). */
+    private static long renderCalls, lastBuildCall = Long.MIN_VALUE / 2;
+    private static String lastStageLogged;
     /**
      * Where the last build meshed nothing (engine identity + camera section). The every-frame path
      * does not rebuild there — it would spend the whole build budget on consecutive frames;
@@ -188,8 +194,19 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         this.mcDepthReadback = mcDepthReadback;
     }
 
-    public static boolean enabled() { return Boolean.getBoolean(FLAG); }
-    public static boolean everyFrame() { return enabled() && Boolean.getBoolean(EVERY_FRAME_FLAG); }
+    /** Its own flag, or the product switch once Voxy's instance runs under Minecraft Vulkan. */
+    public static boolean enabled() {
+        return Boolean.getBoolean(FLAG) || (McNativeRender.on() && VoxyClient.nativeInstanceMode());
+    }
+    public static boolean everyFrame() {
+        return enabled() && (Boolean.getBoolean(EVERY_FRAME_FLAG) || McNativeRender.on());
+    }
+    /**
+     * The build budget is a diagnostic bound: it applies under the ladder. In normal play a scene
+     * is rebuilt whenever it no longer covers the camera, at most once per
+     * {@link #REBUILD_INTERVAL_FRAMES}.
+     */
+    static boolean buildBudgetApplies() { return Boolean.getBoolean(McNativeDepthLadder.FLAG); }
     public static long framesComposited() { return framesComposited; }
     public static long drawsRecorded() { return drawsRecorded; }
 
@@ -202,6 +219,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     /** Level-render tail, after the ladder, every frame. Inert without its flag. */
     public static void renderIfEnabled() {
         if (!enabled()) return;
+        renderCalls++;
+        logStageChange();
         long capture = McNativeCamera.frame();
         long previousCapture = lastCaptureSeen;
         boolean fresh = capture != previousCapture;
@@ -304,10 +323,15 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             return;
         }
         if (probe == null) {
-            if (builds >= BUILD_BUDGET) {
+            if (buildBudgetApplies() && builds >= BUILD_BUDGET) {
                 skip(at, stage, BUILD_BUDGET_SPENT, capture, previousCapture, -1);
                 return;
             }
+            if (!buildBudgetApplies() && renderCalls - lastBuildCall < REBUILD_INTERVAL_FRAMES) {
+                skip(at, stage, REBUILD_WAIT, capture, previousCapture, -1);
+                return;
+            }
+            lastBuildCall = renderCalls;
             builds++;
             probe = build(device, mcDevice, world, view, width, height);
             emptyEngine = probe == null ? System.identityHashCode(world) : 0;
@@ -602,6 +626,20 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         Logger.info("[native-vk] hier frames before draw " + at + ": composited=" + framesComposited);
     }
 
+    /**
+     * Under the harness, with every-frame rendering: one line per stage change with the running
+     * totals, so a launch without the ladder shows composites in each stage.
+     */
+    private static void logStageChange() {
+        String stage = System.getProperty("voxy.harness.stage");
+        if (stage == null || stage.equals(lastStageLogged) || !everyFrame()) return;
+        lastStageLogged = stage;
+        long skipped = 0;
+        for (long n : FRAME_SKIPS.values()) skipped += n;
+        Logger.info("[native-vk] hier frames entering stage " + stage + ": composited="
+            + framesComposited + " skipped=" + skipped + " builds=" + builds);
+    }
+
     private static void requestReadback(GpuTextureView colour, int width, int height, long at) {
         long bytes = (long) width * height * 4;
         if (bytes > READBACK_BUDGET_BYTES) {
@@ -830,6 +868,10 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"attempted\": ").append(attempted).append(",\n");
         sb.append("  \"drawsRecorded\": ").append(drawsRecorded).append(",\n");
         sb.append("  \"everyFrame\": ").append(everyFrame()).append(",\n");
+        sb.append("  \"product\": ").append(McNativeRender.on()).append(",\n");
+        sb.append("  \"buildBudgetApplies\": ").append(buildBudgetApplies()).append(",\n");
+        sb.append("  \"rebuildIntervalFrames\": ").append(REBUILD_INTERVAL_FRAMES).append(",\n");
+        sb.append("  \"renderCalls\": ").append(renderCalls).append(",\n");
         sb.append("  \"framesComposited\": ").append(framesComposited).append(",\n");
         sb.append("  \"frameSkips\": {");
         int skipIndex = 0;

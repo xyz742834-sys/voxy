@@ -31,6 +31,11 @@ public class McNativeHierarchicalLoadTest {
         assertTrue(json.contains("\"declaredDepthState\": [6, 1, 1]"), json);
         // the every-frame path is off by default too and composited nothing
         assertFalse(McNativeHierarchicalLoad.everyFrame());
+        // the product switch is off by default and implies nothing then
+        assertFalse(McNativeRender.on());
+        assertEquals("voxy.native.render", McNativeRender.FLAG);
+        assertTrue(json.contains("\"product\": false"), json);
+        assertTrue(json.contains("\"renderCalls\": 0"), json);
         assertEquals(0, McNativeHierarchicalLoad.framesComposited());
         assertTrue(json.contains("\"everyFrame\": false"), json);
         assertTrue(json.contains("\"framesComposited\": 0"), json);

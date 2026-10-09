@@ -143,7 +143,8 @@ public class VoxyClient implements ClientModInitializer {
 
         }
 
-        if (!systemSupported && !mcIsOnOpenGl && Boolean.getBoolean(NATIVE_INSTANCE_FLAG)) {
+        if (!systemSupported && !mcIsOnOpenGl && (Boolean.getBoolean(NATIVE_INSTANCE_FLAG)
+                || me.cortex.voxy.client.core.vk.mcnative.McNativeRender.on())) {
             // ⚠ native instance mode: the instance factory only. No backend, no renderer.
             nativeInstanceMode = true;
             Logger.info("[native-vk] native instance mode: Minecraft is on Vulkan and "

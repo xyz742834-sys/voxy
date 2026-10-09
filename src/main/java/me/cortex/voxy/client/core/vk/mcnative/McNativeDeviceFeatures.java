@@ -75,7 +75,7 @@ public final class McNativeDeviceFeatures {
      */
     public static Set<VulkanFeature> augment(Set<VulkanFeature> requested) {
         attempted = true;
-        if (!Boolean.getBoolean(FLAG)) return requested;
+        if (!Boolean.getBoolean(FLAG) && !McNativeRender.on()) return requested;
         if (requested == null) {
             note("Minecraft passed no feature set");
             return null;
@@ -169,7 +169,7 @@ public final class McNativeDeviceFeatures {
 
     public static Status status() {
         synchronized (NOTES) {
-            return new Status(Boolean.getBoolean(FLAG), attempted, List.copyOf(ADDED), List.copyOf(NOTES));
+            return new Status(Boolean.getBoolean(FLAG) || McNativeRender.on(), attempted, List.copyOf(ADDED), List.copyOf(NOTES));
         }
     }
 

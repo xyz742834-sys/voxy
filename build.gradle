@@ -634,6 +634,12 @@ loom {
             if (project.hasProperty('harnessNativeHierFrames')) {
                 vmArg '-Dvoxy.native.hierframes=true'
             }
+            // The product switch: Voxy on Minecraft's Vulkan backend as normal play would run it
+            // (device features, adoption, instance, every-frame hierarchical composite), no
+            // diagnostics. Off by default. docs/ai/vulkan-native-integration-survey.md
+            if (project.hasProperty('harnessNativeRender')) {
+                vmArg '-Dvoxy.native.render=true'
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')

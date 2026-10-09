@@ -93,7 +93,7 @@ public final class McNativeVkContext {
         if (attempted) return;
         attempted = true;
         var notes = new ArrayList<String>();
-        boolean enabled = Boolean.getBoolean(FLAG);
+        boolean enabled = Boolean.getBoolean(FLAG) || McNativeRender.on();
         if (!enabled) {
             status = new Status(false, true, false, -1, null, false, null, List.of());
             return;
