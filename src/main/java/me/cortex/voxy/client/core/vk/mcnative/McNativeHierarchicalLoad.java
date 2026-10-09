@@ -90,6 +90,13 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private static long drawsRecorded, lastCaptureSeen = -1;
     /** Every-frame composites recorded into Minecraft's frames (not judged; not in drawsRecorded). */
     private static long framesComposited;
+    /**
+     * Where the last build meshed nothing (engine identity + camera section). The every-frame path
+     * does not rebuild there — it would spend the whole build budget on consecutive frames;
+     * handed samples still may. Cleared by any build that meshes something.
+     */
+    private static int emptyEngine;
+    private static int[] emptySection;
     /** Every-frame attempts that drew nothing, by the same reasons a handed sample would skip with. */
     private static final java.util.TreeMap<String, Long> FRAME_SKIPS = new java.util.TreeMap<>();
     private static int builds, problems, closeFailures, leakedScenes, readbacksInFlight, frameId = 1;
@@ -256,6 +263,14 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             retire(probe);
             probe = null;
         }
+        int[] cameraSection = {VkHostViewport.sectionOf(view.x()), VkHostViewport.sectionOf(view.y()),
+            VkHostViewport.sectionOf(view.z())};
+        if (probe == null && at < 0 && emptySection != null
+                && emptyEngine == System.identityHashCode(world)
+                && java.util.Arrays.equals(emptySection, cameraSection)) {
+            skip(at, stage, NOTHING_MESHED, capture, previousCapture, -1);
+            return;
+        }
         if (probe == null) {
             if (builds >= BUILD_BUDGET) {
                 skip(at, stage, BUILD_BUDGET_SPENT, capture, previousCapture, -1);
@@ -263,6 +278,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             }
             builds++;
             probe = build(device, mcDevice, world, view, width, height);
+            emptyEngine = probe == null ? System.identityHashCode(world) : 0;
+            emptySection = probe == null ? cameraSection : null;
             if (probe == null) {
                 skip(at, stage, NOTHING_MESHED, capture, previousCapture, -1);
                 return;
@@ -437,9 +454,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             scene.populate(view.x(), view.y(), view.z(), TOP_RADIUS, DEPTH);
             int meshed = scene.meshedSections();
             if (meshed == 0) {
+                // the finally block frees scene and target (freeing them here too was a double free)
                 Logger.info("[native-vk] hier-LOAD: nothing meshed (scene #" + builds + ")");
-                scene.free();
-                target.free();
                 return null;
             }
             composite = new McNativeComposite(target.color, target.depth);
