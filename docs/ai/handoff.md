@@ -1,7 +1,7 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-28 candidate = the docs commit after `e99304d4` (the dispatch commit names it): the
+`vulkan-macos`, round-28 candidate **10856154** (dispatched 2026-10-10, worktree `native-review-r28`): the
 round-27 repairs. Round 27 judged `9cfd9c01`: REDESIGN (DELIVERY-BOUNDARY + three defects, repaired; default-on not ready). Round 26 judged `460602ab`: REDESIGN on DELIVERY-BOUNDARY only. Round 25 judged `043aa11f`: REDESIGN on DELIVERY-BOUNDARY only.
 Round 24 judged `03461cea`: REDESIGN (DELIVERY-BOUNDARY + four defects, repaired). Round 23 judged `14743bf4`: REDESIGN on DELIVERY-BOUNDARY
 only; no open code or gate finding; its wording residuals fixed in `32de53c2`. Round 22 judged `8ba67fc5`: REDESIGN on DELIVERY-BOUNDARY only; occlusion CONFIRMED;
@@ -238,9 +238,9 @@ gate, which is expected and tabled in the survey.
 Round 27 (`9cfd9c01`) returned REDESIGN: DELIVERY-BOUNDARY plus R27-EMPTY-REBUILD,
 R27-RENDER-DISABLE, R27-RENDER-GATE, and judged default-on not ready (report
 `docs/ai/runs/native-integration-review-r27.md`, its readiness list in the JSON); repaired in
-`8d241b40` (survey "Round-27 repairs"). Round 28 is dispatched on the docs commit after `e99304d4`
-with `docs/ai/runs/native-review-prompt-r28.txt` (check `git log` for "record the round-28
-dispatch"). When its report lands: copy it to `docs/ai/runs/native-integration-review-r28.{md,json}`,
+`8d241b40` (survey "Round-27 repairs"). Round 28 was dispatched 2026-10-10 against `10856154`
+(`1085615492e502b52778c8a5199d4039c5624f1d`) with `docs/ai/runs/native-review-prompt-r28.txt`
+(worktree `native-review-r28`, terminal `term_771f42df-7ce0-4d08-97ea-56c453082d7d`). When its report lands: copy it to `docs/ai/runs/native-integration-review-r28.{md,json}`,
 commit the report alone, then repair.
 
 ### Next steps, in order
