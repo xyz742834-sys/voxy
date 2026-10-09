@@ -29,7 +29,8 @@ it), which the depth ladder's gate reads the Z direction from.
 Since 2026-10-07 the stage launches Minecraft **twice**: the first launch carries the
 marker, terrain, depth-copy and proof-file diagnostics; the second carries only the
 depth ladder (`-PharnessNativeDepthLadder`) and its coexistence experiment
-(`-PharnessNativeCoexist`), because the terrain probe clears the
+(`-PharnessNativeCoexist`; any `-P` token naming a harness property enables it, as
+Gradle's `hasProperty` does, and the gate reads the retained command the same way), because the terrain probe clears the
 depth attachment the ladder measures. Both launches are gated, logged
 (`native.log`, `native-ladder.log`) and retained; the ladder launch lives under
 `ladder/` in the evidence directory and `--replay-evidence` re-runs its gate against

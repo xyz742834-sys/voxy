@@ -1,8 +1,8 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, HEAD **a49b926f** (`a49b926f0f596f504099f735219c91df9f0b2f78`, round-16 candidate; round 15 judged
-`5509d19f`: coexistence CONFIRMED, R15-COEXIST-PRESENCE refuted and repaired here).
+`vulkan-macos`, HEAD **27e6581d** plus the docs commit on top of it (the round-17 candidate is that docs commit; the dispatch commit after it names the exact SHA; round 16 judged
+`a49b926f`: coexistence CONFIRMED again, R16-COEXIST-LAUNCH-SEMANTICS refuted and repaired here).
 
 > Read `docs/ai/project-goal.md` and `docs/ai/current-state.md` first, then this. This file is
 > task state, not source of truth; when the work moves on, update it or delete it.
@@ -26,11 +26,22 @@ Written 2026-10-07 for a **fresh session with no conversation context**. Branch
 ## The review discipline (this is the spine)
 
 `scripts/verify.py` is the verification spine. Native work is **"measured", never "verified"**
-until a fresh independent review of a frozen commit records a verdict. Fifteen rounds have
+until a fresh independent review of a frozen commit records a verdict. Sixteen rounds have
 run, **all REDESIGN** — the standing delivery boundary (native LoD is not implemented) is
-always blocking; round 15 confirmed the coexistence measurement and added
-R15-COEXIST-PRESENCE (gate accepted the experiment reported off), repaired in this HEAD.
-Reports are in `docs/ai/runs/native-integration-review-r1..r15.{md,json}`.
+always blocking; round 16 confirmed the coexistence measurement again and added
+R16-COEXIST-LAUNCH-SEMANTICS (replay read only the literal `=true` launch token while Gradle
+enables on `hasProperty`), repaired in this HEAD.
+Reports are in `docs/ai/runs/native-integration-review-r1..r16.{md,json}`.
+
+**Owner directive (2026-10-09, via the coordination mail):** do not spend effort on waste; the
+parallel agents watch each other for it. Take the shortest safe route to real-world native
+Voxy LoD, reusing WorldEngine/meshing/NodeManager, the Vulkan traversal and
+`VkTerrainRenderer`; keep the terrain-LOAD experiment bounded as a dependency check and name
+the integration question it answers and the next seam into real data; do not grow another
+diagnostic framework; do not wait for an overall PASS before the next experimental milestone;
+keep the independent-review requirement, no GL dependency, GPU lifetime correctness; fix
+required failing gates, never weaken them. One implementation editor (this session); an
+efficiency coordinator and the reviewer are read-only.
 
 Dispatch procedure (works; GPT-6.1-Sol, not Astra):
 
@@ -42,23 +53,25 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9 … -16 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r16`. Start
+-9 … -17 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r17`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 15, and what this HEAD claims
+### Findings status after round 16, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
 | every evidence/gate finding B1 … R13-Z-BINDING, R14-TEST-BINDINGS | closed |
 | DELIVERY-BOUNDARY | standing: diagnostics are not an accepted foundation; native LoD is unimplemented |
 | **Z direction** | confirmed (r13, r14): reverse-Z |
-| **Coexistence, known-depth quad** | **confirmed by r15** as a bounded measurement (24 samples, zero exact-RGB violations) |
-| **R15-COEXIST-PRESENCE** | repaired in this HEAD — the retained launch command decides whether the experiment was on; the log's coexist lines are reconciled even when the report says off; duplicates rejected; **unreviewed** |
-| non-blocking R15-COEXIST-RGB / R15-TEST-COEXIST / R15-COEXIST-DUPLICATE / R14-DOC-DRIFT | addressed (exact bytes; a test per guard; this file) |
+| **Coexistence, known-depth quad** | **confirmed by r15 and r16** as a bounded measurement (24 samples, zero exact-RGB violations, four mixed) |
+| R15-COEXIST-PRESENCE | closed by r16 (the original attack is refused); its residual became R16-COEXIST-LAUNCH-SEMANTICS |
+| **R16-COEXIST-LAUNCH-SEMANTICS** | repaired in this HEAD (`9c6cf401`) — `launch_enables()` reads the retained command with Gradle's `hasProperty` semantics in stage and replay; replay tests for `=false`, `=`, bare, and a non-enabling neighbour; **unreviewed** |
+| non-blocking R15-TEST-COEXIST residual (five guards whose removal passed the suite) | each has a failing test now, checked by mutating each guard to `False` |
+| non-blocking R14-DOC-DRIFT residual (gate date, "replays in this checkout" for old runs, this file's launch-2 flags) | corrected in the survey, `current-state.md` and this file |
 | non-blocking limits (anchor grain, consistent forgery, creator restore, geometry scope, depth-copy scope, recorder binding untested in JUnit) | **stated as limits** |
 
 B1 has one recurring shape: **the gate trusted something the thing under test controls.**
@@ -123,50 +136,70 @@ frame extent, every retained file a manifest member.
 ## Exact state of the tree
 
 Clean at HEAD. The native stage (`--only native`) launches Minecraft **twice**: launch 1 as
-before (marker, features, adopt, probe, terrain, depth copy), launch 2 with only
-`-PharnessNativeDepthLadder=true` (+ native/adopt/features/probe). Both are gated; the second's
+before (marker, features, adopt, probe, terrain, depth copy), launch 2 with
+`-PharnessNativeDepthLadder=true -PharnessNativeCoexist=true` (+ native/adopt/features/probe)
+and nothing that writes or clears MC's depth. Both are gated; the second's
 device and frame extents are tied to its **own** checkpoints. Evidence for the ladder launch is
 retained under `<run>/ladder/` (report, every sample's two crops, band crops from every
 screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_checks` on it
 (same function as the stage), saying explicitly "not replayed" for runs that retained none and
 refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 333 (1 documented skip, 0 failures); Python 193 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T060453-272917Z` (replay 0 **in this
+Gate/test counts at this HEAD: JUnit 333 (1 documented skip, 0 failures); Python 199 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T063708-667962Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
-inventory, so only a run built from HEAD's sources replays). The lifecycle now has thirteen
+inventory, so only a run built from HEAD's sources replays; `20261009T060453-272917Z`, which
+rounds 15–16 judged, replayed 0 in the checkout it was built from). The lifecycle now has thirteen
 checkpointed stages (`descend`, `ascend` added). Older retained runs do not replay under this
 gate, which is expected and tabled in the survey.
 
-## Round 16
+## Round 17
 
-Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r16.txt` (if not already
-done — check `git log` for a "docs: record the round-16 dispatch" commit). When its report
-lands: copy it to `docs/ai/runs/native-integration-review-r16.{md,json}`, commit the report
+Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r17.txt` (if not already
+done — check `git log` for a "docs: record the round-17 dispatch" commit). When its report
+lands: copy it to `docs/ai/runs/native-integration-review-r17.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
 
-1. Import the round-16 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 17.
-2. Then the goal work, next step: **Voxy's real terrain pipeline in a LOADed pass**. The
-   known-depth quad now composes per pixel; the terrain probe today CLEARS MC's frame to
-   compare against Voxy's own target. The next experiment keeps that comparison but adds a
-   LOAD variant: draw the synthetic terrain through `VkTerrainRenderer.recordDrawsInRenderPass`
-   into a pass that LOADs MC's colour and depth, with Voxy's own depth state (writes on for
-   Voxy's geometry), and show per pixel — against the ladder's brackets of the same frame and
-   against the depth the synthetic geometry implies — that Voxy's pixels appear exactly where
-   its depth is nearer. Gate it like the quad (two crops of the same band, zero violations,
-   a mixed sample required). Open and not needed for that: why the buffer copy reads 0.0.
+1. Import the round-17 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 18. (Round 17 was dispatched alongside the terrain-LOAD
+   work; do both without waiting for an overall PASS, per the owner directive.)
+2. The goal work, in progress: **Voxy's real terrain pipeline in a LOADed pass**, as a
+   **separate probe with its own flag** (`McNativeTerrainLoad`, `voxy.native.terrainload`,
+   `-PharnessNativeTerrainLoad`), because rule 3 below forbids the ladder itself from writing
+   MC's depth. Design, settled 2026-10-09 (not yet in the tree): on each frame the ladder
+   samples, after the ladder's two readbacks are requested, the probe opens a third pass that
+   LOADs MC's colour and depth and records `VkTerrainRenderer.recordDrawsInRenderPass`
+   (Voxy's own depth state: `GREATER_OR_EQUAL`, writes ON) for a synthetic scene whose
+   footprint is fitted into the ladder band and whose depths straddle MC's brackets; then a
+   third readback. Expectation per band pixel from two independent measurements of the same
+   frame — the ladder's bracket (lo, hi] for MC's depth and Voxy's own reference render of the
+   same scene with the same MVP into its own target (colour + D32 depth, read back once per
+   extent): Voxy's colour must appear exactly where its depth ≥ hi, the pixel must stay
+   byte-identical to the previous readback where depth ≤ lo, either is allowed in between
+   (undetermined, counted), and pixels without Voxy geometry must not change. Zero violations;
+   at least one sample with both determinate kinds. Evidence: the third crop, its thumbnail,
+   the reference colour and depth crops, a `native-terrain-load.json` report and a log line
+   per sample, retained and recounted by the gate like the quad's. MC's depth format must be
+   `D32_SFLOAT` (126, measured) to match the pipeline's declared attachment. The reference
+   build reuses the terrain probe's fence-waited build (to be factored into a shared scene
+   builder), the leak/retire discipline from rounds 5–6, and `recordBeforeRenderPass` is not
+   needed in MC's pass because uploads and the depth bound are fence-complete at build time.
+   Integration question it answers: can Voxy's real terrain pipeline, with its own depth
+   state, composite per pixel against MC's own depth on PreferVulkan/MoltenVK — the dependency
+   every real-world LoD draw rests on. Next seam after it: real section data (WorldEngine /
+   NodeManager meshes) into `VkTerrainResources` in place of `SyntheticTerrain`.
+   Open and not needed for that: why the buffer copy reads 0.0.
 3. Nothing in the ladder may ever write MC's depth. If a future variant needs to, it is a
-   different probe with a different flag.
+   different probe with a different flag (which is what item 2 does).
 
 ## Commands
 
 ```
 ./gradlew test --offline --no-daemon -PvkLibname=/opt/homebrew/lib/libvulkan.dylib \
   -PvkValidation=true -PvkSyncEnv=true          # JUnit
-python3 -m unittest discover -s scripts/tests   # 193 cases, ~6 min
+python3 -m unittest discover -s scripts/tests   # 199 cases, ~6 min
 python3 scripts/verify.py --only native --seconds 8 --timeout 1500   # launches MC twice, ~5 min
 python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/<run>   # no launch
 ```

@@ -64,7 +64,9 @@ the same ground from 12 and 108 blocks up, judged by the gate from retained per-
 and **a known-depth quad drawn with Voxy's compare op composes per pixel against MC's loaded
 depth** (2026-10-09, zero violations). The ladder runs in
 its own launch inside `--only native` (terrain and marker off, the report says so, the gate
-requires it) and that launch is retained and replays. The probe itself still asserts no convention and the
+requires it) and that launch is retained; the newest run replays in the checkout it was built
+from (rounds 15 and 16 confirmed the quad's composition on independent recounts; round 16
+found that replay read the launch token too narrowly, repaired 2026-10-09). The probe itself still asserts no convention and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,
 tested behaviourally" and "Round-8 review repairs, and the per-pixel ladder".
 
