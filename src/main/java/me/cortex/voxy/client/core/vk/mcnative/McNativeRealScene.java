@@ -49,6 +49,8 @@ final class McNativeRealScene {
     final int engineId, buildOrdinal;
     /** Sections not drawn because they lie within Minecraft's render distance, and that distance (blocks). */
     final int excludedNear, cutBlocks;
+    /** The drawn sections' coordinates at {@link #level} (round-22 R22-NEAR-CUT-REUSE: the cut is re-checked at draw time). */
+    final int[][] drawnSections;
     private boolean freed;
     /** 参照の提出を観測できなかった (= 資源が使用中かもしれない) なら以後使わない。 */
     boolean poisoned;
@@ -58,7 +60,7 @@ final class McNativeRealScene {
                               VkTerrainRenderer renderer, VkRenderTarget target, int width,
                               int height, int level, int radius, int[] centre, int sectionCount,
                               int totalQuads, int drawCount, int meshed, int engineId,
-                              int buildOrdinal, int excludedNear, int cutBlocks) {
+                              int buildOrdinal, int excludedNear, int cutBlocks, int[][] drawnSections) {
         this.res = res;
         this.modelTarget = modelTarget;
         this.bakery = bakery;
@@ -78,6 +80,16 @@ final class McNativeRealScene {
         this.buildOrdinal = buildOrdinal;
         this.excludedNear = excludedNear;
         this.cutBlocks = cutBlocks;
+        this.drawnSections = drawnSections;
+    }
+
+    /** Shortest distance (blocks) from the camera to any drawn section; +inf if none. */
+    double nearestDrawnSection(double cx, double cy, double cz) {
+        double best = Double.POSITIVE_INFINITY;
+        for (int[] c : this.drawnSections) {
+            best = Math.min(best, distanceToSection(cx, cy, cz, this.level, c[0], c[1], c[2]));
+        }
+        return best;
     }
 
     /**
@@ -145,6 +157,11 @@ final class McNativeRealScene {
                 return null;
             }
             bakery.replayBiomes();
+            int[][] drawn = new int[built.size()][];
+            for (int i = 0; i < drawn.length; i++) {
+                long pos = built.get(i).position;
+                drawn[i] = new int[] {WorldEngine.getX(pos), WorldEngine.getY(pos), WorldEngine.getZ(pos)};
+            }
             var uploaded = VkRealSectionUpload.upload(built, res);
             renderer = new VkTerrainRenderer(res, width, height, VkTerrainRenderer.Barriers.CONSERVATIVE);
             target = new VkRenderTarget(width, height);
@@ -157,7 +174,7 @@ final class McNativeRealScene {
             var scene = new McNativeRealScene(res, modelTarget, bakery, mesher, renderer, target,
                 width, height, level, radius, centre.clone(), uploaded.sectionCount(),
                 uploaded.totalQuads(), uploaded.drawCount(), meshed,
-                System.identityHashCode(world), buildOrdinal, excluded, cutBlocks);
+                System.identityHashCode(world), buildOrdinal, excluded, cutBlocks, drawn);
             res = null; modelTarget = null; bakery = null; mesher = null; renderer = null; target = null;
             return scene;
         } catch (Throwable t) {

@@ -262,6 +262,17 @@ class RealLoadGateTest(unittest.TestCase):
             r["results"][0]["buildsSoFar"] = 10
         self.assertRefused(self.run_gate(real_status={0: "build-budget-spent"}, mutate_real=early, **T),
                            "attempt(s) before it")
+        # round-22: the budget guard itself — nine builds logged and stated, one short of the budget
+        def nine(r):
+            r["results"][0]["buildsSoFar"] = 9
+            r["builds"] = 10
+            r["results"][1]["sceneBuild"] = 10
+        def nine_log(text):
+            empties = "".join(f"[native-vk] real-LOAD: nothing meshed at level 3 around [0, 0, 0] (scene #{n})\n"
+                              for n in range(1, 10))
+            return empties + text.replace("real-LOAD scene #1:", "real-LOAD scene #10:")
+        self.assertRefused(self.run_gate(real_status={0: "build-budget-spent"}, mutate_real=nine,
+                                         log=nine_log, **T), "spent after 9 of 10")
         # extent mismatch the ladder sample contradicts, or outside the resize stage
         def same(r):
             r["results"][0].update(cameraExtent=[960, 540], frameExtent=[960, 540])
@@ -418,6 +429,11 @@ class RealLoadGateTest(unittest.TestCase):
                            "(-1 excluded)")
         self.assertRefused(self.run_gate(mutate_real=lambda r: r["results"][0].pop("cutBlocks")),
                            "does not state cutBlocks")
+        # round-22 R22-NEAR-CUT-REUSE: a section inside the cut at draw time
+        self.assertRefused(self.run_gate(mutate_real=lambda r: r["results"][0].update(nearestSection=55.5)),
+                           "drew a section 55.5 blocks from the camera")
+        self.assertRefused(self.run_gate(mutate_real=lambda r: r["results"][0].update(nearestSection=None)),
+                           "drew a section None blocks")
         result = self.run_gate()
         self.assertGreater(result["real_load"]["hiddenSamples"], 0)
         self.assertGreater(result["real_load"]["expectHidden"], 0)

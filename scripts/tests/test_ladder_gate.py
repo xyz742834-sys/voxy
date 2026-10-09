@@ -535,7 +535,7 @@ def real_entry(sample, field, before, depth, after):
     projection = verify._mat_perspective(math.radians(70), 16 / 9, 0.05, 2048.0)
     entry.update(status="judged", stage=sample["stage"], cameraCapture=sample["at"],
                  engineId=12345, sceneBuild=1, atlasGeneration=1, excludedNear=3,
-                 cutBlocks=verify.REAL_LOAD_CUT_BLOCKS,
+                 cutBlocks=verify.REAL_LOAD_CUT_BLOCKS, nearestSection=640.5,
                  mcProjection=list(projection), projection=list(projection),
                  file=f"native-real-load-{at}.ppm.gz",
                  frameFile=f"native-real-load-frame-{at}.ppm.gz",

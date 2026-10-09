@@ -2385,6 +2385,11 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
             raise ValueError(f"real-LOAD at draw {at} cut sections nearer than {entry['cutBlocks']}"
                              f" blocks ({entry['excludedNear']} excluded), not Minecraft's"
                              f" {REAL_LOAD_CUT_BLOCKS}-block render distance")
+        # round-22 R22-NEAR-CUT-REUSE: the cut holds at draw time, not only when the scene was built
+        nearest = entry.get("nearestSection")
+        if not finite_number(nearest) or nearest < entry["cutBlocks"]:
+            raise ValueError(f"real-LOAD at draw {at} drew a section {nearest!r} blocks from the camera,"
+                             f" inside the {entry['cutBlocks']}-block cut")
         if entry["atlasGeneration"] < 1 or entry["atlasGeneration"] > report["atlasReads"]:
             raise ValueError(f"real-LOAD at draw {at} names atlas generation {entry['atlasGeneration']}"
                              f" of {report['atlasReads']} read(s)")

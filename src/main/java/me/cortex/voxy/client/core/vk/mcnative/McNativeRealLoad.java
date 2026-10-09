@@ -89,7 +89,8 @@ public final class McNativeRealLoad implements Destroyable {
                          int sceneDraws, long referenceSet, long cameraCapture,
                          // round-20 review R20-REAL-METADATA / -ENGINE-IDENTITY / -SKIP-PROVENANCE:
                          int engineId, int sceneBuild, int atlasGeneration, float[] mcProjection,
-                         float[] projection, Skip skip, int excludedNear, int cutBlocks) {}
+                         float[] projection, Skip skip, int excludedNear, int cutBlocks,
+                         double nearestSection) {}
 
     /** What a skipped sample saw, so the gate can corroborate the reason. */
     public record Skip(long previousCapture, int[] cameraExtent, int[] frameExtent, int buildsSoFar,
@@ -226,7 +227,10 @@ public final class McNativeRealLoad implements Destroyable {
                 || !java.util.Arrays.equals(probe.scene.centre, centre)
                 || probe.scene.width != width || probe.scene.height != height
                 || probe.engine.get() != world
-                || probe.atlasGeneration != McNativeAtlas.generation())) {
+                || probe.atlasGeneration != McNativeAtlas.generation()
+                // round-22 R22-NEAR-CUT-REUSE: the cut must hold where the camera is now
+                || probe.scene.cutBlocks != mc.options.getEffectiveRenderDistance() * 16
+                || probe.scene.nearestDrawnSection(view.x(), view.y(), view.z()) < probe.scene.cutBlocks)) {
             retire(probe);
             probe = null;
         }
@@ -307,7 +311,8 @@ public final class McNativeRealLoad implements Destroyable {
         var partial = new Result(at, JUDGED, stage, null, Float.NaN, Float.NaN, null, null, null, null,
             adjusted, farPlane, s.level, s.centre.clone(), s.sectionCount, s.totalQuads, s.drawCount,
             0, capture, s.engineId, s.buildOrdinal, probe.atlasGeneration, mcProjection,
-            usedProjection, null, s.excludedNear, s.cutBlocks);
+            usedProjection, null, s.excludedNear, s.cutBlocks,
+            s.nearestDrawnSection(view.x(), view.y(), view.z()));
         synchronized (NOTES) {
             PENDING.put(at, new Pending(rects, colours, depths, partial));
         }
@@ -316,7 +321,7 @@ public final class McNativeRealLoad implements Destroyable {
 
     private static void skip(long at, String stage, String reason, long capture, Skip why) {
         var r = new Result(at, reason, stage, null, Float.NaN, Float.NaN, null, null, null, null,
-            null, Double.NaN, LEVEL, null, 0, 0, 0, 0, capture, 0, 0, 0, null, null, why, 0, 0);
+            null, Double.NaN, LEVEL, null, 0, 0, 0, 0, capture, 0, 0, 0, null, null, why, 0, 0, Double.NaN);
         synchronized (NOTES) {
             RESULTS.put(at, r);
         }
@@ -407,7 +412,7 @@ public final class McNativeRealLoad implements Destroyable {
                 p.farPlane(), p.sceneLevel(), p.sceneCentre(), p.sceneSections(), p.sceneQuads(),
                 p.sceneDraws(), refSet, p.cameraCapture(), p.engineId(), p.sceneBuild(),
                 p.atlasGeneration(), p.mcProjection(), p.projection(), null, p.excludedNear(),
-                p.cutBlocks());
+                p.cutBlocks(), p.nearestSection());
             synchronized (NOTES) {
                 RESULTS.put(at, result);
             }
@@ -582,6 +587,8 @@ public final class McNativeRealLoad implements Destroyable {
                 sb.append(", \"projection\": ").append(floats(r.projection()));
                 sb.append(", \"excludedNear\": ").append(r.excludedNear());
                 sb.append(", \"cutBlocks\": ").append(r.cutBlocks());
+                sb.append(", \"nearestSection\": ").append(Double.isFinite(r.nearestSection())
+                    ? Double.toString(r.nearestSection()) : "null");
             }
             if (r.skip() != null) {
                 var k = r.skip();
