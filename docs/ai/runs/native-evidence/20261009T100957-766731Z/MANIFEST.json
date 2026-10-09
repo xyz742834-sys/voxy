@@ -1,0 +1,1775 @@
+{
+  "run": "20261009T100957-766731Z",
+  "files": {
+    "native-adopted-context.json": "e259c20b7cc42eabfe9e5bc4953247730b90fe3a3e92249925554ca76630d493",
+    "native-compute-probe.json": "cdb7fedc3feb994ca08c1a59d8fba25ef6fc97b5d261019ab254c46b72218a1c",
+    "native-depth-probe.json": "74d756d8cb8a71df66a3bedcb8f2254e96308369da92e86a541b58a691950f1f",
+    "native-device-features.json": "44e5441831c5a5b22faf62b1bc95c82ec6330066ba3a57fc59f8532bae54b954",
+    "native-feature-audit.json": "9a22a7cc17244575adb075a5c5ff3f3dfd39cadfb5498dd7a1be631f4881eb0c",
+    "native-instance.json": "a644a51e89a067801a832adee7b517eec7b22c553cf025699a363e628a5bf1eb",
+    "native-marker-draw.json": "7d2dfd286fdd81004ca7e7ca36a034e9fa6aca17885fc8372c089d95128295e9",
+    "native-real-shader.json": "ddc10c68f69c4fda13ff312f6bc62fea75382c43c9b4044f92b700819d0e551b",
+    "native-result.json": "110e74fb6295bde31a0f02cb4fea5233cf3c80242460c9a4e347976d367ea573",
+    "native-terrain-probe.json": "dcdf657a18c5a22ba5f25e1e0e34071f07492c83a9acafd6a213f7c0ea1f81d8",
+    "native-vulkan-probe.json": "ee454a6a58faad6ac326b21be3e4f31cb37fff7218927841c3465b9a6bfe12c7",
+    "native.log": "73d4556267ef8318831c92c29666098f2036748a64dc525485af8b4da3c06f35",
+    "summary.json": "09f676cf1dea320174d780a755ff5457f01a8bd9f3f792cc314ac7424c8ee5b7",
+    "source-sha256.json": "97aa8c754badd71b21e79d114696ec6c7473e8cddd9145ef1ccc682ac3c86807",
+    "crop-ascend-top.png": "1800a3bf2361daaf4829341f95100c63a961033371600721f208338b063ca842",
+    "crop-ascend-bottom.png": "ae74e20d89c158bfd24bf3516e479e85798c72e07690561cd88a7396ff611674",
+    "crop-descend-top.png": "03201ddf55f5ac75c1a91505b243db6e4a7dbeb7d4856a6b7884339f7539ce74",
+    "crop-descend-bottom.png": "61832087798f92579256a8646c76da98ae879370f92d6b19012be37abf89a87e",
+    "crop-edit-top.png": "799103584c1d2a0e335a491f091e5e7742c5faf5909a1478c280d480401dc3ae",
+    "crop-edit-bottom.png": "a9e545f5713005c782a9d54271c1f9ed8d42e5ff16f2006743fa4f0ecbb669a8",
+    "crop-horizon-top.png": "799103584c1d2a0e335a491f091e5e7742c5faf5909a1478c280d480401dc3ae",
+    "crop-horizon-bottom.png": "01666d86833f5fbefd96f8e3b095a833dc9b928824b5c024db2cd0f51b35f441",
+    "crop-nether-top.png": "c6da7e1bf193941bf8c3d6788f2c0e6943a050365c46130a0b63976de7f6981d",
+    "crop-nether-bottom.png": "839ccc3ce168a75d89182d38280733cb0a252dc464bf054f757ea0c35abb158b",
+    "crop-overworld-top.png": "b8e2350d564085304982605f94ff489fdafb9ccdae1c7c273daff169d81be8fd",
+    "crop-overworld-bottom.png": "6cfffa186b92f1706eca75ffa22f028740cd0ffe7273dbee781c1f417f6e9b9d",
+    "crop-reconnect-top.png": "018d630f604d18b9a1a0b5c1519dbcbbc83f6d15128ab4ba2646e2cfd557a16f",
+    "crop-reconnect-bottom.png": "a8d2dff4af001c64e35f7c2f8159e8178bcedce8ef467cd98ce9d955350adb48",
+    "crop-reload-top.png": "018d630f604d18b9a1a0b5c1519dbcbbc83f6d15128ab4ba2646e2cfd557a16f",
+    "crop-reload-bottom.png": "a8d2dff4af001c64e35f7c2f8159e8178bcedce8ef467cd98ce9d955350adb48",
+    "crop-remove-top.png": "799103584c1d2a0e335a491f091e5e7742c5faf5909a1478c280d480401dc3ae",
+    "crop-remove-bottom.png": "a9e545f5713005c782a9d54271c1f9ed8d42e5ff16f2006743fa4f0ecbb669a8",
+    "crop-resize-top.png": "018d630f604d18b9a1a0b5c1519dbcbbc83f6d15128ab4ba2646e2cfd557a16f",
+    "crop-resize-bottom.png": "a8d2dff4af001c64e35f7c2f8159e8178bcedce8ef467cd98ce9d955350adb48",
+    "crop-return-top.png": "799103584c1d2a0e335a491f091e5e7742c5faf5909a1478c280d480401dc3ae",
+    "crop-return-bottom.png": "01666d86833f5fbefd96f8e3b095a833dc9b928824b5c024db2cd0f51b35f441",
+    "crop-travel-top.png": "2963cb9b6269a58579672f663edf9dd3195bae042c5d50fbfa2dcc9f8dda3033",
+    "crop-travel-bottom.png": "01666d86833f5fbefd96f8e3b095a833dc9b928824b5c024db2cd0f51b35f441",
+    "crop-turn-top.png": "92bb13443fd319158f66938c19b07a94ca25216a3d259dc45b4dcab553353166",
+    "crop-turn-bottom.png": "b025c3bb33c45ff223f4982cd3082d9f8588c4e5303ae1889d370b575fe4534b",
+    "crop-warmup-top.png": "49fc3c0de8a9da8fe3595491932378debd554bd60c3b7233c2fed46e40baa525",
+    "crop-warmup-bottom.png": "65586232c52e7fdfec90ebbd5a1f527db27b4f5aec0d4d96717668fb7792ab59",
+    "native-marker-sample-1202.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-1442.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-1682.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-1922.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-2.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-2162.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-2402.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-242.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-2642.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-2882.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-3122.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-3362.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-3602.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-3842.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-4082.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-4322.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-4562.ppm": "f5cfaaccd4cfecde8b2d16747f1833ec6bf0e3cea8b0846cd260483e20c0a08f",
+    "native-marker-sample-482.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-722.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-sample-962.ppm": "a56c49b9f3ed8d992d43b8ec4335b710b5f94fd7626d97829f3726ae8c33645a",
+    "native-marker-rejected-1202.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-1442.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-1682.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-1922.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-2.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-2162.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-2402.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-242.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-2642.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-2882.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-3122.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-3362.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-3602.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-3842.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-4082.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-4322.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-4562.ppm.gz": "d06b18d8ee232d6fd2de64239da9c99b04173eccf842dd6b862891c449ccb944",
+    "native-marker-rejected-482.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-722.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-marker-rejected-962.ppm.gz": "ef8d139503ad01697aa26d28a679d925d838ef88fb7fef42d5e86f82b3189f34",
+    "native-depth-sample.pgm.gz": "ad26dfa3f97ad83eb6307282fd50c21e89999ab37188fb0ce80d74ffc29e89a1",
+    "native-terrain-sample-1202.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-1442.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-1682.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-1922.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-2.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-2162.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-2402.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-242.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-2642.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-2882.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-3122.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-3152.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-3392.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-3632.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-3872.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-4112.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-4352.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-4592.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-sample-482.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-722.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-sample-962.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-1202.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-1442.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-1682.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-1922.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-2.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-2162.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-2402.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-242.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-2642.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-2882.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-3122.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-3152.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-3392.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-3632.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-3872.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-4112.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-4352.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-4592.ppm.gz": "8e7952f79ac823edd9564efbbd46bedab0f0cc14925b2ddef5ca28e7c9cc0c37",
+    "native-terrain-reference-482.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-722.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "native-terrain-reference-962.ppm.gz": "50d8e18a7a5f57e804adf0d61b2e4305a113fa843c17700e1561d7fc5d1dfa30",
+    "ladder/native-adopted-context.json": "4cc5be2e6a7a0cc6239c30c3220eb845aa65c5a6f2fc7ea26852705cd5dbfe5b",
+    "ladder/native-compute-probe.json": "84e145c85543d60fae4e1c09161d3b8f1306ac93b3b8e4fb21759b58a02bbbbc",
+    "ladder/native-depth-ladder.json": "c2959e2b3b66c10df606e686f284dcc358a39ab5444e95fee73b11c8516f5850",
+    "ladder/native-device-features.json": "44e5441831c5a5b22faf62b1bc95c82ec6330066ba3a57fc59f8532bae54b954",
+    "ladder/native-feature-audit.json": "f25d9f1f86859adeca0503168bd1e889e1bc518b4f32c0bcb6c32c77d6be6f1a",
+    "ladder/native-instance.json": "196bd15f80a6600cdd2e0c7d522747bb8b5debffa420b876a8e9016c7362acb9",
+    "ladder/native-real-load.json": "cec8b62dbf0f3b0b693b18006057c52aa17a874610bda93d06a3a86a5381a086",
+    "ladder/native-real-shader.json": "ad52af098159975cefc1a2ae436ff472f84123e64fec419a017176a47cf9e35d",
+    "ladder/native-result.json": "08498e526b7553e08edb0a75efc146e53b7ba522790d9ea553d96aecd2c272dc",
+    "ladder/native-terrain-load.json": "fb7a23bbca430fe8536e32c30ea6f87bf1e6664ae572cb0f985b0fb9e3e5833d",
+    "ladder/native-vulkan-probe.json": "3a963d57505f027a0cb3476e4f58a9be80af07c70ff9674045f913a6f9364b5b",
+    "ladder/native-depth-ladder-1202.ppm.gz": "1b95cd5d936e10926d3ee279ecb86ea9633cc125879130d460d78c543c582e65",
+    "ladder/native-depth-ladder-1442.ppm.gz": "5e55a6528f2b06bbf142d60764af921e35c66f1934c26603b28d10405ba0aca4",
+    "ladder/native-depth-ladder-1682.ppm.gz": "5e55a6528f2b06bbf142d60764af921e35c66f1934c26603b28d10405ba0aca4",
+    "ladder/native-depth-ladder-1922.ppm.gz": "a4cbfb22db95015ec72b4908e21188c22179fe36e21fce2c40bba36deb9529ce",
+    "ladder/native-depth-ladder-2.ppm.gz": "3199aa0de7c571fc41629b83c21b851377d513c2f016ac390b007203d78b463a",
+    "ladder/native-depth-ladder-2162.ppm.gz": "a4cbfb22db95015ec72b4908e21188c22179fe36e21fce2c40bba36deb9529ce",
+    "ladder/native-depth-ladder-2402.ppm.gz": "5e55a6528f2b06bbf142d60764af921e35c66f1934c26603b28d10405ba0aca4",
+    "ladder/native-depth-ladder-242.ppm.gz": "fc18ca04876906a77e9304fed348392446d0991c4a2186e445351976a8689dfe",
+    "ladder/native-depth-ladder-2642.ppm.gz": "5e55a6528f2b06bbf142d60764af921e35c66f1934c26603b28d10405ba0aca4",
+    "ladder/native-depth-ladder-2882.ppm.gz": "fc33276d3fde7cf012f6902d40242e725d082dcb8c20f8d31298bf28214b7dd8",
+    "ladder/native-depth-ladder-3122.ppm.gz": "fc33276d3fde7cf012f6902d40242e725d082dcb8c20f8d31298bf28214b7dd8",
+    "ladder/native-depth-ladder-3362.ppm.gz": "76ca78cc27e79151813915557a06a33d7678297053354e683eb2035a8178d755",
+    "ladder/native-depth-ladder-3602.ppm.gz": "fc33276d3fde7cf012f6902d40242e725d082dcb8c20f8d31298bf28214b7dd8",
+    "ladder/native-depth-ladder-3842.ppm.gz": "fc33276d3fde7cf012f6902d40242e725d082dcb8c20f8d31298bf28214b7dd8",
+    "ladder/native-depth-ladder-4082.ppm.gz": "59303bf567f2a9215c789b68a937224230cbb7f781e667ba30fbc8b33c9528e9",
+    "ladder/native-depth-ladder-4322.ppm.gz": "59303bf567f2a9215c789b68a937224230cbb7f781e667ba30fbc8b33c9528e9",
+    "ladder/native-depth-ladder-4562.ppm.gz": "9fa54762cb26af284eb2a071a9e725e0535306348c71b56301ac07fbf12eeec1",
+    "ladder/native-depth-ladder-4802.ppm.gz": "c96bdf6960a2424dd943b09f6971fbc521cd81a241b38fd7df98f8f39544ba58",
+    "ladder/native-depth-ladder-482.ppm.gz": "d7f0a70d4c2d6380fcf6fb1e5eb31f3e35da0f593dde6763f95a905dd1fdb31f",
+    "ladder/native-depth-ladder-5042.ppm.gz": "c96bdf6960a2424dd943b09f6971fbc521cd81a241b38fd7df98f8f39544ba58",
+    "ladder/native-depth-ladder-722.ppm.gz": "6484ba8aab31ea7b7c00b14606511b832e6b603fed41007eec8dad6ff26e0c87",
+    "ladder/native-depth-ladder-962.ppm.gz": "1b95cd5d936e10926d3ee279ecb86ea9633cc125879130d460d78c543c582e65",
+    "ladder/native-depth-ladder-coexist-1202.ppm.gz": "c829e0733cdbb42ea1d02f9d703bd7451e3c4281d5b9a0677f24ebe2ab5e2e7a",
+    "ladder/native-depth-ladder-coexist-1442.ppm.gz": "c829e0733cdbb42ea1d02f9d703bd7451e3c4281d5b9a0677f24ebe2ab5e2e7a",
+    "ladder/native-depth-ladder-coexist-1682.ppm.gz": "c829e0733cdbb42ea1d02f9d703bd7451e3c4281d5b9a0677f24ebe2ab5e2e7a",
+    "ladder/native-depth-ladder-coexist-1922.ppm.gz": "c829e0733cdbb42ea1d02f9d703bd7451e3c4281d5b9a0677f24ebe2ab5e2e7a",
+    "ladder/native-depth-ladder-coexist-2.ppm.gz": "c6a741307edd587a5a00a933b07fb606bd29eda7ef49ef38cc177ff120b14cbb",
+    "ladder/native-depth-ladder-coexist-2162.ppm.gz": "c829e0733cdbb42ea1d02f9d703bd7451e3c4281d5b9a0677f24ebe2ab5e2e7a",
+    "ladder/native-depth-ladder-coexist-2402.ppm.gz": "c829e0733cdbb42ea1d02f9d703bd7451e3c4281d5b9a0677f24ebe2ab5e2e7a",
+    "ladder/native-depth-ladder-coexist-242.ppm.gz": "c829e0733cdbb42ea1d02f9d703bd7451e3c4281d5b9a0677f24ebe2ab5e2e7a",
+    "ladder/native-depth-ladder-coexist-2642.ppm.gz": "c829e0733cdbb42ea1d02f9d703bd7451e3c4281d5b9a0677f24ebe2ab5e2e7a",
+    "ladder/native-depth-ladder-coexist-2882.ppm.gz": "c504086190c1bf8f516d66c440332725651b50353d85851ea0271d68a0444312",
+    "ladder/native-depth-ladder-coexist-3122.ppm.gz": "c504086190c1bf8f516d66c440332725651b50353d85851ea0271d68a0444312",
+    "ladder/native-depth-ladder-coexist-3362.ppm.gz": "ba33e97078219981e0f32996f0f735829bb1f03da9ab0d50bc5e0a453e7ab822",
+    "ladder/native-depth-ladder-coexist-3602.ppm.gz": "c504086190c1bf8f516d66c440332725651b50353d85851ea0271d68a0444312",
+    "ladder/native-depth-ladder-coexist-3842.ppm.gz": "c504086190c1bf8f516d66c440332725651b50353d85851ea0271d68a0444312",
+    "ladder/native-depth-ladder-coexist-4082.ppm.gz": "5857fce6eede1f85821b903f8be9ec8b2b8f86f486cfc3bdb62862472dee86dd",
+    "ladder/native-depth-ladder-coexist-4322.ppm.gz": "5857fce6eede1f85821b903f8be9ec8b2b8f86f486cfc3bdb62862472dee86dd",
+    "ladder/native-depth-ladder-coexist-4562.ppm.gz": "c504086190c1bf8f516d66c440332725651b50353d85851ea0271d68a0444312",
+    "ladder/native-depth-ladder-coexist-4802.ppm.gz": "c504086190c1bf8f516d66c440332725651b50353d85851ea0271d68a0444312",
+    "ladder/native-depth-ladder-coexist-482.ppm.gz": "c829e0733cdbb42ea1d02f9d703bd7451e3c4281d5b9a0677f24ebe2ab5e2e7a",
+    "ladder/native-depth-ladder-coexist-5042.ppm.gz": "c504086190c1bf8f516d66c440332725651b50353d85851ea0271d68a0444312",
+    "ladder/native-depth-ladder-coexist-722.ppm.gz": "c829e0733cdbb42ea1d02f9d703bd7451e3c4281d5b9a0677f24ebe2ab5e2e7a",
+    "ladder/native-depth-ladder-coexist-962.ppm.gz": "c829e0733cdbb42ea1d02f9d703bd7451e3c4281d5b9a0677f24ebe2ab5e2e7a",
+    "ladder/native-depth-ladder-coexist-frame-1202.ppm.gz": "18b95a9fddec044721eb899fff8f33fd00471a248eef28e56b8dabbc17b3ba76",
+    "ladder/native-depth-ladder-coexist-frame-1442.ppm.gz": "12a4299006bb1e5b36172fc7f6fc8817e12281cf7a0c86177b4405b9aa59c01b",
+    "ladder/native-depth-ladder-coexist-frame-1682.ppm.gz": "1d5aa85774f8823428d1273e0e1f33ca9bae033ddd08fd489e00320aff5956a7",
+    "ladder/native-depth-ladder-coexist-frame-1922.ppm.gz": "f2d3bd15be189622e080800a4116ac896c7bee006081d34147bf541072c48af6",
+    "ladder/native-depth-ladder-coexist-frame-2.ppm.gz": "d196e306e2fa1b8dd9ffdebfb4fdbc02cb8405266ef4a2aec3cfd5dbeb5d8a5e",
+    "ladder/native-depth-ladder-coexist-frame-2162.ppm.gz": "8d04f115713a570ae21fe8dca69ef776bbaac6f059617eaa0ef7a05cac87b002",
+    "ladder/native-depth-ladder-coexist-frame-2402.ppm.gz": "d35704075b9db141d26f4cd12b6450ede63b314c2097f0854f96386f0d5b33d0",
+    "ladder/native-depth-ladder-coexist-frame-242.ppm.gz": "7c3dd609f9d3e1f37c62bb60b713148bcdeef164c67f59b64caf944757e4ed63",
+    "ladder/native-depth-ladder-coexist-frame-2642.ppm.gz": "44744468f4c586f6ccb7fb1e09ca3859c4e6bdfd3f0f041bb985023a983ca5f3",
+    "ladder/native-depth-ladder-coexist-frame-2882.ppm.gz": "42bc8e3471018dd11c0de54a3c612d662c055f4256100663e167fb1ddac1853f",
+    "ladder/native-depth-ladder-coexist-frame-3122.ppm.gz": "5d4f0a98bfcaeeb9cd5331ec867d73fbbaa6f5f0a2186877d6096aa2bdd50e6b",
+    "ladder/native-depth-ladder-coexist-frame-3362.ppm.gz": "995721afcea59297b8802401956a45ff481c90448e788db64eed3240dace270b",
+    "ladder/native-depth-ladder-coexist-frame-3602.ppm.gz": "f5838831245e3a1a848c01b35f9bb0d7ebfc9140eece2cb14d820b615a5340cd",
+    "ladder/native-depth-ladder-coexist-frame-3842.ppm.gz": "269c41d1c601eda77997fbd74061bd433306704832fefcb9868f633c2110c434",
+    "ladder/native-depth-ladder-coexist-frame-4082.ppm.gz": "7a359e719916babe62b1292948edf956c90931f4db2babc910be77921991f48a",
+    "ladder/native-depth-ladder-coexist-frame-4322.ppm.gz": "365c1a0f5fadb6d8f05e254fd1ffb896313fe4b675a8403aae5238a3111b6bca",
+    "ladder/native-depth-ladder-coexist-frame-4562.ppm.gz": "e347176482663033d40d028e49f1641bdb12f44e0ab47354c02aa46b9bab2b73",
+    "ladder/native-depth-ladder-coexist-frame-4802.ppm.gz": "d97fba259d4c59b4ad06fd59c89fbd391e4f1b7dd776e80f0621e0b5070d64a3",
+    "ladder/native-depth-ladder-coexist-frame-482.ppm.gz": "e07b24c6a16f458050ea6617fde01a0b12336e290228706d5cb56b990afa29ef",
+    "ladder/native-depth-ladder-coexist-frame-5042.ppm.gz": "611970de567fb0ca20bfdda3489941a2ecfef14362bf5dbd69090c1e7426f6bc",
+    "ladder/native-depth-ladder-coexist-frame-722.ppm.gz": "e83e38dbcd088cef8de6438ccc1232e5b89a984f612d48c2a6ac7856efa14489",
+    "ladder/native-depth-ladder-coexist-frame-962.ppm.gz": "6112e148bde5c510f1f42ba254aeff76db9cb82d12c920a477c9c536624deed1",
+    "ladder/native-depth-ladder-frame-1202.ppm.gz": "a67f4fb206237e789b56933293a58078bd8c2a1be55bc17e7b6bbd52bcfe8d73",
+    "ladder/native-depth-ladder-frame-1442.ppm.gz": "99fd195bbd111dde47a45858091f42b95a0064f873ffe17d0a4503fe0384ccee",
+    "ladder/native-depth-ladder-frame-1682.ppm.gz": "d5afa0c71d66a0f4f02dd62cafca53b56bb3b7fbd7e13cb256806aafaf112a54",
+    "ladder/native-depth-ladder-frame-1922.ppm.gz": "8a695e32deb373b889ddee9a0e5a2599a66e13a88e5f75a1c490d8e935a57cd1",
+    "ladder/native-depth-ladder-frame-2.ppm.gz": "f17817ef86440c0dec511903bd0c827793ebe1ceb4c8266f247774c7b739d377",
+    "ladder/native-depth-ladder-frame-2162.ppm.gz": "cffcaa4ade78022d572bcce50818227d9f847032b289ee2adbf70c8fa2f920fc",
+    "ladder/native-depth-ladder-frame-2402.ppm.gz": "378729379205b67d030c7236b268478791a7e3ba2c12e44e14a58929bb9fbbd4",
+    "ladder/native-depth-ladder-frame-242.ppm.gz": "8631d1fe471be69b061cc6b1276bf06c981b541fd323c336f1f486729296b674",
+    "ladder/native-depth-ladder-frame-2642.ppm.gz": "8be7ffe27300e5b8d919036c12a940c23bf05fa9a22f15889a4550fd60869d88",
+    "ladder/native-depth-ladder-frame-2882.ppm.gz": "0c71ab751391555cc80f1c046a3f2fcc779f74d8aca5ee47ce30b0992478ffcc",
+    "ladder/native-depth-ladder-frame-3122.ppm.gz": "fd8b3acb95d279dcaa41fc788606437a7e22162fb02d4d4e516eb785b69e50fd",
+    "ladder/native-depth-ladder-frame-3362.ppm.gz": "04cf466ad3f3692e15774f0ed77c0ed281fc5ffe2be42c4e7b58d0336b189994",
+    "ladder/native-depth-ladder-frame-3602.ppm.gz": "c00ae6ff72ae376148201435466c3569f0d88d73e53a27cc042c49172da0a1d6",
+    "ladder/native-depth-ladder-frame-3842.ppm.gz": "32eba6e4a63fbfe0a0fcc44e8994c14c9adfded98fe1bd25a6213d02754d34e9",
+    "ladder/native-depth-ladder-frame-4082.ppm.gz": "9afc715874bcb5da23ab62aa93593fe1f22b7cc2a69faaad161028a7534c60ab",
+    "ladder/native-depth-ladder-frame-4322.ppm.gz": "6f359d1c79abe3adf65a568bd6784b9443730fad7f9ec3aac06ac9a56a91fb5e",
+    "ladder/native-depth-ladder-frame-4562.ppm.gz": "c47e92286d69bad9f98affc02e8c1d7f4890ff03e3fb30d04681fa9a905c0e49",
+    "ladder/native-depth-ladder-frame-4802.ppm.gz": "a9f5386c3417b41d19b039847fe75abe4068a3309120d87894abdabb7735143a",
+    "ladder/native-depth-ladder-frame-482.ppm.gz": "57ecaf8450bd9551b40b8ed61069e76bea9dc5ab029ec44c655c7bbe830ee27a",
+    "ladder/native-depth-ladder-frame-5042.ppm.gz": "6dd4665f630c11fd61d0b64e1a0e6d63800b56acd61d4eede862357c3d2ed817",
+    "ladder/native-depth-ladder-frame-722.ppm.gz": "93588ea2b55a751026cbfd9490e52170eea4ec095229ae84d9d9fd1be0c806a1",
+    "ladder/native-depth-ladder-frame-962.ppm.gz": "0e9305404e8cd4de1c056f82333abbe51783d1c2900ce8544add34578241aea4",
+    "ladder/native-depth-ladder-rejected-1202.ppm.gz": "d7360746ae49078674634bd24fb560def2fa1c64036259f151811a26c32b7353",
+    "ladder/native-depth-ladder-rejected-1442.ppm.gz": "a6a6832ad7f08f438c820621ab1ab450edfaf97edc543561efa4cb53f14849d8",
+    "ladder/native-depth-ladder-rejected-1682.ppm.gz": "7cf0f27670b3eb55628c85c9ae5eb0350d28c2926f8b5a7a935bb3a6eed8c1e1",
+    "ladder/native-depth-ladder-rejected-1922.ppm.gz": "0ea37877f349d3ec89004f5485bf349a8af373264195749f547fc2279fa8cbcd",
+    "ladder/native-depth-ladder-rejected-2.ppm.gz": "bf6fa40686800049ed91080d0ad3dadd83882b640d00d33591111f7a7c456e38",
+    "ladder/native-depth-ladder-rejected-2162.ppm.gz": "65f82afe1367aa0cdd2f9a3ecd576642d9156454cf3fbb4334ebd2635415bb05",
+    "ladder/native-depth-ladder-rejected-2402.ppm.gz": "7245f656e6015e4bb35e062f8e870fe73edba26ec5b7c24778f81547f4279aff",
+    "ladder/native-depth-ladder-rejected-242.ppm.gz": "91947454fc76b3dd044c4fd35937d525effee5a0adfbf59468d7c33826e70512",
+    "ladder/native-depth-ladder-rejected-2642.ppm.gz": "b06e703ef1356a2437ec3eb9931ff1e8de07c6c5344e864546ede5c8f4f5b641",
+    "ladder/native-depth-ladder-rejected-2882.ppm.gz": "5677cd484c46962fb45518c85d45b42ccc9b825441ff26a35c84bb3f1caa39c3",
+    "ladder/native-depth-ladder-rejected-3122.ppm.gz": "34e75c2acc894d695c0025d0efc6b642ac770661376716351be94547e651350d",
+    "ladder/native-depth-ladder-rejected-3362.ppm.gz": "ce0862b6593c09a3727aeb0e365ba80dbb02552e0b723988125e3eb957c74f02",
+    "ladder/native-depth-ladder-rejected-3602.ppm.gz": "22bbb83f387336d70dc6143abd44cd2b31b562e6a6296afbb41b35b39bc80c0a",
+    "ladder/native-depth-ladder-rejected-3842.ppm.gz": "96e1fc5ae8c8afe5d060209e005f49db0794277007097196d963b89f9e079e76",
+    "ladder/native-depth-ladder-rejected-4082.ppm.gz": "57b35c0d1ceb184db5da23b8ed60f33aa0b0d3816647aa8b22c6a62317a23219",
+    "ladder/native-depth-ladder-rejected-4322.ppm.gz": "b92911a054b06892a928d67aace5692dbad5d6b23258404f0fac8d3541a1050f",
+    "ladder/native-depth-ladder-rejected-4562.ppm.gz": "4f6705dbf7b918886de5d298a8561f8b63ff664a958473ab0d0a652b1dc7439d",
+    "ladder/native-depth-ladder-rejected-4802.ppm.gz": "6db2d63df91331001247c291b3d8993acd678cc64811f2d36f198b9b576687fe",
+    "ladder/native-depth-ladder-rejected-482.ppm.gz": "d19e4881303c4f1223bb3c66b88cf023cc644186572bade7e912683ca381fc5f",
+    "ladder/native-depth-ladder-rejected-5042.ppm.gz": "374f3cd924356c0cfcf2da0a7ed70136ecdaf6cc8eda823ed3c15cbbcfca2c03",
+    "ladder/native-depth-ladder-rejected-722.ppm.gz": "e45b17009e5dd5a4523f1bff428f8f8f121bd43ebb60ffba384583e216abdc71",
+    "ladder/native-depth-ladder-rejected-962.ppm.gz": "83215362fba65ea4fa2ecd5d530ac23f978cfca290b15b86f2ddb17de60f01de",
+    "ladder/native-terrain-load-1442.ppm.gz": "82a7cca94ec25d15849638b19103cc1d07051775de5467bc7874ebb2d5c906dd",
+    "ladder/native-terrain-load-1922.ppm.gz": "074558c095bb4987568b946e9791d5e9c7ab459397d6b4c13c84ed33c487e5fc",
+    "ladder/native-terrain-load-2.ppm.gz": "45f4c25269912355993595b8e01fbc524c801481db5196112c96f0afb81e22f6",
+    "ladder/native-terrain-load-2402.ppm.gz": "82a7cca94ec25d15849638b19103cc1d07051775de5467bc7874ebb2d5c906dd",
+    "ladder/native-terrain-load-2882.ppm.gz": "c089f602a84ab0f55a22c3d0118c8516601e44ee32ae323c0f8786c4fa1b27a3",
+    "ladder/native-terrain-load-3362.ppm.gz": "c1cdc7c9696471c2e30c67781302778a6d50b7daf92d8e5c4799c5cf1af01683",
+    "ladder/native-terrain-load-3842.ppm.gz": "c089f602a84ab0f55a22c3d0118c8516601e44ee32ae323c0f8786c4fa1b27a3",
+    "ladder/native-terrain-load-4322.ppm.gz": "5857fce6eede1f85821b903f8be9ec8b2b8f86f486cfc3bdb62862472dee86dd",
+    "ladder/native-terrain-load-4802.ppm.gz": "75649296951ad96bcaa062449009dec619a4dcfcc3dfb7fcffa75a44335a2668",
+    "ladder/native-terrain-load-482.ppm.gz": "82a7cca94ec25d15849638b19103cc1d07051775de5467bc7874ebb2d5c906dd",
+    "ladder/native-terrain-load-962.ppm.gz": "7bc7ef01180d6a2185a0485ff4f72dca33374eb6d4baa403b7b694fb83618156",
+    "ladder/native-terrain-load-frame-1442.ppm.gz": "d2ee5e500d585879367efd67076aa76be6067c22ba247e45b3ef5c53b708267d",
+    "ladder/native-terrain-load-frame-1922.ppm.gz": "8eba707398093a5bbdfebe669e9c6b05acbfe2cb57cbd1c483cfaab94f9e7723",
+    "ladder/native-terrain-load-frame-2.ppm.gz": "9355aaa0ac71d9b79103a6db0e19f44e0c24221f58893ff903e86a03b4e844a0",
+    "ladder/native-terrain-load-frame-2402.ppm.gz": "43172fa781c6adbd495bbcfda440e1eed22bf0a8425e90b4644cbf8463af9075",
+    "ladder/native-terrain-load-frame-2882.ppm.gz": "b90ce74f47ec0bbb3e6a29cb2b01b2d7b63ec23a5695024c893bcd52816a86c2",
+    "ladder/native-terrain-load-frame-3362.ppm.gz": "248caff6d251a4cef5499e6747f1e4cf2ec464a2cdaa56a41ffdc520f4158245",
+    "ladder/native-terrain-load-frame-3842.ppm.gz": "895de435a7658bb910859435205367e1cff80c008da72fcba5e43037405efa2d",
+    "ladder/native-terrain-load-frame-4322.ppm.gz": "365c1a0f5fadb6d8f05e254fd1ffb896313fe4b675a8403aae5238a3111b6bca",
+    "ladder/native-terrain-load-frame-4802.ppm.gz": "3151c16a85edfc4cc40f37ab351e7f42eba40898113ae57215490dde4d301d0d",
+    "ladder/native-terrain-load-frame-482.ppm.gz": "f7a288c84f898b930341f8228217a7edb49f4907d5a879e54b7cff435e50072d",
+    "ladder/native-terrain-load-frame-962.ppm.gz": "be36fc023c733d88d652bbc1f93fd4effcca3dc7a9622d4ea499136755a5cf07",
+    "ladder/native-terrain-load-reference-1708x960-342-576-1366-653.ppm.gz": "a7964d43d7374c20198eab3f6630f17784a8fd0c5c215706298b3b532e852e41",
+    "ladder/native-terrain-load-reference-1920x1080-384-648-1536-734.ppm.gz": "b4a69c4be8ae393d402b40fedeaf7598653a04769a512fc8f81c1223f1305cbf",
+    "ladder/native-terrain-load-depth-1708x960-342-576-1366-653.f32.gz": "ce0940f4a34607e38dbb0db4571615650ce35f6f03ce32c03a0bb30d61b4acd3",
+    "ladder/native-terrain-load-depth-1920x1080-384-648-1536-734.f32.gz": "2b3b97552b9e47c2f9497ea1485aed9443e969fd89fbec496ecfa4563a5a9036",
+    "ladder/native-real-load-1202.ppm.gz": "c829e0733cdbb42ea1d02f9d703bd7451e3c4281d5b9a0677f24ebe2ab5e2e7a",
+    "ladder/native-real-load-1682.ppm.gz": "1c05c986e121ea1cb6d2e74175915bbc84ff366cc4fa194b99187ffab8f9ddc5",
+    "ladder/native-real-load-2162.ppm.gz": "c78c432cca2a6d4b47c268dc35d1d15e244cd3232359a53a98f2d5ba5c841873",
+    "ladder/native-real-load-2642.ppm.gz": "1c05c986e121ea1cb6d2e74175915bbc84ff366cc4fa194b99187ffab8f9ddc5",
+    "ladder/native-real-load-3122.ppm.gz": "95670b92e773c851d93063e53f774b3781c9ad6e9ab0ffa7f4355038fdc3d0e8",
+    "ladder/native-real-load-3602.ppm.gz": "95670b92e773c851d93063e53f774b3781c9ad6e9ab0ffa7f4355038fdc3d0e8",
+    "ladder/native-real-load-4082.ppm.gz": "1a6a46220e16de571b7109ecba074e81ad816a1e187cc7d48e9c0f716f45b489",
+    "ladder/native-real-load-4562.ppm.gz": "a8899e863b36554aab3617d04c5d2f50d9f0eadbdd0885a18c85519f3a9b2487",
+    "ladder/native-real-load-5042.ppm.gz": "7829fd6726ee1ec08a162535833b8570919a0ff7f1d31e09e102f832ceb560de",
+    "ladder/native-real-load-722.ppm.gz": "6d0da7dab3115a0c49f1cab20867e22d619255e277d2119cbe21b7e22f477801",
+    "ladder/native-real-load-frame-1202.ppm.gz": "00e5330b505a3ebfb70b823e0ad81f6fb3adf5986d97a1eae9aea0dc058dfa56",
+    "ladder/native-real-load-frame-1682.ppm.gz": "74424a65ad0c365aab5108c08f4822ea627e704cb32b976a31ff555d113c5862",
+    "ladder/native-real-load-frame-2162.ppm.gz": "781e9a37045faa92eedaaa8489a3460d83b2e0af54108a50ba07f7bfcfbaa439",
+    "ladder/native-real-load-frame-2642.ppm.gz": "973215e6696a48e7c1f3256492cfa70b9dd03398e98421e1ee2ce5c8d5506a1d",
+    "ladder/native-real-load-frame-3122.ppm.gz": "9c08979b779fd5827349a2295bcc69cdb180b8d4ebd81debbb22e9d3e29086e2",
+    "ladder/native-real-load-frame-3602.ppm.gz": "899c3c30fd3ae136a7f092cce98d1f9338b8480726d360f2b7a3790abac0dcf5",
+    "ladder/native-real-load-frame-4082.ppm.gz": "8a0d46043216a342bae6c257aec10e66da0a7da83f87d5ed6123b904bea27640",
+    "ladder/native-real-load-frame-4562.ppm.gz": "b8bbb7b9337496ebde122db6e4287dc1227afadb05160f2d693e208b68f490c9",
+    "ladder/native-real-load-frame-5042.ppm.gz": "aa9ccfe8f675bc32b9c30c976b3f85f1cacce2e54a8e36d127306020a646ba44",
+    "ladder/native-real-load-frame-722.ppm.gz": "96975a13cb85442a4bc883441caff6344f79a5fb0cbea8aef0d3577d17276753",
+    "ladder/native-real-load-reference-1202.ppm.gz": "3f6cf62175eefe2aaa3c641c4e03a81058e97f3176f3426c14b484aa93253609",
+    "ladder/native-real-load-reference-1682.ppm.gz": "f5b92a189e48b6306f7e773b57774e153dbbd40393fc16fa3f4d547e246a594c",
+    "ladder/native-real-load-reference-2162.ppm.gz": "8f24baa6e83c0c74dccdee80c5d0b615d1207e13ce8295ecb1f3a8eac3e646ab",
+    "ladder/native-real-load-reference-2642.ppm.gz": "f5b92a189e48b6306f7e773b57774e153dbbd40393fc16fa3f4d547e246a594c",
+    "ladder/native-real-load-reference-3122.ppm.gz": "5397692896cd50e0b7bb3827a64017de54351ecf74d974d1abe789f35aaa3105",
+    "ladder/native-real-load-reference-3602.ppm.gz": "5397692896cd50e0b7bb3827a64017de54351ecf74d974d1abe789f35aaa3105",
+    "ladder/native-real-load-reference-4082.ppm.gz": "1a6a46220e16de571b7109ecba074e81ad816a1e187cc7d48e9c0f716f45b489",
+    "ladder/native-real-load-reference-4562.ppm.gz": "bbdf65ab6224e8c9cd42538987b926c6daa9560b2e8a2c422a526810a448a8ec",
+    "ladder/native-real-load-reference-5042.ppm.gz": "fe2a89fe341e63def8044430490601f2a462044acdb95eac4fa2bcea19d75ead",
+    "ladder/native-real-load-reference-722.ppm.gz": "5086e2c1e48c7bd575d87de2d242940b93ad8e2cd83c8021a1ab1452bcf750c0",
+    "ladder/native-real-load-depth-1202.f32.gz": "6c48f37bfd82bc6801024309ae67a1b0fef3013c1e2f43ddaab6bcb5b6721023",
+    "ladder/native-real-load-depth-1682.f32.gz": "3af5e959814750d9daa256f803767084c67354c8dcc00af9bd6b9448b0da16bb",
+    "ladder/native-real-load-depth-2162.f32.gz": "9551ff99b81aa8636607b80c04c456792439831f284061b38a5d1f18693eabd1",
+    "ladder/native-real-load-depth-2642.f32.gz": "3af5e959814750d9daa256f803767084c67354c8dcc00af9bd6b9448b0da16bb",
+    "ladder/native-real-load-depth-3122.f32.gz": "76b51a7a09d4ebd63d80807a4081bb82fc360fcc10b22fb5d5ddb55a367da413",
+    "ladder/native-real-load-depth-3602.f32.gz": "76b51a7a09d4ebd63d80807a4081bb82fc360fcc10b22fb5d5ddb55a367da413",
+    "ladder/native-real-load-depth-4082.f32.gz": "ad68b1da15add1cbdcf2660fe5b177c38de92a6fc46e77f194d161f4bd714c3d",
+    "ladder/native-real-load-depth-4562.f32.gz": "1e906d7f7a0a51555415b022d0fe7e8e9f051630aef6716292512665083b3329",
+    "ladder/native-real-load-depth-5042.f32.gz": "87a3cd8853bc19617c698329d9e6709baff61212c01307dd9ddbaf38349873e2",
+    "ladder/native-real-load-depth-722.f32.gz": "551288fe3d413cf19e5c0cc14118dd92c82681de5aa4e3f50fb3ccaeff5b55c7",
+    "ladder/native-ladder.log": "d340680af38cd1fe37cd2ec05b8652e834ac8fa9e654cfbba313f51f4bfd3e06",
+    "ladder/crop-ascend-band-top.png": "6f99ab52f2e562653c61bca4cb7a228357003219bf56eec5d40b5e82025f6ace",
+    "ladder/crop-ascend-band-bottom.png": "f477406088d4b7365432a7e0a5553c6e183e54aad352beb37e190b4732005540",
+    "ladder/crop-descend-band-top.png": "01aaf0d0887dde946a79955608bb3b01708efece73e881dcb8e3e1513e1135de",
+    "ladder/crop-descend-band-bottom.png": "4b9a1b8f9c8b07f1525ae191df0554c9cefcd8e90e9311d4198285790906c8a5",
+    "ladder/crop-edit-band-top.png": "39e905f8776c0ca2dfe62b09ea442cee1448f947ef2699776dd37ab65b9508ed",
+    "ladder/crop-edit-band-bottom.png": "b0ec1849e8658aaa14c6b55c449114bc978779069048a010b63882907ac2415a",
+    "ladder/crop-horizon-band-top.png": "023487a64cfebec32cdd0f59c29db6673228c5ad52276091ef8f390798f9d8d7",
+    "ladder/crop-horizon-band-bottom.png": "73cb1357c1654e3ed322ca2263a0546b70085efccc34928232259fd29a7c9fef",
+    "ladder/crop-nether-band-top.png": "df8d993cc5ba912973d3383188dcde5bc74ce188928273b6309191de14148422",
+    "ladder/crop-nether-band-bottom.png": "69143475a4f27a412abbd65ffbce01e6b35dc7f30beb78e7a11c7e03be52c10d",
+    "ladder/crop-overworld-band-top.png": "1d7dc00c4096fc153d1323099326a7bff1c489ac28da77a308617914e6d66f1f",
+    "ladder/crop-overworld-band-bottom.png": "fecf9407e1e5b89af0c84a6ad7d94f3810ee64464d6417f482b7f7b547f20506",
+    "ladder/crop-reconnect-band-top.png": "8c83af3095d123a2aa7f52f027f6049ac480afb33f671d7ee051d50d35d864e4",
+    "ladder/crop-reconnect-band-bottom.png": "4ccd94210e3e1d5271cd248dc3fac8ebc19f33b6265d81ed92366ddb08a9bbae",
+    "ladder/crop-reload-band-top.png": "1dcb078e7266d2351619d6cb0c58ae3ac3d1a54bdab0fc2f1944fa57d058b9a4",
+    "ladder/crop-reload-band-bottom.png": "827488883572660c1704910417d27a142e2205c32fa78f9f7cec858651b9c5e8",
+    "ladder/crop-remove-band-top.png": "39e905f8776c0ca2dfe62b09ea442cee1448f947ef2699776dd37ab65b9508ed",
+    "ladder/crop-remove-band-bottom.png": "b3be09befaabf2dc920dc39896fd3f5db8147eb25d840fb7b23472fee1c55761",
+    "ladder/crop-resize-band-top.png": "1dcb078e7266d2351619d6cb0c58ae3ac3d1a54bdab0fc2f1944fa57d058b9a4",
+    "ladder/crop-resize-band-bottom.png": "4bfe679023cf913024727b8bba155f216dc6464284674be6e15babb301bb95f4",
+    "ladder/crop-return-band-top.png": "39e905f8776c0ca2dfe62b09ea442cee1448f947ef2699776dd37ab65b9508ed",
+    "ladder/crop-return-band-bottom.png": "4f19538133460afe61e52dd8ffa37f50b7aac45639a876ce4fd93bfb92ad8f0a",
+    "ladder/crop-travel-band-top.png": "68204fbcd2063829d3cdda907323a0c891c384cec010ccc589be2808cf66a184",
+    "ladder/crop-travel-band-bottom.png": "9e54c378206526613cfaf3c1a1de436301a81b13e6fbea944e72d24856693405",
+    "ladder/crop-turn-band-top.png": "72f5382fc8bfaff9d1115898a873227f46754b28763ce367f3c63fab85326105",
+    "ladder/crop-turn-band-bottom.png": "23bf6fb539f03e17cd7046781f057cfc3d5e9ff7109a90b00a21099d1e8ff2df",
+    "ladder/crop-warmup-band-top.png": "f38935e11022aacc76614529da93632f7a135d60d836d58fbb8539abbb2623f5",
+    "ladder/crop-warmup-band-bottom.png": "b6b4ad74a0c1bd4671870adea914cdb787107722a29c9593730b650f3a4c1175"
+  },
+  "screenshots": {
+    "ascend.png": "740adc26954fa0d773b7f17e896f9fa530d488500382069712f7e2858bf208d2",
+    "descend.png": "e78e12836f21268127babc347dbd1620d6e91d8b692f1c96c3b95ece50519142",
+    "edit.png": "34df9d6418a8aba1b4705f7a89be1d6d0ff0b389d0de39fd01c1bb43b29a9107",
+    "horizon.png": "c9acb9b12e7eab6e5057954fc8a60eb6111a074fd42e11fb3ba533f06ad7c527",
+    "nether.png": "c40d0185e99bd67c233224b402896214c9a435093167639c0eee9f1eb0ec5d97",
+    "overworld.png": "f491e0b86b2cb75953a10bafe4d32ddecf1abfd871a31410bd0f27d9adccc5b3",
+    "reconnect.png": "2fd72a6c489b28ef15e31a5dcb970544782d3ddd04a9dd9c8a0c74be0c0711fa",
+    "reload.png": "2fd72a6c489b28ef15e31a5dcb970544782d3ddd04a9dd9c8a0c74be0c0711fa",
+    "remove.png": "34df9d6418a8aba1b4705f7a89be1d6d0ff0b389d0de39fd01c1bb43b29a9107",
+    "resize.png": "2fd72a6c489b28ef15e31a5dcb970544782d3ddd04a9dd9c8a0c74be0c0711fa",
+    "return.png": "26f7b8c7025a9996bb9944c18d5c424f2a745d2f9bccd2157bceec88b67ef426",
+    "travel.png": "33eff730feb94b1ef58863f73dfd62c86a710efad40960beb09d122ef35333f4",
+    "turn.png": "ad18500cda11f182004206d9b348a570a5f771fa520738b6120dfefc0a82ff3c",
+    "warmup.png": "53cdccac52ad46a06d9d74102e4673262e2194425034e8f6c780e883b21a9004"
+  },
+  "candidate": {
+    "revision": "e72f37a36a4af286c906de0bfdb0b37448054cec",
+    "worktree_status": "?? docs/ai/runs/native-evidence/20261009T095042-139350Z/\n",
+    "selection": "native",
+    "graphics_backend_preference": "default",
+    "host": "macOS-27.0-arm64-arm-64bit-Mach-O"
+  },
+  "crops": [
+    "crop-ascend-bottom.png",
+    "crop-ascend-top.png",
+    "crop-descend-bottom.png",
+    "crop-descend-top.png",
+    "crop-edit-bottom.png",
+    "crop-edit-top.png",
+    "crop-horizon-bottom.png",
+    "crop-horizon-top.png",
+    "crop-nether-bottom.png",
+    "crop-nether-top.png",
+    "crop-overworld-bottom.png",
+    "crop-overworld-top.png",
+    "crop-reconnect-bottom.png",
+    "crop-reconnect-top.png",
+    "crop-reload-bottom.png",
+    "crop-reload-top.png",
+    "crop-remove-bottom.png",
+    "crop-remove-top.png",
+    "crop-resize-bottom.png",
+    "crop-resize-top.png",
+    "crop-return-bottom.png",
+    "crop-return-top.png",
+    "crop-travel-bottom.png",
+    "crop-travel-top.png",
+    "crop-turn-bottom.png",
+    "crop-turn-top.png",
+    "crop-warmup-bottom.png",
+    "crop-warmup-top.png"
+  ],
+  "crop_origins": {
+    "crop-ascend-top.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        8
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "top"
+    },
+    "crop-ascend-bottom.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        895
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "bottom"
+    },
+    "crop-descend-top.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        8
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "top"
+    },
+    "crop-descend-bottom.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        895
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "bottom"
+    },
+    "crop-edit-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-edit-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    },
+    "crop-horizon-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-horizon-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    },
+    "crop-nether-top.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        8
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "top"
+    },
+    "crop-nether-bottom.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        895
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "bottom"
+    },
+    "crop-overworld-top.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        8
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "top"
+    },
+    "crop-overworld-bottom.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        895
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "bottom"
+    },
+    "crop-reconnect-top.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        8
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "top"
+    },
+    "crop-reconnect-bottom.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        895
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "bottom"
+    },
+    "crop-reload-top.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        8
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "top"
+    },
+    "crop-reload-bottom.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        895
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "bottom"
+    },
+    "crop-remove-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-remove-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    },
+    "crop-resize-top.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        8
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "top"
+    },
+    "crop-resize-bottom.png": {
+      "parent": [
+        1920,
+        1080
+      ],
+      "origin": [
+        17,
+        895
+      ],
+      "size": [
+        196,
+        177
+      ],
+      "end": "bottom"
+    },
+    "crop-return-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-return-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    },
+    "crop-travel-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-travel-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    },
+    "crop-turn-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-turn-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    },
+    "crop-warmup-top.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        7
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "top"
+    },
+    "crop-warmup-bottom.png": {
+      "parent": [
+        1708,
+        960
+      ],
+      "origin": [
+        15,
+        795
+      ],
+      "size": [
+        174,
+        158
+      ],
+      "end": "bottom"
+    }
+  },
+  "raw_colour_samples": [
+    "native-depth-sample.pgm.gz",
+    "native-marker-rejected-1202.ppm.gz",
+    "native-marker-rejected-1442.ppm.gz",
+    "native-marker-rejected-1682.ppm.gz",
+    "native-marker-rejected-1922.ppm.gz",
+    "native-marker-rejected-2.ppm.gz",
+    "native-marker-rejected-2162.ppm.gz",
+    "native-marker-rejected-2402.ppm.gz",
+    "native-marker-rejected-242.ppm.gz",
+    "native-marker-rejected-2642.ppm.gz",
+    "native-marker-rejected-2882.ppm.gz",
+    "native-marker-rejected-3122.ppm.gz",
+    "native-marker-rejected-3362.ppm.gz",
+    "native-marker-rejected-3602.ppm.gz",
+    "native-marker-rejected-3842.ppm.gz",
+    "native-marker-rejected-4082.ppm.gz",
+    "native-marker-rejected-4322.ppm.gz",
+    "native-marker-rejected-4562.ppm.gz",
+    "native-marker-rejected-482.ppm.gz",
+    "native-marker-rejected-722.ppm.gz",
+    "native-marker-rejected-962.ppm.gz",
+    "native-marker-sample-1202.ppm",
+    "native-marker-sample-1442.ppm",
+    "native-marker-sample-1682.ppm",
+    "native-marker-sample-1922.ppm",
+    "native-marker-sample-2.ppm",
+    "native-marker-sample-2162.ppm",
+    "native-marker-sample-2402.ppm",
+    "native-marker-sample-242.ppm",
+    "native-marker-sample-2642.ppm",
+    "native-marker-sample-2882.ppm",
+    "native-marker-sample-3122.ppm",
+    "native-marker-sample-3362.ppm",
+    "native-marker-sample-3602.ppm",
+    "native-marker-sample-3842.ppm",
+    "native-marker-sample-4082.ppm",
+    "native-marker-sample-4322.ppm",
+    "native-marker-sample-4562.ppm",
+    "native-marker-sample-482.ppm",
+    "native-marker-sample-722.ppm",
+    "native-marker-sample-962.ppm",
+    "native-terrain-reference-1202.ppm.gz",
+    "native-terrain-reference-1442.ppm.gz",
+    "native-terrain-reference-1682.ppm.gz",
+    "native-terrain-reference-1922.ppm.gz",
+    "native-terrain-reference-2.ppm.gz",
+    "native-terrain-reference-2162.ppm.gz",
+    "native-terrain-reference-2402.ppm.gz",
+    "native-terrain-reference-242.ppm.gz",
+    "native-terrain-reference-2642.ppm.gz",
+    "native-terrain-reference-2882.ppm.gz",
+    "native-terrain-reference-3122.ppm.gz",
+    "native-terrain-reference-3152.ppm.gz",
+    "native-terrain-reference-3392.ppm.gz",
+    "native-terrain-reference-3632.ppm.gz",
+    "native-terrain-reference-3872.ppm.gz",
+    "native-terrain-reference-4112.ppm.gz",
+    "native-terrain-reference-4352.ppm.gz",
+    "native-terrain-reference-4592.ppm.gz",
+    "native-terrain-reference-482.ppm.gz",
+    "native-terrain-reference-722.ppm.gz",
+    "native-terrain-reference-962.ppm.gz",
+    "native-terrain-sample-1202.ppm.gz",
+    "native-terrain-sample-1442.ppm.gz",
+    "native-terrain-sample-1682.ppm.gz",
+    "native-terrain-sample-1922.ppm.gz",
+    "native-terrain-sample-2.ppm.gz",
+    "native-terrain-sample-2162.ppm.gz",
+    "native-terrain-sample-2402.ppm.gz",
+    "native-terrain-sample-242.ppm.gz",
+    "native-terrain-sample-2642.ppm.gz",
+    "native-terrain-sample-2882.ppm.gz",
+    "native-terrain-sample-3122.ppm.gz",
+    "native-terrain-sample-3152.ppm.gz",
+    "native-terrain-sample-3392.ppm.gz",
+    "native-terrain-sample-3632.ppm.gz",
+    "native-terrain-sample-3872.ppm.gz",
+    "native-terrain-sample-4112.ppm.gz",
+    "native-terrain-sample-4352.ppm.gz",
+    "native-terrain-sample-4592.ppm.gz",
+    "native-terrain-sample-482.ppm.gz",
+    "native-terrain-sample-722.ppm.gz",
+    "native-terrain-sample-962.ppm.gz"
+  ],
+  "ladder": {
+    "path": "ladder",
+    "files": [
+      "ladder/crop-ascend-band-bottom.png",
+      "ladder/crop-ascend-band-top.png",
+      "ladder/crop-descend-band-bottom.png",
+      "ladder/crop-descend-band-top.png",
+      "ladder/crop-edit-band-bottom.png",
+      "ladder/crop-edit-band-top.png",
+      "ladder/crop-horizon-band-bottom.png",
+      "ladder/crop-horizon-band-top.png",
+      "ladder/crop-nether-band-bottom.png",
+      "ladder/crop-nether-band-top.png",
+      "ladder/crop-overworld-band-bottom.png",
+      "ladder/crop-overworld-band-top.png",
+      "ladder/crop-reconnect-band-bottom.png",
+      "ladder/crop-reconnect-band-top.png",
+      "ladder/crop-reload-band-bottom.png",
+      "ladder/crop-reload-band-top.png",
+      "ladder/crop-remove-band-bottom.png",
+      "ladder/crop-remove-band-top.png",
+      "ladder/crop-resize-band-bottom.png",
+      "ladder/crop-resize-band-top.png",
+      "ladder/crop-return-band-bottom.png",
+      "ladder/crop-return-band-top.png",
+      "ladder/crop-travel-band-bottom.png",
+      "ladder/crop-travel-band-top.png",
+      "ladder/crop-turn-band-bottom.png",
+      "ladder/crop-turn-band-top.png",
+      "ladder/crop-warmup-band-bottom.png",
+      "ladder/crop-warmup-band-top.png",
+      "ladder/native-adopted-context.json",
+      "ladder/native-compute-probe.json",
+      "ladder/native-depth-ladder-1202.ppm.gz",
+      "ladder/native-depth-ladder-1442.ppm.gz",
+      "ladder/native-depth-ladder-1682.ppm.gz",
+      "ladder/native-depth-ladder-1922.ppm.gz",
+      "ladder/native-depth-ladder-2.ppm.gz",
+      "ladder/native-depth-ladder-2162.ppm.gz",
+      "ladder/native-depth-ladder-2402.ppm.gz",
+      "ladder/native-depth-ladder-242.ppm.gz",
+      "ladder/native-depth-ladder-2642.ppm.gz",
+      "ladder/native-depth-ladder-2882.ppm.gz",
+      "ladder/native-depth-ladder-3122.ppm.gz",
+      "ladder/native-depth-ladder-3362.ppm.gz",
+      "ladder/native-depth-ladder-3602.ppm.gz",
+      "ladder/native-depth-ladder-3842.ppm.gz",
+      "ladder/native-depth-ladder-4082.ppm.gz",
+      "ladder/native-depth-ladder-4322.ppm.gz",
+      "ladder/native-depth-ladder-4562.ppm.gz",
+      "ladder/native-depth-ladder-4802.ppm.gz",
+      "ladder/native-depth-ladder-482.ppm.gz",
+      "ladder/native-depth-ladder-5042.ppm.gz",
+      "ladder/native-depth-ladder-722.ppm.gz",
+      "ladder/native-depth-ladder-962.ppm.gz",
+      "ladder/native-depth-ladder-coexist-1202.ppm.gz",
+      "ladder/native-depth-ladder-coexist-1442.ppm.gz",
+      "ladder/native-depth-ladder-coexist-1682.ppm.gz",
+      "ladder/native-depth-ladder-coexist-1922.ppm.gz",
+      "ladder/native-depth-ladder-coexist-2.ppm.gz",
+      "ladder/native-depth-ladder-coexist-2162.ppm.gz",
+      "ladder/native-depth-ladder-coexist-2402.ppm.gz",
+      "ladder/native-depth-ladder-coexist-242.ppm.gz",
+      "ladder/native-depth-ladder-coexist-2642.ppm.gz",
+      "ladder/native-depth-ladder-coexist-2882.ppm.gz",
+      "ladder/native-depth-ladder-coexist-3122.ppm.gz",
+      "ladder/native-depth-ladder-coexist-3362.ppm.gz",
+      "ladder/native-depth-ladder-coexist-3602.ppm.gz",
+      "ladder/native-depth-ladder-coexist-3842.ppm.gz",
+      "ladder/native-depth-ladder-coexist-4082.ppm.gz",
+      "ladder/native-depth-ladder-coexist-4322.ppm.gz",
+      "ladder/native-depth-ladder-coexist-4562.ppm.gz",
+      "ladder/native-depth-ladder-coexist-4802.ppm.gz",
+      "ladder/native-depth-ladder-coexist-482.ppm.gz",
+      "ladder/native-depth-ladder-coexist-5042.ppm.gz",
+      "ladder/native-depth-ladder-coexist-722.ppm.gz",
+      "ladder/native-depth-ladder-coexist-962.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-1202.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-1442.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-1682.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-1922.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-2.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-2162.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-2402.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-242.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-2642.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-2882.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-3122.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-3362.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-3602.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-3842.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-4082.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-4322.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-4562.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-4802.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-482.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-5042.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-722.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-962.ppm.gz",
+      "ladder/native-depth-ladder-frame-1202.ppm.gz",
+      "ladder/native-depth-ladder-frame-1442.ppm.gz",
+      "ladder/native-depth-ladder-frame-1682.ppm.gz",
+      "ladder/native-depth-ladder-frame-1922.ppm.gz",
+      "ladder/native-depth-ladder-frame-2.ppm.gz",
+      "ladder/native-depth-ladder-frame-2162.ppm.gz",
+      "ladder/native-depth-ladder-frame-2402.ppm.gz",
+      "ladder/native-depth-ladder-frame-242.ppm.gz",
+      "ladder/native-depth-ladder-frame-2642.ppm.gz",
+      "ladder/native-depth-ladder-frame-2882.ppm.gz",
+      "ladder/native-depth-ladder-frame-3122.ppm.gz",
+      "ladder/native-depth-ladder-frame-3362.ppm.gz",
+      "ladder/native-depth-ladder-frame-3602.ppm.gz",
+      "ladder/native-depth-ladder-frame-3842.ppm.gz",
+      "ladder/native-depth-ladder-frame-4082.ppm.gz",
+      "ladder/native-depth-ladder-frame-4322.ppm.gz",
+      "ladder/native-depth-ladder-frame-4562.ppm.gz",
+      "ladder/native-depth-ladder-frame-4802.ppm.gz",
+      "ladder/native-depth-ladder-frame-482.ppm.gz",
+      "ladder/native-depth-ladder-frame-5042.ppm.gz",
+      "ladder/native-depth-ladder-frame-722.ppm.gz",
+      "ladder/native-depth-ladder-frame-962.ppm.gz",
+      "ladder/native-depth-ladder-rejected-1202.ppm.gz",
+      "ladder/native-depth-ladder-rejected-1442.ppm.gz",
+      "ladder/native-depth-ladder-rejected-1682.ppm.gz",
+      "ladder/native-depth-ladder-rejected-1922.ppm.gz",
+      "ladder/native-depth-ladder-rejected-2.ppm.gz",
+      "ladder/native-depth-ladder-rejected-2162.ppm.gz",
+      "ladder/native-depth-ladder-rejected-2402.ppm.gz",
+      "ladder/native-depth-ladder-rejected-242.ppm.gz",
+      "ladder/native-depth-ladder-rejected-2642.ppm.gz",
+      "ladder/native-depth-ladder-rejected-2882.ppm.gz",
+      "ladder/native-depth-ladder-rejected-3122.ppm.gz",
+      "ladder/native-depth-ladder-rejected-3362.ppm.gz",
+      "ladder/native-depth-ladder-rejected-3602.ppm.gz",
+      "ladder/native-depth-ladder-rejected-3842.ppm.gz",
+      "ladder/native-depth-ladder-rejected-4082.ppm.gz",
+      "ladder/native-depth-ladder-rejected-4322.ppm.gz",
+      "ladder/native-depth-ladder-rejected-4562.ppm.gz",
+      "ladder/native-depth-ladder-rejected-4802.ppm.gz",
+      "ladder/native-depth-ladder-rejected-482.ppm.gz",
+      "ladder/native-depth-ladder-rejected-5042.ppm.gz",
+      "ladder/native-depth-ladder-rejected-722.ppm.gz",
+      "ladder/native-depth-ladder-rejected-962.ppm.gz",
+      "ladder/native-depth-ladder.json",
+      "ladder/native-device-features.json",
+      "ladder/native-feature-audit.json",
+      "ladder/native-instance.json",
+      "ladder/native-ladder.log",
+      "ladder/native-real-load-1202.ppm.gz",
+      "ladder/native-real-load-1682.ppm.gz",
+      "ladder/native-real-load-2162.ppm.gz",
+      "ladder/native-real-load-2642.ppm.gz",
+      "ladder/native-real-load-3122.ppm.gz",
+      "ladder/native-real-load-3602.ppm.gz",
+      "ladder/native-real-load-4082.ppm.gz",
+      "ladder/native-real-load-4562.ppm.gz",
+      "ladder/native-real-load-5042.ppm.gz",
+      "ladder/native-real-load-722.ppm.gz",
+      "ladder/native-real-load-depth-1202.f32.gz",
+      "ladder/native-real-load-depth-1682.f32.gz",
+      "ladder/native-real-load-depth-2162.f32.gz",
+      "ladder/native-real-load-depth-2642.f32.gz",
+      "ladder/native-real-load-depth-3122.f32.gz",
+      "ladder/native-real-load-depth-3602.f32.gz",
+      "ladder/native-real-load-depth-4082.f32.gz",
+      "ladder/native-real-load-depth-4562.f32.gz",
+      "ladder/native-real-load-depth-5042.f32.gz",
+      "ladder/native-real-load-depth-722.f32.gz",
+      "ladder/native-real-load-frame-1202.ppm.gz",
+      "ladder/native-real-load-frame-1682.ppm.gz",
+      "ladder/native-real-load-frame-2162.ppm.gz",
+      "ladder/native-real-load-frame-2642.ppm.gz",
+      "ladder/native-real-load-frame-3122.ppm.gz",
+      "ladder/native-real-load-frame-3602.ppm.gz",
+      "ladder/native-real-load-frame-4082.ppm.gz",
+      "ladder/native-real-load-frame-4562.ppm.gz",
+      "ladder/native-real-load-frame-5042.ppm.gz",
+      "ladder/native-real-load-frame-722.ppm.gz",
+      "ladder/native-real-load-reference-1202.ppm.gz",
+      "ladder/native-real-load-reference-1682.ppm.gz",
+      "ladder/native-real-load-reference-2162.ppm.gz",
+      "ladder/native-real-load-reference-2642.ppm.gz",
+      "ladder/native-real-load-reference-3122.ppm.gz",
+      "ladder/native-real-load-reference-3602.ppm.gz",
+      "ladder/native-real-load-reference-4082.ppm.gz",
+      "ladder/native-real-load-reference-4562.ppm.gz",
+      "ladder/native-real-load-reference-5042.ppm.gz",
+      "ladder/native-real-load-reference-722.ppm.gz",
+      "ladder/native-real-load.json",
+      "ladder/native-real-shader.json",
+      "ladder/native-result.json",
+      "ladder/native-terrain-load-1442.ppm.gz",
+      "ladder/native-terrain-load-1922.ppm.gz",
+      "ladder/native-terrain-load-2.ppm.gz",
+      "ladder/native-terrain-load-2402.ppm.gz",
+      "ladder/native-terrain-load-2882.ppm.gz",
+      "ladder/native-terrain-load-3362.ppm.gz",
+      "ladder/native-terrain-load-3842.ppm.gz",
+      "ladder/native-terrain-load-4322.ppm.gz",
+      "ladder/native-terrain-load-4802.ppm.gz",
+      "ladder/native-terrain-load-482.ppm.gz",
+      "ladder/native-terrain-load-962.ppm.gz",
+      "ladder/native-terrain-load-depth-1708x960-342-576-1366-653.f32.gz",
+      "ladder/native-terrain-load-depth-1920x1080-384-648-1536-734.f32.gz",
+      "ladder/native-terrain-load-frame-1442.ppm.gz",
+      "ladder/native-terrain-load-frame-1922.ppm.gz",
+      "ladder/native-terrain-load-frame-2.ppm.gz",
+      "ladder/native-terrain-load-frame-2402.ppm.gz",
+      "ladder/native-terrain-load-frame-2882.ppm.gz",
+      "ladder/native-terrain-load-frame-3362.ppm.gz",
+      "ladder/native-terrain-load-frame-3842.ppm.gz",
+      "ladder/native-terrain-load-frame-4322.ppm.gz",
+      "ladder/native-terrain-load-frame-4802.ppm.gz",
+      "ladder/native-terrain-load-frame-482.ppm.gz",
+      "ladder/native-terrain-load-frame-962.ppm.gz",
+      "ladder/native-terrain-load-reference-1708x960-342-576-1366-653.ppm.gz",
+      "ladder/native-terrain-load-reference-1920x1080-384-648-1536-734.ppm.gz",
+      "ladder/native-terrain-load.json",
+      "ladder/native-vulkan-probe.json"
+    ],
+    "samples": [
+      "ladder/native-depth-ladder-coexist-2.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-2.ppm.gz",
+      "ladder/native-depth-ladder-coexist-242.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-242.ppm.gz",
+      "ladder/native-depth-ladder-coexist-482.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-482.ppm.gz",
+      "ladder/native-depth-ladder-coexist-722.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-722.ppm.gz",
+      "ladder/native-depth-ladder-coexist-962.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-962.ppm.gz",
+      "ladder/native-depth-ladder-coexist-1202.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-1202.ppm.gz",
+      "ladder/native-depth-ladder-coexist-1442.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-1442.ppm.gz",
+      "ladder/native-depth-ladder-coexist-1682.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-1682.ppm.gz",
+      "ladder/native-depth-ladder-coexist-1922.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-1922.ppm.gz",
+      "ladder/native-depth-ladder-coexist-2162.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-2162.ppm.gz",
+      "ladder/native-depth-ladder-coexist-2402.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-2402.ppm.gz",
+      "ladder/native-depth-ladder-coexist-2642.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-2642.ppm.gz",
+      "ladder/native-depth-ladder-coexist-2882.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-2882.ppm.gz",
+      "ladder/native-depth-ladder-coexist-3122.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-3122.ppm.gz",
+      "ladder/native-depth-ladder-coexist-3362.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-3362.ppm.gz",
+      "ladder/native-depth-ladder-coexist-3602.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-3602.ppm.gz",
+      "ladder/native-depth-ladder-coexist-3842.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-3842.ppm.gz",
+      "ladder/native-depth-ladder-coexist-4082.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-4082.ppm.gz",
+      "ladder/native-depth-ladder-coexist-4322.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-4322.ppm.gz",
+      "ladder/native-depth-ladder-coexist-4562.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-4562.ppm.gz",
+      "ladder/native-depth-ladder-coexist-4802.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-4802.ppm.gz",
+      "ladder/native-depth-ladder-coexist-5042.ppm.gz",
+      "ladder/native-depth-ladder-coexist-frame-5042.ppm.gz",
+      "ladder/native-real-load-722.ppm.gz",
+      "ladder/native-real-load-frame-722.ppm.gz",
+      "ladder/native-real-load-reference-722.ppm.gz",
+      "ladder/native-real-load-depth-722.f32.gz",
+      "ladder/native-real-load-1202.ppm.gz",
+      "ladder/native-real-load-frame-1202.ppm.gz",
+      "ladder/native-real-load-reference-1202.ppm.gz",
+      "ladder/native-real-load-depth-1202.f32.gz",
+      "ladder/native-real-load-1682.ppm.gz",
+      "ladder/native-real-load-frame-1682.ppm.gz",
+      "ladder/native-real-load-reference-1682.ppm.gz",
+      "ladder/native-real-load-depth-1682.f32.gz",
+      "ladder/native-real-load-2162.ppm.gz",
+      "ladder/native-real-load-frame-2162.ppm.gz",
+      "ladder/native-real-load-reference-2162.ppm.gz",
+      "ladder/native-real-load-depth-2162.f32.gz",
+      "ladder/native-real-load-2642.ppm.gz",
+      "ladder/native-real-load-frame-2642.ppm.gz",
+      "ladder/native-real-load-reference-2642.ppm.gz",
+      "ladder/native-real-load-depth-2642.f32.gz",
+      "ladder/native-real-load-3122.ppm.gz",
+      "ladder/native-real-load-frame-3122.ppm.gz",
+      "ladder/native-real-load-reference-3122.ppm.gz",
+      "ladder/native-real-load-depth-3122.f32.gz",
+      "ladder/native-real-load-3602.ppm.gz",
+      "ladder/native-real-load-frame-3602.ppm.gz",
+      "ladder/native-real-load-reference-3602.ppm.gz",
+      "ladder/native-real-load-depth-3602.f32.gz",
+      "ladder/native-real-load-4082.ppm.gz",
+      "ladder/native-real-load-frame-4082.ppm.gz",
+      "ladder/native-real-load-reference-4082.ppm.gz",
+      "ladder/native-real-load-depth-4082.f32.gz",
+      "ladder/native-real-load-4562.ppm.gz",
+      "ladder/native-real-load-frame-4562.ppm.gz",
+      "ladder/native-real-load-reference-4562.ppm.gz",
+      "ladder/native-real-load-depth-4562.f32.gz",
+      "ladder/native-real-load-5042.ppm.gz",
+      "ladder/native-real-load-frame-5042.ppm.gz",
+      "ladder/native-real-load-reference-5042.ppm.gz",
+      "ladder/native-real-load-depth-5042.f32.gz",
+      "ladder/native-terrain-load-2.ppm.gz",
+      "ladder/native-terrain-load-frame-2.ppm.gz",
+      "ladder/native-terrain-load-reference-1708x960-342-576-1366-653.ppm.gz",
+      "ladder/native-terrain-load-depth-1708x960-342-576-1366-653.f32.gz",
+      "ladder/native-terrain-load-482.ppm.gz",
+      "ladder/native-terrain-load-frame-482.ppm.gz",
+      "ladder/native-terrain-load-reference-1708x960-342-576-1366-653.ppm.gz",
+      "ladder/native-terrain-load-depth-1708x960-342-576-1366-653.f32.gz",
+      "ladder/native-terrain-load-962.ppm.gz",
+      "ladder/native-terrain-load-frame-962.ppm.gz",
+      "ladder/native-terrain-load-reference-1708x960-342-576-1366-653.ppm.gz",
+      "ladder/native-terrain-load-depth-1708x960-342-576-1366-653.f32.gz",
+      "ladder/native-terrain-load-1442.ppm.gz",
+      "ladder/native-terrain-load-frame-1442.ppm.gz",
+      "ladder/native-terrain-load-reference-1708x960-342-576-1366-653.ppm.gz",
+      "ladder/native-terrain-load-depth-1708x960-342-576-1366-653.f32.gz",
+      "ladder/native-terrain-load-1922.ppm.gz",
+      "ladder/native-terrain-load-frame-1922.ppm.gz",
+      "ladder/native-terrain-load-reference-1708x960-342-576-1366-653.ppm.gz",
+      "ladder/native-terrain-load-depth-1708x960-342-576-1366-653.f32.gz",
+      "ladder/native-terrain-load-2402.ppm.gz",
+      "ladder/native-terrain-load-frame-2402.ppm.gz",
+      "ladder/native-terrain-load-reference-1708x960-342-576-1366-653.ppm.gz",
+      "ladder/native-terrain-load-depth-1708x960-342-576-1366-653.f32.gz",
+      "ladder/native-terrain-load-2882.ppm.gz",
+      "ladder/native-terrain-load-frame-2882.ppm.gz",
+      "ladder/native-terrain-load-reference-1920x1080-384-648-1536-734.ppm.gz",
+      "ladder/native-terrain-load-depth-1920x1080-384-648-1536-734.f32.gz",
+      "ladder/native-terrain-load-3362.ppm.gz",
+      "ladder/native-terrain-load-frame-3362.ppm.gz",
+      "ladder/native-terrain-load-reference-1920x1080-384-648-1536-734.ppm.gz",
+      "ladder/native-terrain-load-depth-1920x1080-384-648-1536-734.f32.gz",
+      "ladder/native-terrain-load-3842.ppm.gz",
+      "ladder/native-terrain-load-frame-3842.ppm.gz",
+      "ladder/native-terrain-load-reference-1920x1080-384-648-1536-734.ppm.gz",
+      "ladder/native-terrain-load-depth-1920x1080-384-648-1536-734.f32.gz",
+      "ladder/native-terrain-load-4322.ppm.gz",
+      "ladder/native-terrain-load-frame-4322.ppm.gz",
+      "ladder/native-terrain-load-reference-1920x1080-384-648-1536-734.ppm.gz",
+      "ladder/native-terrain-load-depth-1920x1080-384-648-1536-734.f32.gz",
+      "ladder/native-terrain-load-4802.ppm.gz",
+      "ladder/native-terrain-load-frame-4802.ppm.gz",
+      "ladder/native-terrain-load-reference-1920x1080-384-648-1536-734.ppm.gz",
+      "ladder/native-terrain-load-depth-1920x1080-384-648-1536-734.f32.gz",
+      "ladder/native-depth-ladder-2.ppm.gz",
+      "ladder/native-depth-ladder-rejected-2.ppm.gz",
+      "ladder/native-depth-ladder-frame-2.ppm.gz",
+      "ladder/native-depth-ladder-242.ppm.gz",
+      "ladder/native-depth-ladder-rejected-242.ppm.gz",
+      "ladder/native-depth-ladder-frame-242.ppm.gz",
+      "ladder/native-depth-ladder-482.ppm.gz",
+      "ladder/native-depth-ladder-rejected-482.ppm.gz",
+      "ladder/native-depth-ladder-frame-482.ppm.gz",
+      "ladder/native-depth-ladder-722.ppm.gz",
+      "ladder/native-depth-ladder-rejected-722.ppm.gz",
+      "ladder/native-depth-ladder-frame-722.ppm.gz",
+      "ladder/native-depth-ladder-962.ppm.gz",
+      "ladder/native-depth-ladder-rejected-962.ppm.gz",
+      "ladder/native-depth-ladder-frame-962.ppm.gz",
+      "ladder/native-depth-ladder-1202.ppm.gz",
+      "ladder/native-depth-ladder-rejected-1202.ppm.gz",
+      "ladder/native-depth-ladder-frame-1202.ppm.gz",
+      "ladder/native-depth-ladder-1442.ppm.gz",
+      "ladder/native-depth-ladder-rejected-1442.ppm.gz",
+      "ladder/native-depth-ladder-frame-1442.ppm.gz",
+      "ladder/native-depth-ladder-1682.ppm.gz",
+      "ladder/native-depth-ladder-rejected-1682.ppm.gz",
+      "ladder/native-depth-ladder-frame-1682.ppm.gz",
+      "ladder/native-depth-ladder-1922.ppm.gz",
+      "ladder/native-depth-ladder-rejected-1922.ppm.gz",
+      "ladder/native-depth-ladder-frame-1922.ppm.gz",
+      "ladder/native-depth-ladder-2162.ppm.gz",
+      "ladder/native-depth-ladder-rejected-2162.ppm.gz",
+      "ladder/native-depth-ladder-frame-2162.ppm.gz",
+      "ladder/native-depth-ladder-2402.ppm.gz",
+      "ladder/native-depth-ladder-rejected-2402.ppm.gz",
+      "ladder/native-depth-ladder-frame-2402.ppm.gz",
+      "ladder/native-depth-ladder-2642.ppm.gz",
+      "ladder/native-depth-ladder-rejected-2642.ppm.gz",
+      "ladder/native-depth-ladder-frame-2642.ppm.gz",
+      "ladder/native-depth-ladder-2882.ppm.gz",
+      "ladder/native-depth-ladder-rejected-2882.ppm.gz",
+      "ladder/native-depth-ladder-frame-2882.ppm.gz",
+      "ladder/native-depth-ladder-3122.ppm.gz",
+      "ladder/native-depth-ladder-rejected-3122.ppm.gz",
+      "ladder/native-depth-ladder-frame-3122.ppm.gz",
+      "ladder/native-depth-ladder-3362.ppm.gz",
+      "ladder/native-depth-ladder-rejected-3362.ppm.gz",
+      "ladder/native-depth-ladder-frame-3362.ppm.gz",
+      "ladder/native-depth-ladder-3602.ppm.gz",
+      "ladder/native-depth-ladder-rejected-3602.ppm.gz",
+      "ladder/native-depth-ladder-frame-3602.ppm.gz",
+      "ladder/native-depth-ladder-3842.ppm.gz",
+      "ladder/native-depth-ladder-rejected-3842.ppm.gz",
+      "ladder/native-depth-ladder-frame-3842.ppm.gz",
+      "ladder/native-depth-ladder-4082.ppm.gz",
+      "ladder/native-depth-ladder-rejected-4082.ppm.gz",
+      "ladder/native-depth-ladder-frame-4082.ppm.gz",
+      "ladder/native-depth-ladder-4322.ppm.gz",
+      "ladder/native-depth-ladder-rejected-4322.ppm.gz",
+      "ladder/native-depth-ladder-frame-4322.ppm.gz",
+      "ladder/native-depth-ladder-4562.ppm.gz",
+      "ladder/native-depth-ladder-rejected-4562.ppm.gz",
+      "ladder/native-depth-ladder-frame-4562.ppm.gz",
+      "ladder/native-depth-ladder-4802.ppm.gz",
+      "ladder/native-depth-ladder-rejected-4802.ppm.gz",
+      "ladder/native-depth-ladder-frame-4802.ppm.gz",
+      "ladder/native-depth-ladder-5042.ppm.gz",
+      "ladder/native-depth-ladder-rejected-5042.ppm.gz",
+      "ladder/native-depth-ladder-frame-5042.ppm.gz"
+    ],
+    "band_crops": [
+      "ladder/crop-ascend-band-bottom.png",
+      "ladder/crop-ascend-band-top.png",
+      "ladder/crop-descend-band-bottom.png",
+      "ladder/crop-descend-band-top.png",
+      "ladder/crop-edit-band-bottom.png",
+      "ladder/crop-edit-band-top.png",
+      "ladder/crop-horizon-band-bottom.png",
+      "ladder/crop-horizon-band-top.png",
+      "ladder/crop-nether-band-bottom.png",
+      "ladder/crop-nether-band-top.png",
+      "ladder/crop-overworld-band-bottom.png",
+      "ladder/crop-overworld-band-top.png",
+      "ladder/crop-reconnect-band-bottom.png",
+      "ladder/crop-reconnect-band-top.png",
+      "ladder/crop-reload-band-bottom.png",
+      "ladder/crop-reload-band-top.png",
+      "ladder/crop-remove-band-bottom.png",
+      "ladder/crop-remove-band-top.png",
+      "ladder/crop-resize-band-bottom.png",
+      "ladder/crop-resize-band-top.png",
+      "ladder/crop-return-band-bottom.png",
+      "ladder/crop-return-band-top.png",
+      "ladder/crop-travel-band-bottom.png",
+      "ladder/crop-travel-band-top.png",
+      "ladder/crop-turn-band-bottom.png",
+      "ladder/crop-turn-band-top.png",
+      "ladder/crop-warmup-band-bottom.png",
+      "ladder/crop-warmup-band-top.png"
+    ],
+    "band_crop_origins": {
+      "ladder/crop-ascend-band-top.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          321
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "top"
+      },
+      "ladder/crop-ascend-band-bottom.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          624
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-descend-band-top.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          321
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "top"
+      },
+      "ladder/crop-descend-band-bottom.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          624
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-edit-band-top.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          283
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "top"
+      },
+      "ladder/crop-edit-band-bottom.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          552
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-horizon-band-top.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          283
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "top"
+      },
+      "ladder/crop-horizon-band-bottom.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          552
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-nether-band-top.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          321
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "top"
+      },
+      "ladder/crop-nether-band-bottom.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          624
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-overworld-band-top.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          321
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "top"
+      },
+      "ladder/crop-overworld-band-bottom.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          624
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-reconnect-band-top.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          321
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "top"
+      },
+      "ladder/crop-reconnect-band-bottom.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          624
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-reload-band-top.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          321
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "top"
+      },
+      "ladder/crop-reload-band-bottom.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          624
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-remove-band-top.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          283
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "top"
+      },
+      "ladder/crop-remove-band-bottom.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          552
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-resize-band-top.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          321
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "top"
+      },
+      "ladder/crop-resize-band-bottom.png": {
+        "parent": [
+          1920,
+          1080
+        ],
+        "origin": [
+          382,
+          624
+        ],
+        "size": [
+          1156,
+          135
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-return-band-top.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          283
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "top"
+      },
+      "ladder/crop-return-band-bottom.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          552
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-travel-band-top.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          283
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "top"
+      },
+      "ladder/crop-travel-band-bottom.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          552
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-turn-band-top.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          283
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "top"
+      },
+      "ladder/crop-turn-band-bottom.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          552
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "bottom"
+      },
+      "ladder/crop-warmup-band-top.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          283
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "top"
+      },
+      "ladder/crop-warmup-band-bottom.png": {
+        "parent": [
+          1708,
+          960
+        ],
+        "origin": [
+          339,
+          552
+        ],
+        "size": [
+          1029,
+          125
+        ],
+        "end": "bottom"
+      }
+    }
+  }
+}

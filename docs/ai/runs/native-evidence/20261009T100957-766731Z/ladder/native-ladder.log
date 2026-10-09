@@ -1,0 +1,845 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.6.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :
+Fabric Loom: 1.16.3
+
+> Task :compileJava UP-TO-DATE
+> Task :processResources
+> Task :classes
+> Task :compileHarnessJava UP-TO-DATE
+> Task :generateLog4jConfig UP-TO-DATE
+> Task :generateDLIConfig UP-TO-DATE
+> Task :configureLaunch UP-TO-DATE
+> Task :downloadAssets UP-TO-DATE
+> Task :configureClientLaunch UP-TO-DATE
+> Task :processHarnessResources UP-TO-DATE
+> Task :harnessClasses UP-TO-DATE
+
+> Task :runHarnessClient
+[19:12:45] [main/INFO] (FabricLoader/GameProvider) Loading Minecraft 26.2 with Fabric Loader 0.19.3
+[19:12:45] [main/INFO] (FabricLoader/Mappings) Mappings not present!
+[19:12:45] [main/INFO] (FabricLoader) Loading 55 mods:
+	- fabric-api 0.152.2+26.2
+	- fabric-api-base 2.0.4+ece063239e
+	- fabric-api-lookup-api-v1 2.0.17+11e1c9a39e
+	- fabric-biome-api-v1 18.0.6+c7bd5b8e9e
+	- fabric-block-api-v1 3.0.3+ec56b6019e
+	- fabric-block-getter-api-v2 2.0.7+ec56b6019e
+	- fabric-client-gametest-api-v1 5.1.0+db5795489e
+	- fabric-command-api-v2 3.1.0+00cb03469e
+	- fabric-content-registries-v0 11.2.2+b7a678a99e
+	- fabric-convention-tags-v2 4.6.4+2aae60389e
+	- fabric-crash-report-info-v1 1.0.5+086d547a9e
+	- fabric-creative-tab-api-v1 5.0.14+d871b99e9e
+	- fabric-data-attachment-api-v1 2.2.16+aa0fd6fe9e
+	- fabric-data-generation-api-v1 25.4.2+5e56e5409e
+	- fabric-debug-api-v1 1.0.2+c792624d9e
+	- fabric-dimensions-v1 5.1.9+9cbf5da59e
+	- fabric-entity-events-v1 5.0.5+06488ac19e
+	- fabric-events-interaction-v0 5.2.6+8f57f7ee9e
+	- fabric-game-rule-api-v1 4.0.8+46a6d00c9e
+	- fabric-gametest-api-v1 4.0.21+4a7fa0819e
+	- fabric-item-api-v1 14.1.6+0ecb053f9e
+	- fabric-key-mapping-api-v1 2.0.5+e2bdee789e
+	- fabric-lifecycle-events-v1 4.1.3+4575b05f9e
+	- fabric-loot-api-v3 3.0.17+06488ac19e
+	- fabric-menu-api-v1 2.0.16+086d547a9e
+	- fabric-message-api-v1 7.0.7+086d547a9e
+	- fabric-model-loading-api-v1 8.0.12+c80601bb9e
+	- fabric-networking-api-v1 6.3.3+72073ef09e
+	- fabric-object-builder-api-v1 24.0.6+46a6d00c9e
+	- fabric-particles-v1 5.0.18+d1756aa99e
+	- fabric-permission-api-v1 1.0.2+7c33558a9e
+	- fabric-recipe-api-v1 9.0.20+11e1c9a39e
+	- fabric-registry-sync-v0 7.1.0+c7bd5b8e9e
+	- fabric-renderer-api-v1 14.0.2+93d3a2f59e
+	- fabric-renderer-indigo 9.0.2+e73ab60d9e
+	- fabric-rendering-fluids-v1 6.0.4+06488ac19e
+	- fabric-rendering-v1 25.1.6+46a6d00c9e
+	- fabric-resource-conditions-api-v1 6.1.0+10e9a28b9e
+	- fabric-resource-loader-v0 3.3.20+4fc5413f9e
+	- fabric-resource-loader-v1 2.0.13+9edec1269e
+	- fabric-screen-api-v1 5.0.3+086d547a9e
+	- fabric-serialization-api-v1 2.0.4+11a26f319e
+	- fabric-sound-api-v1 2.0.5+11a26f319e
+	- fabric-tag-api-v1 2.1.3+794df31d9e
+	- fabric-transfer-api-v1 8.0.11+39b5a3929e
+	- fabric-transitive-access-wideners-v1 8.1.3+e098252d9e
+	- fabricloader 0.19.3
+	- java 25
+	- lithium 0.25.1+mc26.2
+	- minecraft 26.2
+	- mixinextras 0.5.4
+	- modmenu 20.0.0
+	- sodium 0.9.2-alpha.3+mc26.2
+	- voxy 0.2.19-beta
+	- voxy_harness 1.0.0
+[19:12:45] [main/INFO] (FabricLoader/Mixin) SpongePowered MIXIN Subsystem Version=0.8.7 Source=file:/Users/xyz/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.17.3+mixin.0.8.7/41c4a3984a80f4679e759fb9f495587acc5cdac7/sponge-mixin-0.17.3+mixin.0.8.7.jar Service=Knot/Fabric Env=CLIENT
+[19:12:45] [main/INFO] (FabricLoader/Mixin) Compatibility level set to JAVA_25
+[19:12:46] [main/INFO] (Sodium) Loaded configuration file for Sodium: 37 options available, 0 override(s) found
+[19:12:46] [main/INFO] (Lithium) Loaded configuration file for Lithium: 171 options available, 0 override(s) found.
+[19:12:46] [main/WARN] (FabricLoader/Mixin) Error loading class: com/moulberry/flashback/record/FlashbackMeta (java.lang.ClassNotFoundException: com/moulberry/flashback/record/FlashbackMeta)
+[19:12:46] [main/WARN] (FabricLoader/Mixin) @Mixin target com.moulberry.flashback.record.FlashbackMeta was not found client.voxy.mixins.json:flashback.MixinFlashbackMeta from mod voxy
+[19:12:46] [main/WARN] (FabricLoader/Mixin) Error loading class: com/moulberry/flashback/record/Recorder (java.lang.ClassNotFoundException: com/moulberry/flashback/record/Recorder)
+[19:12:46] [main/WARN] (FabricLoader/Mixin) @Mixin target com.moulberry.flashback.record.Recorder was not found client.voxy.mixins.json:flashback.MixinFlashbackRecorder from mod voxy
+[19:12:46] [main/WARN] (FabricLoader/Mixin) Error loading class: me/cortex/nvidium/RenderPipeline (java.lang.ClassNotFoundException: me/cortex/nvidium/RenderPipeline)
+[19:12:46] [main/WARN] (FabricLoader/Mixin) @Mixin target me.cortex.nvidium.RenderPipeline was not found client.voxy.mixins.json:nvidium.MixinRenderPipeline from mod voxy
+[19:12:46] [main/WARN] (FabricLoader/Mixin) Error loading class: org/popcraft/chunky/platform/FabricWorld (java.lang.ClassNotFoundException: org/popcraft/chunky/platform/FabricWorld)
+[19:12:46] [main/WARN] (FabricLoader/Mixin) @Mixin target org.popcraft.chunky.platform.FabricWorld was not found common.voxy.mixins.json:chunky.MixinFabricWorld from mod voxy
+[19:12:46] [main/WARN] (FabricLoader/Mixin) Error loading class: net/minecraft/client/renderer/StagedVertexBuffer/GpuBufferPool (java.lang.ClassNotFoundException: net/minecraft/client/renderer/StagedVertexBuffer/GpuBufferPool)
+[19:12:46] [main/WARN] (FabricLoader/Mixin) @Mixin target net.minecraft.client.renderer.StagedVertexBuffer.GpuBufferPool was not found sodium-common.mixins.json:core.StagedVertexBufferMixin from mod sodium
+[19:12:46] [main/INFO] (Sodium-GraphicsAdapterProbe) Searching for graphics cards...
+[19:12:47] [main/INFO] (FabricLoader/MixinExtras|Service) Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.4).
+[19:12:48] [Datafixer Bootstrap #0/INFO] (Minecraft) 295 Datafixer optimizations took 318 milliseconds
+[19:12:49] [main/WARN] (MacOperatingSystem) Unable to parse version 27.0 to a codename.
+[19:12:53] [Render thread/INFO] (Minecraft) Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[19:12:54] [Render thread/INFO] (Minecraft) Setting user: Player279
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as Serializer for config type SectionStorageConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as RocksDB for config type StorageConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as Redis for config type StorageConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as FragmentationAdaptor for config type StorageConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config2 as AutoFragmentationAdaptor for config type StorageConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered ConditionalStorageBackendConfig as ConditionalConfig for config type StorageConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as CompressionAdaptor for config type StorageConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as ReadonlyCachingLayer for config type StorageConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered BasicPathInsertionConfig as BasicPathConfig for config type StorageConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as Memory for config type StorageConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as LMDB for config type StorageConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as LZ4 for config type CompressorConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as ZSTD for config type CompressorConfig
+[19:12:54] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered 13 config types
+[19:12:54] [Render thread/INFO] (Indigo) [Indigo] Different rendering plugin detected; not applying Indigo.
+[19:12:54] [Render thread/INFO] (Mod Menu/Update Checker) Checking mod updates...
+[19:12:54] [ModMenu/Update Checker/Fabric Loader/INFO] (Mod Menu/Update Checker) Update available for 'fabricloader@0.19.3'
+[19:12:54] [Render thread/INFO] (Sodium) Setting exclusive fullscreen to true by default, as the user is not on Windows and the language cannot be guessed.
+[19:12:54] [Render thread/INFO] (Minecraft) Backend library: LWJGL version 3.4.1-snapshot
+[19:12:55] [Download-2/INFO] (Mod Menu/Update Checker) Update available for 'lithium@0.25.1+mc26.2', (-> mc26.2-0.25.3-fabric)
+[19:12:55] [Download-2/INFO] (Mod Menu/Update Checker) Update available for 'fabric-api@0.152.2+26.2', (-> 0.161.0+26.2)
+[19:12:55] [Download-2/INFO] (Mod Menu/Update Checker) Update available for 'sodium@0.9.2-alpha.3+mc26.2', (-> mc26.2-0.9.2-fabric)
+[19:12:55] [Download-2/INFO] (Mod Menu/Update Checker) Update available for 'modmenu@20.0.0', (-> 20.0.3)
+[19:12:55] [Render thread/WARN] (Minecraft) Graphics backend forced to vulkan by launch argument, in-game preferred graphics backend setting is ignored
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for explicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d
+[Vulkan Loader] LAYER:             Found the following files:
+[Vulkan Loader] LAYER:                /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[19:12:55] [Render thread/WARN] (Minecraft) Enabling Vulkan validation layers
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for explicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d
+[Vulkan Loader] LAYER:             Found the following files:
+[Vulkan Loader] LAYER:                /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for explicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d
+[Vulkan Loader] LAYER:             Found the following files:
+[Vulkan Loader] LAYER:                /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json
+[Vulkan Loader] WARNING | LAYER: env var 'VK_INSTANCE_LAYERS' defined and adding layers "VK_LAYER_KHRONOS_validation"
+[Vulkan Loader] WARNING | LAYER: env var 'VK_INSTANCE_LAYERS' defined and adding layers "VK_LAYER_KHRONOS_validation"
+[Vulkan Loader] DEBUG | LAYER:  Loading layer library libVkLayer_khronos_validation.dylib
+[Vulkan Loader] INFO | LAYER:   Insert instance layer "VK_LAYER_KHRONOS_validation" (/opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib)
+[Vulkan Loader] LAYER:          vkCreateInstance layer callstack setup to:
+[Vulkan Loader] LAYER:             <Application>
+[Vulkan Loader] LAYER:               ||
+[Vulkan Loader] LAYER:             <Loader>
+[Vulkan Loader] LAYER:               ||
+[Vulkan Loader] LAYER:             VK_LAYER_KHRONOS_validation
+[Vulkan Loader] LAYER:                     Type: Explicit
+[Vulkan Loader] LAYER:                     Enabled By: Environment Variable VK_INSTANCE_LAYERS
+[Vulkan Loader] LAYER:                     Manifest: /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json
+[Vulkan Loader] LAYER:                     Library:  /opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib
+[Vulkan Loader] LAYER:               ||
+[Vulkan Loader] LAYER:             <Drivers>
+[19:12:55] [Render thread/WARN] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] drawIndirectFirstInstance: offset 40 verified by read-back
+[19:12:55] [Render thread/WARN] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] shaderInt64: offset 160 verified by read-back
+[19:12:55] [Render thread/WARN] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] fragmentStoresAndAtomics: offset 104 verified by read-back
+[19:12:55] [Render thread/WARN] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] vertexPipelineStoresAndAtomics: offset 100 verified by read-back
+[19:12:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] asked Minecraft's device for [drawIndirectFirstInstance, shaderInt64, fragmentStoresAndAtomics, vertexPipelineStoresAndAtomics] (supported by this device, not requested by Minecraft)
+[Vulkan Loader] INFO | LAYER:   Inserted device layer "VK_LAYER_KHRONOS_validation" (/opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib)
+[Vulkan Loader] DRIVER:         vkCreateDevice layer callstack setup to:
+[Vulkan Loader] DRIVER:            <Application>
+[Vulkan Loader] DRIVER:              ||
+[Vulkan Loader] DRIVER:            <Loader>
+[Vulkan Loader] DRIVER:              ||
+[Vulkan Loader] LAYER:             VK_LAYER_KHRONOS_validation
+[Vulkan Loader] LAYER:                     Type: Explicit
+[Vulkan Loader] LAYER:                     Enabled By: Environment Variable VK_INSTANCE_LAYERS
+[Vulkan Loader] LAYER:                     Manifest: /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json
+[Vulkan Loader] LAYER:                     Library:  /opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib
+[Vulkan Loader] LAYER:               ||
+[Vulkan Loader] DRIVER:            <Device>
+[Vulkan Loader] DRIVER:                Using "Apple M4 Pro" with driver: "/opt/homebrew/Cellar/molten-vk/1.4.2/lib/libMoltenVK.dylib"
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[19:12:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkContext]: Vulkan (adopted from the host application): Apple M4 Pro api=1.2.357 driver=0.2.2210 vendorID=0x106b deviceID=0x1b000209 (adopted) queueFamily=0 subgroupSize=32 timestampBits=64 maxPushConstants=4096 minSsboOffsetAlign=16 unifiedMemType=1 metalObjects=false validation=true syncValidation=false
+[19:12:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeVkContext]: [native-vk] adopted Minecraft's Vulkan device into VkContext: true
+[19:12:55] [Render thread/WARN] (Voxy) [me.cx.vy.ct.ce.gl.Capabilities]: No OpenGL context on this thread (IllegalStateException); Minecraft is probably not using the OpenGL backend. Voxy will disable itself.
+[19:12:55] [Render thread/ERROR] (Voxy) [me.cx.vy.ct.VoxyClient]: Minecraft is not using the OpenGL backend; Voxy's Vulkan path still needs a GL context to composite through. Voxy will disable itself. (set preferredGraphicsBackend to "default" in options.txt)
+[19:12:55] [Render thread/ERROR] (Voxy) [me.cx.vy.ct.VoxyClient]: Voxy is unsupported on your system.
+[19:12:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.VoxyClient]: [native-vk] native instance mode: Minecraft is on Vulkan and voxy.native.instance is set; starting Voxy's instance (world engine, storage, ingest) without a render path
+[19:12:55] [Render thread/INFO] (Minecraft) Using graphics backend Vulkan, using drivers: 1.2.357 MoltenVK 1.4.2
+[19:12:55] [Render thread/INFO] (Minecraft) Using graphics device: Apple M4 Pro (APPLE)
+[19:12:55] [Render thread/INFO] (Minecraft) Using graphics device extensions: VK_KHR_portability_subset (D), VK_KHR_synchronization2 (D), VK_EXT_metal_surface (I), VK_EXT_vertex_attribute_divisor (D), VK_KHR_portability_enumeration (I), VK_KHR_swapchain (D), VK_KHR_surface (I), VK_KHR_push_descriptor (D), VK_EXT_debug_utils (I), VK_KHR_dynamic_rendering (D)
+[19:12:56] [Download-1/INFO] (Minecraft) Could not authorize you against Realms server: java.lang.RuntimeException: Failed to parse into SignedJWT: FabricMC
+[19:12:56] [Render thread/INFO] (Minecraft) Reloading ResourceManager: vanilla, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-getter-api-v2, fabric-client-gametest-api-v1, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-creative-tab-api-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-debug-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-gametest-api-v1, fabric-item-api-v1, fabric-key-mapping-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v3, fabric-menu-api-v1, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-permission-api-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, lithium, modmenu, sodium, voxy
+[19:12:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeVulkanProbe]: [native-vk] Minecraft graphics backend: LWJGL version 3.4.1-snapshot
+  minecraft uses its vulkan backend: true
+  backend class: com.mojang.blaze3d.vulkan.VulkanDevice
+  device: Apple M4 Pro / vendor APPLE / driver 1.2.357 MoltenVK 1.4.2
+  VkInstance=0x7b7bdc4000 VkDevice=0x7b8064c018 vma=0x131ee8000
+  queue families: graphics=0 compute=3 transfer=3
+  colour: label=Main / Color VkImage=0x520000000052 VkImageView=0x560000000056 format=RGBA8_UNORM 1708x960 mips=1 usage=0xf
+  depth: label=Main / Depth VkImage=0x540000000054 VkImageView=0x570000000057 format=D32_FLOAT 1708x960 mips=1 usage=0xf
+[19:12:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeVulkanProbe]: [native-vk] Voxy requires 8 device features; supported-but-not-enabled-by-Minecraft=[drawIndirectFirstInstance, shaderInt64, fragmentStoresAndAtomics, vertexPipelineStoresAndAtomics] unsupported=[] zZeroToOne=true
+[19:12:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeComputeProbe]: [native-vk] int64 compute on Minecraft's device: wrote and read back 0x123456789abcdef
+[19:12:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeVkContext]: [native-vk] Voxy's own buffer + shader + command pool on Minecraft's device: wrote and read back 0x123456789abcdef
+[19:12:56] [Worker-Main-5/INFO] (Minecraft) Found unifont_all_no_pua-17.0.01.hex, loading
+[19:12:56] [Worker-Main-7/INFO] (Minecraft) Found unifont_pua-17.0.01.hex, loading
+[19:12:57] [Worker-Main-9/INFO] (Minecraft) Found unifont_jp_patch-17.0.01.hex, loading
+[19:12:57] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'native-merged-index-probe': 3 bindings, push=4B, stages=[COMPUTE]
+[19:12:57] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealShaderProbe]: [native-vk] Voxy's real shader stack on Minecraft's device: 189 quad ordinals resolved, all matching the CPU reference
+[19:12:58] [Render thread/INFO] (Minecraft) OpenAL initialized on device MacBook Pro Speakers
+[19:12:58] [Render thread/INFO] (Minecraft) Sound engine started
+[19:12:58] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[19:12:58] [Render thread/INFO] (Minecraft) Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[19:12:58] [Render thread/INFO] (Minecraft) Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[19:12:58] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[19:12:58] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[19:12:58] [Render thread/INFO] (Minecraft) Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[19:12:59] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[19:12:59] [Render thread/INFO] (Minecraft) Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[19:12:59] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[19:12:59] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[19:12:59] [Render thread/INFO] (Minecraft) Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[19:12:59] [Render thread/INFO] (Minecraft) Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[19:12:59] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[19:12:59] [Render thread/INFO] (Voxy) [me.cx.vy.ct.cg.VoxyConfig]: Config file doesnt exist, creating new
+[19:12:59] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=create
+[19:12:59] [Download-1/INFO] (Minecraft) Could not authorize you against Realms server: java.lang.RuntimeException: Failed to parse into SignedJWT: FabricMC
+[19:13:00] [Render thread/INFO] (Minecraft) Found new data pack fabric-convention-tags-v2, loading it automatically
+[19:13:00] [Render thread/INFO] (Minecraft) Found new data pack fabric-gametest-api-v1, loading it automatically
+[19:13:01] [Render thread/INFO] (Minecraft) Loaded 1585 recipes
+[19:13:01] [Render thread/INFO] (Minecraft) Loaded 1688 advancements
+[19:13:01] [Render thread/INFO] (BiomeModificationImpl) Applied 0 biome modifications to 0 of 66 new biomes in 666.0 μs
+[19:13:01] [Server thread/INFO] (Minecraft) Starting integrated minecraft server version 26.2
+[19:13:01] [Server thread/INFO] (Minecraft) Generating keypair
+[19:13:01] [Server thread/INFO] (Minecraft) Selecting global world spawn...
+[19:13:03] [Server thread/INFO] (Minecraft) Loading 0 persistent chunks...
+[19:13:03] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[19:13:03] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:13:03] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:13:03] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:13:03] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[19:13:03] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[19:13:03] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[19:13:03] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[19:13:04] [Server thread/INFO] (Minecraft) Loading 47 chunks for player spawn...
+[19:13:04] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[19:13:04] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[19:13:04] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[19:13:04] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[19:13:04] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[19:13:04] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[19:13:05] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[19:13:05] [Server thread/INFO] (Minecraft) Preparing spawn area: 50%
+[19:13:06] [Server thread/INFO] (Minecraft) Preparing spawn area: 57%
+[19:13:06] [Server thread/INFO] (Minecraft) Time elapsed: 4643 ms
+[19:13:06] [Server thread/INFO] (Minecraft) Player279[local:E:3a0a62f0] logged in with entity id 5 at (-2.5, 67.0, 6.5)
+[19:13:06] [Server thread/INFO] (Minecraft) Player279 joined the game
+[19:13:06] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[19:13:06] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 9
+[19:13:06] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 7462760223788803275@1836275356
+[19:13:06] [Server thread/INFO] (Minecraft) Changing view distance to 8, from 10
+[19:13:06] [Server thread/INFO] (Minecraft) Changing simulation distance to 5, from 0
+[19:13:06] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:13:06] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:13:06] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 1
+[19:13:06] [Render thread/INFO] (Minecraft) Loaded 2 advancements
+[19:13:06] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:13:07] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:13:07] [Download-1/ERROR] (Minecraft) Failed to retrieve profile key pair
+
+MinecraftClientHttpException[type=HTTP_ERROR, status=401, response=ErrorResponse[path=/player/certificates, error=null, errorMessage=null, details=null]]
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.buildHttpException(MinecraftClient.java:170)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readServiceResponse(MinecraftClient.java:147)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.post(MinecraftClient.java:89)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilUserApiService.getKeyPair(YggdrasilUserApiService.java:62)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.fetchProfileKeyPair(AccountProfileKeyPairManager.java:128)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.lambda$readOrFetchProfileKeyPair$0(AccountProfileKeyPairManager.java:77)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[19:13:07] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] created the depth-ladder pipelines on Minecraft's device (colour 37, depth 126, depth writes OFF)
+[19:13:07] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1 stage=create factory=true instance=true engine=true live=true activeSections=21 renderer=false ingest=true cameraCaptures=1
+[19:13:07] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 2 reached during a single frame. New capacity will be 4.
+[19:13:07] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=warmup
+[19:13:07] [Server thread/INFO] (Minecraft) [Player279: Set minecraft:overworld to time marker minecraft:noon]
+[19:13:07] [Server thread/INFO] (Minecraft) [Player279: Set the weather to clear]
+[19:13:07] [Server thread/INFO] (Minecraft) [Player279: Teleported Player279 to 0.500000, 120.000000, 0.500000]
+[19:13:07] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 4 reached during a single frame. New capacity will be 8.
+[19:13:07] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 2 stage=warmup camera=[-2.5 68.61775350570679 6.5 0.0 0.0]
+[19:13:07] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:13:07] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainScene]: [native-vk] terrain reference on the adopted device: 21972 of 1639680 pixels are not background
+[19:13:07] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain-LOAD scene built: 21972 reference pixels, 10 draw(s), depth state declared [6, 1, 1]
+[19:13:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Set minecraft:overworld to time marker minecraft:noon
+[19:13:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Set the weather to clear
+[19:13:07] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player279 to 0.500000, 120.000000, 0.500000
+[19:13:07] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 2 flipped=true counts=[anomaly=0 low=41710 r0=24660 r1=11812 r2=0 r3=0 r4=0 r5=666 r6=0 r7=0 other=0] stage=warmup camera=[-2.5 68.61775350570679 6.5 0.0 0.0]
+[19:13:08] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 2 present=78182 absent=666 other=0 expectedPass=78182 expectedFail=666 absentWherePass=0 presentWhereFail=0 unchanged=666
+[19:13:08] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain load at draw 2 geometry=21972 noGeometry=56876 expectVisible=21972 expectHidden=0 undetermined=0 visible=21972 hidden=0 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[1.4531454E-4 0.0030659903]
+[19:13:08] [Chunk Render Task Executor #2/INFO] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to into save queue, we lost
+[19:13:09] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 60 stage=warmup factory=true instance=true engine=true live=true activeSections=29 renderer=false ingest=true cameraCaptures=60
+[19:13:10] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 120 stage=warmup factory=true instance=true engine=true live=true activeSections=18 renderer=false ingest=true cameraCaptures=120
+[19:13:11] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 180 stage=warmup factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=180
+[19:13:12] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 240 stage=warmup factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=240
+[19:13:12] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 242 stage=warmup camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:12] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] requested the block atlas (2048x2048) through Blaze3D
+[19:13:12] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealLoad]: [native-vk] real load at draw 242 status=atlas-pending
+[19:13:12] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 242 flipped=true counts=[anomaly=0 low=22328 r0=0 r1=0 r2=56520 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=warmup camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:12] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 242 present=78848 absent=0 other=0 expectedPass=78848 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:13:12] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] block atlas read through Blaze3D: 2048x2048
+[19:13:13] [Dedicated Voxy Worker #8/INFO] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to into save queue, we lost
+[19:13:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 300 stage=warmup factory=true instance=true engine=true live=true activeSections=15 renderer=false ingest=true cameraCaptures=300
+[19:13:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 360 stage=warmup factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=360
+[19:13:14] [Chunk Render Task Executor #6/WARN] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to save queue, we lost
+[19:13:15] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=turn
+[19:13:15] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 420 stage=turn factory=true instance=true engine=true live=true activeSections=5 renderer=false ingest=true cameraCaptures=420
+[19:13:15] [Chunk Render Task Executor #5/INFO] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to into save queue, we lost
+[19:13:16] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 480 stage=turn factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=480
+[19:13:16] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 482 stage=turn camera=[0.5 121.61999988555908 0.5 30.0 269.35223388671875]
+[19:13:16] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 482 flipped=true counts=[anomaly=0 low=20132 r0=0 r1=0 r2=57065 r3=1651 r4=0 r5=0 r6=0 r7=0 other=0] stage=turn camera=[0.5 121.61999988555908 0.5 30.0 269.35223388671875]
+[19:13:16] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 482 present=78848 absent=0 other=0 expectedPass=78848 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:13:16] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain load at draw 482 geometry=21972 noGeometry=56876 expectVisible=20754 expectHidden=58 undetermined=1160 visible=21682 hidden=290 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[1.4531454E-4 0.0030659903]
+[19:13:17] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 540 stage=turn factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=540
+[19:13:18] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 600 stage=turn factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=600
+[19:13:19] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 660 stage=turn factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=660
+[19:13:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 720 stage=turn factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=720
+[19:13:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 722 stage=turn camera=[0.5 121.61999988555908 0.5 30.0 1008.0560302734375]
+[19:13:21] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealMesher]: [5c-3b] meshed 8 sections around [0,0,0] r=4 (LoD 3): 4 empty, 717 not in the world yet, 0 gave up, 73 models baked on demand
+[19:13:21] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 12 biomes already registered by the world
+[19:13:21] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:13:21] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealScene]: [native-vk] real-LOAD scene: 8 sections, 3200 quads, 49 draws at level 3 around [0, 0, 0] r=4
+[19:13:21] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 722 flipped=true counts=[anomaly=0 low=14847 r0=0 r1=0 r2=64001 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=turn camera=[0.5 121.61999988555908 0.5 30.0 1008.0560302734375]
+[19:13:21] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 722 present=78848 absent=0 other=0 expectedPass=78848 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:13:21] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealLoad]: [native-vk] real load at draw 722 status=judged geometry=77802 noGeometry=1046 expectVisible=13874 expectHidden=0 undetermined=63928 visible=77684 hidden=118 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[3.344968E-4 0.0010014623]
+[19:13:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 780 stage=turn factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=780
+[19:13:23] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 840 stage=turn factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=840
+[19:13:24] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=travel
+[19:13:24] [Server thread/INFO] (Minecraft) [Player279: Teleported Player279 to 768.500000, 120.000000, 0.500000]
+[19:13:24] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player279 to 768.500000, 120.000000, 0.500000
+[19:13:24] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 900 stage=travel factory=true instance=true engine=true live=true activeSections=6 renderer=false ingest=true cameraCaptures=900
+[19:13:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 960 stage=travel factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=960
+[19:13:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 962 stage=travel camera=[768.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 962 flipped=true counts=[anomaly=0 low=78848 r0=0 r1=0 r2=0 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=travel camera=[768.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 962 present=78848 absent=0 other=0 expectedPass=78848 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:13:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain load at draw 962 geometry=21972 noGeometry=56876 expectVisible=21972 expectHidden=0 undetermined=0 visible=21972 hidden=0 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[1.4531454E-4 0.0030659903]
+[19:13:26] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1020 stage=travel factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1020
+[19:13:27] [Chunk Render Task Executor #1/WARN] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to save queue, we lost
+[19:13:27] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1080 stage=travel factory=true instance=true engine=true live=true activeSections=45 renderer=false ingest=true cameraCaptures=1080
+[19:13:28] [Chunk Render Task Executor #1/WARN] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to save queue, we lost
+[19:13:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1140 stage=travel factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1140
+[19:13:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1200 stage=travel factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1200
+[19:13:30] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 1202 stage=travel camera=[768.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:30] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealMesher]: [5c-3b] meshed 16 sections around [3,0,0] r=4 (LoD 3): 8 empty, 705 not in the world yet, 0 gave up, 85 models baked on demand
+[19:13:30] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 14 biomes already registered by the world
+[19:13:30] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:13:30] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealScene]: [native-vk] real-LOAD scene: 16 sections, 4546 quads, 93 draws at level 3 around [3, 0, 0] r=4
+[19:13:30] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 1202 flipped=true counts=[anomaly=0 low=78848 r0=0 r1=0 r2=0 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=travel camera=[768.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:30] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 1202 present=78848 absent=0 other=0 expectedPass=78848 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:13:30] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealLoad]: [native-vk] real load at draw 1202 status=judged geometry=0 noGeometry=78848 expectVisible=0 expectHidden=0 undetermined=0 visible=0 hidden=0 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[NaN NaN]
+[19:13:31] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1260 stage=travel factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1260
+[19:13:32] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=return
+[19:13:32] [Server thread/INFO] (Minecraft) [Player279: Teleported Player279 to 0.500000, 120.000000, 0.500000]
+[19:13:32] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player279 to 0.500000, 120.000000, 0.500000
+[19:13:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1320 stage=return factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1320
+[19:13:33] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1380 stage=return factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1380
+[19:13:34] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1440 stage=return factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1440
+[19:13:34] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 1442 stage=return camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:34] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 1442 flipped=true counts=[anomaly=0 low=11496 r0=0 r1=0 r2=67352 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=return camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:34] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 1442 present=78848 absent=0 other=0 expectedPass=78848 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:13:34] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain load at draw 1442 geometry=21972 noGeometry=56876 expectVisible=20754 expectHidden=58 undetermined=1160 visible=21682 hidden=290 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[1.4531454E-4 0.0030659903]
+[19:13:35] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1500 stage=return factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1500
+[19:13:36] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1560 stage=return factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1560
+[19:13:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1620 stage=return factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1620
+[19:13:38] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1680 stage=return factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1680
+[19:13:38] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 1682 stage=return camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealMesher]: [5c-3b] meshed 16 sections around [0,0,0] r=4 (LoD 3): 8 empty, 705 not in the world yet, 0 gave up, 88 models baked on demand
+[19:13:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 14 biomes already registered by the world
+[19:13:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:13:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealScene]: [native-vk] real-LOAD scene: 16 sections, 5195 quads, 97 draws at level 3 around [0, 0, 0] r=4
+[19:13:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 1682 flipped=true counts=[anomaly=0 low=11496 r0=0 r1=0 r2=67352 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=return camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 1682 present=78848 absent=0 other=0 expectedPass=78848 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:13:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealLoad]: [native-vk] real load at draw 1682 status=judged geometry=77625 noGeometry=1223 expectVisible=11410 expectHidden=0 undetermined=66215 visible=77597 hidden=28 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[3.6666883E-4 0.0010014626]
+[19:13:40] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=horizon
+[19:13:40] [Server thread/INFO] (Minecraft) [Player279: Teleported Player279 to 0.500000, 120.000000, 0.500000]
+[19:13:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1740 stage=horizon factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1740
+[19:13:40] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player279 to 0.500000, 120.000000, 0.500000
+[19:13:41] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1800 stage=horizon factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1800
+[19:13:42] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1860 stage=horizon factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1860
+[19:13:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1920 stage=horizon factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1920
+[19:13:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 1922 stage=horizon camera=[0.5 121.61999988555908 0.5 15.0 -90.0]
+[19:13:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 1922 flipped=true counts=[anomaly=0 low=54537 r0=0 r1=0 r2=24311 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=horizon camera=[0.5 121.61999988555908 0.5 15.0 -90.0]
+[19:13:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 1922 present=78848 absent=0 other=0 expectedPass=78848 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:13:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain load at draw 1922 geometry=21972 noGeometry=56876 expectVisible=21078 expectHidden=58 undetermined=836 visible=21718 hidden=254 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[1.4531454E-4 0.0030659903]
+[19:13:44] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 1980 stage=horizon factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=1980
+[19:13:45] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2040 stage=horizon factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2040
+[19:13:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2100 stage=horizon factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2100
+[19:13:47] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2160 stage=horizon factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2160
+[19:13:47] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 2162 stage=horizon camera=[0.5 121.61999988555908 0.5 15.0 -90.0]
+[19:13:47] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 2162 flipped=true counts=[anomaly=0 low=54537 r0=0 r1=0 r2=24311 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=horizon camera=[0.5 121.61999988555908 0.5 15.0 -90.0]
+[19:13:47] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 2162 present=78848 absent=0 other=0 expectedPass=78848 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:13:47] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealLoad]: [native-vk] real load at draw 2162 status=judged geometry=42317 noGeometry=36531 expectVisible=20610 expectHidden=0 undetermined=21707 visible=42238 hidden=79 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[3.5583056E-5 0.0010553576]
+[19:13:48] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=edit
+[19:13:48] [Server thread/INFO] (Minecraft) [Player279: Successfully filled 1377 block(s)]
+[19:13:48] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 1377 block(s)
+[19:13:48] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2220 stage=edit factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2220
+[19:13:49] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2280 stage=edit factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2280
+[19:13:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2340 stage=edit factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2340
+[19:13:51] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2400 stage=edit factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2400
+[19:13:51] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 2402 stage=edit camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:51] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 2402 flipped=true counts=[anomaly=0 low=11496 r0=0 r1=0 r2=67352 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=edit camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:51] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 2402 present=78848 absent=0 other=0 expectedPass=78848 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:13:51] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain load at draw 2402 geometry=21972 noGeometry=56876 expectVisible=20754 expectHidden=58 undetermined=1160 visible=21682 hidden=290 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[1.4531454E-4 0.0030659903]
+[19:13:52] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2460 stage=edit factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2460
+[19:13:53] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2520 stage=edit factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2520
+[19:13:54] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2580 stage=edit factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2580
+[19:13:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2640 stage=edit factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2640
+[19:13:56] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=remove
+[19:13:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 2642 stage=remove camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:56] [Server thread/INFO] (Minecraft) [Player279: Successfully filled 1377 block(s)]
+[19:13:56] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 1377 block(s)
+[19:13:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 2642 flipped=true counts=[anomaly=0 low=11496 r0=0 r1=0 r2=67352 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=remove camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:13:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 2642 present=78848 absent=0 other=0 expectedPass=78848 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:13:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealLoad]: [native-vk] real load at draw 2642 status=judged geometry=77625 noGeometry=1223 expectVisible=11410 expectHidden=0 undetermined=66215 visible=77597 hidden=28 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[3.6666883E-4 0.0010014626]
+[19:13:58] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2700 stage=remove factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2700
+[19:14:00] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2760 stage=remove factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2760
+[19:14:02] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2820 stage=remove factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2820
+[19:14:04] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=resize
+[19:14:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2880 stage=resize factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2880
+[19:14:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 2882 stage=resize camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:14:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:14:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainScene]: [native-vk] terrain reference on the adopted device: 28964 of 2073600 pixels are not background
+[19:14:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain-LOAD scene built: 28964 reference pixels, 10 draw(s), depth state declared [6, 1, 1]
+[19:14:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 2882 flipped=true counts=[anomaly=0 low=14452 r0=0 r1=0 r2=84620 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=resize camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:14:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 2882 present=99072 absent=0 other=0 expectedPass=99072 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:14:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain load at draw 2882 geometry=28964 noGeometry=70108 expectVisible=26951 expectHidden=64 undetermined=1949 visible=28510 hidden=454 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[1.453138E-4 0.0030660268]
+[19:14:06] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 2940 stage=resize factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=2940
+[19:14:08] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3000 stage=resize factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3000
+[19:14:10] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3060 stage=resize factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3060
+[19:14:12] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=reload
+[19:14:12] [Render thread/INFO] (Minecraft) Reloading ResourceManager: vanilla, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-getter-api-v2, fabric-client-gametest-api-v1, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-creative-tab-api-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-debug-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-gametest-api-v1, fabric-item-api-v1, fabric-key-mapping-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v3, fabric-menu-api-v1, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-permission-api-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, lithium, modmenu, sodium, voxy
+[19:14:12] [Worker-Main-9/INFO] (Minecraft) Found unifont_pua-17.0.01.hex, loading
+[19:14:12] [Worker-Main-2/INFO] (Minecraft) Found unifont_all_no_pua-17.0.01.hex, loading
+[19:14:12] [Worker-Main-12/INFO] (Minecraft) Found unifont_jp_patch-17.0.01.hex, loading
+[19:14:12] [Server thread/INFO] (Minecraft) Saving and pausing game...
+[19:14:12] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:14:12] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:14:12] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:14:12] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3120 stage=reload factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3120
+[19:14:12] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 3122 stage=reload camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:14:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealMesher]: [5c-3b] meshed 16 sections around [0,0,0] r=4 (LoD 3): 713 empty, 0 not in the world yet, 0 gave up, 88 models baked on demand
+[19:14:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 14 biomes already registered by the world
+[19:14:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:14:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealScene]: [native-vk] real-LOAD scene: 16 sections, 5195 quads, 97 draws at level 3 around [0, 0, 0] r=4
+[19:14:14] [Render thread/INFO] (Minecraft) OpenAL initialized on device MacBook Pro Speakers
+[19:14:14] [Render thread/INFO] (Minecraft) Sound engine started
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[19:14:14] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[19:14:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 3122 flipped=true counts=[anomaly=0 low=14452 r0=0 r1=0 r2=84620 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=reload camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:14:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 3122 present=99072 absent=0 other=0 expectedPass=99072 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:14:15] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealLoad]: [native-vk] real load at draw 3122 status=judged geometry=97587 noGeometry=1485 expectVisible=14032 expectHidden=0 undetermined=83555 visible=97305 hidden=282 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[3.6591213E-4 0.001001688]
+[19:14:15] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:14:15] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:14:15] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:14:17] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3180 stage=reload factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3180
+[19:14:19] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3240 stage=reload factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3240
+[19:14:20] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=nether
+[19:14:20] [Server thread/INFO] (Minecraft) Player279 has made the advancement [We Need to Go Deeper]
+[19:14:20] [Server thread/INFO] (Minecraft) [Player279: Teleported Player279 to 0.500000, 100.000000, 0.500000]
+[19:14:20] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: -804933456715516506@1836275356
+[19:14:20] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:14:20] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:14:20] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:14:20] [Render thread/INFO] (Minecraft) [System] [CHAT] Player279 has made the advancement [We Need to Go Deeper]
+[19:14:20] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player279 to 0.500000, 100.000000, 0.500000
+[19:14:20] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:14:20] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:14:21] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3300 stage=nether factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3300
+[19:14:22] [Render thread/INFO] (Minecraft) Loaded 29 advancements
+[19:14:22] [Server thread/WARN] (Minecraft) Can't keep up! Is the server overloaded? Running 2162ms or 43 ticks behind
+[19:14:22] [Render thread/INFO] (Minecraft) Loaded 29 advancements
+[19:14:23] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3360 stage=nether factory=true instance=true engine=true live=true activeSections=16 renderer=false ingest=true cameraCaptures=3360
+[19:14:23] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 3362 stage=nether camera=[0.5 101.61999988555908 0.5 30.0 0.0]
+[19:14:23] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 3362 flipped=true counts=[anomaly=0 low=80030 r0=0 r1=0 r2=0 r3=2738 r4=16304 r5=0 r6=0 r7=0 other=0] stage=nether camera=[0.5 101.61999988555908 0.5 30.0 0.0]
+[19:14:23] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 3362 present=82768 absent=16304 other=0 expectedPass=82768 expectedFail=16304 absentWherePass=0 presentWhereFail=0 unchanged=16304
+[19:14:23] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain load at draw 3362 geometry=28964 noGeometry=70108 expectVisible=21492 expectHidden=7458 undetermined=14 visible=21492 hidden=7472 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[1.453138E-4 0.0030660268]
+[19:14:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3420 stage=nether factory=true instance=true engine=true live=true activeSections=19 renderer=false ingest=true cameraCaptures=3420
+[19:14:27] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3480 stage=nether factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3480
+[19:14:28] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=overworld
+[19:14:28] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:14:28] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:14:28] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:14:28] [Server thread/INFO] (Minecraft) [Player279: Teleported Player279 to 0.500000, 120.000000, 0.500000]
+[19:14:28] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player279 to 0.500000, 120.000000, 0.500000
+[19:14:28] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:14:28] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:14:30] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3540 stage=overworld factory=true instance=true engine=true live=true activeSections=1 renderer=false ingest=true cameraCaptures=3540
+[19:14:31] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3600 stage=overworld factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3600
+[19:14:31] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 3602 stage=overworld camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:14:31] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 3602 flipped=true counts=[anomaly=0 low=14452 r0=0 r1=0 r2=84620 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=overworld camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:14:31] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 3602 present=99072 absent=0 other=0 expectedPass=99072 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:14:31] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealLoad]: [native-vk] real load at draw 3602 status=judged geometry=97587 noGeometry=1485 expectVisible=14032 expectHidden=0 undetermined=83555 visible=97305 hidden=282 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[3.6591213E-4 0.001001688]
+[19:14:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3660 stage=overworld factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3660
+[19:14:33] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3720 stage=overworld factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3720
+[19:14:34] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3780 stage=overworld factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3780
+[19:14:35] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3840 stage=overworld factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3840
+[19:14:35] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 3842 stage=overworld camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:14:35] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 3842 flipped=true counts=[anomaly=0 low=14452 r0=0 r1=0 r2=84620 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=overworld camera=[0.5 121.61999988555908 0.5 30.0 0.0]
+[19:14:35] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 3842 present=99072 absent=0 other=0 expectedPass=99072 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:14:35] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain load at draw 3842 geometry=28964 noGeometry=70108 expectVisible=26951 expectHidden=64 undetermined=1949 visible=28510 hidden=454 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[1.453138E-4 0.0030660268]
+[19:14:36] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3900 stage=overworld factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3900
+[19:14:36] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=descend
+[19:14:36] [Server thread/INFO] (Minecraft) [Player279: Teleported Player279 to 0.500000, 79.000000, 0.500000]
+[19:14:36] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player279 to 0.500000, 79.000000, 0.500000
+[19:14:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 3960 stage=descend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=3960
+[19:14:38] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4020 stage=descend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4020
+[19:14:38] [Active world cleaner/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down idle world: -804933456715516506
+[19:14:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4080 stage=descend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4080
+[19:14:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 4082 stage=descend camera=[0.5 80.61999988555908 0.5 90.0 0.0]
+[19:14:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 4082 flipped=true counts=[anomaly=0 low=0 r0=0 r1=0 r2=0 r3=45734 r4=53338 r5=0 r6=0 r7=0 other=0] stage=descend camera=[0.5 80.61999988555908 0.5 90.0 0.0]
+[19:14:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 4082 present=45734 absent=53338 other=0 expectedPass=45734 expectedFail=53338 absentWherePass=0 presentWhereFail=0 unchanged=53338
+[19:14:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealLoad]: [native-vk] real load at draw 4082 status=judged geometry=99072 noGeometry=0 expectVisible=51480 expectHidden=0 undetermined=47592 visible=99072 hidden=0 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[0.005776193 0.08062298]
+[19:14:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4140 stage=descend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4140
+[19:14:41] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4200 stage=descend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4200
+[19:14:42] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4260 stage=descend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4260
+[19:14:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4320 stage=descend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4320
+[19:14:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 4322 stage=descend camera=[0.5 80.61999988555908 0.5 90.0 0.0]
+[19:14:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 4322 flipped=true counts=[anomaly=0 low=0 r0=0 r1=0 r2=0 r3=45734 r4=53338 r5=0 r6=0 r7=0 other=0] stage=descend camera=[0.5 80.61999988555908 0.5 90.0 0.0]
+[19:14:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 4322 present=45734 absent=53338 other=0 expectedPass=45734 expectedFail=53338 absentWherePass=0 presentWhereFail=0 unchanged=53338
+[19:14:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain load at draw 4322 geometry=28964 noGeometry=70108 expectVisible=0 expectHidden=14782 undetermined=14182 visible=0 hidden=28964 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[1.453138E-4 0.0030660268]
+[19:14:44] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=ascend
+[19:14:44] [Server thread/INFO] (Minecraft) [Player279: Teleported Player279 to 0.500000, 175.000000, 0.500000]
+[19:14:44] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player279 to 0.500000, 175.000000, 0.500000
+[19:14:44] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4380 stage=ascend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4380
+[19:14:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4440 stage=ascend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4440
+[19:14:48] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4500 stage=ascend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4500
+[19:14:49] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4560 stage=ascend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4560
+[19:14:49] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 4562 stage=ascend camera=[0.5 176.61999988555908 0.5 90.0 0.0]
+[19:14:49] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 4562 flipped=true counts=[anomaly=0 low=0 r0=0 r1=0 r2=99072 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=ascend camera=[0.5 176.61999988555908 0.5 90.0 0.0]
+[19:14:49] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 4562 present=99072 absent=0 other=0 expectedPass=99072 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:14:49] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealLoad]: [native-vk] real load at draw 4562 status=judged geometry=99072 noGeometry=0 expectVisible=0 expectHidden=0 undetermined=99072 visible=99042 hidden=30 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[4.1956714E-4 7.493586E-4]
+[19:14:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4620 stage=ascend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4620
+[19:14:51] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4680 stage=ascend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4680
+[19:14:52] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4740 stage=ascend factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4740
+[19:14:52] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=disconnect
+[19:14:53] [Server thread/INFO] (Minecraft) Stopping server
+[19:14:53] [Server thread/INFO] (Minecraft) Saving players
+[19:14:53] [Server thread/INFO] (Minecraft) Saving worlds
+[19:14:53] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:14:53] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:14:53] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:14:53] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[19:14:53] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[19:14:53] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[19:14:53] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[19:14:53] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:14:53] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[19:14:54] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[19:14:54] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=reconnect
+[19:14:54] [Render thread/INFO] (Minecraft) Found new data pack fabric-convention-tags-v2, loading it automatically
+[19:14:54] [Render thread/INFO] (Minecraft) Found new data pack fabric-gametest-api-v1, loading it automatically
+[19:14:54] [Render thread/INFO] (Minecraft) Loaded 1585 recipes
+[19:14:54] [Render thread/INFO] (Minecraft) Loaded 1688 advancements
+[19:14:54] [Render thread/INFO] (BiomeModificationImpl) Applied 0 biome modifications to 0 of 66 new biomes in 202.9 μs
+[19:14:54] [Server thread/INFO] (Minecraft) Starting integrated minecraft server version 26.2
+[19:14:54] [Server thread/INFO] (Minecraft) Generating keypair
+[19:14:54] [Server thread/INFO] (Minecraft) Loading 0 persistent chunks...
+[19:14:54] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:14:54] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:14:54] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:14:54] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[19:14:54] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[19:14:54] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[19:14:54] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[19:14:55] [Server thread/INFO] (Minecraft) Loading 49 chunks for player spawn...
+[19:14:55] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[19:14:55] [Server thread/INFO] (Minecraft) Time elapsed: 494 ms
+[19:14:55] [Server thread/INFO] (Minecraft) Player279[local:E:7846c09e] logged in with entity id 660 at (0.5, 175.0, 0.5)
+[19:14:55] [Server thread/INFO] (Minecraft) Player279 joined the game
+[19:14:55] [Server thread/INFO] (Minecraft) Changing view distance to 8, from 10
+[19:14:55] [Server thread/INFO] (Minecraft) Changing simulation distance to 5, from 0
+[19:14:55] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[19:14:55] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 9
+[19:14:55] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 7462760223788803275@901658112
+[19:14:55] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:14:55] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:14:55] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 1
+[19:14:55] [Render thread/INFO] (Minecraft) Loaded 29 advancements
+[19:14:55] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:14:55] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:14:55] [Download-1/ERROR] (Minecraft) Failed to retrieve profile key pair
+
+MinecraftClientHttpException[type=HTTP_ERROR, status=401, response=ErrorResponse[path=/player/certificates, error=null, errorMessage=null, details=null]]
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.buildHttpException(MinecraftClient.java:170)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readServiceResponse(MinecraftClient.java:147)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.post(MinecraftClient.java:89)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilUserApiService.getKeyPair(YggdrasilUserApiService.java:62)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.fetchProfileKeyPair(AccountProfileKeyPairManager.java:128)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.lambda$readOrFetchProfileKeyPair$0(AccountProfileKeyPairManager.java:77)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[19:14:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4800 stage=reconnect factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4800
+[19:14:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 4802 stage=reconnect camera=[0.5 176.61999988555908 0.5 29.400001525878906 -0.6000000834465027]
+[19:14:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 4802 flipped=true counts=[anomaly=0 low=99072 r0=0 r1=0 r2=0 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=reconnect camera=[0.5 176.61999988555908 0.5 29.400001525878906 -0.6000000834465027]
+[19:14:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 4802 present=99072 absent=0 other=0 expectedPass=99072 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:14:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeTerrainLoad]: [native-vk] terrain load at draw 4802 geometry=28964 noGeometry=70108 expectVisible=28964 expectHidden=0 undetermined=0 visible=28964 hidden=0 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[1.453138E-4 0.0030660268]
+[19:14:57] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4860 stage=reconnect factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4860
+[19:14:58] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4920 stage=reconnect factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4920
+[19:14:59] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 4980 stage=reconnect factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=4980
+[19:15:00] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 5040 stage=reconnect factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=5040
+[19:15:00] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample requested at draw 5042 stage=reconnect camera=[0.5 176.61999988555908 0.5 30.0 0.0]
+[19:15:00] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder sample at draw 5042 flipped=true counts=[anomaly=0 low=99072 r0=0 r1=0 r2=0 r3=0 r4=0 r5=0 r6=0 r7=0 other=0] stage=reconnect camera=[0.5 176.61999988555908 0.5 30.0 0.0]
+[19:15:00] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] depth ladder coexist at draw 5042 present=99072 absent=0 other=0 expectedPass=99072 expectedFail=0 absentWherePass=0 presentWhereFail=0 unchanged=0
+[19:15:00] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeRealLoad]: [native-vk] real load at draw 5042 status=judged geometry=6577 noGeometry=92495 expectVisible=6577 expectHidden=0 undetermined=0 visible=6577 hidden=0 ambiguous=0 other=0 visibleWhereHidden=0 hiddenWhereVisible=0 changedWhereNoGeometry=0 depth=[3.0588452E-4 3.5787222E-4]
+[19:15:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeInstanceProbe]: [native-vk] native instance at frame 5100 stage=reconnect factory=true instance=true engine=true live=true activeSections=0 renderer=false ingest=true cameraCaptures=5100
+[19:15:02] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] finished failures=0
+[19:15:02] [Render thread/INFO] (Minecraft) Stopping!
+[19:15:02] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeVkContext]: [native-vk] released Minecraft's device from VkContext (nothing of Minecraft's was destroyed)
+[19:15:02] [Server thread/INFO] (Minecraft) Stopping server
+[19:15:02] [Server thread/INFO] (Minecraft) Saving players
+[19:15:02] [Server thread/INFO] (Minecraft) Player279 lost connection: Disconnected
+[19:15:02] [Server thread/INFO] (Minecraft) Player279 left the game
+[19:15:02] [Server thread/INFO] (Minecraft) Stopping singleplayer server as player logged out
+[19:15:02] [Server thread/INFO] (Minecraft) Saving worlds
+[19:15:02] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:15:02] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:15:02] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:15:02] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[19:15:02] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[19:15:02] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[19:15:02] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[19:15:02] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:15:02] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[19:15:03] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[Vulkan Loader] DEBUG | LAYER:  Unloading layer library /opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib
+
+[Incubating] Problems report is available at: file:///Users/xyz/dev/voxy/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.6.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 2m 29s
+8 actionable tasks: 2 executed, 6 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.6.0/userguide/configuration_cache_enabling.html
