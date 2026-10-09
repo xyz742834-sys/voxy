@@ -899,7 +899,10 @@ VK_COMPARE_OP_LESS, VK_COMPARE_OP_GREATER, VK_COMPARE_OP_ALWAYS = 1, 4, 7
 LADDER_SAMPLE_LOG = re.compile(r"depth ladder sample at draw (\d+) ")
 LADDER_SAMPLE_LOG_DETAIL = re.compile(
     r"depth ladder sample at draw (\d+) flipped=(true|false) counts=\[anomaly=(\d+) low=(\d+)"
-    r" r0=(\d+) r1=(\d+) r2=(\d+) r3=(\d+) r4=(\d+) r5=(\d+) r6=(\d+) r7=(\d+) other=(\d+)\]")
+    r" r0=(\d+) r1=(\d+) r2=(\d+) r3=(\d+) r4=(\d+) r5=(\d+) r6=(\d+) r7=(\d+) other=(\d+)\]"
+    r" stage=(\S*) camera=\[(\S+) (\S+) (\S+) (\S+) (\S+)\]")
+HARNESS_STAGE_LOG = re.compile(r"\[voxy-harness\] stage=(\w+)")
+LADDER_SAMPLE_OR_STAGE = re.compile(r"\[voxy-harness\] stage=(\w+)|depth ladder sample at draw (\d+) ")
 
 
 def ladder_report_checks(output, report, expected_device=None, expected_extents=None,
@@ -1032,20 +1035,50 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
         # log's orientation and counts could drift from the report. Each logged line must
         # state the orientation and the eleven counts the report publishes for that draw.
         details = {int(m[0]): m[1:] for m in LADDER_SAMPLE_LOG_DETAIL.findall(log_text)}
+        # ⚠ Round-13 review R13-Z-BINDING: the report's stage labels and cameras were trusted,
+        # so swapping them (report only) reversed the Z direction with every image and the
+        # log unchanged. The log is the retained chronology: each sample line states its
+        # stage and camera, and the harness's own "stage=" lines say which stage was current
+        # when each sample was logged. All three must agree with the report.
+        current, stage_of_draw = None, {}
+        for m in LADDER_SAMPLE_OR_STAGE.finditer(log_text):
+            if m.group(1):
+                current = m.group(1)
+            else:
+                stage_of_draw[int(m.group(2))] = current
         for sample in samples:
             if not isinstance(sample, dict) or not finite_int(sample.get("at")):
                 continue
             line = details.get(sample["at"])
             if line is None:
                 raise ValueError(f"the ladder log line for draw {sample['at']} does not state"
-                                 f" its orientation and counts")
+                                 f" its orientation, counts, stage and camera")
             counts = sample.get("counts") or {}
             want = [str(sample.get("flipped")).lower(), str(counts.get("anomaly")),
                     str(counts.get("low"))] + [str(v) for v in (counts.get("rungs") or [])] \
                    + [str(counts.get("other"))]
-            if list(line) != want:
+            if list(line[:12]) != want:
                 raise ValueError(f"the ladder log for draw {sample['at']} says"
-                                 f" flipped/counts {list(line)} but the report says {want}")
+                                 f" flipped/counts {list(line[:12])} but the report says {want}")
+            if line[12] != str(sample.get("stage")):
+                raise ValueError(f"the ladder log for draw {sample['at']} says stage"
+                                 f" {line[12]!r} but the report says {sample.get('stage')!r}")
+            logged_camera = []
+            for v in line[13:18]:
+                try:
+                    logged_camera.append(float(v))
+                except ValueError:
+                    logged_camera.append(math.nan)
+            camera = sample.get("camera") or []
+            if len(camera) != 5 or any(
+                    (a is None) != math.isnan(b) or (a is not None and abs(a - b) > 1e-3)
+                    for a, b in zip(camera, logged_camera)):
+                raise ValueError(f"the ladder log for draw {sample['at']} says camera"
+                                 f" {logged_camera} but the report says {camera}")
+            if stage_of_draw.get(sample["at"]) != sample.get("stage"):
+                raise ValueError(f"the harness log had stage {stage_of_draw.get(sample['at'])!r}"
+                                 f" current when draw {sample['at']} was sampled, but the"
+                                 f" report labels it {sample.get('stage')!r}")
     checks["samples"] = []
     last_at = 0
     for index, sample in enumerate(samples):
@@ -1263,14 +1296,32 @@ def ladder_z_direction(samples, checkpoints):
     """
     by_stage = {c.get("stage"): c for c in checkpoints if isinstance(c, dict)}
     picked = {}
-    for stage, offset in (("descend", DESCEND_ABOVE_GROUND), ("ascend", ASCEND_ABOVE_GROUND)):
+    # ⚠ Round-13 review R13-Z-BINDING: the two looks share ONE ground (the harness measures
+    # it once), the checkpoints record where the player and camera actually were, and the
+    # nearer look is the lower camera. All of that is required, not assumed from labels.
+    grounds = {}
+    for stage in ("descend", "ascend"):
         checkpoint = by_stage.get(stage)
         if checkpoint is None:
             raise ValueError(f"no {stage} checkpoint, so the Z direction was not measured")
         ground = checkpoint.get("groundY")
         if not finite_number(ground):
             raise ValueError(f"the {stage} checkpoint states no ground height")
+        grounds[stage] = ground
+    if grounds["descend"] != grounds["ascend"]:
+        raise ValueError(f"the two looks state different grounds ({grounds}); the harness"
+                         f" measures one ground for both, so these checkpoints are not its")
+    for stage, offset in (("descend", DESCEND_ABOVE_GROUND), ("ascend", ASCEND_ABOVE_GROUND)):
+        checkpoint = by_stage[stage]
+        ground = grounds[stage]
         want_y = ground + offset + PLAYER_EYE_HEIGHT
+        for field, want, tolerance in (("cameraY", want_y, 1.0),
+                                       ("playerY", ground + offset, 1.0),
+                                       ("playerPitch", 90.0, 1.0)):
+            got = checkpoint.get(field)
+            if not finite_number(got) or abs(got - want) > tolerance:
+                raise ValueError(f"the {stage} checkpoint states {field}={got!r}, not the"
+                                 f" {want:.2f} its ground and teleport imply")
         candidates = []
         for sample in samples:
             if sample.get("stage") != stage:
@@ -1279,7 +1330,7 @@ def ladder_z_direction(samples, checkpoints):
             if len(cam) != 5 or any(not finite_number(v) for v in cam):
                 continue
             if (abs(cam[0] - 0.5) <= 2 and abs(cam[2] - 0.5) <= 2 and abs(cam[1] - want_y) <= 1.0
-                    and abs(cam[3] - 90) <= 1.0):
+                    and abs(cam[1] - checkpoint["cameraY"]) <= 1.0 and abs(cam[3] - 90) <= 1.0):
                 candidates.append(sample)
         if not candidates:
             raise ValueError(f"no ladder sample was taken during {stage} with the camera at"
@@ -1295,6 +1346,13 @@ def ladder_z_direction(samples, checkpoints):
                          "groundY": ground, "aboveGround": chosen["camera"][1] - ground,
                          "brackets": indices, "rungs": chosen["rungs"]}
     near, far = picked["descend"], picked["ascend"]
+    if not near["cameraY"] < far["cameraY"]:
+        raise ValueError(f"the descend camera ({near['cameraY']:.2f}) is not below the ascend"
+                         f" camera ({far['cameraY']:.2f}); the nearer look is not identified")
+    # The harness runs descend before ascend; the samples must be in that order.
+    if not near["at"] < far["at"]:
+        raise ValueError(f"the descend sample (draw {near['at']}) does not precede the ascend"
+                         f" sample (draw {far['at']}), contradicting the lifecycle order")
     if max(far["brackets"]) < min(near["brackets"]):
         direction = "larger depth value is nearer (reverse-Z)"
     elif max(near["brackets"]) < min(far["brackets"]):
@@ -2412,6 +2470,13 @@ def replay_evidence(directory):
             outcome["ladder"] = {"samples": ladder_result["samples"],
                                  "z_direction": ladder_result.get("z_direction"),
                                  "checkpoints": len(ladder_checkpoints)}
+            # ⚠ Round-13 review R13-Z-BINDING: the summary's saved direction was never
+            # compared with the recomputed one, so a relabelled report could contradict it.
+            saved = ((ladder_stage.get("ladder") or {}).get("z_direction") or {}).get("direction")
+            if saved != ladder_result["z_direction"]["direction"]:
+                raise ValueError(f"the retained summary saved the direction {saved!r} but the"
+                                 f" retained evidence now reads"
+                                 f" {ladder_result['z_direction']['direction']!r}")
             outcome["replayed"].append("depth-ladder acceptance checks (its own launch,"
                                        " terrain and marker off, identity from its own"
                                        " checkpoints)")

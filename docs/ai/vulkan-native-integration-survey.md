@@ -460,7 +460,8 @@ of the point — and the replay status of each is:
 | [20261007T022908-162255Z](runs/native-evidence/20261007T022908-162255Z/MANIFEST.json) | no — its source fingerprint is of the tree before the round-10 repairs, which the replay now requires to match the checkout (round 10 confirmed its 18 samples) |
 | [20261007T025423-410921Z](runs/native-evidence/20261007T025423-410921Z/MANIFEST.json) | no — predates the published pipeline states; its fingerprint is of the tree before the round-11 repairs (round 11 confirmed its 18 samples) |
 | [20261007T031630-708042Z](runs/native-evidence/20261007T031630-708042Z/MANIFEST.json) | no — its fingerprint is of the tree before the Z-direction stages (round 12 confirmed its 19 samples) |
-| [20261009T033539-494735Z](runs/native-evidence/20261009T033539-494735Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; 24 samples, Z direction judged |
+| [20261009T033539-494735Z](runs/native-evidence/20261009T033539-494735Z/MANIFEST.json) | no — its log lines predate the stage/camera reconciliation and its fingerprint is of the tree before the round-13 repairs (round 13 confirmed its direction) |
+| [20261009T041151-205062Z](runs/native-evidence/20261009T041151-205062Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; 20 samples, Z direction judged and reconciled |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1196,8 +1197,10 @@ the thumbnail anchors complete 4×4 blocks — about 1300–2300 boundary pixels
 compared, and a within-block permutation is invisible to it; and every gate here is an
 internal-consistency check over editable records — a jointly rewritten report, crops,
 thumbnail, log and manifest can pass, as no hash rooted in an editable manifest can prove GPU
-origin. The replay's claim is "these records agree with each other, with the pinned source
-constants and with this checkout's sources", not authenticity against a forger.
+origin. The replay's claim is "the checks listed in its `replayed` output hold over these
+records, against the pinned source constants and this checkout's sources", not authenticity
+against a forger, and not agreement of every retained field with every other (round 13 found
+the direction labels unreconciled; see its paragraph).
 
 **Round-12 review (2026-10-07).** Round 12
 ([native-integration-review-r12.md](runs/native-integration-review-r12.md)) returned REDESIGN
@@ -1207,7 +1210,7 @@ accepted foundation and do not deliver native Voxy LoD — which this document h
 contested. It confirmed 19 samples, 198 546 anchored blocks and the 408-entry inventory match,
 and named as non-blocking limits (stated here, not repaired): a creator that rewrites the state
 for the Vulkan call and restores it afterwards passes both JUnit and the gate (the Vulkan call
-is outside any test; what checks it is the measurement); block-grain anchoring; consistent
+is outside any test and is not claimed to be checked by anything); block-grain anchoring; consistent
 forgery. Two wordings it called too strong are softened in place ("were created with" in the
 gate message; "checked by the measurement" above now reads as a limit, not a check). For the
 first time in twelve rounds no evidence or gate finding is open; the next work is the goal
@@ -1243,7 +1246,7 @@ test, with the depth path positively controlled. It does not say which direction
 (unmeasured, and the gate forbids claiming it), nor why the buffer copy read 0.0 where the test
 sees non-zero values, nor anything about other regions of the screen.
 
-## The Z direction, measured (2026-10-07)
+## The Z direction, measured (2026-10-09)
 
 Rounds 7–12 kept one thing honestly unmeasured: a band of known depths brackets a *value*,
 and which direction of that value is nearer cannot be read from one look. The source facts
@@ -1258,7 +1261,8 @@ as before, now labels every sample with the harness stage it was taken in and wi
 camera's position and rotation at the moment the readback was requested. The gate — not the
 probe, which still asserts `zConventionMeasuredHere: false` — takes the last sample of each of
 the two stages whose camera is where that stage put it (y = ground + offset + the 1.62 eye
-height, within one block; pitch 90 within one degree; x, z at the teleport), requires no pixel
+height, within one block; pitch 90 within one degree; x and z within two blocks of the
+teleport; yaw is not checked), requires no pixel
 below the smallest rung in either (straight down at the ground, nothing is sky), and compares
 the bracket indices: if every bracket of the nearer look lies strictly above every bracket of
 the farther look, the larger depth value is nearer; if strictly below, the smaller is. Anything
@@ -1267,7 +1271,7 @@ two retained crops, anchored to retained thumbnails, with the camera positions a
 height retained beside them.
 
 **Measured** (run [20261009T033539-494735Z](runs/native-evidence/20261009T033539-494735Z/MANIFEST.json),
-replay 0 in this checkout, 24 samples):
+24 samples; confirmed by round 13; re-measured identically as [20261009T041151-205062Z](runs/native-evidence/20261009T041151-205062Z/MANIFEST.json), 20 samples, the run that replays in this checkout):
 
 | Look | Camera y | Above ground (y = 67) | Brackets with pixels | Pixels |
 | --- | --- | --- | --- | --- |
@@ -1284,12 +1288,33 @@ not part of the measurement.
 
 **What this does and does not say.** It establishes the direction of Minecraft's depth values
 in the attachment reachable at the `LevelRenderer.render` tail, for a world the harness built
-from a fixed seed, with the camera straight down over one spot. It says nothing about the
-depth *scale* (near/far planes, or whether the mapping is the swapped-`setPerspective` one the
-bytecode suggests), about other hooks, or about coexistence: a depth-tested Voxy draw at this
-hook is the next experiment, and it will be gated the same way. The probe still publishes no
-convention; the direction is the gate's reading of two looks, and every input to that reading
-is retained.
+from a fixed seed, with the camera straight down over one spot. "The same ground" means this
+local terrain: the band is off-centre, so the higher camera's footprint is larger and
+displaced, and no claim is made that the two looks hit identical surfaces or that every ray's
+distance is bounded by the one heightmap column — what is claimed is that every pixel of the
+lower look reads nearer than every pixel of the higher look, which the retained thumbnails
+(grass and trees from 13 blocks; the hills as a far carpet from 110) make a plain reading of
+near and far. It says nothing about the depth *scale* (near/far planes, or whether the mapping
+is the swapped-`setPerspective` one the bytecode suggests), about other hooks, or about
+coexistence: a depth-tested Voxy draw at this hook is the next experiment, and it will be gated
+the same way. The probe still publishes no convention; the direction is the gate's reading of
+two looks, and every input to that reading is retained.
+
+**Round-13 review (2026-10-09).** Round 13
+([native-integration-review-r13.md](runs/native-integration-review-r13.md)) **confirmed the
+direction as a bounded observation** of these two looks (nearer look identified independently
+of any depth value) and refuted the gate's *consistency*: it trusted the report's stage labels
+and cameras, so swapping them in the report alone — images, log and checkpoints untouched —
+reversed the answer; split grounds in the checkpoints did too. Repaired after it: each ladder
+log line now carries the sample's stage and camera and the gate reconciles both with the
+report; the harness's own `stage=` lines in the log must have the sample's stage current when
+it was logged; the two checkpoints must state one ground, and their `cameraY`/`playerY`/
+`playerPitch` must be what that ground and the teleport imply; the sample's camera must match
+the checkpoint's; the lower camera must be the `descend` one and precede the `ascend` one;
+replay requires the summary's saved direction to equal the recomputed one. Tests now cover
+the x/z eligibility, the relabelling, the split ground, the order and the saved direction.
+Still true, as disclosed: a jointly rewritten package (images, counts, log, summary, manifest)
+can pass; these are consistency checks over editable records.
 
 ## What is NOT answered yet, and must be measured on hardware
 

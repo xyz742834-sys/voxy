@@ -441,8 +441,13 @@ public final class McNativeDepthLadder implements Destroyable {
                 if (firstProblem == null) firstProblem = why;
                 note(why);
             }
+            // ⚠ round-13 review R13-Z-BINDING: the log is the retained chronology. Each sample
+            // line carries the stage and camera too, so a report that relabels a sample
+            // disagrees with the log; the gate reconciles both and the stage order.
             Logger.info("[native-vk] depth ladder sample at draw " + at + " flipped=" + flipped
-                + " counts=" + describe(c) + (why == null ? "" : " PROBLEM: " + why));
+                + " counts=" + describe(c) + " stage=" + stage + " camera=[" + camera[0] + " "
+                + camera[1] + " " + camera[2] + " " + camera[3] + " " + camera[4] + "]"
+                + (why == null ? "" : " PROBLEM: " + why));
             writeEvidence();
         } catch (Throwable t) {
             fail("the ladder measurement failed: " + t);

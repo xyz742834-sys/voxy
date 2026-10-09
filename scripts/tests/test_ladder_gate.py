@@ -144,14 +144,16 @@ def direction_checkpoints():
     for case in base:
         case["renderer"]["colour"] = {"vkImage": 15, "vkImageView": 16,
                                       "width": FULL_W, "height": FULL_H}
-    out = []
-    for case in base:
-        out.append(case)
+    # the shared fixture already lists every lifecycle stage; the two straight-down ones are
+    # rebuilt here with the geometry fields the harness records for them
+    out = [case for case in base if case["stage"] not in ("descend", "ascend")]
     for stage in ("descend", "ascend"):
         extra = json.loads(json.dumps(base[0]))
         extra["stage"] = stage
         extra["groundY"] = GROUND_Y
         extra["cameraY"] = CAMERA_FOR[stage][1]
+        extra["playerY"] = CAMERA_FOR[stage][1] - verify.PLAYER_EYE_HEIGHT
+        extra["playerPitch"] = 90.0
         out.append(extra)
     return out
 
@@ -211,15 +213,23 @@ def write_sample_files(out, body, field, selected=None, rejected=None, frame_fro
             write_gz_ppm(out / body["frameFile"], thumbnail(sel, rect, rej, rrect))
 
 
-def log_for(samples):
-    """Log lines in the implementation's format, derived from the samples' own fields."""
+def log_for(samples, stage_lines=True):
+    """Log lines in the implementation's format, derived from the samples' own fields: the
+    harness's "stage=" line before each change of stage, then the sample line with its
+    orientation, counts, stage and camera."""
     lines = []
-    for s in samples:
+    current = None
+    for s in sorted(samples, key=lambda s: s.get("at", 0)):
         c = s.get("counts") or {}
         rungs = " ".join(f"r{i}={v}" for i, v in enumerate(c.get("rungs") or []))
+        if stage_lines and s.get("stage") != current:
+            current = s.get("stage")
+            lines.append(f"[STDOUT]: [voxy-harness] stage={current}\n")
+        cam = " ".join("NaN" if v is None else str(float(v)) for v in (s.get("camera") or []))
         lines.append(f"[native-vk] depth ladder sample at draw {s.get('at', 0)}"
                      f" flipped={str(s.get('flipped', False)).lower()} counts=[anomaly="
-                     f"{c.get('anomaly')} low={c.get('low')} {rungs} other={c.get('other')}]\n")
+                     f"{c.get('anomaly')} low={c.get('low')} {rungs} other={c.get('other')}]"
+                     f" stage={s.get('stage')} camera=[{cam}]\n")
     return "".join(lines)
 
 
@@ -392,7 +402,7 @@ class LadderGateTest(unittest.TestCase):
         self.assertFails(self.run_gate(body, fields, log=text), "flipped/counts")
         body, fields = self.one()
         text = f"[native-vk] depth ladder sample at draw {body['samples'][0]['at']} \n"
-        self.assertFails(self.run_gate(body, fields, log=text), "orientation and counts")
+        self.assertFails(self.run_gate(body, fields, log=text), "does not state its orientation")
 
     def test_the_pinned_constants_are_the_literal_ones(self):
         """Round-9: the fixtures share the gate's constants, so doubling them in memory kept
@@ -621,15 +631,67 @@ class LadderDirectionTest(unittest.TestCase):
         self.assertIn("no ladder sample was taken during descend", " ".join(result["failures"]))
 
     def test_a_camera_not_where_the_stage_put_it_fails(self):
+        """Round-13 R13-TEST-XZ: y and pitch were tested; x and z were not."""
+        for index, axis, delta in ((0, 1, 3.0), (1, 3, -60.0), (0, 0, 2.5), (1, 2, -2.5)):
+            pairs = direction_samples()
+            pairs[index][0]["camera"][axis] += delta
+            result = self.run_direction(pairs=pairs)
+            self.assertFalse(result["success"], (axis, delta))
+            self.assertIn("no ladder sample was taken during", " ".join(result["failures"]))
+
+    def test_report_only_relabelling_is_caught_by_the_log(self):
+        """Round-13 R13-Z-BINDING: swapping the stage labels and camera y values in the report
+        alone, with every image and the log unchanged, reversed the direction."""
         pairs = direction_samples()
-        pairs[0][0]["camera"][1] += 3.0
+        truthful_log = log_for([s for s, _ in pairs])
+        a, b = pairs[0][0], pairs[1][0]
+        a["stage"], b["stage"] = b["stage"], a["stage"]
+        a["camera"][1], b["camera"][1] = b["camera"][1], a["camera"][1]
+        gate = LadderGateTest()
+        result = gate.run_gate(report(samples=[a, b]), [f for _, f in pairs], log=truthful_log,
+                               checkpoints=direction_checkpoints())
+        self.assertFalse(result["success"])
+        self.assertIn("log for draw", " ".join(result["failures"]))
+
+    def test_a_stage_label_the_harness_log_contradicts_fails(self):
+        """The sample line may say one stage while the harness's own stage= line said another."""
+        pairs = direction_samples()
+        text = log_for([s for s, _ in pairs]).replace("[voxy-harness] stage=descend",
+                                                      "[voxy-harness] stage=overworld")
+        gate = LadderGateTest()
+        result = gate.run_gate(report(samples=[s for s, _ in pairs]), [f for _, f in pairs],
+                               log=text, checkpoints=direction_checkpoints())
+        self.assertFalse(result["success"])
+        self.assertIn("had stage 'overworld' current", " ".join(result["failures"]))
+
+    def test_split_grounds_or_a_checkpoint_that_contradicts_its_teleport_fail(self):
+        """Round-13: ground 163 for descend and -29 for ascend made the far camera 'near'."""
+        pairs = direction_samples()
+        a, b = pairs[0][0], pairs[1][0]
+        a["stage"], b["stage"] = b["stage"], a["stage"]
+        checkpoints = direction_checkpoints()
+        for case in checkpoints:
+            if case["stage"] == "descend":
+                case["groundY"] = 163
+            if case["stage"] == "ascend":
+                case["groundY"] = -29
+        result = self.run_direction(pairs=pairs, checkpoints=checkpoints)
+        self.assertFalse(result["success"])
+        joined = " ".join(result["failures"])
+        self.assertTrue("different grounds" in joined or "log for draw" in joined, joined)
+        checkpoints = direction_checkpoints()
+        for case in checkpoints:
+            if case["stage"] == "ascend":
+                case["cameraY"] = case["cameraY"] - 40
+        result = self.run_direction(checkpoints=checkpoints)
+        self.assertFalse(result["success"])
+        self.assertIn("cameraY", " ".join(result["failures"]))
+
+    def test_the_lifecycle_order_and_height_order_are_required(self):
+        pairs = sorted(direction_samples(near_at=3240, far_at=3000), key=lambda p: p[0]["at"])
         result = self.run_direction(pairs=pairs)
         self.assertFalse(result["success"])
-        self.assertIn("descend", " ".join(result["failures"]))
-        pairs = direction_samples()
-        pairs[1][0]["camera"][3] = 30.0
-        result = self.run_direction(pairs=pairs)
-        self.assertFalse(result["success"])
+        self.assertIn("does not precede", " ".join(result["failures"]))
 
     def test_a_look_with_sky_in_it_fails(self):
         pairs = direction_samples(near_kind="clouds")
@@ -668,7 +730,8 @@ class LadderRetentionTest(unittest.TestCase):
     gate, tied to that launch's own checkpoints — or replay must say it was not retained."""
 
     def build(self, kind="gradient", flipped=False, with_files=True, with_ladder=True,
-              with_own_result=True, samples=None):
+              with_own_result=True, samples=None,
+              saved_direction="larger depth value is nearer (reverse-Z)"):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         root = Path(tmp.name)
@@ -700,7 +763,8 @@ class LadderRetentionTest(unittest.TestCase):
                     {"complete": True, "success": True, "failures": [],
                      "checkpoints": checkpoints}))
             (root / "native-ladder.log").write_text("ladder log\n" + log_for(body["samples"]))
-            stage["ladder_run"] = {"environment": {"checkpoints": checkpoints}}
+            stage["ladder_run"] = {"environment": {"checkpoints": checkpoints},
+                                   "ladder": {"z_direction": {"direction": saved_direction}}}
         (root / "summary.json").write_text(json.dumps(
             {"stages": {"native_environment": stage}}))
         original = verify.ROOT
@@ -886,6 +950,13 @@ class LadderRetentionTest(unittest.TestCase):
         code, out = self.replay(target)
         self.assertEqual(code, 1)
         self.assertIn("belong to no listed sample", out["error"])
+
+    def test_a_saved_direction_that_disagrees_with_the_evidence_is_rejected(self):
+        """Round-13 R13-Z-BINDING: the summary's saved direction was never reconciled."""
+        target, _ = self.build(saved_direction="smaller depth value is nearer (conventional Z)")
+        code, out = self.replay(target)
+        self.assertEqual(code, 1)
+        self.assertIn("saved the direction", out["error"])
 
     def test_a_ladder_whose_launch_saw_another_device_is_rejected(self):
         """The ladder is a second process; its identity is tied to ITS checkpoints."""

@@ -1,0 +1,3980 @@
+{
+  "success": true,
+  "host": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "revision": "bebcbd649b5b4f1459a5ca4a78951695aca4c523",
+  "output": "/Users/xyz/dev/voxy/build/harness/20261009T041151-205062Z",
+  "stages": {
+    "native_environment": {
+      "command": [
+        "/Users/xyz/dev/voxy/gradlew",
+        "--console=plain",
+        "runHarnessClient",
+        "--offline",
+        "-PvkLibname=/opt/homebrew/lib/libvulkan.dylib",
+        "-PvkValidation=true",
+        "-PvkSyncEnv=true",
+        "-PharnessOutput=/Users/xyz/dev/voxy/build/harness/20261009T041151-205062Z/native",
+        "-PharnessRunDir=/Users/xyz/dev/voxy/build/harness/20261009T041151-205062Z/native/game",
+        "-PharnessSeconds=8",
+        "-PharnessNative=true",
+        "-PharnessGraphicsBackend=vulkan",
+        "-PharnessNativeMarker=true",
+        "-PharnessNativeFeatures=true",
+        "-PharnessNativeAdopt=true",
+        "-PharnessNativeProbe=true",
+        "-PharnessNativeTerrain=true",
+        "-PharnessNativeDepth=true"
+      ],
+      "exit_code": 0,
+      "timeout": false,
+      "seconds": 121.99,
+      "log": "/Users/xyz/dev/voxy/build/harness/20261009T041151-205062Z/native.log",
+      "success": true,
+      "gate": {
+        "success": true,
+        "failures": [],
+        "scope": "Minecraft Vulkan environment; no Voxy LoD acceptance",
+        "checkpoints": [
+          {
+            "stage": "warmup",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 90159953477714,
+                "vkImageView": 94557999988822,
+                "format": "RGBA8_UNORM",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 92358976733268,
+                "vkImageView": 95657511616599,
+                "format": "D32_FLOAT",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 14.868961917,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 441,
+            "frameCoveredByGui": false,
+            "playerY": 120.0,
+            "cameraY": 121.61999988555908,
+            "playerPitch": 30.0
+          },
+          {
+            "stage": "turn",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 90159953477714,
+                "vkImageView": 94557999988822,
+                "format": "RGBA8_UNORM",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 92358976733268,
+                "vkImageView": 95657511616599,
+                "format": "D32_FLOAT",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 23.870882084,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 973,
+            "frameCoveredByGui": false,
+            "playerY": 120.0,
+            "cameraY": 121.61999988555908,
+            "playerPitch": 30.0
+          },
+          {
+            "stage": "travel",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 90159953477714,
+                "vkImageView": 94557999988822,
+                "format": "RGBA8_UNORM",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 92358976733268,
+                "vkImageView": 95657511616599,
+                "format": "D32_FLOAT",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 31.92007125,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 1450,
+            "frameCoveredByGui": false,
+            "playerY": 120.0,
+            "cameraY": 121.61999988555908,
+            "playerPitch": 30.0
+          },
+          {
+            "stage": "return",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 90159953477714,
+                "vkImageView": 94557999988822,
+                "format": "RGBA8_UNORM",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 92358976733268,
+                "vkImageView": 95657511616599,
+                "format": "D32_FLOAT",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 39.964941584,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 1928,
+            "frameCoveredByGui": false,
+            "playerY": 120.0,
+            "cameraY": 121.61999988555908,
+            "playerPitch": 30.0
+          },
+          {
+            "stage": "edit",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 90159953477714,
+                "vkImageView": 94557999988822,
+                "format": "RGBA8_UNORM",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 92358976733268,
+                "vkImageView": 95657511616599,
+                "format": "D32_FLOAT",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 48.016803209,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 2403,
+            "frameCoveredByGui": false,
+            "playerY": 120.0,
+            "cameraY": 121.61999988555908,
+            "playerPitch": 30.0
+          },
+          {
+            "stage": "remove",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 90159953477714,
+                "vkImageView": 94557999988822,
+                "format": "RGBA8_UNORM",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 92358976733268,
+                "vkImageView": 95657511616599,
+                "format": "D32_FLOAT",
+                "width": 1708,
+                "height": 960,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 56.058108417,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 2881,
+            "frameCoveredByGui": false,
+            "playerY": 120.0,
+            "cameraY": 121.61999988555908,
+            "playerPitch": 30.0
+          },
+          {
+            "stage": "resize",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 32110137577599508,
+                "vkImageView": 32112336600855062,
+                "format": "RGBA8_UNORM",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 32106839042716177,
+                "vkImageView": 32109038065971731,
+                "format": "D32_FLOAT",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 64.062447584,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 3233,
+            "frameCoveredByGui": false,
+            "playerY": 120.0,
+            "cameraY": 121.61999988555908,
+            "playerPitch": 30.0
+          },
+          {
+            "stage": "reload",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 32110137577599508,
+                "vkImageView": 32112336600855062,
+                "format": "RGBA8_UNORM",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 32106839042716177,
+                "vkImageView": 32109038065971731,
+                "format": "D32_FLOAT",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 72.07664375,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 3434,
+            "frameCoveredByGui": false,
+            "playerY": 120.0,
+            "cameraY": 121.61999988555908,
+            "playerPitch": 30.0
+          },
+          {
+            "stage": "nether",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 32110137577599508,
+                "vkImageView": 32112336600855062,
+                "format": "RGBA8_UNORM",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 32106839042716177,
+                "vkImageView": 32109038065971731,
+                "format": "D32_FLOAT",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:the_nether]",
+            "seconds": 80.138822917,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 3673,
+            "frameCoveredByGui": false,
+            "playerY": 100.0,
+            "cameraY": 101.61999988555908,
+            "playerPitch": 30.0
+          },
+          {
+            "stage": "overworld",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 32110137577599508,
+                "vkImageView": 32112336600855062,
+                "format": "RGBA8_UNORM",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 32106839042716177,
+                "vkImageView": 32109038065971731,
+                "format": "D32_FLOAT",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 88.181241959,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 3911,
+            "frameCoveredByGui": false,
+            "playerY": 120.0,
+            "cameraY": 121.61999988555908,
+            "playerPitch": 30.0
+          },
+          {
+            "stage": "descend",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 32110137577599508,
+                "vkImageView": 32112336600855062,
+                "format": "RGBA8_UNORM",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 32106839042716177,
+                "vkImageView": 32109038065971731,
+                "format": "D32_FLOAT",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 96.238943417,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 4151,
+            "frameCoveredByGui": false,
+            "playerY": 79.0,
+            "cameraY": 80.61999988555908,
+            "playerPitch": 90.0,
+            "groundY": 67
+          },
+          {
+            "stage": "ascend",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 32110137577599508,
+                "vkImageView": 32112336600855062,
+                "format": "RGBA8_UNORM",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 32106839042716177,
+                "vkImageView": 32109038065971731,
+                "format": "D32_FLOAT",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 104.29364225,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 4390,
+            "frameCoveredByGui": false,
+            "playerY": 175.0,
+            "cameraY": 176.61999988555908,
+            "playerPitch": 90.0,
+            "groundY": 67
+          },
+          {
+            "stage": "reconnect",
+            "renderer": {
+              "mcUsesVulkan": true,
+              "backendDescription": "LWJGL version 3.4.1-snapshot",
+              "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+              "deviceName": "Apple M4 Pro",
+              "vendorName": "APPLE",
+              "driverInfo": "1.2.357 MoltenVK 1.4.2",
+              "vkDevice": 516976492568,
+              "vkInstance": 516888477696,
+              "vmaAllocator": 5099126784,
+              "graphicsQueueFamily": 0,
+              "computeQueueFamily": 3,
+              "transferQueueFamily": 3,
+              "colour": {
+                "role": "colour",
+                "label": "Main / Color",
+                "vkImage": 32110137577599508,
+                "vkImageView": 32112336600855062,
+                "format": "RGBA8_UNORM",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "depth": {
+                "role": "depth",
+                "label": "Main / Depth",
+                "vkImage": 32106839042716177,
+                "vkImageView": 32109038065971731,
+                "format": "D32_FLOAT",
+                "width": 1920,
+                "height": 1080,
+                "mipLevels": 1,
+                "usage": 15
+              },
+              "notes": []
+            },
+            "voxyBackend": "null",
+            "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+            "seconds": 112.736464959,
+            "deviceDebuggingEnabled": true,
+            "deviceDebugMessages": [],
+            "markerDraws": 4607,
+            "frameCoveredByGui": false,
+            "playerY": 175.0,
+            "cameraY": 176.61999988555908,
+            "playerPitch": 30.0,
+            "groundY": 67
+          }
+        ],
+        "voxy_integration_status": "BLOCKED_UNIMPLEMENTED"
+      },
+      "marker": {
+        "success": true,
+        "failures": [],
+        "scope": "bounded marker draw and depth proof in Minecraft's own Vulkan frame",
+        "report": {
+          "enabled": true,
+          "drawsRecorded": 4200,
+          "pipelineLive": true,
+          "colourVkFormat": 37,
+          "targetWidth": 1920,
+          "targetHeight": 1080,
+          "markerRgb": [
+            255,
+            0,
+            255
+          ],
+          "farRgb": [
+            0,
+            255,
+            255
+          ],
+          "rejectedRgb": [
+            255,
+            255,
+            0
+          ],
+          "depthAttached": true,
+          "geometry": {
+            "box": [
+              -0.98,
+              0.98,
+              -0.78,
+              0.78
+            ],
+            "nearSplitX": -0.86,
+            "controlStrip": [
+              -0.98,
+              0.76,
+              -0.78,
+              0.72
+            ],
+            "depthTestedPassCell": [
+              -0.98,
+              0.7,
+              -0.78,
+              0.66
+            ]
+          },
+          "depthVkFormat": 126,
+          "device": "0x785e334018",
+          "readback": {
+            "attempted": true,
+            "completed": true,
+            "near": 12420,
+            "far": 8316,
+            "rejectedInBox": 0,
+            "control": 4224,
+            "boxArea": 20736,
+            "controlArea": 4224,
+            "note": null,
+            "timesClean": 18,
+            "timesWithAProblem": 0,
+            "firstProblem": null,
+            "flipped": true,
+            "sampleAtDraw": 4082,
+            "sampleFile": "native-marker-sample-4082.ppm",
+            "closeFailures": 0,
+            "rejectedOrientationSample": "native-marker-rejected-4082.ppm.gz",
+            "rejectedOrientationFlipped": false,
+            "rejectedOrientationRect": [
+              19,
+              10,
+              211,
+              183
+            ],
+            "leakedPipelines": 0,
+            "leakBudget": 3,
+            "failureBudget": 3,
+            "sampleRect": [
+              19,
+              896,
+              211,
+              1069
+            ]
+          },
+          "notes": []
+        },
+        "readback": {
+          "attempted": true,
+          "completed": true,
+          "near": 12420,
+          "far": 8316,
+          "rejectedInBox": 0,
+          "control": 4224,
+          "boxArea": 20736,
+          "controlArea": 4224,
+          "note": null,
+          "timesClean": 18,
+          "timesWithAProblem": 0,
+          "firstProblem": null,
+          "flipped": true,
+          "sampleAtDraw": 4082,
+          "sampleFile": "native-marker-sample-4082.ppm",
+          "closeFailures": 0,
+          "rejectedOrientationSample": "native-marker-rejected-4082.ppm.gz",
+          "rejectedOrientationFlipped": false,
+          "rejectedOrientationRect": [
+            19,
+            10,
+            211,
+            183
+          ],
+          "leakedPipelines": 0,
+          "leakBudget": 3,
+          "failureBudget": 3,
+          "sampleRect": [
+            19,
+            896,
+            211,
+            1069
+          ]
+        },
+        "recount": {
+          "sample": "native-marker-sample-4082.ppm",
+          "flipped": true,
+          "near": 12420,
+          "nearArea": 12420,
+          "far": 8316,
+          "farArea": 8316,
+          "cell": 4224,
+          "cellArea": 4224,
+          "controlStrip": 4032,
+          "controlStripArea": 4224,
+          "rejectedInBox": 0,
+          "sampleAtDraw": 4082
+        },
+        "rejected_orientation": {
+          "sample": "native-marker-rejected-4082.ppm.gz",
+          "flipped": false,
+          "near": 0,
+          "nearArea": 12420,
+          "far": 0,
+          "farArea": 8316,
+          "cell": 0,
+          "cellArea": 4032,
+          "controlStrip": 0,
+          "controlStripArea": 4224,
+          "rejectedInBox": 0,
+          "satisfiedRegions": 0
+        },
+        "depth_proof": {
+          "warmup": {
+            "near": 9690,
+            "nearArea": 9792,
+            "far": 6365,
+            "farArea": 6528,
+            "rejectedInBox": 0,
+            "control": 3230,
+            "controlArea": 3230,
+            "markerDraws": 441,
+            "frameCoveredByGui": false
+          },
+          "turn": {
+            "near": 9690,
+            "nearArea": 9792,
+            "far": 6365,
+            "farArea": 6528,
+            "rejectedInBox": 0,
+            "control": 3230,
+            "controlArea": 3230,
+            "markerDraws": 973,
+            "frameCoveredByGui": false
+          },
+          "travel": {
+            "near": 9690,
+            "nearArea": 9792,
+            "far": 6365,
+            "farArea": 6528,
+            "rejectedInBox": 0,
+            "control": 3230,
+            "controlArea": 3230,
+            "markerDraws": 1450,
+            "frameCoveredByGui": false
+          },
+          "return": {
+            "near": 9690,
+            "nearArea": 9792,
+            "far": 6365,
+            "farArea": 6528,
+            "rejectedInBox": 0,
+            "control": 3230,
+            "controlArea": 3230,
+            "markerDraws": 1928,
+            "frameCoveredByGui": false
+          },
+          "edit": {
+            "near": 9690,
+            "nearArea": 9792,
+            "far": 6365,
+            "farArea": 6528,
+            "rejectedInBox": 0,
+            "control": 3230,
+            "controlArea": 3230,
+            "markerDraws": 2403,
+            "frameCoveredByGui": false
+          },
+          "remove": {
+            "near": 9690,
+            "nearArea": 9792,
+            "far": 6365,
+            "farArea": 6528,
+            "rejectedInBox": 0,
+            "control": 3230,
+            "controlArea": 3230,
+            "markerDraws": 2881,
+            "frameCoveredByGui": false
+          },
+          "resize": {
+            "near": 12305,
+            "nearArea": 12420,
+            "far": 8239,
+            "farArea": 8316,
+            "rejectedInBox": 0,
+            "control": 4032,
+            "controlArea": 4224,
+            "markerDraws": 3233,
+            "frameCoveredByGui": false
+          },
+          "reload": {
+            "near": 12305,
+            "nearArea": 12420,
+            "far": 8239,
+            "farArea": 8316,
+            "rejectedInBox": 0,
+            "control": 4032,
+            "controlArea": 4224,
+            "markerDraws": 3434,
+            "frameCoveredByGui": false
+          },
+          "nether": {
+            "near": 0,
+            "nearArea": 12420,
+            "far": 0,
+            "farArea": 8316,
+            "rejectedInBox": 0,
+            "control": 0,
+            "controlArea": 4224,
+            "markerDraws": 3673,
+            "frameCoveredByGui": false
+          },
+          "overworld": {
+            "near": 12305,
+            "nearArea": 12420,
+            "far": 8239,
+            "farArea": 8316,
+            "rejectedInBox": 0,
+            "control": 4032,
+            "controlArea": 4224,
+            "markerDraws": 3911,
+            "frameCoveredByGui": false
+          },
+          "descend": {
+            "near": 12305,
+            "nearArea": 12420,
+            "far": 8239,
+            "farArea": 8316,
+            "rejectedInBox": 0,
+            "control": 4032,
+            "controlArea": 4224,
+            "markerDraws": 4151,
+            "frameCoveredByGui": false
+          },
+          "ascend": {
+            "near": 12305,
+            "nearArea": 12420,
+            "far": 8239,
+            "farArea": 8316,
+            "rejectedInBox": 0,
+            "control": 4032,
+            "controlArea": 4224,
+            "markerDraws": 4390,
+            "frameCoveredByGui": false
+          },
+          "reconnect": {
+            "near": 12305,
+            "nearArea": 12420,
+            "far": 8239,
+            "farArea": 8316,
+            "rejectedInBox": 0,
+            "control": 4032,
+            "controlArea": 4224,
+            "markerDraws": 4607,
+            "frameCoveredByGui": false
+          }
+        },
+        "frames_without_level_content": {
+          "nether": {
+            "markerDraws": 3673,
+            "previous": 3434,
+            "frameCoveredByGui": false
+          }
+        }
+      },
+      "proofs": {
+        "success": true,
+        "failures": [],
+        "files": {
+          "native-device-features.json": {
+            "enabled": true,
+            "attempted": true,
+            "added": [
+              "drawIndirectFirstInstance",
+              "shaderInt64",
+              "fragmentStoresAndAtomics",
+              "vertexPipelineStoresAndAtomics"
+            ],
+            "notes": [
+              "drawIndirectFirstInstance: offset 40 verified by read-back",
+              "shaderInt64: offset 160 verified by read-back",
+              "fragmentStoresAndAtomics: offset 104 verified by read-back",
+              "vertexPipelineStoresAndAtomics: offset 100 verified by read-back"
+            ]
+          },
+          "native-compute-probe.json": {
+            "attempted": true,
+            "succeeded": true,
+            "expected": "0x123456789abcdef",
+            "readBack": "0x123456789abcdef",
+            "queueFamily": 3,
+            "device": "0x785e334018",
+            "notes": []
+          },
+          "native-adopted-context.json": {
+            "enabled": true,
+            "attempted": true,
+            "adopted": true,
+            "queueFamily": 0,
+            "device": "0x785e334018",
+            "provenByVoxyBufferAndShader": true,
+            "readBack": "0x123456789abcdef",
+            "notes": []
+          },
+          "native-real-shader.json": {
+            "attempted": true,
+            "succeeded": true,
+            "quadOrdinalsChecked": 189,
+            "mismatches": 0,
+            "device": "0x785e334018",
+            "firstMismatch": null,
+            "notes": []
+          },
+          "native-marker-draw.json": {
+            "enabled": true,
+            "drawsRecorded": 4200,
+            "pipelineLive": true,
+            "colourVkFormat": 37,
+            "targetWidth": 1920,
+            "targetHeight": 1080,
+            "markerRgb": [
+              255,
+              0,
+              255
+            ],
+            "farRgb": [
+              0,
+              255,
+              255
+            ],
+            "rejectedRgb": [
+              255,
+              255,
+              0
+            ],
+            "depthAttached": true,
+            "geometry": {
+              "box": [
+                -0.98,
+                0.98,
+                -0.78,
+                0.78
+              ],
+              "nearSplitX": -0.86,
+              "controlStrip": [
+                -0.98,
+                0.76,
+                -0.78,
+                0.72
+              ],
+              "depthTestedPassCell": [
+                -0.98,
+                0.7,
+                -0.78,
+                0.66
+              ]
+            },
+            "depthVkFormat": 126,
+            "device": "0x785e334018",
+            "readback": {
+              "attempted": true,
+              "completed": true,
+              "near": 12420,
+              "far": 8316,
+              "rejectedInBox": 0,
+              "control": 4224,
+              "boxArea": 20736,
+              "controlArea": 4224,
+              "note": null,
+              "timesClean": 18,
+              "timesWithAProblem": 0,
+              "firstProblem": null,
+              "flipped": true,
+              "sampleAtDraw": 4082,
+              "sampleFile": "native-marker-sample-4082.ppm",
+              "closeFailures": 0,
+              "rejectedOrientationSample": "native-marker-rejected-4082.ppm.gz",
+              "rejectedOrientationFlipped": false,
+              "rejectedOrientationRect": [
+                19,
+                10,
+                211,
+                183
+              ],
+              "leakedPipelines": 0,
+              "leakBudget": 3,
+              "failureBudget": 3,
+              "sampleRect": [
+                19,
+                896,
+                211,
+                1069
+              ]
+            },
+            "notes": []
+          },
+          "native-vulkan-probe.json": {
+            "mcUsesVulkan": true,
+            "backendDescription": "LWJGL version 3.4.1-snapshot",
+            "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+            "deviceName": "Apple M4 Pro",
+            "vendorName": "APPLE",
+            "driverInfo": "1.2.357 MoltenVK 1.4.2",
+            "vkInstance": "0x7858f44000",
+            "vkDevice": "0x785e334018",
+            "vmaAllocator": "0x12fee8000",
+            "graphicsQueueFamily": 0,
+            "computeQueueFamily": 3,
+            "transferQueueFamily": 3,
+            "colour": {
+              "role": "colour",
+              "label": "Main / Color",
+              "vkImage": "0x520000000052",
+              "vkImageView": "0x560000000056",
+              "format": "RGBA8_UNORM",
+              "width": 1708,
+              "height": 960,
+              "mipLevels": 1,
+              "usage": "0xf"
+            },
+            "depth": {
+              "role": "depth",
+              "label": "Main / Depth",
+              "vkImage": "0x540000000054",
+              "vkImageView": "0x570000000057",
+              "format": "D32_FLOAT",
+              "width": 1708,
+              "height": 960,
+              "mipLevels": 1,
+              "usage": "0xf"
+            },
+            "notes": []
+          }
+        },
+        "device_identities": {
+          "adopted": "0x785e334018",
+          "marker": "0x785e334018",
+          "probe": "0x785e334018",
+          "compute": "0x785e334018",
+          "realShader": "0x785e334018"
+        },
+        "checkpoint_devices": [
+          "0x785e334018"
+        ]
+      },
+      "terrain": {
+        "success": true,
+        "failures": [],
+        "scope": "Voxy's real terrain pipeline recorded into Minecraft's Vulkan frame; EXPERIMENTAL, not an accepted foundation",
+        "report": {
+          "enabled": true,
+          "attempted": true,
+          "built": true,
+          "drawsRecorded": 4200,
+          "targetWidth": 1920,
+          "targetHeight": 1080,
+          "colourVkFormat": 37,
+          "clearRgb": 1707277,
+          "device": "0x785e334018",
+          "timesClean": 19,
+          "timesWithAProblem": 0,
+          "firstProblem": null,
+          "closeFailures": 0,
+          "leakedProbes": 0,
+          "leakBudget": 3,
+          "deviceDiverged": false,
+          "failureBudget": 3,
+          "comparison": {
+            "attempted": true,
+            "completed": true,
+            "referenceSet": 26116,
+            "nativeSet": 26116,
+            "mismatches": 0,
+            "flipped": false,
+            "note": null,
+            "sampleAtDraw": 4085,
+            "sampleFile": "native-terrain-sample-4085.ppm.gz"
+          },
+          "notes": []
+        },
+        "device": 516976492568,
+        "comparison": {
+          "attempted": true,
+          "completed": true,
+          "referenceSet": 26116,
+          "nativeSet": 26116,
+          "mismatches": 0,
+          "flipped": false,
+          "note": null,
+          "sampleAtDraw": 4085,
+          "sampleFile": "native-terrain-sample-4085.ppm.gz"
+        },
+        "recompare": {
+          "sample": "native-terrain-sample-4085.ppm.gz",
+          "size": [
+            1920,
+            1080
+          ],
+          "mismatches": 0,
+          "nativeSet": 26116,
+          "referenceSet": 26116,
+          "sampleAtDraw": 4085
+        }
+      },
+      "depth": {
+        "success": true,
+        "failures": [],
+        "scope": "what Minecraft's depth attachment yields to a buffer copy; NOT the Z convention, which this cannot measure",
+        "report": {
+          "enabled": true,
+          "attempted": true,
+          "completed": true,
+          "uniform": true,
+          "depthVkFormat": 126,
+          "width": 1708,
+          "height": 960,
+          "min": 0.0,
+          "max": 0.0,
+          "topMean": 0.0,
+          "bottomMean": 0.0,
+          "clearedValue": 0.03125,
+          "clearedShare": 1.0,
+          "bins": 16,
+          "histogram": [
+            1639680,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "zConventionMeasuredHere": false,
+          "sampleFile": "native-depth-sample.pgm.gz",
+          "basis": "the copy completed but every one of 1639680 pixels is 0.0; a uniform image cannot be Minecraft's scene depth, so this path does not observe it",
+          "closeFailures": 0,
+          "device": "0x785e334018",
+          "notes": []
+        },
+        "readable": true,
+        "z_convention_measured": false,
+        "recount": {
+          "sample": "native-depth-sample.pgm.gz",
+          "size": [
+            1708,
+            960
+          ],
+          "min": 0.0,
+          "max": 0.0,
+          "histogram": [
+            1639680,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "topMean": 0.0,
+          "bottomMean": 0.0,
+          "clearedValue": 0.03125,
+          "clearedShare": 1.0
+        },
+        "answer": "the copy completed but every pixel was identical (0.0), so this path does not observe Minecraft's scene depth",
+        "basis": "the copy completed but every one of 1639680 pixels is 0.0; a uniform image cannot be Minecraft's scene depth, so this path does not observe it"
+      },
+      "diagnostics": [],
+      "validation_layer_loader_evidence": [
+        "[Vulkan Loader] INFO | LAYER:   Insert instance layer \"VK_LAYER_KHRONOS_validation\" (/opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib)",
+        "[Vulkan Loader] INFO | LAYER:   Inserted device layer \"VK_LAYER_KHRONOS_validation\" (/opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib)"
+      ],
+      "application_errors": [
+        "[13:11:59] [Render thread/ERROR] (Voxy) [me.cx.vy.ct.VoxyClient]: Minecraft is not using the OpenGL backend; Voxy's Vulkan path still needs a GL context to composite through. Voxy will disable itself. (set preferredGraphicsBackend to \"default\" in options.txt)",
+        "[13:11:59] [Render thread/ERROR] (Voxy) [me.cx.vy.ct.VoxyClient]: Voxy is unsupported on your system."
+      ],
+      "unexpected_application_errors": [],
+      "scope": "Minecraft-native Vulkan environment only; no Voxy LoD acceptance",
+      "voxy_integration_status": "BLOCKED_UNIMPLEMENTED",
+      "ladder_run": {
+        "command": [
+          "/Users/xyz/dev/voxy/gradlew",
+          "--console=plain",
+          "runHarnessClient",
+          "--offline",
+          "-PvkLibname=/opt/homebrew/lib/libvulkan.dylib",
+          "-PvkValidation=true",
+          "-PvkSyncEnv=true",
+          "-PharnessOutput=/Users/xyz/dev/voxy/build/harness/20261009T041151-205062Z/native-ladder",
+          "-PharnessRunDir=/Users/xyz/dev/voxy/build/harness/20261009T041151-205062Z/native-ladder/game",
+          "-PharnessSeconds=8",
+          "-PharnessNative=true",
+          "-PharnessGraphicsBackend=vulkan",
+          "-PharnessNativeFeatures=true",
+          "-PharnessNativeAdopt=true",
+          "-PharnessNativeProbe=true",
+          "-PharnessNativeDepthLadder=true"
+        ],
+        "exit_code": 0,
+        "timeout": false,
+        "seconds": 120.38,
+        "log": "/Users/xyz/dev/voxy/build/harness/20261009T041151-205062Z/native-ladder.log",
+        "success": true,
+        "environment": {
+          "success": true,
+          "failures": [],
+          "scope": "Minecraft Vulkan environment; no Voxy LoD acceptance",
+          "checkpoints": [
+            {
+              "stage": "warmup",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 90159953477714,
+                  "vkImageView": 94557999988822,
+                  "format": "RGBA8_UNORM",
+                  "width": 1708,
+                  "height": 960,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 92358976733268,
+                  "vkImageView": 95657511616599,
+                  "format": "D32_FLOAT",
+                  "width": 1708,
+                  "height": 960,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+              "seconds": 14.38373225,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 120.0,
+              "cameraY": 121.61999988555908,
+              "playerPitch": 30.0
+            },
+            {
+              "stage": "turn",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 90159953477714,
+                  "vkImageView": 94557999988822,
+                  "format": "RGBA8_UNORM",
+                  "width": 1708,
+                  "height": 960,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 92358976733268,
+                  "vkImageView": 95657511616599,
+                  "format": "D32_FLOAT",
+                  "width": 1708,
+                  "height": 960,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+              "seconds": 23.389939333,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 120.0,
+              "cameraY": 121.61999988555908,
+              "playerPitch": 30.0
+            },
+            {
+              "stage": "travel",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 90159953477714,
+                  "vkImageView": 94557999988822,
+                  "format": "RGBA8_UNORM",
+                  "width": 1708,
+                  "height": 960,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 92358976733268,
+                  "vkImageView": 95657511616599,
+                  "format": "D32_FLOAT",
+                  "width": 1708,
+                  "height": 960,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+              "seconds": 31.431454625,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 120.0,
+              "cameraY": 121.61999988555908,
+              "playerPitch": 30.0
+            },
+            {
+              "stage": "return",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 90159953477714,
+                  "vkImageView": 94557999988822,
+                  "format": "RGBA8_UNORM",
+                  "width": 1708,
+                  "height": 960,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 92358976733268,
+                  "vkImageView": 95657511616599,
+                  "format": "D32_FLOAT",
+                  "width": 1708,
+                  "height": 960,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+              "seconds": 39.436840833,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 120.0,
+              "cameraY": 121.61999988555908,
+              "playerPitch": 30.0
+            },
+            {
+              "stage": "edit",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 90159953477714,
+                  "vkImageView": 94557999988822,
+                  "format": "RGBA8_UNORM",
+                  "width": 1708,
+                  "height": 960,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 92358976733268,
+                  "vkImageView": 95657511616599,
+                  "format": "D32_FLOAT",
+                  "width": 1708,
+                  "height": 960,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+              "seconds": 47.445349041,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 120.0,
+              "cameraY": 121.61999988555908,
+              "playerPitch": 30.0
+            },
+            {
+              "stage": "remove",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 90159953477714,
+                  "vkImageView": 94557999988822,
+                  "format": "RGBA8_UNORM",
+                  "width": 1708,
+                  "height": 960,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 92358976733268,
+                  "vkImageView": 95657511616599,
+                  "format": "D32_FLOAT",
+                  "width": 1708,
+                  "height": 960,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+              "seconds": 55.492353291,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 120.0,
+              "cameraY": 121.61999988555908,
+              "playerPitch": 30.0
+            },
+            {
+              "stage": "resize",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 32056261507838435,
+                  "vkImageView": 32058460531093989,
+                  "format": "RGBA8_UNORM",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 32052962972955104,
+                  "vkImageView": 32055161996210658,
+                  "format": "D32_FLOAT",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+              "seconds": 63.501450541,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 120.0,
+              "cameraY": 121.61999988555908,
+              "playerPitch": 30.0
+            },
+            {
+              "stage": "reload",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 32056261507838435,
+                  "vkImageView": 32058460531093989,
+                  "format": "RGBA8_UNORM",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 32052962972955104,
+                  "vkImageView": 32055161996210658,
+                  "format": "D32_FLOAT",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+              "seconds": 71.548151125,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 120.0,
+              "cameraY": 121.61999988555908,
+              "playerPitch": 30.0
+            },
+            {
+              "stage": "nether",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 32056261507838435,
+                  "vkImageView": 32058460531093989,
+                  "format": "RGBA8_UNORM",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 32052962972955104,
+                  "vkImageView": 32055161996210658,
+                  "format": "D32_FLOAT",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:the_nether]",
+              "seconds": 79.603253791,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 100.0,
+              "cameraY": 101.61999988555908,
+              "playerPitch": 30.0
+            },
+            {
+              "stage": "overworld",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 32056261507838435,
+                  "vkImageView": 32058460531093989,
+                  "format": "RGBA8_UNORM",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 32052962972955104,
+                  "vkImageView": 32055161996210658,
+                  "format": "D32_FLOAT",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+              "seconds": 87.653126875,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 120.0,
+              "cameraY": 121.61999988555908,
+              "playerPitch": 30.0
+            },
+            {
+              "stage": "descend",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 32056261507838435,
+                  "vkImageView": 32058460531093989,
+                  "format": "RGBA8_UNORM",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 32052962972955104,
+                  "vkImageView": 32055161996210658,
+                  "format": "D32_FLOAT",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+              "seconds": 95.692004625,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 79.0,
+              "cameraY": 80.61999988555908,
+              "playerPitch": 90.0,
+              "groundY": 67
+            },
+            {
+              "stage": "ascend",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 32056261507838435,
+                  "vkImageView": 32058460531093989,
+                  "format": "RGBA8_UNORM",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 32052962972955104,
+                  "vkImageView": 32055161996210658,
+                  "format": "D32_FLOAT",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+              "seconds": 103.723238791,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 175.0,
+              "cameraY": 176.61999988555908,
+              "playerPitch": 90.0,
+              "groundY": 67
+            },
+            {
+              "stage": "reconnect",
+              "renderer": {
+                "mcUsesVulkan": true,
+                "backendDescription": "LWJGL version 3.4.1-snapshot",
+                "backendClass": "com.mojang.blaze3d.vulkan.VulkanDevice",
+                "deviceName": "Apple M4 Pro",
+                "vendorName": "APPLE",
+                "driverInfo": "1.2.357 MoltenVK 1.4.2",
+                "vkDevice": 527773794328,
+                "vkInstance": 527729623040,
+                "vmaAllocator": 4597907456,
+                "graphicsQueueFamily": 0,
+                "computeQueueFamily": 3,
+                "transferQueueFamily": 3,
+                "colour": {
+                  "role": "colour",
+                  "label": "Main / Color",
+                  "vkImage": 32056261507838435,
+                  "vkImageView": 32058460531093989,
+                  "format": "RGBA8_UNORM",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "depth": {
+                  "role": "depth",
+                  "label": "Main / Depth",
+                  "vkImage": 32052962972955104,
+                  "vkImageView": 32055161996210658,
+                  "format": "D32_FLOAT",
+                  "width": 1920,
+                  "height": 1080,
+                  "mipLevels": 1,
+                  "usage": 15
+                },
+                "notes": []
+              },
+              "voxyBackend": "null",
+              "dimension": "ResourceKey[minecraft:dimension / minecraft:overworld]",
+              "seconds": 112.347755416,
+              "deviceDebuggingEnabled": true,
+              "deviceDebugMessages": [],
+              "markerDraws": 0,
+              "frameCoveredByGui": false,
+              "playerY": 175.0,
+              "cameraY": 176.61999988555908,
+              "playerPitch": 30.0,
+              "groundY": 67
+            }
+          ],
+          "voxy_integration_status": "BLOCKED_UNIMPLEMENTED"
+        },
+        "ladder": {
+          "success": true,
+          "failures": [],
+          "scope": "per-pixel brackets of Minecraft's depth values in one screen band at the LevelRenderer.render tail, from its own depth test; NOT the Z convention, NOT a band-wide bound",
+          "report": {
+            "enabled": true,
+            "attempted": true,
+            "completed": true,
+            "drawsRecorded": 4644,
+            "rungs": 8,
+            "depthWritesEnabled": false,
+            "pipelineStates": [
+              [
+                1,
+                1,
+                0
+              ],
+              [
+                7,
+                1,
+                0
+              ],
+              [
+                4,
+                1,
+                0
+              ]
+            ],
+            "zConventionMeasuredHere": false,
+            "rungDepths": [
+              1.5258789e-05,
+              6.1035156e-05,
+              0.00024414062,
+              0.0009765625,
+              0.00390625,
+              0.015625,
+              0.0625,
+              0.25
+            ],
+            "band": [
+              -0.6,
+              0.36,
+              0.6,
+              0.2
+            ],
+            "palette": [
+              [
+                1.0,
+                1.0,
+                1.0
+              ],
+              [
+                0.5,
+                0.5,
+                0.5
+              ],
+              [
+                1.0,
+                0.0,
+                1.0
+              ],
+              [
+                0.0,
+                1.0,
+                1.0
+              ],
+              [
+                1.0,
+                1.0,
+                0.0
+              ],
+              [
+                1.0,
+                0.0,
+                0.0
+              ],
+              [
+                0.0,
+                1.0,
+                0.0
+              ],
+              [
+                0.0,
+                0.0,
+                1.0
+              ],
+              [
+                1.0,
+                0.5,
+                0.0
+              ],
+              [
+                0.5,
+                0.0,
+                1.0
+              ]
+            ],
+            "readbackInterval": 240,
+            "frameScale": 4,
+            "sampleLimit": 24,
+            "samples": [
+              {
+                "at": 2,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 40550,
+                  "rungs": [
+                    28980,
+                    7422,
+                    0,
+                    0,
+                    0,
+                    1588,
+                    308,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 78232,
+                "file": "native-depth-ladder-2.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-2.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-2.ppm.gz",
+                "stage": "warmup",
+                "camera": [
+                  4.5,
+                  72.52381253242493,
+                  5.5,
+                  0.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 242,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 13303,
+                  "rungs": [
+                    0,
+                    0,
+                    65545,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 77984,
+                "file": "native-depth-ladder-242.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-242.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-242.ppm.gz",
+                "stage": "warmup",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 482,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 33735,
+                  "rungs": [
+                    0,
+                    0,
+                    45113,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 76674,
+                "file": "native-depth-ladder-482.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-482.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-482.ppm.gz",
+                "stage": "turn",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  53.206424713134766
+                ]
+              },
+              {
+                "at": 722,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 33475,
+                  "rungs": [
+                    0,
+                    0,
+                    45373,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 76661,
+                "file": "native-depth-ladder-722.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-722.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-722.ppm.gz",
+                "stage": "turn",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  774.70556640625
+                ]
+              },
+              {
+                "at": 962,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 11482,
+                  "rungs": [
+                    0,
+                    0,
+                    67366,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 77987,
+                "file": "native-depth-ladder-962.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-962.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-962.ppm.gz",
+                "stage": "turn",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 1202,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 78848,
+                  "rungs": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 78848,
+                "file": "native-depth-ladder-1202.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-1202.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-1202.ppm.gz",
+                "stage": "travel",
+                "camera": [
+                  768.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 1442,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 78848,
+                  "rungs": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 78848,
+                "file": "native-depth-ladder-1442.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-1442.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-1442.ppm.gz",
+                "stage": "travel",
+                "camera": [
+                  768.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 1682,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 11482,
+                  "rungs": [
+                    0,
+                    0,
+                    67366,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 77987,
+                "file": "native-depth-ladder-1682.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-1682.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-1682.ppm.gz",
+                "stage": "return",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 1922,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 11482,
+                  "rungs": [
+                    0,
+                    0,
+                    67366,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 77942,
+                "file": "native-depth-ladder-1922.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-1922.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-1922.ppm.gz",
+                "stage": "return",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 2162,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 11482,
+                  "rungs": [
+                    0,
+                    0,
+                    67366,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 77472,
+                "file": "native-depth-ladder-2162.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-2162.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-2162.ppm.gz",
+                "stage": "edit",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 2402,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 11482,
+                  "rungs": [
+                    0,
+                    0,
+                    67366,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 77469,
+                "file": "native-depth-ladder-2402.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-2402.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-2402.ppm.gz",
+                "stage": "edit",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 2642,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 11482,
+                  "rungs": [
+                    0,
+                    0,
+                    67366,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 77940,
+                "file": "native-depth-ladder-2642.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-2642.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-2642.ppm.gz",
+                "stage": "remove",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 2882,
+                "flipped": true,
+                "targetWidth": 1708,
+                "targetHeight": 960,
+                "rect": [
+                  342,
+                  576,
+                  1366,
+                  653
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 11482,
+                  "rungs": [
+                    0,
+                    0,
+                    67366,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  342,
+                  307,
+                  1366,
+                  384
+                ],
+                "rejectedOther": 77940,
+                "file": "native-depth-ladder-2882.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-2882.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-2882.ppm.gz",
+                "stage": "remove",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 3122,
+                "flipped": true,
+                "targetWidth": 1920,
+                "targetHeight": 1080,
+                "rect": [
+                  384,
+                  648,
+                  1536,
+                  734
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 14437,
+                  "rungs": [
+                    0,
+                    0,
+                    84635,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  384,
+                  346,
+                  1536,
+                  432
+                ],
+                "rejectedOther": 97910,
+                "file": "native-depth-ladder-3122.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-3122.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-3122.ppm.gz",
+                "stage": "resize",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 3362,
+                "flipped": true,
+                "targetWidth": 1920,
+                "targetHeight": 1080,
+                "rect": [
+                  384,
+                  648,
+                  1536,
+                  734
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 14437,
+                  "rungs": [
+                    0,
+                    0,
+                    84635,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  384,
+                  346,
+                  1536,
+                  432
+                ],
+                "rejectedOther": 97921,
+                "file": "native-depth-ladder-3362.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-3362.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-3362.ppm.gz",
+                "stage": "reload",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 3602,
+                "flipped": true,
+                "targetWidth": 1920,
+                "targetHeight": 1080,
+                "rect": [
+                  384,
+                  648,
+                  1536,
+                  734
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 80030,
+                  "rungs": [
+                    0,
+                    0,
+                    0,
+                    2738,
+                    16304,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  384,
+                  346,
+                  1536,
+                  432
+                ],
+                "rejectedOther": 99072,
+                "file": "native-depth-ladder-3602.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-3602.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-3602.ppm.gz",
+                "stage": "nether",
+                "camera": [
+                  0.5,
+                  101.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 3842,
+                "flipped": true,
+                "targetWidth": 1920,
+                "targetHeight": 1080,
+                "rect": [
+                  384,
+                  648,
+                  1536,
+                  734
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 14437,
+                  "rungs": [
+                    0,
+                    0,
+                    84635,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  384,
+                  346,
+                  1536,
+                  432
+                ],
+                "rejectedOther": 97912,
+                "file": "native-depth-ladder-3842.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-3842.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-3842.ppm.gz",
+                "stage": "overworld",
+                "camera": [
+                  0.5,
+                  121.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 4082,
+                "flipped": true,
+                "targetWidth": 1920,
+                "targetHeight": 1080,
+                "rect": [
+                  384,
+                  648,
+                  1536,
+                  734
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 0,
+                  "rungs": [
+                    0,
+                    0,
+                    0,
+                    45734,
+                    53338,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  384,
+                  346,
+                  1536,
+                  432
+                ],
+                "rejectedOther": 99072,
+                "file": "native-depth-ladder-4082.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-4082.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-4082.ppm.gz",
+                "stage": "descend",
+                "camera": [
+                  0.5,
+                  80.61999988555908,
+                  0.5,
+                  90.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 4322,
+                "flipped": true,
+                "targetWidth": 1920,
+                "targetHeight": 1080,
+                "rect": [
+                  384,
+                  648,
+                  1536,
+                  734
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 0,
+                  "rungs": [
+                    0,
+                    0,
+                    99072,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  384,
+                  346,
+                  1536,
+                  432
+                ],
+                "rejectedOther": 98680,
+                "file": "native-depth-ladder-4322.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-4322.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-4322.ppm.gz",
+                "stage": "ascend",
+                "camera": [
+                  0.5,
+                  176.61999988555908,
+                  0.5,
+                  90.0,
+                  0.0
+                ]
+              },
+              {
+                "at": 4562,
+                "flipped": true,
+                "targetWidth": 1920,
+                "targetHeight": 1080,
+                "rect": [
+                  384,
+                  648,
+                  1536,
+                  734
+                ],
+                "counts": {
+                  "anomaly": 0,
+                  "low": 99072,
+                  "rungs": [
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0
+                  ],
+                  "other": 0
+                },
+                "rejectedFlipped": false,
+                "rejectedRect": [
+                  384,
+                  346,
+                  1536,
+                  432
+                ],
+                "rejectedOther": 91980,
+                "file": "native-depth-ladder-4562.ppm.gz",
+                "rejectedFile": "native-depth-ladder-rejected-4562.ppm.gz",
+                "frameFile": "native-depth-ladder-frame-4562.ppm.gz",
+                "stage": "reconnect",
+                "camera": [
+                  0.5,
+                  176.61999988555908,
+                  0.5,
+                  30.0,
+                  0.0
+                ]
+              }
+            ],
+            "problems": 0,
+            "firstProblem": null,
+            "closeFailures": 0,
+            "leakedPipelines": 0,
+            "deviceDiverged": false,
+            "terrainProbeEnabled": false,
+            "terrainDrawsRecorded": 0,
+            "markerDrawEnabled": false,
+            "markerDrawsRecorded": 0,
+            "device": "0x7ae1c50018",
+            "notes": []
+          },
+          "device": 527773794328,
+          "samples": [
+            {
+              "anomaly": 0,
+              "low": 40550,
+              "rungs": [
+                28980,
+                7422,
+                0,
+                0,
+                0,
+                1588,
+                308,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-2.ppm.gz",
+              "at": 2,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 78232,
+              "brackets": [
+                "d < 1.53e-05: 40550 px",
+                "1.53e-05 < d <= 6.1e-05: 28980 px",
+                "6.1e-05 < d <= 0.000244: 7422 px",
+                "0.000244 < d <= 0.000977: 0 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 1588 px",
+                "0.0625 < d <= 0.25: 308 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-2.ppm.gz",
+              "stage": "warmup",
+              "camera": [
+                4.5,
+                72.52381253242493,
+                5.5,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 13303,
+              "rungs": [
+                0,
+                0,
+                65545,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-242.ppm.gz",
+              "at": 242,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 77984,
+              "brackets": [
+                "d < 1.53e-05: 13303 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 65545 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-242.ppm.gz",
+              "stage": "warmup",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 33735,
+              "rungs": [
+                0,
+                0,
+                45113,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-482.ppm.gz",
+              "at": 482,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 76674,
+              "brackets": [
+                "d < 1.53e-05: 33735 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 45113 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-482.ppm.gz",
+              "stage": "turn",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                53.206424713134766
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 33475,
+              "rungs": [
+                0,
+                0,
+                45373,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-722.ppm.gz",
+              "at": 722,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 76661,
+              "brackets": [
+                "d < 1.53e-05: 33475 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 45373 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-722.ppm.gz",
+              "stage": "turn",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                774.70556640625
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 11482,
+              "rungs": [
+                0,
+                0,
+                67366,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-962.ppm.gz",
+              "at": 962,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 77987,
+              "brackets": [
+                "d < 1.53e-05: 11482 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 67366 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-962.ppm.gz",
+              "stage": "turn",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 78848,
+              "rungs": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-1202.ppm.gz",
+              "at": 1202,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 78848,
+              "brackets": [
+                "d < 1.53e-05: 78848 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 0 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-1202.ppm.gz",
+              "stage": "travel",
+              "camera": [
+                768.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 78848,
+              "rungs": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-1442.ppm.gz",
+              "at": 1442,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 78848,
+              "brackets": [
+                "d < 1.53e-05: 78848 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 0 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-1442.ppm.gz",
+              "stage": "travel",
+              "camera": [
+                768.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 11482,
+              "rungs": [
+                0,
+                0,
+                67366,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-1682.ppm.gz",
+              "at": 1682,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 77987,
+              "brackets": [
+                "d < 1.53e-05: 11482 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 67366 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-1682.ppm.gz",
+              "stage": "return",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 11482,
+              "rungs": [
+                0,
+                0,
+                67366,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-1922.ppm.gz",
+              "at": 1922,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 77942,
+              "brackets": [
+                "d < 1.53e-05: 11482 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 67366 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-1922.ppm.gz",
+              "stage": "return",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 11482,
+              "rungs": [
+                0,
+                0,
+                67366,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-2162.ppm.gz",
+              "at": 2162,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 77472,
+              "brackets": [
+                "d < 1.53e-05: 11482 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 67366 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-2162.ppm.gz",
+              "stage": "edit",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 11482,
+              "rungs": [
+                0,
+                0,
+                67366,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-2402.ppm.gz",
+              "at": 2402,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 77469,
+              "brackets": [
+                "d < 1.53e-05: 11482 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 67366 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-2402.ppm.gz",
+              "stage": "edit",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 11482,
+              "rungs": [
+                0,
+                0,
+                67366,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-2642.ppm.gz",
+              "at": 2642,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 77940,
+              "brackets": [
+                "d < 1.53e-05: 11482 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 67366 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-2642.ppm.gz",
+              "stage": "remove",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 11482,
+              "rungs": [
+                0,
+                0,
+                67366,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-2882.ppm.gz",
+              "at": 2882,
+              "flipped": true,
+              "size": [
+                1024,
+                77
+              ],
+              "rejectedOther": 77940,
+              "brackets": [
+                "d < 1.53e-05: 11482 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 67366 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-2882.ppm.gz",
+              "stage": "remove",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 14437,
+              "rungs": [
+                0,
+                0,
+                84635,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-3122.ppm.gz",
+              "at": 3122,
+              "flipped": true,
+              "size": [
+                1152,
+                86
+              ],
+              "rejectedOther": 97910,
+              "brackets": [
+                "d < 1.53e-05: 14437 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 84635 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-3122.ppm.gz",
+              "stage": "resize",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 14437,
+              "rungs": [
+                0,
+                0,
+                84635,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-3362.ppm.gz",
+              "at": 3362,
+              "flipped": true,
+              "size": [
+                1152,
+                86
+              ],
+              "rejectedOther": 97921,
+              "brackets": [
+                "d < 1.53e-05: 14437 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 84635 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-3362.ppm.gz",
+              "stage": "reload",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 80030,
+              "rungs": [
+                0,
+                0,
+                0,
+                2738,
+                16304,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-3602.ppm.gz",
+              "at": 3602,
+              "flipped": true,
+              "size": [
+                1152,
+                86
+              ],
+              "rejectedOther": 99072,
+              "brackets": [
+                "d < 1.53e-05: 80030 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 0 px",
+                "0.000977 < d <= 0.00391: 2738 px",
+                "0.00391 < d <= 0.0156: 16304 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-3602.ppm.gz",
+              "stage": "nether",
+              "camera": [
+                0.5,
+                101.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 14437,
+              "rungs": [
+                0,
+                0,
+                84635,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-3842.ppm.gz",
+              "at": 3842,
+              "flipped": true,
+              "size": [
+                1152,
+                86
+              ],
+              "rejectedOther": 97912,
+              "brackets": [
+                "d < 1.53e-05: 14437 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 84635 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-3842.ppm.gz",
+              "stage": "overworld",
+              "camera": [
+                0.5,
+                121.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 0,
+              "rungs": [
+                0,
+                0,
+                0,
+                45734,
+                53338,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-4082.ppm.gz",
+              "at": 4082,
+              "flipped": true,
+              "size": [
+                1152,
+                86
+              ],
+              "rejectedOther": 99072,
+              "brackets": [
+                "d < 1.53e-05: 0 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 0 px",
+                "0.000977 < d <= 0.00391: 45734 px",
+                "0.00391 < d <= 0.0156: 53338 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-4082.ppm.gz",
+              "stage": "descend",
+              "camera": [
+                0.5,
+                80.61999988555908,
+                0.5,
+                90.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 0,
+              "rungs": [
+                0,
+                0,
+                99072,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-4322.ppm.gz",
+              "at": 4322,
+              "flipped": true,
+              "size": [
+                1152,
+                86
+              ],
+              "rejectedOther": 98680,
+              "brackets": [
+                "d < 1.53e-05: 0 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 99072 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-4322.ppm.gz",
+              "stage": "ascend",
+              "camera": [
+                0.5,
+                176.61999988555908,
+                0.5,
+                90.0,
+                0.0
+              ]
+            },
+            {
+              "anomaly": 0,
+              "low": 99072,
+              "rungs": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "other": 0,
+              "sample": "native-depth-ladder-4562.ppm.gz",
+              "at": 4562,
+              "flipped": true,
+              "size": [
+                1152,
+                86
+              ],
+              "rejectedOther": 91980,
+              "brackets": [
+                "d < 1.53e-05: 99072 px",
+                "1.53e-05 < d <= 6.1e-05: 0 px",
+                "6.1e-05 < d <= 0.000244: 0 px",
+                "0.000244 < d <= 0.000977: 0 px",
+                "0.000977 < d <= 0.00391: 0 px",
+                "0.00391 < d <= 0.0156: 0 px",
+                "0.0156 < d <= 0.0625: 0 px",
+                "0.0625 < d <= 0.25: 0 px",
+                "d > 0.25: 0 px"
+              ],
+              "frame": "native-depth-ladder-frame-4562.ppm.gz",
+              "stage": "reconnect",
+              "camera": [
+                0.5,
+                176.61999988555908,
+                0.5,
+                30.0,
+                0.0
+              ]
+            }
+          ],
+          "answer": "20 sample(s); the latest (draw 4562) brackets: d < 1.53e-05: 99072 px; 1.53e-05 < d <= 6.1e-05: 0 px; 6.1e-05 < d <= 0.000244: 0 px; 0.000244 < d <= 0.000977: 0 px; 0.000977 < d <= 0.00391: 0 px; 0.00391 < d <= 0.0156: 0 px; 0.0156 < d <= 0.0625: 0 px; 0.0625 < d <= 0.25: 0 px; d > 0.25: 0 px; larger depth value is nearer (reverse-Z)",
+          "z_convention_measured": false,
+          "z_direction": {
+            "direction": "larger depth value is nearer (reverse-Z)",
+            "near": {
+              "at": 4082,
+              "cameraY": 80.61999988555908,
+              "groundY": 67,
+              "aboveGround": 13.619999885559082,
+              "brackets": [
+                3,
+                4
+              ],
+              "rungs": [
+                0,
+                0,
+                0,
+                45734,
+                53338,
+                0,
+                0,
+                0
+              ]
+            },
+            "far": {
+              "at": 4322,
+              "cameraY": 176.61999988555908,
+              "groundY": 67,
+              "aboveGround": 109.61999988555908,
+              "brackets": [
+                2
+              ],
+              "rungs": [
+                0,
+                0,
+                99072,
+                0,
+                0,
+                0,
+                0,
+                0
+              ]
+            },
+            "basis": "two looks straight down at the same ground from 12 and 108 blocks above it (harness teleports; camera positions published by the ladder; ground height from the checkpoints); every pixel bracket of the nearer look lies strictly on one side of every bracket of the farther look"
+          }
+        },
+        "diagnostics": [],
+        "validation_layer_loader_evidence": [
+          "[Vulkan Loader] INFO | LAYER:   Insert instance layer \"VK_LAYER_KHRONOS_validation\" (/opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib)",
+          "[Vulkan Loader] INFO | LAYER:   Inserted device layer \"VK_LAYER_KHRONOS_validation\" (/opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib)"
+        ],
+        "application_errors": [
+          "[13:14:04] [Render thread/ERROR] (Voxy) [me.cx.vy.ct.VoxyClient]: Minecraft is not using the OpenGL backend; Voxy's Vulkan path still needs a GL context to composite through. Voxy will disable itself. (set preferredGraphicsBackend to \"default\" in options.txt)",
+          "[13:14:04] [Render thread/ERROR] (Voxy) [me.cx.vy.ct.VoxyClient]: Voxy is unsupported on your system."
+        ],
+        "unexpected_application_errors": [],
+        "scope": "a second Minecraft launch, terrain and marker OFF, so the ladder tests Minecraft's own depth; bounds only, no convention"
+      }
+    }
+  },
+  "scope": "Standalone Vulkan GPU/analytic pixel/arena recovery gates plus GL-hosted live liveness/lifecycle/mesh updates; Minecraft-native integration and live visual parity remain unproven",
+  "graphics_backend_preference": "default",
+  "selection": "native",
+  "scenario_seconds": 8,
+  "worktree_status": " M docs/ai/current-state.md\n M docs/ai/handoff.md\n M docs/ai/vulkan-native-integration-survey.md\n M scripts/tests/test_ladder_gate.py\n M scripts/verify.py\n M src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java\n",
+  "native_evidence_pending": {
+    "output": "/Users/xyz/dev/voxy/build/harness/20261009T041151-205062Z/native"
+  },
+  "changed_sources_during_run": [],
+  "final_revision": "bebcbd649b5b4f1459a5ca4a78951695aca4c523"
+}
