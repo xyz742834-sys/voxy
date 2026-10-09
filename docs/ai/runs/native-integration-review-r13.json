@@ -1,0 +1,217 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "e1bf895dc02527c11fc716ce62a836b7a1ec5eeb",
+  "review_round": 13,
+  "blocking_findings": [
+    {
+      "id": "R13-Z-BINDING",
+      "judgment": "REFUTED",
+      "summary": "The direction gate accepts evidence that contradicts retained stage chronology, the saved direction and common-ground/teleport geometry. Report-only stage/camera changes plus refreshed manifest reverse the answer with every image and log unchanged.",
+      "locations": [
+        "scripts/verify.py:1253-1311",
+        "scripts/verify.py:1025-1048",
+        "scripts/verify.py:2393-2409"
+      ],
+      "reproduction": "python3 scripts/verify.py --replay-evidence .agent-run/r13-accepted-all_labels_and_camera_y_swapped",
+      "observed_exit": 0,
+      "observed_direction": "smaller depth value is nearer (conventional Z)",
+      "changed_files": [
+        "ladder/native-depth-ladder.json",
+        "MANIFEST.json"
+      ],
+      "additional_reproduction": ".agent-run/r13-accepted-all_labels_swapped_ground_split",
+      "scope": "A missing consistency check over retained evidence; not a claim that the original package is forged or a requirement to authenticate GPU execution."
+    },
+    {
+      "id": "R13-DELIVERY",
+      "judgment": "CONFIRMED",
+      "summary": "Standing rounds 4-12 boundary: diagnostic observations do not deliver native Voxy LoD or an accepted diagnostic foundation; candidate accepts this limitation.",
+      "locations": [
+        "docs/ai/project-goal.md:9-17",
+        "docs/ai/project-goal.md:40-51"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R13-GEOMETRY-SCOPE",
+      "judgment": "CONFIRMED",
+      "summary": "Original downward camera movement and scene context support a bounded near/far observation independently of depth. One heightmap column does not bound the larger, displaced footprints or prove identical surfaces/per-ray distances."
+    },
+    {
+      "id": "R13-TEST-XZ",
+      "judgment": "REFUTED",
+      "summary": "All nine unchanged LadderDirectionTest tests pass after removing both x/z eligibility predicates in memory; the camera rejection test covers y and pitch only. First-versus-last mutation is detected by one test."
+    },
+    {
+      "id": "R13-DOC-DRIFT",
+      "judgment": "REFUTED",
+      "summary": "Handoff still describes round 12 and says Z unmeasured. Survey/current-state retain conflicting no-direction prose; round-12 paragraph still says measurement checks the native call despite the later explicit exclusion; date and tolerance wording drift remain."
+    },
+    {
+      "id": "R10-ANCHOR-GRAIN",
+      "judgment": "CONFIRMED",
+      "summary": "Only complete 4x4 blocks are position-anchored; boundary pixels and within-block permutations remain outside full positional proof."
+    },
+    {
+      "id": "R10-CONSISTENT-FORGERY",
+      "judgment": "CONFIRMED",
+      "summary": "Jointly rewritten images, report, counts, log, summary and manifest can produce conventional Z and pass. This disclosed origin/authenticity limit is separate from R13-Z-BINDING."
+    },
+    {
+      "id": "R12-CREATOR-RESTORE",
+      "judgment": "CONFIRMED",
+      "summary": "Post-return pipeline states do not prove what Vulkan consumed. Current creator forwards unchanged source; round-12 bytecode instrumentation was not repeated."
+    },
+    {
+      "id": "R13-DEPTH-COPY-SCOPE",
+      "judgment": "CONFIRMED",
+      "summary": "Retained quantized copy is all zero; exact raw zero is producer-reported. It does not settle scene depth, convention, scale or cause of the copy/behavioral discrepancy."
+    }
+  ],
+  "safe_for_normal_play": {
+    "gl_backend": true,
+    "minecraft_vulkan_backend_inert": true,
+    "would_ship_dormant_change_on_supported_gl_configuration": true,
+    "would_ship_as_functioning_native_voxy": false,
+    "all_native_flags_unset_required": true,
+    "ladder_inert_without_flag": true,
+    "ladder_depth_writes_when_flagged": false,
+    "harness_changes_development_only": true,
+    "scope": "Source-inspected dormant-change safety, supported by unit tests. No fresh GL/Minecraft live or packaged-jar run. Voxy remains disabled on Minecraft Vulkan."
+  },
+  "z_direction_judgment": {
+    "judgment": "CONFIRMED bounded original observation; REFUTED complete gate consistency",
+    "geometry_established": true,
+    "geometry_scope": "Camera/teleport geometry and local empirical scene ordering, not a per-ray distance bound over identical world surfaces.",
+    "nearer_look_identified_independently_of_depth": true,
+    "rule_sound": false,
+    "strict_bracket_comparison_sound_given_true_geometry_and_draw_state": true,
+    "rule_failure_scope": "Eligibility trusts labels and per-stage ground without enforcing shared ground, physical near/far ordering, checkpoint geometry or retained stage chronology.",
+    "direction_confirmed": true,
+    "direction": "larger depth value is nearer (reverse-Z)",
+    "direction_scope": "Original retained two-look experiment at LevelRenderer.render tail, inspected unmodified source, fixed seed and spot; empirical observation, not arbitrary-package certification.",
+    "scale_measured": false,
+    "opposite_direction_forgeable_without_joint_rewrite": true,
+    "opposite_direction_forgery_scope": "Changing only the ladder report stage/camera metadata and manifest passes conventional Z; pixels, thumbnails, logs, checkpoints and saved summary stay byte-identical. The resulting package is contradictory, not physically consistent evidence of conventional Z.",
+    "near": {
+      "at": 5042,
+      "camera_y": 80.61999988555908,
+      "ground_y": 67,
+      "brackets": [
+        3,
+        4
+      ],
+      "counts": [
+        45734,
+        53338
+      ]
+    },
+    "far": {
+      "at": 5522,
+      "camera_y": 176.61999988555908,
+      "ground_y": 67,
+      "brackets": [
+        2
+      ],
+      "counts": [
+        99072
+      ]
+    },
+    "probe_zConventionMeasuredHere": false,
+    "coexistence_measured": false
+  },
+  "terrain_experiment_judgment": {
+    "judgment": "CONFIRMED bounded synthetic measurement; REFUTED native LoD/coexistence acceptance",
+    "all_retained_pairs_identical": true,
+    "retained_pairs": 25,
+    "selected_draw": 5294,
+    "non_background_pixels": 26116,
+    "mismatches": 0,
+    "synthetic_input": true,
+    "clears_minecraft_frame": true,
+    "accepted_foundation": false
+  },
+  "depth_result_judgment": {
+    "judgment": "CONFIRMED retained all-zero quantized copy and producer-reported raw zero; REFUTED convention/scale from copy",
+    "width": 1708,
+    "height": 960,
+    "quantized_zero_samples": 1639680,
+    "independently_checked_quantized_copy": true,
+    "raw_exact_zero_independently_retained": false,
+    "z_convention_measured_by_copy": false,
+    "copy_discrepancy_explained": false
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED per-pixel retained counts and original reverse-Z observation; REFUTED sufficient direction-evidence consistency gate",
+    "retained_samples": 24,
+    "independently_matching_anchored_blocks": 259026,
+    "manifest_members": 245,
+    "matching_selected_source_entries": 408,
+    "own_launch_isolated": true,
+    "terrain_and_marker_off": true,
+    "device": "0x783a580018",
+    "main_launch_device": "0x75ef6dc018",
+    "original_replay_exit": 0,
+    "replayed_checks": 10,
+    "replay_table": {
+      "runs": 14,
+      "older_exit_1": 13,
+      "newest_exit_0": 1
+    },
+    "stage_camera_labelling_source_confirmed": true,
+    "stage_camera_reconciled_by_replay": false,
+    "last_eligible_rule_confirmed": true,
+    "selected_low_pixels_refused": true,
+    "x_z_tolerance_blocks": 2,
+    "y_tolerance_blocks": 1,
+    "pitch_tolerance_degrees": 1,
+    "yaw_checked_for_equality": false,
+    "accepted_metadata_only_opposite": true,
+    "accepted_coordinated_image_opposite": true
+  },
+  "tests": {
+    "junit": {
+      "tests": 333,
+      "skips": 1,
+      "failures": 0,
+      "errors": 0,
+      "task_executed": true,
+      "skip": "VkBarriersTest.missingBarrierIsDetected()"
+    },
+    "python": {
+      "tests": 170,
+      "failures": 0,
+      "errors": 0,
+      "seconds": 376.794
+    },
+    "fixtures_changed_or_shrunk": false,
+    "in_memory_mutants": {
+      "ignore_x_z_camera_location": {
+        "passed": 9,
+        "failed": 0
+      },
+      "take_first_eligible_sample": {
+        "passed": 8,
+        "failed": 1
+      }
+    }
+  },
+  "not_checked": [
+    "No Minecraft/native/live launch, by instruction.",
+    "No retained full original readbacks or world save for exact selected-band world geometry/per-ray distances.",
+    "No native scale, other hooks/seeds/devices, coexistence, long-session lifetime or fresh player release/runtime matrix.",
+    "No authentication of dependencies, compiled artifacts, JVM, driver or GPU execution.",
+    "Round-12 production-creator bytecode instrumentation was not repeated."
+  ],
+  "review_report": "docs/ai/runs/native-integration-review.md",
+  "supporting_artifacts": [
+    ".agent-run/r13-mutations.json",
+    ".agent-run/r13-extra-attacks.json",
+    ".agent-run/r13-report-only-opposite-replay.json",
+    ".agent-run/r13-independent.json",
+    ".agent-run/r13-retained-crosschecks.json",
+    ".agent-run/r13-test-escapes.json",
+    ".agent-run/r13-replay-table.json"
+  ]
+}
