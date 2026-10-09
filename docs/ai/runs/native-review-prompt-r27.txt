@@ -1,0 +1,54 @@
+You are an INDEPENDENT reviewer, round 27. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (9cfd9c01c546e4a298e2777d104368e6254763f8). Round 26 returned REDESIGN against 460602ab on the standing
+DELIVERY-BOUNDARY only; non-blocking R24-HIER-GUARD-COVERAGE (partly), R26-PROJECTION-EQUIVALENCE,
+R26-COMPOSITE-DOC-SCOPE, R26-LADDER-GUARD-COVERAGE. Report: docs/ai/runs/native-integration-review-r26.md.
+
+Since 460602ab:
+- 345ebde7 + c4ddb119: the product switch McNativeRender (voxy.native.render, off by default) — one
+  switch for the native path without diagnostics: device features (McNativeDeviceFeatures), adoption
+  (McNativeVkContext), Voxy's instance under MC Vulkan (VoxyClient.nativeInstanceMode), every-frame
+  hierarchical composite (McNativeHierarchicalLoad.enabled/everyFrame). Outside the ladder the build
+  budget does not apply; rebuilds are rate-limited (REBUILD_INTERVAL_FRAMES, skip "rebuild-wait").
+  verify.py --only native runs a third launch with the switch alone (native_render_result): no
+  diagnostic ran (off-reports with enabled=false/attempted=false allowed), clean probe report, every
+  call composited or skipped for a stated reason, builds/atlas reads reconciled with the log, frames
+  composited in every lifecycle stage but the nether. Retained under render/ with checkpoint
+  thumbnails; replayed.
+- 4518eabd: round-26 repairs — VkHostViewport.voxyProjectionGl/voxyNear port computeProjectionMat in
+  full (raw camera projection captured in McNativeCamera; extra transforms kept; near 8/16/0.1); each
+  judged sample publishes rawProjection/voxyNear/vanillaRenderDistance/sodiumChunkRenderDisabled and
+  hier_reprojection_checks recomputes; wording corrected; scripts/tests/test_ladder_coverage.py (20 of
+  22 named predicates covered, two documented unreachable); the native resolve no longer names the
+  interop enum.
+Run docs/ai/runs/native-evidence/20261009T213621-341358Z (built from 4518eabd): all three launches pass; ladder: 8 judged
+hierarchical samples by Voxy's GL rule, zero violations; product switch alone: 5235 frames composited
+in every required stage.
+
+The boundary from rounds 4-26 still governs and the candidate accepts it. Judge, CONFIRMED or
+REFUTED with file/line or command:
+1. The product switch: does it enable exactly the native path and nothing diagnostic, under MC Vulkan
+   only? What happens with it set under MC OpenGL? Is the rebuild rate limit and empty-rebuild
+   suppression sound for normal play (travel, dimension change, reconnect, resize)? Lifetime of
+   repeated rebuilds/retirements over a long session.
+2. native_render_result and its retention/replay: soundness, guard removals, whether the per-stage
+   requirement and the "off-report" exception can be gamed.
+3. Each R26 finding closed? Re-run your projection contract against voxyProjectionGl/voxyNear and the
+   gate's recomputation; the ladder coverage audit; the two unreachable claims.
+4. Recount at least one hierarchical sample of the new run; inspect several render/ thumbnails.
+5. What remains between this HEAD and delivery (Voxy normally enabled on MC Vulkan): list it
+   concretely (e.g. default-on with kill switch, scene radius from config, composite point, pressure,
+   lifecycle), and whether flipping the switch on by default would be safe for normal play now.
+6. Docs overstatement; safety with every voxy.native.* flag unset on GL and MC Vulkan.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T213621-341358Z
+Do NOT run scripts/verify.py --only native or --only live; judge the committed evidence.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on the
+first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit, blocking_findings,
+non_blocking_findings, safe_for_normal_play, round26_findings_closed (mapping each R26 id and
+R24-HIER-GUARD-COVERAGE to true/false), product_switch_judgment, render_gate_judgment,
+projection_judgment, default_on_readiness (with the concrete remaining list), hier_load_judgment.
