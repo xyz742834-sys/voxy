@@ -1,0 +1,47 @@
+You are an INDEPENDENT reviewer, round 23. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (14743bf43b3051149262b2f032182930c3e9b9b0). Round 22 returned REDESIGN against 8ba67fc5 on the
+standing DELIVERY-BOUNDARY only: it CONFIRMED the occlusion measurement and closed
+R20-REAL-METADATA, R20-REAL-SKIP-PROVENANCE, R21-ATLAS-PROVENANCE and R21-ATLAS-RESET.
+Non-blocking residuals: R20-TEST-REALLOAD (the build-budget comparison had no detecting test),
+R21-REPAIR-HANDOFF (test-per-guard and stage-sampling wording, a stale replay claim for an old
+run, a stale "real-world geometry not yet drawn" line), R22-NEAR-CUT-REUSE (the near cut was
+checked only at build time). Report: docs/ai/runs/native-integration-review-r22.md, machine
+verdict ...-r22.json.
+
+The HEAD (5476545d and the docs commits after it):
+- R22-NEAR-CUT-REUSE: McNativeRealScene records its drawn sections; McNativeRealLoad rebuilds
+  when the camera comes nearer than the cut to any of them or the render distance changes;
+  every judged sample publishes nearestSection (distance at draw time) and real_load_checks
+  requires it to be at least cutBlocks.
+- R20-TEST-REALLOAD: a test for the build-budget comparison (nine logged and stated builds).
+- R21-REPAIR-HANDOFF: survey/handoff wording narrowed (no blanket test-per-guard claim; the
+  stage wait described as a request, only while the ladder samples; old runs described as
+  having replayed where they were built; the real-world-geometry line corrected).
+Newest run docs/ai/runs/native-evidence/20261009T125419-994300Z (built from 5476545d): horizon
+2003 shown, 3306 hidden, zero violations; nearest drawn sections 511.5-512.5 blocks.
+
+The boundary from rounds 4-22 still governs and the candidate accepts it. It claims (a) the
+three R22 residuals are repaired, (b) the occlusion measurement stands as round 22 bounded it,
+(c) the survey/handoff claim no more. Judge all three.
+
+Judge, CONFIRMED or REFUTED with file/line or command:
+1. Re-run your near-cut reuse reproduction, the budget-guard removal and your full guard-removal
+   audit of real_load_checks and real_load_skip_provenance; name any survivor.
+2. Recount the horizon sample of the new run; check nearestSection against the scene's sections
+   where you can.
+3. Survey/handoff overstatement, including every sentence round 22 named.
+4. Safety for normal play with every voxy.native.* flag unset, on GL and on Minecraft Vulkan.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T125419-994300Z
+Do NOT run scripts/verify.py --only native or --only live; judge the committed evidence.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round22_findings_closed (mapping
+R20-TEST-REALLOAD, R21-REPAIR-HANDOFF, R22-NEAR-CUT-REUSE to true/false), occlusion_judgment,
+real_load_judgment, atlas_judgment, instance_mode_judgment, terrain_load_judgment,
+coexist_judgment, z_direction_judgment and ladder_judgment.
