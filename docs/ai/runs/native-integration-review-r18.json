@@ -1,0 +1,476 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "a6e1c3a39fab2a4d00848a133387e7c009c3b06e",
+  "review_round": 18,
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "summary": "The diagnostic foundation remains unaccepted and native real-world Voxy LoD remains unimplemented. The candidate accepts the standing rounds 4-17 boundary.",
+      "locations": [
+        "docs/ai/project-goal.md:9",
+        "docs/ai/handoff.md:136",
+        "src/main/java/me/cortex/voxy/client/VoxyClient.java:96"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R18-TEST-TERRAINLOAD",
+      "judgment": "REFUTED complete refusal-guard sensitivity",
+      "summary": "Four terrain_load_checks guard removals each leave the full unchanged 20-case TerrainLoadGateTest class green. Removing all four together also leaves the full 220-case discovery suite green. No coexist or ladder-launch guard survived its unchanged relevant class suites.",
+      "guards": [
+        {
+          "line": 1576,
+          "condition": "retained"
+        },
+        {
+          "line": 1703,
+          "condition": "(bw, bh) != (aw, ah)"
+        },
+        {
+          "line": 1738,
+          "condition": "counts['geometry'] == 0"
+        },
+        {
+          "line": 1732,
+          "condition": "got is not None"
+        }
+      ],
+      "artifact": ".agent-run/r18-guard-mutations.json",
+      "full_suite_artifact": ".agent-run/r18-full-survivor-suite.json"
+    },
+    {
+      "id": "R18-TERRAIN-METADATA",
+      "judgment": "CONFIRMED limited reconciliation; REFUTED complete scene-fact binding",
+      "summary": "Scene label, declared depth state, device, formats, pass counts, sample inventories, pixel counts and log counts are checked. Published view and final scene extent facts are not fully pinned or reconciled: zero MVP, a fictitious eye, width/height 1, drawCount/referenceSet 1, and near 999 replay 0 after refreshing the manifest. This does not falsify the independently recounted pixels or the source-level same-renderer/same-matrix implementation.",
+      "locations": [
+        "scripts/verify.py:1583",
+        "scripts/verify.py:1608",
+        "scripts/verify.py:1625",
+        "scripts/verify.py:1681"
+      ],
+      "artifact": ".agent-run/r18-attacks.json"
+    },
+    {
+      "id": "R18-DOC-SEAM",
+      "judgment": "REFUTED present-tense native producer claim; CONFIRMED reuse direction",
+      "summary": "Handoff item 3 says the native path has WorldEngine/meshing/NodeManager producing sections. On Minecraft Vulkan BACKEND is null, no client instance factory is installed, and VulkanWorldUpdates clears pending work. The LOAD probe builds synthetic resources and static indirect draws. These are reusable components and an intended seam, not an already active native real-section producer.",
+      "locations": [
+        "docs/ai/handoff.md:199",
+        "src/main/java/me/cortex/voxy/client/VoxyClient.java:107",
+        "src/main/java/me/cortex/voxy/client/VoxyClient.java:134",
+        "src/main/java/me/cortex/voxy/client/VoxyClient.java:150",
+        "src/main/java/me/cortex/voxy/commonImpl/VoxyCommon.java:74",
+        "src/main/java/me/cortex/voxy/client/core/vk/VulkanWorldUpdates.java:35",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainScene.java:99"
+      ]
+    },
+    {
+      "id": "R18-DOC-DRIFT",
+      "judgment": "CONFIRMED narrow round-17 closure; REFUTED wholly current handoff",
+      "summary": "The original missing coexist token and stale retained-run count are repaired. New residuals: the handoff command comment still says Python 199 (actual 220), the survey final unanswered item still calls terrain LOAD next, and present-tense all-zero-copy shorthand does not describe the latest depth sample (55,841 retained 16-bit codes are 1). The cached reference is explicitly disclosed; the phrase two measurements of the same frame is imprecise because the reference is built once per scene extent.",
+      "locations": [
+        "docs/ai/handoff.md:217",
+        "docs/ai/handoff.md:207",
+        "docs/ai/vulkan-native-integration-survey.md:1514",
+        "docs/ai/vulkan-native-integration-survey.md:1444",
+        "docs/ai/vulkan-native-integration-survey.md:1447"
+      ]
+    },
+    {
+      "id": "STANDING-EVIDENCE-LIMITS",
+      "judgment": "CONFIRMED disclosed scope",
+      "summary": "Editable records and 4x4 thumbnail anchors do not authenticate GPU execution, compiled runtime inputs, native pipeline creation/binding, or every published fact. Terrain depth state is declared, not read back. Environment project properties are not retained. Synthetic geometry and bracket-grain agreement do not establish real-world LoD scale, lifecycle, or integration acceptance."
+    }
+  ],
+  "safe_for_normal_play": {
+    "gl_backend": true,
+    "minecraft_vulkan_backend_inert": true,
+    "would_ship_dormant_change_on_supported_gl_configuration": true,
+    "would_ship_dormant_change_on_minecraft_vulkan_as_disabled_voxy": true,
+    "would_ship_as_functioning_native_voxy": false,
+    "all_native_flags_unset_required": true,
+    "flags": [
+      "voxy.native.probe",
+      "voxy.native.marker",
+      "voxy.native.features",
+      "voxy.native.adopt",
+      "voxy.native.terrain",
+      "voxy.native.depth",
+      "voxy.native.depthladder",
+      "voxy.native.coexist",
+      "voxy.native.terrainload"
+    ],
+    "terrain_load_cannot_draw_unflagged": true,
+    "terrain_load_acts_only_on_ladder_sampled_frames_in_fixed_launch": true,
+    "terrain_load_depth_writes_when_flagged": true,
+    "coexist_depth_writes_when_flagged": false,
+    "ladder_depth_writes_when_flagged": false,
+    "harness_changes_development_only": true,
+    "scope": "Source inspection and fresh offline tests. No player/package/native/live run. Supported established GL safety does not certify the macOS GL-hosted diagnostic product; Minecraft Vulkan keeps Voxy disabled."
+  },
+  "round17_findings_closed": {
+    "R16-COEXIST-LAUNCH-SEMANTICS": true,
+    "R14-DOC-DRIFT": true
+  },
+  "terrain_load_judgment": {
+    "judgment": "CONFIRMED bounded synthetic per-pixel terrain-LOAD measurement; REFUTED complete report-metadata reconciliation and complete guard-test sensitivity",
+    "samples": 20,
+    "pixels_compared": 1738752,
+    "counts": {
+      "geometry": 495376,
+      "noGeometry": 1243376,
+      "expectVisible": 439452,
+      "expectHidden": 22973,
+      "undetermined": 32951,
+      "visible": 454561,
+      "hidden": 40815,
+      "ambiguous": 0,
+      "other": 0,
+      "visibleWhereHidden": 0,
+      "hiddenWhereVisible": 0,
+      "changedWhereNoGeometry": 0
+    },
+    "mixed_samples": [
+      242,
+      482,
+      962,
+      1682,
+      1922,
+      2162,
+      2402,
+      2642,
+      2882,
+      3122,
+      3362,
+      3602,
+      3842,
+      4322
+    ],
+    "zero_violations_confirmed": true,
+    "counts_and_log_agree": true,
+    "same_frame_mc_readbacks": true,
+    "successful_readback_order_confirmed": true,
+    "two_prior_readback_requests_enforced_atomically_on_error_paths": false,
+    "reference_cached_once_per_scene_extent": true,
+    "same_pipeline_matrix_extent_in_source": true,
+    "loads_colour_and_depth": true,
+    "depth_state": "GREATER_OR_EQUAL (6), test on, writes on",
+    "depth_state_declared": [
+      6,
+      1,
+      1
+    ],
+    "depth_state_read_back": false,
+    "copy_requested_outside_pass": true,
+    "fit_leaves_depth_untouched": true,
+    "two_sided_split_confirmed": true,
+    "synthetic_scene": "depthSweep",
+    "reference_depth_ranges": [
+      [
+        0.0001453137956559658,
+        0.0030660268384963274
+      ],
+      [
+        0.00014531453780364245,
+        0.0030659902840852737
+      ]
+    ],
+    "bracket_grain_only": true,
+    "report_scene_facts_fully_pinned": false,
+    "passing_mutations": [
+      "pixel_referenceFile",
+      "depth_ulp",
+      "field_mvp",
+      "field_eye",
+      "field_width",
+      "field_height",
+      "field_drawCount",
+      "field_referenceSet",
+      "field_near"
+    ],
+    "gpu_origin_authenticated": false
+  },
+  "coexist_judgment": {
+    "judgment": "CONFIRMED bounded exact-RGB measurement and round-17 launch repair",
+    "samples": 20,
+    "pixels_compared": 1738752,
+    "counts": {
+      "present": 1669110,
+      "absent": 69642,
+      "other": 0,
+      "expectedPass": 1669110,
+      "expectedFail": 69642,
+      "absentWherePass": 0,
+      "presentWhereFail": 0,
+      "unchangedElsewhere": 69642
+    },
+    "mixed_samples": [
+      3602,
+      4082
+    ],
+    "zero_violations_confirmed": true,
+    "compare_op_is_voxys": true,
+    "no_depth_write": true,
+    "full_measured_cli_semantics_closed": true,
+    "literal_stage_tokens_required": true,
+    "missing_command_refused": true,
+    "depth_writing_extra_flags_refused": true,
+    "launch_downgrade_attacks_replaying_zero": [],
+    "gpu_origin_authenticated": false
+  },
+  "z_direction_judgment": {
+    "judgment": "CONFIRMED bounded reverse-Z at these looks and this hook; general world depth scale unmeasured",
+    "direction": "larger depth value is nearer (reverse-Z)",
+    "near": {
+      "at": 4082,
+      "flipped": true,
+      "targetWidth": 1920,
+      "targetHeight": 1080,
+      "rect": [
+        384,
+        648,
+        1536,
+        734
+      ],
+      "counts": {
+        "anomaly": 0,
+        "low": 0,
+        "rungs": [
+          0,
+          0,
+          0,
+          45734,
+          53338,
+          0,
+          0,
+          0
+        ],
+        "other": 0
+      },
+      "rejectedFlipped": false,
+      "rejectedRect": [
+        384,
+        346,
+        1536,
+        432
+      ],
+      "rejectedOther": 99072,
+      "file": "native-depth-ladder-4082.ppm.gz",
+      "rejectedFile": "native-depth-ladder-rejected-4082.ppm.gz",
+      "frameFile": "native-depth-ladder-frame-4082.ppm.gz",
+      "stage": "descend",
+      "camera": [
+        0.5,
+        80.61999988555908,
+        0.5,
+        90.0,
+        0.0
+      ]
+    },
+    "far": {
+      "at": 4322,
+      "flipped": true,
+      "targetWidth": 1920,
+      "targetHeight": 1080,
+      "rect": [
+        384,
+        648,
+        1536,
+        734
+      ],
+      "counts": {
+        "anomaly": 0,
+        "low": 0,
+        "rungs": [
+          0,
+          0,
+          99072,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "other": 0
+      },
+      "rejectedFlipped": false,
+      "rejectedRect": [
+        384,
+        346,
+        1536,
+        432
+      ],
+      "rejectedOther": 98672,
+      "file": "native-depth-ladder-4322.ppm.gz",
+      "rejectedFile": "native-depth-ladder-rejected-4322.ppm.gz",
+      "frameFile": "native-depth-ladder-frame-4322.ppm.gz",
+      "stage": "ascend",
+      "camera": [
+        0.5,
+        176.61999988555908,
+        0.5,
+        90.0,
+        0.0
+      ]
+    },
+    "near_ground_distance": 13.619999885559082,
+    "far_ground_distance": 109.61999988555908,
+    "per_ray_distance_bound_measured": false
+  },
+  "terrain_experiment_judgment": {
+    "judgment": "CONFIRMED all 20 retained CLEAR-pass synthetic pairs exact RGB equal; REFUTED real native LoD acceptance",
+    "independently_equal_retained_pairs": 20,
+    "pairs_by_extent": {
+      "(1639680, 20663)": 12,
+      "(2073600, 26116)": 8
+    },
+    "clears_minecraft_targets": true,
+    "real_world_lod": false,
+    "load_probe_separate": true
+  },
+  "depth_result_judgment": {
+    "judgment": "CONFIRMED retained near-zero varying quantized copy; REFUTED all-zero description of newest run or convention/cause inference",
+    "width": 1708,
+    "height": 960,
+    "pixels": 1639680,
+    "max_code": 65535,
+    "counts": {
+      "0": 1583839,
+      "1": 55841
+    },
+    "published_min": 0.0,
+    "published_max": 1.4127476e-05,
+    "raw_float_depth_independently_retained": false,
+    "cause_established": false,
+    "z_convention_measured_by_copy": false
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED bounded brackets, request-time chronology, source binding, required launch evidence and no ladder depth writes; REFUTED native delivery acceptance",
+    "samples": 20,
+    "source_entries": 413,
+    "manifest_members": 300,
+    "source_revision_recorded": "b52233434eaf8a5b4b27ed4403e8fcb6132defb1",
+    "source_bytes_match_checkout": true,
+    "changed_sources_during_run": [],
+    "original_replay_exit": 0,
+    "original_replay_named_checks": 11,
+    "retained_runs": 19,
+    "replaying_runs": 1,
+    "independently_anchored_4x4_blocks": {
+      "ladder_selected": 106524,
+      "ladder_rejected": 106524,
+      "coexist": 106524,
+      "terrain_load": 106524
+    },
+    "diagnostic_layer_accepted": false,
+    "native_lod_accepted": false
+  },
+  "verification": {
+    "junit": {
+      "tests": 341,
+      "passed": 340,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "strict_output_gate": {
+        "tests": 341,
+        "failures": [],
+        "skips": [],
+        "known_gaps": [
+          "me.cortex.voxy.vk.VkBarriersTest.missingBarrierIsDetected"
+        ],
+        "diagnostics": [],
+        "success": true
+      },
+      "new_reference_gpu_test_ran": true
+    },
+    "python": {
+      "tests": 220,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 712.399
+    },
+    "launch_matrix_forms": 17,
+    "launch_matrix_harness_properties": 10,
+    "launch_matrix_all_agree": true,
+    "replay_attack_cases": 128,
+    "coexist_guard_mutants": 23,
+    "coexist_guard_survivors": [],
+    "terrain_load_guard_mutants": 48,
+    "terrain_load_guard_survivors": [
+      1576,
+      1703,
+      1738,
+      1732
+    ],
+    "ladder_launch_guard_mutants": 3,
+    "ladder_launch_guard_survivors": [],
+    "combined_survivor_full_python_suite": {
+      "tests": 220,
+      "success": true,
+      "failures": [],
+      "errors": [],
+      "skipped": [],
+      "seconds": 774.2804040908813,
+      "surviving_guards": [
+        {
+          "function": "terrain_load_checks",
+          "line": 1576,
+          "condition": "retained",
+          "tests": 20,
+          "survived": true,
+          "failures": [],
+          "errors": [],
+          "seconds": 101.24
+        },
+        {
+          "function": "terrain_load_checks",
+          "line": 1703,
+          "condition": "(bw, bh) != (aw, ah)",
+          "tests": 20,
+          "survived": true,
+          "failures": [],
+          "errors": [],
+          "seconds": 100.286
+        },
+        {
+          "function": "terrain_load_checks",
+          "line": 1738,
+          "condition": "counts['geometry'] == 0",
+          "tests": 20,
+          "survived": true,
+          "failures": [],
+          "errors": [],
+          "seconds": 101.332
+        },
+        {
+          "function": "terrain_load_checks",
+          "line": 1732,
+          "condition": "got is not None",
+          "tests": 20,
+          "survived": true,
+          "failures": [],
+          "errors": [],
+          "seconds": 103.442
+        }
+      ],
+      "method": "The individually surviving guards are all disabled together, in memory only. Full unchanged discover suite; fixtures and repository source unmodified."
+    },
+    "native_or_live_launched": false,
+    "fixtures_shrunk": false,
+    "implementation_modified": false
+  },
+  "could_not_check": [
+    "Fresh Minecraft/native/live execution prohibited by request.",
+    "Player/package GL or Minecraft Vulkan regression, actual real-world sections/camera/LoD and normal-play pressure, travel, reload, reconnection and lifetime acceptance.",
+    "Compiled/runtime dependency or driver/GPU provenance; actual native pipeline creator/binder consumption.",
+    "Full original MC readbacks: thumbnails anchor complete 4x4 blocks; raw float32 MC depth is not retained (terrain reference depth is).",
+    "Environment ORG_GRADLE_PROJECT_* values during capture, persistent environment launch provenance, or dynamic runtime flag changes.",
+    "The full 220-case suite separately for each of 74 mutants: unchanged complete relevant class suites were run individually; all four survivors together were also run against the full discovery suite."
+  ],
+  "report": "docs/ai/runs/native-integration-review.md",
+  "artifacts_root": ".agent-run/r18*"
+}
