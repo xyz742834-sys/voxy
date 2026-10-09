@@ -93,7 +93,8 @@ round-24 blocking defects are repaired in `b6e24c24` and closed by round 25 (the
 residual is only partly closed: shared-helper predicates are detected by the real-LOAD tests alone); since `429ce46a` it renders with Voxy's own
 near 16 / far 48 000 projection and reprojects into MC's depth space; since `6dffc1b4` it composes by
 Voxy's GL rule, only where MC's depth is still clear; since `345ebde7` one product switch
-(`voxy.native.render`) runs the whole native path without diagnostics — run `20261009T203836-462316Z`: 5 228 frames composited in every
+(`voxy.native.render`) runs the whole native path without diagnostics; since `4518eabd` its projection is GL's
+`computeProjectionMat` in full — run `20261009T213621-341358Z`: 5 235 frames composited in every
 required stage with the switch alone, and in its ladder launch 8 judged, every Voxy pixel decided, zero
 violations). The probe itself still asserts no convention and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,

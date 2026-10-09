@@ -477,7 +477,8 @@ of the point — and the replay status of each is:
 | [20261009T183706-779208Z](runs/native-evidence/20261009T183706-779208Z/MANIFEST.json) | no — predates Voxy's own projection (round 25 judges it) |
 | [20261009T190223-644732Z](runs/native-evidence/20261009T190223-644732Z/MANIFEST.json) | no — predates the CLEAR class and Voxy's GL composition rule |
 | [20261009T200758-879288Z](runs/native-evidence/20261009T200758-879288Z/MANIFEST.json) | no — predates the product switch and its launch (round 26 judges it) |
-| [20261009T203836-462316Z](runs/native-evidence/20261009T203836-462316Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches: environment, ladder (all experiments), product switch alone |
+| [20261009T203836-462316Z](runs/native-evidence/20261009T203836-462316Z/MANIFEST.json) | no — predates the round-26 repairs |
+| [20261009T213621-341358Z](runs/native-evidence/20261009T213621-341358Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, with the round-26 repairs |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1880,7 +1881,7 @@ frames composited in every lifecycle stage but the nether (its build meshes noth
 stored sections there). Retained under `render/` with its own checkpoints, log and a quarter-scale
 thumbnail of every checkpoint frame; replay runs the same gate.
 
-**Measured** (run [20261009T203836-462316Z](runs/native-evidence/20261009T203836-462316Z/MANIFEST.json), replay 0 in this checkout): the
+**Measured** (run [20261009T203836-462316Z](runs/native-evidence/20261009T203836-462316Z/MANIFEST.json), which replayed 0 in the checkout it was built from): the
 switch alone composited Voxy's scene in **5 228 frames**, 238–647 in each required stage (nether 1),
 6 builds, zero problems, close failures or leaks, validation clean. The ladder launch of the same run
 judged 8 hierarchical samples by Voxy's GL rule: zero violations, no undetermined pixel.
@@ -1888,6 +1889,32 @@ judged 8 hierarchical samples by Voxy's GL rule: zero violations, no undetermine
 **Not yet delivery.** Voxy still disables itself under Minecraft Vulkan unless the switch is set
 (`VoxyClient`); the switch's frames are counted, not judged per pixel (the ladder judges the same
 path); scene radius, lighting, translucency ordering and the composite point are as stated above.
+
+### Round-26 repairs (2026-10-10)
+
+Round 26 judged `460602ab` REDESIGN on DELIVERY-BOUNDARY only; its non-blocking findings are
+repaired in `4518eabd`:
+
+- **R26-PROJECTION-EQUIVALENCE.** `VkHostViewport.voxyProjectionGl` and `voxyNear` port
+  `VoxyRenderSystem.computeProjectionMat` in full: Minecraft's raw camera projection (now captured
+  beside the frame's, `McNativeCamera`) gets Voxy's depth row, times the extra transforms the frame's
+  projection carries over it; near 8 at vanilla distances up to 32 blocks, 16 above, 0.1 with Sodium's
+  chunk rendering disabled. Each judged sample publishes `rawProjection`, `voxyNear`,
+  `vanillaRenderDistance`, `sodiumChunkRenderDisabled`; the gate recomputes the projection from them.
+- **R26-COMPOSITE-DOC-SCOPE.** The reference depth is the composite's "Voxy drew here" image, not
+  what it writes; whether Minecraft's later passes read depth is not inventoried; gate/replay/test
+  prose describes the clear-only rule.
+- **R26-LADDER-GUARD-COVERAGE.** `scripts/tests/test_ladder_coverage.py`: a case per named
+  predicate, 20 of 22 confirmed to fail with their predicate disabled. Two are unreachable by
+  construction and stay as defence: the thumbnail-anchor refusal (needs a band under one 4-pixel
+  block) and descend-below-ascend (both looks must share one ground, and the cameras sit at
+  ground + 12 and ground + 108). The native resolve also no longer names the interop format enum.
+- R24-HIER-GUARD-COVERAGE stays partly closed (shared-helper predicates detected by real-LOAD only).
+
+**Measured** (run [20261009T213621-341358Z](runs/native-evidence/20261009T213621-341358Z/MANIFEST.json), replay 0 in this checkout): every
+judged sample at near 16 (128-block vanilla distance); 8 judged hierarchical samples, zero
+violations, none undetermined; the product switch alone composited 5 235 frames, in every required
+stage.
 
 ## What is NOT answered yet, and must be measured on hardware
 
