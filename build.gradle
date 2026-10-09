@@ -629,6 +629,11 @@ loom {
             if (project.hasProperty('harnessNativeHierLoad')) {
                 vmArg '-Dvoxy.native.hierload=true'
             }
+            // With hierarchical-LOAD: render and composite on every frame, not only on handed
+            // samples (those stay the judged ones). Off by default.
+            if (project.hasProperty('harnessNativeHierFrames')) {
+                vmArg '-Dvoxy.native.hierframes=true'
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')

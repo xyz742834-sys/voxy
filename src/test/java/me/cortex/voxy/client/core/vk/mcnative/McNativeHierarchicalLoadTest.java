@@ -29,6 +29,12 @@ public class McNativeHierarchicalLoadTest {
         assertTrue(json.contains("\"depth\": 2"), json);
         assertTrue(json.contains("\"buildBudget\": 6"), json);
         assertTrue(json.contains("\"declaredDepthState\": [6, 1, 1]"), json);
+        // the every-frame path is off by default too and composited nothing
+        assertFalse(McNativeHierarchicalLoad.everyFrame());
+        assertEquals(0, McNativeHierarchicalLoad.framesComposited());
+        assertTrue(json.contains("\"everyFrame\": false"), json);
+        assertTrue(json.contains("\"framesComposited\": 0"), json);
+        assertTrue(json.contains("\"frameSkips\": {}"), json);
         String ladder = McNativeDepthLadder.json();
         assertTrue(ladder.contains("\"hierLoadEnabled\": false"), ladder);
         assertTrue(ladder.contains("\"hierLoadDrawsRecorded\": 0"), ladder);

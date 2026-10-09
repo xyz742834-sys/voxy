@@ -60,6 +60,12 @@ import java.util.OptionalDouble;
  */
 public final class McNativeHierarchicalLoad implements Destroyable {
     public static final String FLAG = "voxy.native.hierload";
+    /**
+     * With {@link #FLAG}: also render and composite on <b>every</b> frame, not only on the frames
+     * the ladder hands over. Those frames are not judged; they wait only for Voxy's own previous
+     * submission (see {@link #drawEveryFrame}).
+     */
+    public static final String EVERY_FRAME_FLAG = "voxy.native.hierframes";
     static final int ITERATIONS = 3;
     static final int TOP_RADIUS = 1, DEPTH = 2;
     static final double SUBDIVISION_PX = 128.0;
@@ -82,6 +88,10 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private static final java.util.Map<Long, Pending> PENDING = new java.util.HashMap<>();
     private static McNativeHierarchicalLoad instance;
     private static long drawsRecorded, lastCaptureSeen = -1;
+    /** Every-frame composites recorded into Minecraft's frames (not judged; not in drawsRecorded). */
+    private static long framesComposited;
+    /** Every-frame attempts that drew nothing, by the same reasons a handed sample would skip with. */
+    private static final java.util.TreeMap<String, Long> FRAME_SKIPS = new java.util.TreeMap<>();
     private static int builds, problems, closeFailures, leakedScenes, readbacksInFlight, frameId = 1;
     private static boolean attempted, deviceDiverged, startedTracker;
     private static String firstProblem;
@@ -114,6 +124,12 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     /** Sections populate() meshed when the scene was built (its log line); {@code meshed} grows after. */
     private final int meshedAtBuild;
     private boolean destroyed;
+    /**
+     * A submission's request buffer has not been serviced yet. Each submission's requests are
+     * serviced exactly once, after its fence and before the next {@code prepare} resets them —
+     * whichever path (hand-off or every-frame) submits next.
+     */
+    private boolean requestsUnread;
 
     private McNativeHierarchicalLoad(VulkanDevice device, long ownerDevice, VkRenderTarget target,
                                      VkHierarchicalScene scene, McNativeComposite composite,
@@ -134,6 +150,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     }
 
     public static boolean enabled() { return Boolean.getBoolean(FLAG); }
+    public static boolean everyFrame() { return enabled() && Boolean.getBoolean(EVERY_FRAME_FLAG); }
+    public static long framesComposited() { return framesComposited; }
     public static long drawsRecorded() { return drawsRecorded; }
 
     public static List<Result> results() {
@@ -158,7 +176,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
 
     private static void render(boolean freshCamera, long capture, long previousCapture) {
         long at = McNativeDepthLadder.takeSampleThisFrame(McNativeDepthLadder.EXPERIMENT_HIER_LOAD);
-        if (at < 0) return;
+        // at < 0: not a handed sample; with the every-frame flag it is still drawn, not judged
+        if (at < 0 && !everyFrame()) return;
         attempted = true;
         String stage = System.getProperty("voxy.harness.stage", "");
         if (!VoxyClient.nativeInstanceMode()) {
@@ -266,6 +285,10 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         double farPlane = VkHostViewport.farPlaneDistance(vkProjection);
         float[] mvp = VkHostViewport.mvp(vkProjection, view.modelView(), sub);
         float minSSS = (float) ((SUBDIVISION_PX * SUBDIVISION_PX) / ((double) width * height));
+        if (at < 0) {
+            drawEveryFrame(probe, mvp, anchor, sub, minSSS, colour, depth, width, height);
+            return;
+        }
 
         // ---- the hierarchical pipeline in Voxy's own submissions ----
         var tracker = VkFrameTracker.get();
@@ -276,6 +299,11 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             if (!tracker.waitIdleChecked()) {
                 fail("vkDeviceWaitIdle did not succeed before the hierarchical-LOAD uniform write");
                 return;
+            }
+            if (probe.requestsUnread) {
+                // an every-frame submission before this hand-off left its requests unserviced
+                probe.scene.serviceRequests(MESHES_PER_PASS);
+                probe.requestsUnread = false;
             }
             int frame = frameId++;
             VkSceneUniform.write(probe.scene.res.uniform, mvp, anchor, frame, sub);
@@ -290,6 +318,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             tracker.endFrame();
             tracker.waitForFrame();
             probe.scene.serviceRequests(MESHES_PER_PASS);
+            probe.requestsUnread = false;
         }
         int n = width * height;
         colours = new int[n];
@@ -317,6 +346,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             drawn = true;
         }
         if (!drawn) return;
+        logFrames(at);
         int[][] rects = {McNativeDepthLadder.bandRect(width, height, false),
             McNativeDepthLadder.bandRect(width, height, true)};
         int[][] bandColour = new int[2][];
@@ -345,6 +375,53 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             PENDING.put(at, new Pending(rects, bandColour, bandDepth, partial));
         }
         requestReadback(colour, width, height, at);
+    }
+
+    /**
+     * The every-frame path: one round, no readback, not judged.
+     *
+     * <h2>Why waiting for Voxy's own fence is enough</h2>
+     * Voxy's frame tracker keeps one submission in flight. After {@code waitForFrame} every Voxy
+     * submission has completed, so the uniform, the node/geometry/table buffers and the request
+     * buffer are free for the host — exactly what the hand-off path's device-idle wait buys for
+     * them. The only Voxy resources Minecraft's command buffers touch are the target's colour and
+     * depth (the composite samples them). Voxy submits on Minecraft's own graphics queue (the
+     * adopted queue), and this frame's submission is queued after Minecraft submitted the
+     * previous frame; the target's next {@code beginRendering} barrier has ALL_COMMANDS as its
+     * source stage, so it waits for the earlier composite's fragment reads (write-after-read on
+     * one queue), and {@code prepareSources} makes this frame's writes visible to the composite
+     * Minecraft records after this submission. Retirement still goes through Minecraft's destroy
+     * queue, whose frame fence orders after every earlier submission on the queue.
+     */
+    private static void drawEveryFrame(McNativeHierarchicalLoad probe, float[] mvp, int[] anchor,
+                                       float[] sub, float minSSS, GpuTextureView colour,
+                                       GpuTextureView depth, int width, int height) {
+        var tracker = VkFrameTracker.get();
+        tracker.waitForFrame();
+        if (probe.requestsUnread) {
+            probe.scene.serviceRequests(MESHES_PER_PASS);
+            probe.requestsUnread = false;
+        }
+        int frame = frameId++;
+        VkSceneUniform.write(probe.scene.res.uniform, mvp, anchor, frame, sub);
+        probe.scene.prepare(new org.joml.Matrix4f().set(mvp), anchor, sub, minSSS, frame, -1.0f);
+        var cmd = tracker.beginFrame();
+        probe.scene.record(cmd, probe.target, CLEAR, null);
+        probe.composite.prepareSources(cmd);
+        tracker.endFrame();
+        probe.requestsUnread = true;
+        var notes = new ArrayList<String>();
+        try (var pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(
+                () -> "voxy native hierarchical frame", colour, Optional.empty(), depth,
+                OptionalDouble.empty())) {
+            VkCommandBuffer mcCmd = McNativeVulkan.commandBufferOf(pass, notes);
+            if (mcCmd == null) {
+                notes.forEach(McNativeHierarchicalLoad::note);
+                return;
+            }
+            probe.composite.recordInPass(mcCmd, width, height);
+            framesComposited++;
+        }
     }
 
     private static McNativeHierarchicalLoad build(VulkanDevice device, long mcDevice,
@@ -385,13 +462,27 @@ public final class McNativeHierarchicalLoad implements Destroyable {
 
     private static void skip(long at, String stage, String reason, long capture, long previousCapture,
                              int atlasState) {
+        if (at < 0) {
+            FRAME_SKIPS.merge(reason, 1L, Long::sum);
+            return;
+        }
         var r = new Result(at, reason, stage, null, Float.NaN, Float.NaN, null, null, null, null, null,
             Double.NaN, 0, capture, 0, 0, 0, null, null, 0, 0, previousCapture, builds, atlasState, 0);
         synchronized (NOTES) {
             RESULTS.put(at, r);
         }
         Logger.info("[native-vk] hier load at draw " + at + " status=" + reason);
+        logFrames(at);
         writeEvidence();
+    }
+
+    /**
+     * With the every-frame flag: how many frames were composited before this handed sample was
+     * decided (a judged sample logs it when its pass is recorded, before its readback returns).
+     */
+    private static void logFrames(long at) {
+        if (!everyFrame()) return;
+        Logger.info("[native-vk] hier frames before draw " + at + ": composited=" + framesComposited);
     }
 
     private static void requestReadback(GpuTextureView colour, int width, int height, long at) {
@@ -589,6 +680,15 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"enabled\": ").append(enabled()).append(",\n");
         sb.append("  \"attempted\": ").append(attempted).append(",\n");
         sb.append("  \"drawsRecorded\": ").append(drawsRecorded).append(",\n");
+        sb.append("  \"everyFrame\": ").append(everyFrame()).append(",\n");
+        sb.append("  \"framesComposited\": ").append(framesComposited).append(",\n");
+        sb.append("  \"frameSkips\": {");
+        int skipIndex = 0;
+        for (var e : FRAME_SKIPS.entrySet()) {
+            if (skipIndex++ > 0) sb.append(", ");
+            sb.append(McNativeVulkanProbe.quote(e.getKey())).append(": ").append(e.getValue());
+        }
+        sb.append("},\n");
         sb.append("  \"builds\": ").append(builds).append(",\n");
         sb.append("  \"buildBudget\": ").append(BUILD_BUDGET).append(",\n");
         sb.append("  \"iterations\": ").append(ITERATIONS).append(",\n");

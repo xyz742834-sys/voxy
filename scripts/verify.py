@@ -1335,7 +1335,8 @@ def launch_enables(command, prop):
 # The literal tokens the stage passes to the ladder launch (see run_stage("native-ladder")).
 LADDER_LAUNCH_FLAGS = ("-PharnessNativeDepthLadder=true", "-PharnessNativeCoexist=true",
                        "-PharnessNativeTerrainLoad=true", "-PharnessNativeInstance=true",
-                       "-PharnessNativeRealLoad=true", "-PharnessNativeHierLoad=true")
+                       "-PharnessNativeRealLoad=true", "-PharnessNativeHierLoad=true",
+                       "-PharnessNativeHierFrames=true")
 # Experiments that write or clear Minecraft's depth and must never be in the ladder launch.
 LADDER_LAUNCH_FORBIDDEN = ("harnessNativeTerrain", "harnessNativeMarker", "harnessNativeDepth")
 
@@ -1365,6 +1366,7 @@ def ladder_launch_requirements(command):
             "terrainLoad": launch_enables(command, "harnessNativeTerrainLoad"),
             "realLoad": launch_enables(command, "harnessNativeRealLoad"),
             "hierLoad": launch_enables(command, "harnessNativeHierLoad"),
+            "hierFrames": launch_enables(command, "harnessNativeHierFrames"),
             "instance": launch_enables(command, "harnessNativeInstance")}
 
 
@@ -2383,12 +2385,71 @@ def hier_load_build_attempts(text):
                   + [int(m.group(1)) for m in HIER_NOTHING_LOG.finditer(text)])
 
 
+HIER_FRAMES_LOG = re.compile(r"hier frames before draw (\d+): composited=(\d+)")
+
+
+def hier_frames_checks(report, log_text, entries, required):
+    """The every-frame path (voxy.native.hierframes): the hierarchical scene rendered and
+    composited on every frame, not only on handed samples. Those frames are not judged per pixel
+    (the handed samples are); this reconciles what the probe says it composited with the log:
+    one "hier frames before draw N" line per handed sample, counts that never fall, and frames
+    composited between every two consecutive judged samples."""
+    L = HIER_LOAD_SPEC["label"]
+    for field, kind in (("everyFrame", bool), ("framesComposited", int), ("frameSkips", dict)):
+        if field not in report:
+            raise ValueError(f"the {L} report does not state {field}")
+        value = report[field]
+        if (kind is bool and not isinstance(value, bool)) or (kind is int and not finite_int(value)) \
+                or (kind is dict and not isinstance(value, dict)):
+            raise ValueError(f"hierLoad.{field} is {value!r}, not a {kind.__name__}")
+    every, composited, skips = report["everyFrame"], report["framesComposited"], report["frameSkips"]
+    for reason, n in skips.items():
+        if reason not in REAL_LOAD_SKIPS or not finite_int(n) or n < 1:
+            raise ValueError(f"hierLoad.frameSkips holds {reason!r}: {n!r}, not a skip reason with a"
+                             f" positive count")
+    logged = [(int(a), int(n)) for a, n in HIER_FRAMES_LOG.findall(log_text or "")]
+    if required and not every:
+        raise ValueError(f"the ladder launch enabled every-frame rendering but the {L} probe says"
+                         f" everyFrame=false")
+    if every and not required:
+        raise ValueError(f"the {L} probe says everyFrame=true but the ladder launch did not enable it")
+    if not every:
+        if composited or skips or logged:
+            raise ValueError(f"the {L} probe composited {composited} frame(s), skipped {skips} and"
+                             f" logged {len(logged)} frame line(s) with every-frame rendering off")
+        return {"everyFrame": False}
+    if composited <= 0:
+        raise ValueError(f"every-frame rendering was on but the {L} probe composited no frame")
+    before = {}
+    if log_text is not None:
+        for at, n in logged:
+            if at in before:
+                raise ValueError(f"the ladder log holds two hier-frames lines for draw {at}")
+            before[at] = n
+        handed = sorted(e["at"] for e in entries)
+        if sorted(before) != handed:
+            raise ValueError(f"hier-frames lines exist for draws {sorted(before)} but the ladder"
+                             f" handed draws {handed}; every handed sample logs one")
+        counts = [before[at] for at in handed]
+        if counts != sorted(counts) or (counts and counts[-1] > composited):
+            raise ValueError(f"the hier-frames counts {counts} fall, or exceed the"
+                             f" {composited} frame(s) the probe reports")
+        judged = [e["at"] for e in sorted(entries, key=lambda e: e["at"]) if e["status"] == "judged"]
+        for a, b in zip(judged, judged[1:]):
+            if before[b] <= before[a]:
+                raise ValueError(f"no frame was composited between the judged samples at draws {a}"
+                                 f" and {b} ({before[a]} then {before[b]})")
+    return {"everyFrame": True, "framesComposited": composited, "frameSkips": dict(skips),
+            "composedBeforeSample": before}
+
+
 HIER_LOAD_SPEC = {"label": "hierarchical-LOAD", "line_label": "hier-load", "prefix": "native-hier-load",
                   "line_re": HIER_LOAD_LOG_LINE, "attempts": hier_load_build_attempts,
                   "nothing_re": HIER_NOTHING_LOG, "budget": HIER_LOAD_BUILD_BUDGET}
 
 
-def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text, required=False):
+def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text, required=False,
+                     require_frames=False):
     """Voxy's HIERARCHICAL pipeline natively (VkHierarchicalScene: real mapper/bakery,
     NodeManager, HiZ, traversal, prep/cull, table, opaque/temporal/translucent), driven with
     Minecraft's matrix into Voxy's own target and composited into a pass that LOADs Minecraft's
@@ -2480,6 +2541,7 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     if sorted(by_at) != sorted(sample_ats):
         raise ValueError(f"{L} results exist for draws {sorted(by_at)} but the ladder handed it"
                          f" draws {sorted(sample_ats)}; every handed sample must carry one")
+    frames = hier_frames_checks(report, log_text, entries, require_frames)
     if log_text is not None and sorted(logged) != sorted(sample_ats):
         raise ValueError(f"the ladder log holds hier-load lines for draws {sorted(logged)} but the"
                          f" ladder handed it draws {sorted(sample_ats)}")
@@ -2568,7 +2630,8 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     return {"enabled": True, "samples": out, "judged": len(judged),
             "visibleSamples": visible_samples, "hiddenSamples": hidden_samples,
             "expectVisible": total["expectVisible"], "expectHidden": total["expectHidden"],
-            "undetermined": total["undetermined"], "geometry": total["geometry"]}
+            "undetermined": total["undetermined"], "geometry": total["geometry"],
+            "frames": frames}
 
 
 def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text, required=False):
@@ -2996,7 +3059,7 @@ def ladder_z_direction(samples, checkpoints):
 def native_ladder_result(output, expected_device=None, expected_extents=None,
                          log_text=None, checkpoints=None, require_coexist=False,
                          require_terrain_load=False, require_real_load=False,
-                         require_hier_load=False):
+                         require_hier_load=False, require_hier_frames=False):
     """Gate the depth ladder's own launch: Minecraft's loaded depth, tested, never written.
 
     This run is SEPARATE from the main native launch because the terrain probe clears the
@@ -3022,7 +3085,8 @@ def native_ladder_result(output, expected_device=None, expected_extents=None,
             bool(result["coexist"].get("enabled")), log_text, require_real_load)
         result["hier_load"] = hier_load_checks(
             output, report, [r for r in result["samples"] if handed.get(r["at"]) == LADDER_HIER_LOAD],
-            bool(result["coexist"].get("enabled")), log_text, require_hier_load)
+            bool(result["coexist"].get("enabled")), log_text, require_hier_load,
+            require_hier_frames)
         latest = result["samples"][-1]
         result["answer"] = (f"{len(result['samples'])} sample(s); the latest (draw"
                             f" {latest['at']}) brackets: " + "; ".join(latest["brackets"]))
@@ -4190,7 +4254,8 @@ def replay_evidence(directory):
                                                  require_coexist=launched["coexist"],
                                                  require_terrain_load=launched["terrainLoad"],
                                                  require_real_load=launched["realLoad"],
-                                                 require_hier_load=launched["hierLoad"])
+                                                 require_hier_load=launched["hierLoad"],
+                                                 require_hier_frames=launched["hierFrames"])
             if not ladder_result["success"]:
                 raise ValueError(f"ladder gate: {ladder_result['failures']}")
             outcome["ladder"] = {"samples": ladder_result["samples"],
@@ -4473,7 +4538,8 @@ def main():
                 require_terrain_load=launch_enables(ladder_run["command"],
                                                     "harnessNativeTerrainLoad"),
                 require_real_load=launch_enables(ladder_run["command"], "harnessNativeRealLoad"),
-                require_hier_load=launch_enables(ladder_run["command"], "harnessNativeHierLoad"))
+                require_hier_load=launch_enables(ladder_run["command"], "harnessNativeHierLoad"),
+                require_hier_frames=launch_enables(ladder_run["command"], "harnessNativeHierFrames"))
             ladder_run["success"] &= ladder_run["ladder"]["success"]
             ladder_run["instance"] = native_instance_result(
                 ladder_output, launch_enables(ladder_run["command"], "harnessNativeInstance"),

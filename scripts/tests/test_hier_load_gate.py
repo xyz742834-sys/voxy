@@ -25,13 +25,13 @@ class HierLoadGateTest(unittest.TestCase):
 
     def run_gate(self, hier_violate=None, hier_status=None, mutate_ladder=None, mutate_hier=None,
                  mutate_files=None, log=None, require=True, depth_kind="sweep", terrain=False,
-                 real=False):
+                 real=False, frames=False, require_frames=None):
         pairs = direction_samples()
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             body, tl, text = full_ladder_package(out, pairs, terrain=terrain, real=real, hier=True,
                                                  hier_violate=hier_violate, hier_status=hier_status,
-                                                 depth_kind=depth_kind)
+                                                 depth_kind=depth_kind, hier_frames=frames)
             if mutate_ladder:
                 mutate_ladder(body)
             if mutate_hier:
@@ -44,7 +44,9 @@ class HierLoadGateTest(unittest.TestCase):
             return native_ladder_result(out, DEVICE, EXTENTS, text if log is None else log(text),
                                         direction_checkpoints(), require_coexist=True,
                                         require_terrain_load=terrain, require_real_load=real,
-                                        require_hier_load=require)
+                                        require_hier_load=require,
+                                        require_hier_frames=frames if require_frames is None
+                                        else require_frames)
 
     def assertRefused(self, result, fragment):
         self.assertFalse(result["success"], "passed although: " + fragment)
@@ -175,6 +177,42 @@ class HierLoadGateTest(unittest.TestCase):
         self.assertIn("-PharnessNativeHierLoad=true", verify.LADDER_LAUNCH_FLAGS)
         self.assertEqual(verify.ladder_launch_requirements(
             ["gradlew", *verify.LADDER_LAUNCH_FLAGS])["hierLoad"], True)
+
+    def test_every_frame_rendering_is_reconciled_with_the_log(self):
+        ok = self.run_gate(frames=True)
+        self.assertTrue(ok["success"], ok["failures"])
+        self.assertEqual(ok["hier_load"]["frames"]["framesComposited"], 300)
+        self.assertEqual(self.run_gate()["hier_load"]["frames"], {"everyFrame": False})
+        self.assertRefused(self.run_gate(frames=False, require_frames=True),
+                           "everyFrame=false")
+        self.assertRefused(self.run_gate(frames=True, require_frames=False),
+                           "did not enable it")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(framesComposited=5)),
+                           "with every-frame rendering off")
+        self.assertRefused(self.run_gate(frames=True, mutate_hier=lambda r: r.update(framesComposited=0)),
+                           "composited no frame")
+        self.assertRefused(self.run_gate(frames=True, mutate_hier=lambda r: r.update(framesComposited=150)),
+                           "fall, or exceed")
+        self.assertRefused(self.run_gate(frames=True, mutate_hier=lambda r: r.pop("frameSkips")),
+                           "does not state frameSkips")
+        self.assertRefused(self.run_gate(frames=True, mutate_hier=lambda r: r.update(everyFrame="yes")),
+                           "hierLoad.everyFrame is 'yes'")
+        self.assertRefused(self.run_gate(frames=True, mutate_hier=lambda r: r.update(frameSkips={"bored": 2})),
+                           "not a skip reason")
+        self.assertTrue(self.run_gate(frames=True,
+                                      mutate_hier=lambda r: r.update(frameSkips={"atlas-pending": 2}))["success"])
+        def drop(text):
+            return "".join(l for l in text.splitlines(keepends=True) if "hier frames before draw 3240" not in l)
+        self.assertRefused(self.run_gate(frames=True, log=drop), "every handed sample logs one")
+        def stall(text):
+            return text.replace("composited=200", "composited=100")
+        self.assertRefused(self.run_gate(frames=True, log=stall), "no frame was composited between")
+        def fall(text):
+            return text.replace("composited=200", "composited=50")
+        self.assertRefused(self.run_gate(frames=True, log=fall), "fall, or exceed")
+        def twice(text):
+            return text + "[native-vk] hier frames before draw 3240: composited=200\n"
+        self.assertRefused(self.run_gate(frames=True, log=twice), "two hier-frames lines")
 
 
 if __name__ == "__main__":

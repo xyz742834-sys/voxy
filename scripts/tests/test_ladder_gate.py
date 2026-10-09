@@ -463,7 +463,7 @@ def write_terrain_files(out, sample, field, after, depth, entry):
 
 def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=True,
                         terrain=True, real=False, real_violate=None, real_status=None,
-                        hier=False, hier_violate=None, hier_status=None):
+                        hier=False, hier_violate=None, hier_status=None, hier_frames=False):
     """Write everything the stage's ladder launch retains for `pairs`: the ladder crops, the
     coexist crops and entries, the terrain-LOAD crops/references and entries. Returns the
     ladder report body, the terrain report body and the complete log text."""
@@ -556,10 +556,13 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
     if real:
         text += real_log_for(real_entries)
     if hier:
+        frames = {e["at"]: 100 * (i + 1) for i, e in enumerate(hier_entries)} if hier_frames else None
         (out / "native-hier-load.json").write_text(json.dumps(
-            hier_report(hier_entries, atlasReads=atlas_reads)))
+            hier_report(hier_entries, atlasReads=atlas_reads, everyFrame=hier_frames,
+                        framesComposited=100 * (len(hier_entries) + 1) if hier_frames else 0)))
         text += hier_log_for(hier_entries,
-                             atlas_logged=any(e["status"] == "judged" for e in real_entries))
+                             atlas_logged=any(e["status"] == "judged" for e in real_entries),
+                             frames=frames)
     return body, tl, text
 
 
@@ -590,12 +593,12 @@ def hier_report(entries, **overrides):
             "results": [dict(e) for e in entries], "problems": 0, "firstProblem": None,
             "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
             "readbacksInFlight": 0, "atlasReads": 1 if judged else 0, "device": hex(DEVICE),
-            "notes": []}
+            "notes": [], "everyFrame": False, "framesComposited": 0, "frameSkips": {}}
     body.update(overrides)
     return body
 
 
-def hier_log_for(entries, atlas_logged=False):
+def hier_log_for(entries, atlas_logged=False, frames=None):
     """The hierarchical probe's log lines; the atlas request/read lines too unless real-LOAD's
     lines (which come first) already carry them."""
     lines = [] if atlas_logged else ["[native-vk] requested the block atlas (2048x2048) through Blaze3D\n"]
@@ -621,6 +624,8 @@ def hier_log_for(entries, atlas_logged=False):
                 line = (inst.format(f=600, st=e["stage"], c=600) + line
                         + inst.format(f=660, st=e["stage"], c=659))
             lines.append(line)
+        if frames is not None:
+            lines.append(f"[native-vk] hier frames before draw {e['at']}: composited={frames[e['at']]}\n")
     return "".join(lines)
 
 
@@ -1465,7 +1470,7 @@ class LadderCoexistTest(unittest.TestCase):
             self.assertFalse(enables(command, "harnessNativeCoexist"), command)
         self.assertEqual(verify.ladder_launch_requirements(LADDER_COMMAND),
                          {"coexist": True, "terrainLoad": True, "realLoad": True,
-                          "hierLoad": True, "instance": True})
+                          "hierLoad": True, "hierFrames": True, "instance": True})
 
     def test_a_result_list_that_is_not_a_list_is_refused_as_such(self):
         """Round-16: the type guard's removal survived because the fragment asserted was
@@ -1655,7 +1660,8 @@ class LadderRetentionTest(unittest.TestCase):
             instance_body = test_instance_gate.report()
             (ladder_output / "native-instance.json").write_text(json.dumps(instance_body))
             if with_files:
-                body, _, log_text = full_ladder_package(ladder_output, samples, real=True, hier=True)
+                body, _, log_text = full_ladder_package(ladder_output, samples, real=True, hier=True,
+                                                         hier_frames=True)
             else:
                 body = report(samples=[s for s, _ in samples], coexistEnabled=True,
                               terrainLoadEnabled=True, terrainLoadDrawsRecorded=len(samples))
