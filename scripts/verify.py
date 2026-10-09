@@ -2380,6 +2380,95 @@ HIER_SCENE_LOG = re.compile(r"hier-LOAD scene #(\d+): (\d+) sections meshed, top
 HIER_NOTHING_LOG = re.compile(r"hier-LOAD: nothing meshed \(scene #(\d+)\)")
 HIER_LOAD_BUILD_BUDGET, HIER_LOAD_ITERATIONS, HIER_LOAD_TOP_RADIUS, HIER_LOAD_DEPTH = 6, 3, 1, 2
 HIER_LOAD_VISIBILITY = "CULL"
+# Voxy's own projection (VoxyRenderSystem.computeProjectionMat): near 16, far 16*3000, reverse Z.
+HIER_VOXY_NEAR, HIER_VOXY_FAR = 16.0, 48000.0
+# depth_resolve.frag keeps a reprojected depth just inside Minecraft's far plane: FAR + 2/(2^24-1)
+HIER_REPROJECT_EPS = 2.0 / ((1 << 24) - 1)
+# the reprojection runs in float32 on the GPU with full MVPs; this re-derives it in double from the
+# two projections. A wrong or missing reprojection is off by orders of magnitude (near 16 vs 0.05).
+HIER_REPROJECT_TOLERANCE = 1e-3
+
+
+def voxy_projection(mc):
+    """Minecraft's reverse-Z 0..1 projection with only its depth row (m22, m32 — column-major
+    indices 10, 14) replaced by Voxy's near/far; near and far swap for reverse Z."""
+    m = list(mc)
+    n, f = HIER_VOXY_FAR, HIER_VOXY_NEAR
+    m[10], m[14] = f / (n - f), f * n / (n - f)
+    return m
+
+
+def _mat_invert(m):
+    """Inverse of a column-major 4x4 matrix (Gauss-Jordan, partial pivoting)."""
+    a = [[m[c * 4 + r] for c in range(4)] + [1.0 if r == k else 0.0 for k in range(4)] for r in range(4)]
+    for col in range(4):
+        piv = max(range(col, 4), key=lambda r: abs(a[r][col]))
+        if abs(a[piv][col]) < 1e-30:
+            raise ValueError("a projection is singular")
+        a[col], a[piv] = a[piv], a[col]
+        p = a[col][col]
+        a[col] = [v / p for v in a[col]]
+        for r in range(4):
+            if r != col and a[r][col] != 0.0:
+                fac = a[r][col]
+                a[r] = [v - fac * w for v, w in zip(a[r], a[col])]
+    return [a[r][4 + c] for c in range(4) for r in range(4)]
+
+
+def reproject_depth(inv_src, dst, ndc_x, ndc_y, depth):
+    """depth_resolve.frag's REPROJECT_DEPTH in double: unproject with the source's inverse,
+    project with the destination, no clamp."""
+    point = _mat_project(inv_src, ndc_x, ndc_y, depth)
+    return _mat_project(dst, *point)[2]
+
+
+def hier_reprojection_checks(output, entry, at, recount, ladder_sample):
+    """Voxy renders with its own projection; the composite (and so the judged reference depth) uses
+    that depth rewritten in Minecraft's depth space. Re-derive every reference pixel from Voxy's
+    retained raw depth and the two published projections. Returns (pixels clamped just inside
+    Minecraft's far plane, the file name)."""
+    L = HIER_LOAD_SPEC["label"]
+    name = f"native-hier-load-voxydepth-{at}.f32.gz"
+    if entry.get("voxyDepthFile") != name or not (output / name).is_file():
+        raise ValueError(f"{L} at draw {at} names voxyDepthFile={entry.get('voxyDepthFile')!r}"
+                         f" (want {name!r}, retained)")
+    proj, vp = entry.get("projection"), entry.get("voxyProjection")
+    for label, m in (("projection", proj), ("voxyProjection", vp)):
+        if not isinstance(m, list) or len(m) != 16 or not all(finite_number(v) for v in m):
+            raise ValueError(f"{L} at draw {at} publishes {label}={m!r}, not 16 numbers")
+    want = voxy_projection(proj)
+    if any(abs(a - b) > 1e-6 * max(1.0, abs(b)) for a, b in zip(vp, want)):
+        raise ValueError(f"{L} at draw {at}: voxyProjection is not Minecraft's projection with"
+                         f" Voxy's near {HIER_VOXY_NEAR} / far {HIER_VOXY_FAR}")
+    raw, (w, h) = read_f32_gz(output / name)
+    ref, (rw, rh) = read_f32_gz(output / entry["referenceDepthFile"])
+    if (w, h) != (rw, rh):
+        raise ValueError(f"{L} at draw {at}: Voxy's depth crop is {w}x{h}, the reference {rw}x{rh}")
+    # the ladder gate has already refused any sample without a positive integer frame extent
+    W, H = ladder_sample["targetWidth"], ladder_sample["targetHeight"]
+    x0, y0 = recount["rect"][0], recount["rect"][1]
+    inv = _mat_invert(vp)
+    beyond = 0
+    for j in range(h):
+        ndc_y = (y0 + j + 0.5) / H * 2.0 - 1.0
+        for i in range(w):
+            r, d = raw[j][i], ref[j][i]
+            if r == 0.0:
+                if d != 0.0:
+                    raise ValueError(f"{L} at draw {at}: pixel ({x0 + i}, {y0 + j}) has no Voxy"
+                                     f" depth but reference depth {d}")
+                continue
+            if not (0.0 < r <= 1.0):
+                raise ValueError(f"{L} at draw {at}: Voxy's depth {r} at ({x0 + i}, {y0 + j}) is"
+                                 f" outside (0, 1]")
+            v = reproject_depth(inv, proj, (x0 + i + 0.5) / W * 2.0 - 1.0, ndc_y, r)
+            if v <= HIER_REPROJECT_EPS:
+                beyond += 1
+            v = max(HIER_REPROJECT_EPS, v)
+            if abs(v - d) > HIER_REPROJECT_TOLERANCE * v:
+                raise ValueError(f"{L} at draw {at}: Voxy's depth {r} at ({x0 + i}, {y0 + j})"
+                                 f" reprojects to {v} but the reference depth is {d}")
+    return beyond, name
 HIER_LOAD_SKIP_KEYS = {"at", "status", "stage", "cameraCapture", "previousCapture", "buildsSoFar",
                        "atlasState"}
 
@@ -2511,6 +2600,9 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         raise ValueError(f"the {L} probe runs budget {report['buildBudget']}, {report['iterations']}"
                          f" iteration(s), top radius {report['topRadius']}, depth {report['depth']},"
                          f" not what its source lays out")
+    if report.get("voxyNear") != HIER_VOXY_NEAR or report.get("voxyFar") != HIER_VOXY_FAR:
+        raise ValueError(f"the {L} probe renders with near {report.get('voxyNear')!r} / far"
+                         f" {report.get('voxyFar')!r}, not Voxy's {HIER_VOXY_NEAR} / {HIER_VOXY_FAR}")
     if report["declaredDepthState"] != TERRAIN_LOAD_DEPTH_STATE or report["depthStateReadBack"]:
         raise ValueError(f"the {L} probe declares {report['declaredDepthState']!r}"
                          f" (read back: {report['depthStateReadBack']}), not Voxy's declared"
@@ -2572,6 +2664,7 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     ladder_samples_by_at = {s.get("at"): s for s in ladder_report.get("samples") or [] if isinstance(s, dict)}
     referenced = {"native-hier-load.json"}
     out, visible_samples, hidden_samples, previous_judged = [], 0, 0, None
+    beyond_far = 0
     total = {name: 0 for name in TERRAIN_LOAD_COUNTS}
     for recount in recounts:
         at = recount["at"]
@@ -2622,6 +2715,10 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         counts, names = judge_load_sample(output, recount, entry, at, coexist_enabled, logged,
                                           log_text, HIER_LOAD_SPEC)
         referenced.update(names)
+        beyond, raw_name = hier_reprojection_checks(output, entry, at, recount,
+                                                    ladder_samples_by_at.get(at, {}))
+        referenced.add(raw_name)
+        beyond_far += beyond
         visible_samples += bool(counts["expectVisible"])
         hidden_samples += bool(counts["expectHidden"])
         for k in total:
@@ -2640,7 +2737,7 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
             "visibleSamples": visible_samples, "hiddenSamples": hidden_samples,
             "expectVisible": total["expectVisible"], "expectHidden": total["expectHidden"],
             "undetermined": total["undetermined"], "geometry": total["geometry"],
-            "frames": frames}
+            "frames": frames, "beyondMinecraftFar": beyond_far}
 
 
 def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text, required=False):

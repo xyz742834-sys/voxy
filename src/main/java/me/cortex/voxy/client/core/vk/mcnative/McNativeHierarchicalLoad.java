@@ -20,6 +20,9 @@ import me.cortex.voxy.commonImpl.WorldIdentifier;
 import net.minecraft.client.Minecraft;
 import org.joml.Vector3f;
 import org.lwjgl.system.MemoryUtil;
+import org.lwjgl.vulkan.VK10;
+import org.lwjgl.vulkan.VkBufferImageCopy;
+import org.lwjgl.vulkan.VkBufferMemoryBarrier;
 import org.lwjgl.vulkan.VkCommandBuffer;
 
 import java.nio.charset.StandardCharsets;
@@ -125,13 +128,24 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                          long referenceSet, long cameraCapture, int engineId, int sceneBuild,
                          int atlasGeneration, float[] mcProjection, float[] projection,
                          int meshed, int iterations, long previousCapture, int buildsSoFar,
-                         int atlasState, int meshedAtBuild, String visibility) {}
+                         int atlasState, int meshedAtBuild, String visibility,
+                         float[] voxyProjection, String voxyDepthFile) {}
 
-    private record Pending(int[][] rects, int[][] colour, float[][] depth, Result partial) {}
+    private record Pending(int[][] rects, int[][] colour, float[][] depth, float[][] rawDepth,
+                           Result partial) {}
 
     private final VulkanDevice device;
     private final long ownerDevice;
     private final VkRenderTarget target;
+    /**
+     * Voxy renders with its own projection (near {@link VkHostViewport#VOXY_NEAR}, far
+     * {@link VkHostViewport#VOXY_FAR}); {@link VkDepthResolve} (reprojecting, the GL path's
+     * {@code blit_texture_depth_cutout} formula) writes that depth in Minecraft's depth space into
+     * this R32F image, which the composite samples and the judged sample reads back.
+     */
+    private final me.cortex.voxy.client.core.vk.VkTexture mcDepth;
+    private final me.cortex.voxy.client.core.vk.VkDepthResolve resolve;
+    private final me.cortex.voxy.client.core.vk.VkBuffer mcDepthReadback;
     private final VkHierarchicalScene scene;
     private final McNativeComposite composite;
     private final java.lang.ref.WeakReference<me.cortex.voxy.common.world.WorldEngine> engine;
@@ -147,6 +161,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private boolean requestsUnread;
 
     private McNativeHierarchicalLoad(VulkanDevice device, long ownerDevice, VkRenderTarget target,
+                                     me.cortex.voxy.client.core.vk.VkTexture mcDepth,
+                                     me.cortex.voxy.client.core.vk.VkDepthResolve resolve,
+                                     me.cortex.voxy.client.core.vk.VkBuffer mcDepthReadback,
                                      VkHierarchicalScene scene, McNativeComposite composite,
                                      me.cortex.voxy.common.world.WorldEngine engine,
                                      int atlasGeneration, int buildOrdinal, int width, int height,
@@ -162,6 +179,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         this.width = width;
         this.height = height;
         this.meshedAtBuild = meshedAtBuild;
+        this.mcDepth = mcDepth;
+        this.resolve = resolve;
+        this.mcDepthReadback = mcDepthReadback;
     }
 
     public static boolean enabled() { return Boolean.getBoolean(FLAG); }
@@ -308,10 +328,15 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             return;
         }
         double farPlane = VkHostViewport.farPlaneDistance(vkProjection);
-        float[] mvp = VkHostViewport.mvp(vkProjection, view.modelView(), sub);
+        // Voxy's own projection (its depth row only), as VoxyRenderSystem.computeProjectionMat;
+        // the composite's space stays Minecraft's
+        var voxyProjection = VkHostViewport.voxyProjection(vkProjection, VkHostViewport.VOXY_NEAR,
+            VkHostViewport.VOXY_FAR);
+        float[] mvp = VkHostViewport.mvp(voxyProjection, view.modelView(), sub);
+        float[] mcMvp = VkHostViewport.mvp(vkProjection, view.modelView(), sub);
         float minSSS = (float) ((SUBDIVISION_PX * SUBDIVISION_PX) / ((double) width * height));
         if (at < 0) {
-            drawEveryFrame(probe, mvp, anchor, sub, minSSS, colour, depth, width, height);
+            drawEveryFrame(probe, mvp, mcMvp, anchor, sub, minSSS, colour, depth, width, height);
             return;
         }
 
@@ -338,6 +363,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             if (last) {
                 probe.target.recordReadback(cmd);
                 probe.target.recordDepthReadback(cmd);
+                probe.recordResolve(cmd, mvp, mcMvp, true);
                 probe.composite.prepareSources(cmd);
             }
             tracker.endFrame();
@@ -349,11 +375,14 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         colours = new int[n];
         depths = new float[n];
         long base = probe.target.readbackBuffer().addr();
-        long dbase = probe.target.depthReadbackBuffer().addr();
+        long dbase = probe.mcDepthReadback.addr();
+        long rbase = probe.target.depthReadbackBuffer().addr();
+        float[] rawDepths = new float[width * height];
         int clearRgb = McNativeTerrainScene.packRgb(CLEAR);
         for (int i = 0; i < n; i++) {
             colours[i] = MemoryUtil.memGetInt(base + (long) i * 4) & 0x00FFFFFF;
             depths[i] = MemoryUtil.memGetFloat(dbase + (long) i * 4);
+            rawDepths[i] = MemoryUtil.memGetFloat(rbase + (long) i * 4);
         }
 
         // ---- the composite into Minecraft's LOADed frame ----
@@ -376,16 +405,19 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             McNativeDepthLadder.bandRect(width, height, true)};
         int[][] bandColour = new int[2][];
         float[][] bandDepth = new float[2][];
+        float[][] bandRaw = new float[2][];
         for (int o = 0; o < 2; o++) {
             int[] q = rects[o];
             int w = q[2] - q[0], h = q[3] - q[1];
             bandColour[o] = new int[w * h];
             bandDepth[o] = new float[w * h];
+            bandRaw[o] = new float[w * h];
             int i = 0;
             for (int y = q[1]; y < q[3]; y++) {
                 for (int x = q[0]; x < q[2]; x++, i++) {
                     bandColour[o][i] = colours[y * width + x];
                     bandDepth[o][i] = depths[y * width + x];
+                    bandRaw[o][i] = rawDepths[y * width + x];
                 }
             }
         }
@@ -396,9 +428,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             adjusted, farPlane, 0, capture, System.identityHashCode(world), probe.buildOrdinal,
             probe.atlasGeneration, mcProjection, usedProjection, probe.scene.meshedSections(),
             ITERATIONS, previousCapture, builds, -1, probe.meshedAtBuild,
-            probe.scene.visibility().name());
+            probe.scene.visibility().name(), voxyProjection.get(new float[16]), null);
         synchronized (NOTES) {
-            PENDING.put(at, new Pending(rects, bandColour, bandDepth, partial));
+            PENDING.put(at, new Pending(rects, bandColour, bandDepth, bandRaw, partial));
         }
         requestReadback(colour, width, height, at);
     }
@@ -419,7 +451,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      * Minecraft records after this submission. Retirement still goes through Minecraft's destroy
      * queue, whose frame fence orders after every earlier submission on the queue.
      */
-    private static void drawEveryFrame(McNativeHierarchicalLoad probe, float[] mvp, int[] anchor,
+    private static void drawEveryFrame(McNativeHierarchicalLoad probe, float[] mvp, float[] mcMvp,
+                                       int[] anchor,
                                        float[] sub, float minSSS, GpuTextureView colour,
                                        GpuTextureView depth, int width, int height) {
         var tracker = VkFrameTracker.get();
@@ -433,6 +466,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         probe.scene.prepare(new org.joml.Matrix4f().set(mvp), anchor, sub, minSSS, frame, -1.0f);
         var cmd = tracker.beginFrame();
         probe.scene.record(cmd, probe.target, CLEAR, null);
+        probe.recordResolve(cmd, mvp, mcMvp, false);
         probe.composite.prepareSources(cmd);
         tracker.endFrame();
         probe.requestsUnread = true;
@@ -450,12 +484,53 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         }
     }
 
+    /**
+     * In Voxy's submission, after the scene (and any readback of Voxy's own depth): Voxy's depth,
+     * rendered with Voxy's projection, rewritten in Minecraft's depth space into {@link #mcDepth}
+     * — {@code depth_resolve.frag} with {@code REPROJECT_DEPTH}: unproject with Voxy's MVP,
+     * project with Minecraft's, clamp just inside Minecraft's far plane, pass FAR (nothing drawn)
+     * through. With {@code readback} the result is copied to {@link #mcDepthReadback}.
+     */
+    private void recordResolve(VkCommandBuffer cmd, float[] voxyMvp, float[] mcMvp, boolean readback) {
+        // the target's depth may have just been copied out (a transfer read): order the
+        // transition to shader-readable after everything earlier, not only the depth writes
+        this.target.depth.barrier(cmd, 0, VK10.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK10.VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK10.VK_ACCESS_MEMORY_WRITE_BIT,
+            VK10.VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK10.VK_ACCESS_SHADER_READ_BIT);
+        this.resolve.setReprojection(new org.joml.Matrix4f().set(voxyMvp).invert(),
+            new org.joml.Matrix4f().set(mcMvp));
+        this.resolve.record(cmd, this.target.depth, this.mcDepth);
+        if (!readback) return;
+        this.mcDepth.barrier(cmd, 0, VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK10.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK10.VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            VK10.VK_PIPELINE_STAGE_TRANSFER_BIT, VK10.VK_ACCESS_TRANSFER_READ_BIT);
+        try (var stack = org.lwjgl.system.MemoryStack.stackPush()) {
+            var region = VkBufferImageCopy.calloc(1, stack).bufferOffset(0).bufferRowLength(0)
+                .bufferImageHeight(0);
+            region.imageSubresource().aspectMask(VK10.VK_IMAGE_ASPECT_COLOR_BIT).mipLevel(0)
+                .baseArrayLayer(0).layerCount(1);
+            region.imageOffset().set(0, 0, 0);
+            region.imageExtent().set(this.width, this.height, 1);
+            VK10.vkCmdCopyImageToBuffer(cmd, this.mcDepth.image, VK10.VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                this.mcDepthReadback.handle, region);
+            var b = VkBufferMemoryBarrier.calloc(1, stack).sType$Default()
+                .srcAccessMask(VK10.VK_ACCESS_TRANSFER_WRITE_BIT).dstAccessMask(VK10.VK_ACCESS_HOST_READ_BIT)
+                .srcQueueFamilyIndex(VK10.VK_QUEUE_FAMILY_IGNORED).dstQueueFamilyIndex(VK10.VK_QUEUE_FAMILY_IGNORED)
+                .buffer(this.mcDepthReadback.handle).offset(0).size(this.mcDepthReadback.size());
+            VK10.vkCmdPipelineBarrier(cmd, VK10.VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK10.VK_PIPELINE_STAGE_HOST_BIT, 0, null, b, null);
+        }
+    }
+
     private static McNativeHierarchicalLoad build(VulkanDevice device, long mcDevice,
                                                   me.cortex.voxy.common.world.WorldEngine world,
                                                   McNativeCamera.View view, int width, int height) {
         VkRenderTarget target = null;
         VkHierarchicalScene scene = null;
         McNativeComposite composite = null;
+        me.cortex.voxy.client.core.vk.VkTexture mcDepth = null;
+        me.cortex.voxy.client.core.vk.VkDepthResolve resolve = null;
+        me.cortex.voxy.client.core.vk.VkBuffer mcDepthReadback = null;
         try {
             target = new VkRenderTarget(width, height);
             scene = new VkHierarchicalScene(world, target, width, height, SECTIONS, MAX_QUADS,
@@ -470,12 +545,19 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 Logger.info("[native-vk] hier-LOAD: nothing meshed (scene #" + builds + ")");
                 return null;
             }
-            composite = new McNativeComposite(target.color, target.depth);
+            mcDepth = new me.cortex.voxy.client.core.vk.VkTexture(VK10.VK_FORMAT_R32_SFLOAT, 1, width,
+                height, VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK10.VK_IMAGE_USAGE_SAMPLED_BIT
+                    | VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+            resolve = new me.cortex.voxy.client.core.vk.VkDepthResolve(target.depth, width, height, true);
+            mcDepthReadback = new me.cortex.voxy.client.core.vk.VkBuffer((long) width * height * 4);
+            composite = new McNativeComposite(target.color, mcDepth);
             Logger.info("[native-vk] hier-LOAD scene #" + builds + ": " + meshed + " sections meshed,"
                 + " top radius " + TOP_RADIUS + ", depth " + DEPTH);
-            var built = new McNativeHierarchicalLoad(device, mcDevice, target, scene, composite, world,
+            var built = new McNativeHierarchicalLoad(device, mcDevice, target, mcDepth, resolve,
+                mcDepthReadback, scene, composite, world,
                 McNativeAtlas.generation(), builds, width, height, meshed);
             target = null; scene = null; composite = null;
+            mcDepth = null; resolve = null; mcDepthReadback = null;
             return built;
         } catch (Throwable t) {
             fail("could not build the hierarchical scene: " + t);
@@ -483,6 +565,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         } finally {
             // nothing of these was submitted to Minecraft yet
             if (composite != null) try { composite.free(); } catch (Throwable t) { closeFailures++; }
+            if (resolve != null) try { resolve.free(); } catch (Throwable t) { closeFailures++; }
+            if (mcDepth != null) try { mcDepth.free(); } catch (Throwable t) { closeFailures++; }
+            if (mcDepthReadback != null) try { mcDepthReadback.free(); } catch (Throwable t) { closeFailures++; }
             if (scene != null) try { scene.free(); } catch (Throwable t) { closeFailures++; }
             if (target != null) try { target.free(); } catch (Throwable t) { closeFailures++; }
         }
@@ -495,7 +580,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             return;
         }
         var r = new Result(at, reason, stage, null, Float.NaN, Float.NaN, null, null, null, null, null,
-            Double.NaN, 0, capture, 0, 0, 0, null, null, 0, 0, previousCapture, builds, atlasState, 0, null);
+            Double.NaN, 0, capture, 0, 0, 0, null, null, 0, 0, previousCapture, builds, atlasState, 0, null, null, null);
         synchronized (NOTES) {
             RESULTS.put(at, r);
         }
@@ -587,12 +672,17 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             String refName = "native-hier-load-reference-" + at + ".ppm.gz";
             String depthName = "native-hier-load-depth-" + at + ".f32.gz";
             boolean refWritten = writeReference(refRgb, refDepth, w, h, refName, depthName);
+            // Voxy's own depth (its projection), before the reprojection: the gate re-derives
+            // the reference depth from it and the two published projections
+            String rawName = "native-hier-load-voxydepth-" + at + ".f32.gz";
+            boolean rawWritten = refWritten && writeDepth(pending.rawDepth()[o], w, h, rawName);
             var p = pending.partial();
             var result = new Result(at, JUDGED, p.stage(), counts, minDepth, maxDepth, file, frameFile,
                 refWritten ? refName : null, refWritten ? depthName : null, p.projectionAdjusted(),
                 p.farPlane(), refSet, p.cameraCapture(), p.engineId(), p.sceneBuild(),
                 p.atlasGeneration(), p.mcProjection(), p.projection(), p.meshed(), p.iterations(),
-                p.previousCapture(), p.buildsSoFar(), -1, p.meshedAtBuild(), p.visibility());
+                p.previousCapture(), p.buildsSoFar(), -1, p.meshedAtBuild(), p.visibility(),
+                p.voxyProjection(), rawWritten ? rawName : null);
             synchronized (NOTES) {
                 RESULTS.put(at, result);
             }
@@ -610,6 +700,21 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         } finally {
             readbacksInFlight--;
             try { buffer.close(); } catch (Throwable t) { closeFailures++; }
+        }
+    }
+
+    private static boolean writeDepth(float[] depth, int w, int h, String name) {
+        String dir = System.getProperty("voxy.harness.output");
+        if (dir == null || dir.isBlank()) return false;
+        try {
+            var buf = java.nio.ByteBuffer.allocate(w * h * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+            for (float d : depth) buf.putFloat(d);
+            McNativeVulkanProbe.writeGzipFileBytes(name,
+                ("VXF32\n" + w + " " + h + "\n").getBytes(StandardCharsets.US_ASCII), buf.array());
+            return true;
+        } catch (Throwable t) {
+            note("could not retain the hierarchical-LOAD depth " + name + ": " + t);
+            return false;
         }
     }
 
@@ -665,6 +770,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         try { this.composite.free(); } catch (Throwable t) { closeFailures++; }
         try { this.scene.free(); } catch (Throwable t) { closeFailures++; }
         try { this.target.free(); } catch (Throwable t) { closeFailures++; }
+        try { this.resolve.free(); } catch (Throwable t) { closeFailures++; }
+        try { this.mcDepth.free(); } catch (Throwable t) { closeFailures++; }
+        try { this.mcDepthReadback.free(); } catch (Throwable t) { closeFailures++; }
     }
 
     public static void shutdownImmediate(org.lwjgl.vulkan.VkDevice waitedDevice) {
@@ -729,6 +837,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"iterations\": ").append(ITERATIONS).append(",\n");
         sb.append("  \"topRadius\": ").append(TOP_RADIUS).append(",\n");
         sb.append("  \"depth\": ").append(DEPTH).append(",\n");
+        sb.append("  \"voxyNear\": ").append(VkHostViewport.VOXY_NEAR).append(",\n");
+        sb.append("  \"voxyFar\": ").append(VkHostViewport.VOXY_FAR).append(",\n");
         sb.append("  \"declaredDepthState\": [").append(DECLARED_DEPTH_STATE[0]).append(", ")
           .append(DECLARED_DEPTH_STATE[1]).append(", ").append(DECLARED_DEPTH_STATE[2]).append("],\n");
         sb.append("  \"depthStateReadBack\": false,\n");
@@ -765,6 +875,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 sb.append(", \"meshed\": ").append(r.meshed());
                 sb.append(", \"meshedAtBuild\": ").append(r.meshedAtBuild());
                 sb.append(", \"visibility\": ").append(McNativeVulkanProbe.quote(r.visibility()));
+                sb.append(", \"voxyProjection\": ").append(floats(r.voxyProjection()));
+                sb.append(", \"voxyDepthFile\": ").append(McNativeVulkanProbe.quote(r.voxyDepthFile()));
                 sb.append(", \"iterationsRun\": ").append(r.iterations());
             } else {
                 sb.append(", \"atlasState\": ").append(r.atlasState());

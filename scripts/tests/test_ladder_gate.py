@@ -497,6 +497,7 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
             after = terrain_after(f, before, depth, hier_violate if not hier_entries else None)
             entry = hier_entry(s, f, before, depth, after)
             write_real_files(out, s, f, after, depth, entry)
+            write_gz_f32(out / entry["voxyDepthFile"], hier_raw_depth(depth, entry, s))
             hier_entries.append(entry)
             continue
         if consumer == verify.LADDER_REAL_LOAD:
@@ -580,8 +581,29 @@ def hier_entry(sample, field, before, depth, after):
                  referenceDepthFile=f"native-hier-load-depth-{at}.f32.gz",
                  meshed=156, meshedAtBuild=35, iterationsRun=verify.HIER_LOAD_ITERATIONS,
                  visibility=verify.HIER_LOAD_VISIBILITY,
+                 projection=list(HIER_MC_PROJECTION), mcProjection=list(HIER_MC_PROJECTION),
+                 voxyProjection=verify.voxy_projection(HIER_MC_PROJECTION),
+                 voxyDepthFile=f"native-hier-load-voxydepth-{at}.f32.gz",
                  previousCapture=at - 1, buildsSoFar=1)
     return entry
+
+
+# The fixture's depth panels (0.5 near, 1e-6 far) are Minecraft-space depths. With Minecraft's
+# 0.05 near plane a depth of 0.5 is a tenth of a block away — inside Voxy's 16-block near plane,
+# which Voxy cannot render. A 32-block near plane puts the same panels where Voxy renders (64 and
+# about 2000 blocks), so the bracket sweep is unchanged and Voxy's raw depth is in (0, 1].
+HIER_MC_PROJECTION = verify._mat_perspective(math.radians(70), 16 / 9, 32.0, 2048.0)
+
+
+def hier_raw_depth(depth, entry, sample):
+    """Voxy's own depth (its projection) for a Minecraft-space reference crop: the reprojection
+    run backwards, so the gate's forward reprojection recovers the reference."""
+    inv_mc = verify._mat_invert(entry["projection"])
+    W, H = sample["targetWidth"], sample["targetHeight"]
+    x0, y0 = sample["rect"][0], sample["rect"][1]
+    return [[0.0 if d == 0.0 else verify.reproject_depth(
+                inv_mc, entry["voxyProjection"], (x0 + i + 0.5) / W * 2 - 1, (y0 + j + 0.5) / H * 2 - 1, d)
+             for i, d in enumerate(row)] for j, row in enumerate(depth)]
 
 
 def hier_report(entries, **overrides):
@@ -594,7 +616,8 @@ def hier_report(entries, **overrides):
             "results": [dict(e) for e in entries], "problems": 0, "firstProblem": None,
             "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
             "readbacksInFlight": 0, "atlasReads": 1 if judged else 0, "device": hex(DEVICE),
-            "notes": [], "everyFrame": False, "framesComposited": 0, "frameSkips": {}}
+            "notes": [], "everyFrame": False, "framesComposited": 0, "frameSkips": {},
+            "voxyNear": verify.HIER_VOXY_NEAR, "voxyFar": verify.HIER_VOXY_FAR}
     body.update(overrides)
     return body
 

@@ -126,6 +126,25 @@ public class VkDepthResolve {
     }
 
     public void record(VkCommandBuffer cmd, VkTexture srcDepth, VkInteropImage dst) {
+        if (dst.width != this.width || dst.height != this.height) {
+            throw new IllegalArgumentException("destination is " + dst.width + "x" + dst.height
+                + " but the pass was built for " + this.width + "x" + this.height);
+        }
+        this.record(cmd, srcDepth, dst.texture());
+
+        // GL に渡す。GL 側との順序は Vulkan のバリアでは表現できず、
+        // CPU 側の同期でしか担保できない [Phase 5a §4]
+        dst.texture().barrier(cmd, 0, VK_IMAGE_LAYOUT_GENERAL,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0);
+    }
+
+    /**
+     * The same pass into a plain Vulkan R32F texture of this pass's size (no interop): the native
+     * composite path. Afterwards {@code dst} is in COLOR_ATTACHMENT_OPTIMAL, written; the caller
+     * transitions it for whatever reads it next.
+     */
+    public void record(VkCommandBuffer cmd, VkTexture srcDepth, VkTexture dst) {
         if (this.freed) throw new IllegalStateException("VkDepthResolve was freed");
         if (this.reproject && !this.reprojectionSet) {
             // ⚠ 0 行列のまま流すと**全画素が同じ深度**になる。絵は出るので気付かない
@@ -136,6 +155,9 @@ public class VkDepthResolve {
             throw new IllegalArgumentException("destination is " + dst.width + "x" + dst.height
                 + " but the pass was built for " + this.width + "x" + this.height);
         }
+        if (dst.format != org.lwjgl.vulkan.VK10.VK_FORMAT_R32_SFLOAT) {
+            throw new IllegalArgumentException("the resolve writes R32_SFLOAT, not format " + dst.format);
+        }
 
         // 地形描画が書いた深度を、フラグメントシェーダから読める状態にする。
         // src は LATE_FRAGMENT_TESTS (深度書き込みが完了する段)
@@ -145,13 +167,13 @@ public class VkDepthResolve {
 
         // 書き先。前フレームで GL が読んだかもしれないので、src は ALL_COMMANDS で
         // 実行依存だけ張る (WAR。可視化は不要)
-        dst.texture().barrier(cmd, 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        dst.barrier(cmd, 0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT);
 
         try (MemoryStack stack = stackPush()) {
             var att = VkRenderingAttachmentInfo.calloc(1, stack).sType$Default()
-                .imageView(dst.texture().view(0))
+                .imageView(dst.view(0))
                 .imageLayout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
                 // 全面を書くので LOAD は要らない
                 .loadOp(VK_ATTACHMENT_LOAD_OP_DONT_CARE)
@@ -177,12 +199,6 @@ public class VkDepthResolve {
             vkCmdDraw(cmd, 3, 1, 0, 0);
         }
         VkCmd.endRendering(cmd);
-
-        // GL に渡す。GL 側との順序は Vulkan のバリアでは表現できず、
-        // CPU 側の同期でしか担保できない [Phase 5a §4]
-        dst.texture().barrier(cmd, 0, VK_IMAGE_LAYOUT_GENERAL,
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0);
     }
 
     public void free() {

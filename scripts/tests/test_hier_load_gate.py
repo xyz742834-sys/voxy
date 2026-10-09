@@ -245,6 +245,44 @@ class HierLoadGateTest(unittest.TestCase):
                                          mutate_hier=lambda r: r["results"][0].update(frameExtent=[1, 1])),
                            "carries ['frameExtent']")
 
+    def test_voxys_own_projection_and_the_reprojection_are_rederived(self):
+        from test_ladder_gate import write_gz_f32
+        def first_judged(o):
+            hl = json.loads((o / "native-hier-load.json").read_text())
+            return next(e for e in hl["results"] if e["status"] == "judged")
+        def rewrite_raw(fn):
+            def mutate(o):
+                e = first_judged(o)
+                raw, _ = verify.read_f32_gz(o / e["voxyDepthFile"])
+                ref, _ = verify.read_f32_gz(o / e["referenceDepthFile"])
+                write_gz_f32(o / e["voxyDepthFile"], fn(raw, ref))
+            return mutate
+        ok = self.run_gate()
+        self.assertTrue(ok["success"], ok["failures"])
+        self.assertIn("beyondMinecraftFar", ok["hier_load"])
+        # rendered with Minecraft's own projection: not Voxy's near/far
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(
+            voxyProjection=list(r["results"][0]["projection"]))), "not Minecraft's projection with Voxy's")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(voxyProjection=[1.0] * 3)),
+                           "not 16 numbers")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(voxyNear=0.05)), "renders with near 0.05")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(voxyDepthFile="x.f32.gz")),
+                           "names voxyDepthFile='x.f32.gz'")
+        # the composite wrote Voxy's depth unreprojected
+        self.assertRefused(self.run_gate(mutate_files=rewrite_raw(lambda raw, ref: ref)), "reprojects to")
+        def hole(raw, ref):
+            raw = [list(r) for r in raw]
+            j = next(j for j, r in enumerate(ref) if any(d > 0 for d in r))
+            raw[j][next(i for i, d in enumerate(ref[j]) if d > 0)] = 0.0
+            return raw
+        self.assertRefused(self.run_gate(mutate_files=rewrite_raw(hole)), "has no Voxy depth but reference depth")
+        def over(raw, ref):
+            return [[2.0 if d > 0 else 0.0 for d in r] for r in raw]
+        self.assertRefused(self.run_gate(mutate_files=rewrite_raw(over)), "is outside (0, 1]")
+        def small(raw, ref):
+            return [r[: len(r) // 2] for r in raw]
+        self.assertRefused(self.run_gate(mutate_files=rewrite_raw(small)), "Voxy's depth crop is")
+
 
 if __name__ == "__main__":
     unittest.main()
