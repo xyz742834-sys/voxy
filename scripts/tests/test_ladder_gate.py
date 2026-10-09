@@ -194,14 +194,18 @@ def report(samples=None, **overrides):
             "deviceDiverged": False, "terrainProbeEnabled": False, "terrainDrawsRecorded": 0,
             "markerDrawEnabled": False, "markerDrawsRecorded": 0,
             "terrainLoadEnabled": False, "terrainLoadDrawsRecorded": 0,
-            "realLoadEnabled": False, "realLoadDrawsRecorded": 0, "device": hex(DEVICE),
+            "realLoadEnabled": False, "realLoadDrawsRecorded": 0,
+            "hierLoadEnabled": False, "hierLoadDrawsRecorded": 0, "device": hex(DEVICE),
             "notes": []}
     body.update(overrides)
     # the hand-off each sample carries follows the fixed rule unless a test overrides it
-    for index, s in enumerate(body["samples"] if isinstance(body.get("samples"), list) else []):
+    samples = body["samples"] if isinstance(body.get("samples"), list) else []
+    expected = verify.ladder_expected_consumers(
+        body.get("terrainLoadEnabled"), body.get("realLoadEnabled"), body.get("hierLoadEnabled") is True,
+        [s.get("stage") if isinstance(s, dict) else None for s in samples])
+    for index, s in enumerate(samples):
         if isinstance(s, dict) and "experiment" not in s:
-            s["experiment"] = verify.ladder_expected_consumer(
-                body.get("terrainLoadEnabled"), body.get("realLoadEnabled"), index)
+            s["experiment"] = expected[index]
     return body
 
 
@@ -458,13 +462,15 @@ def write_terrain_files(out, sample, field, after, depth, entry):
 
 
 def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=True,
-                        terrain=True, real=False, real_violate=None, real_status=None):
+                        terrain=True, real=False, real_violate=None, real_status=None,
+                        hier=False, hier_violate=None, hier_status=None):
     """Write everything the stage's ladder launch retains for `pairs`: the ladder crops, the
     coexist crops and entries, the terrain-LOAD crops/references and entries. Returns the
     ladder report body, the terrain report body and the complete log text."""
     afters = [coexist_after(f, s["flipped"]) for s, f in pairs]
     coexist_entries = [coexist_entry(s, f, a) for (s, f), a in zip(pairs, afters)]
-    terrain_entries, real_entries = [], []
+    terrain_entries, real_entries, hier_entries = [], [], []
+    consumers = verify.ladder_expected_consumers(terrain, real, hier, [s["stage"] for s, _ in pairs])
     for i, ((s, f), quad) in enumerate(zip(pairs, afters)):
         write_sample_files(out, s, f)
         if coexist:
@@ -472,7 +478,27 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
             _, rej = crops(f, s["flipped"])
             write_gz_ppm(out / f"native-depth-ladder-coexist-frame-{s['at']}.ppm.gz",
                          thumbnail(quad, s["rect"], rej, s["rejectedRect"]))
-        consumer = verify.ladder_expected_consumer(terrain, real, i)
+        consumer = consumers[i]
+        if consumer == verify.LADDER_HIER_LOAD:
+            before = quad if coexist else crops(f, s["flipped"])[0]
+            status = (hier_status or {}).get(i, "judged")
+            if status != "judged":
+                judged_before = any(e["status"] == "judged" for e in hier_entries)
+                skip = {"at": s["at"], "status": status, "stage": s["stage"],
+                        "cameraCapture": s["at"], "previousCapture": s["at"] - 1,
+                        "buildsSoFar": 1 if judged_before else 0, "atlasState": -1}
+                if status == "atlas-pending":
+                    skip["atlasState"] = verify.REAL_LOAD_ATLAS_PENDING_STATE
+                elif status == "no-camera-this-frame":
+                    skip["previousCapture"] = s["at"]
+                hier_entries.append(skip)
+                continue
+            depth = terrain_depth(len(f[0]), len(f), depth_kind)
+            after = terrain_after(f, before, depth, hier_violate if not hier_entries else None)
+            entry = hier_entry(s, f, before, depth, after)
+            write_real_files(out, s, f, after, depth, entry)
+            hier_entries.append(entry)
+            continue
         if consumer == verify.LADDER_REAL_LOAD:
             before = quad if coexist else crops(f, s["flipped"])[0]
             status = (real_status or {}).get(i, "judged")
@@ -507,7 +533,9 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
                   coexist=[dict(e) for e in coexist_entries] if coexist else [],
                   terrainLoadEnabled=terrain,
                   terrainLoadDrawsRecorded=len(terrain_entries) if terrain else 0,
-                  realLoadEnabled=real, realLoadDrawsRecorded=len(judged))
+                  realLoadEnabled=real, realLoadDrawsRecorded=len(judged),
+                  hierLoadEnabled=hier,
+                  hierLoadDrawsRecorded=len([e for e in hier_entries if e["status"] == "judged"]))
     reference_set = None
     if terrain:
         last_depth = terrain_depth(len(pairs[-1][1][0]), len(pairs[-1][1]), depth_kind)
@@ -515,8 +543,11 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
     tl = terrain_report(terrain_entries, reference_set=reference_set) if terrain else None
     if tl is not None:
         (out / "native-terrain-load.json").write_text(json.dumps(tl))
+    # McNativeAtlas is shared: both probes publish the same global read count
+    atlas_reads = 1 if any(e["status"] == "judged" for e in real_entries + hier_entries) else 0
     if real:
-        (out / "native-real-load.json").write_text(json.dumps(real_report(real_entries)))
+        (out / "native-real-load.json").write_text(json.dumps(
+            real_report(real_entries, atlasReads=atlas_reads)))
     text = log_for(body["samples"])
     if coexist:
         text += coexist_log_for(coexist_entries)
@@ -524,7 +555,73 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
         text += terrain_log_for(terrain_entries)
     if real:
         text += real_log_for(real_entries)
+    if hier:
+        (out / "native-hier-load.json").write_text(json.dumps(
+            hier_report(hier_entries, atlasReads=atlas_reads)))
+        text += hier_log_for(hier_entries,
+                             atlas_logged=any(e["status"] == "judged" for e in real_entries))
     return body, tl, text
+
+
+def hier_entry(sample, field, before, depth, after):
+    """The hierarchical-LOAD probe's published result for a judged sample: real-LOAD's counts and
+    projection facts, its own files, scene build and iteration count."""
+    entry = real_entry(sample, field, before, depth, after)
+    at = sample["at"]
+    for key in ("sceneLevel", "sceneCentre", "sceneSections", "sceneQuads", "sceneDraws",
+                "excludedNear", "cutBlocks", "nearestSection"):
+        entry.pop(key, None)
+    entry.update(file=f"native-hier-load-{at}.ppm.gz",
+                 frameFile=f"native-hier-load-frame-{at}.ppm.gz",
+                 referenceFile=f"native-hier-load-reference-{at}.ppm.gz",
+                 referenceDepthFile=f"native-hier-load-depth-{at}.f32.gz",
+                 meshed=35, iterationsRun=verify.HIER_LOAD_ITERATIONS,
+                 previousCapture=at - 1, buildsSoFar=1)
+    return entry
+
+
+def hier_report(entries, **overrides):
+    judged = [e for e in entries if e["status"] == "judged"]
+    body = {"enabled": True, "attempted": True, "drawsRecorded": len(judged),
+            "builds": 1 if judged else 0, "buildBudget": verify.HIER_LOAD_BUILD_BUDGET,
+            "iterations": verify.HIER_LOAD_ITERATIONS, "topRadius": verify.HIER_LOAD_TOP_RADIUS,
+            "depth": verify.HIER_LOAD_DEPTH, "declaredDepthState": [6, 1, 1],
+            "depthStateReadBack": False, "instanceMode": True,
+            "results": [dict(e) for e in entries], "problems": 0, "firstProblem": None,
+            "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
+            "readbacksInFlight": 0, "atlasReads": 1 if judged else 0, "device": hex(DEVICE),
+            "notes": []}
+    body.update(overrides)
+    return body
+
+
+def hier_log_for(entries, atlas_logged=False):
+    """The hierarchical probe's log lines; the atlas request/read lines too unless real-LOAD's
+    lines (which come first) already carry them."""
+    lines = [] if atlas_logged else ["[native-vk] requested the block atlas (2048x2048) through Blaze3D\n"]
+    ready, scene = atlas_logged, False
+    for e in entries:
+        if e["status"] == "judged":
+            if not ready:
+                lines.append("[native-vk] block atlas read through Blaze3D: 2048x2048\n")
+                ready = True
+            if not scene:
+                lines.append(f"[native-vk] hier-LOAD scene #1: {e['meshed']} sections meshed,"
+                             f" top radius {verify.HIER_LOAD_TOP_RADIUS}, depth {verify.HIER_LOAD_DEPTH}\n")
+                scene = True
+            lines.append("[native-vk] hier load at draw " + str(e["at"]) + " status=judged "
+                         + " ".join(f"{k}={e[k]}" for k in verify.TERRAIN_LOAD_COUNTS)
+                         + f" depth=[{e['minDepth']} {e['maxDepth']}]\n")
+        else:
+            line = f"[native-vk] hier load at draw {e['at']} status={e['status']}\n"
+            if e["status"] == "no-camera-this-frame":
+                inst = ("[native-vk] native instance at frame {f} stage={st} factory=true instance=true"
+                        " engine=true live=true activeSections=1 renderer=false ingest=true"
+                        " cameraCaptures={c}\n")
+                line = (inst.format(f=600, st=e["stage"], c=600) + line
+                        + inst.format(f=660, st=e["stage"], c=659))
+            lines.append(line)
+    return "".join(lines)
 
 
 def real_entry(sample, field, before, depth, after):
@@ -1368,7 +1465,7 @@ class LadderCoexistTest(unittest.TestCase):
             self.assertFalse(enables(command, "harnessNativeCoexist"), command)
         self.assertEqual(verify.ladder_launch_requirements(LADDER_COMMAND),
                          {"coexist": True, "terrainLoad": True, "realLoad": True,
-                          "instance": True})
+                          "hierLoad": True, "instance": True})
 
     def test_a_result_list_that_is_not_a_list_is_refused_as_such(self):
         """Round-16: the type guard's removal survived because the fragment asserted was
@@ -1558,7 +1655,7 @@ class LadderRetentionTest(unittest.TestCase):
             instance_body = test_instance_gate.report()
             (ladder_output / "native-instance.json").write_text(json.dumps(instance_body))
             if with_files:
-                body, _, log_text = full_ladder_package(ladder_output, samples, real=True)
+                body, _, log_text = full_ladder_package(ladder_output, samples, real=True, hier=True)
             else:
                 body = report(samples=[s for s, _ in samples], coexistEnabled=True,
                               terrainLoadEnabled=True, terrainLoadDrawsRecorded=len(samples))
@@ -1762,9 +1859,11 @@ class LadderRetentionTest(unittest.TestCase):
         body["samples"] = body["samples"][:1] + body["samples"][2:]
         # keep the hand-off consistent with the shortened list, so the omitted crops are what
         # is caught (the hand-off rule has its own tests)
-        for index, entry in enumerate(body["samples"]):
-            entry["experiment"] = verify.ladder_expected_consumer(
-                body["terrainLoadEnabled"], body["realLoadEnabled"], index)
+        expected = verify.ladder_expected_consumers(
+            body["terrainLoadEnabled"], body["realLoadEnabled"], body["hierLoadEnabled"],
+            [entry.get("stage") for entry in body["samples"]])
+        for entry, consumer in zip(body["samples"], expected):
+            entry["experiment"] = consumer
         path.write_text(json.dumps(body))
         self.rehash(target, "ladder/native-depth-ladder.json")
         code, out = self.replay(target)

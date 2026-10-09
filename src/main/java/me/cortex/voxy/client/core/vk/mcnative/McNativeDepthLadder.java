@@ -188,8 +188,10 @@ public final class McNativeDepthLadder implements Destroyable {
     private static String consumerThisFrame = null;
     private static final java.util.Map<Long, String> SAMPLE_CONSUMERS = new java.util.HashMap<>();
     public static final String EXPERIMENT_TERRAIN_LOAD = "terrainLoad",
-        EXPERIMENT_REAL_LOAD = "realLoad";
-    private static int assigned;
+        EXPERIMENT_REAL_LOAD = "realLoad", EXPERIMENT_HIER_LOAD = "hierLoad";
+    /** The harness stage whose samples go only to the real-world experiments (real, hierarchical). */
+    public static final String HORIZON_STAGE = "horizon";
+    private static int assigned, assignedHorizon;
     private static int problems;
     private static String firstProblem;
     private static int closeFailures;
@@ -272,10 +274,37 @@ public final class McNativeDepthLadder implements Destroyable {
 
     /** 渡し先の決め方: 両方有効なら交互 (terrain-LOAD から)、片方ならそれ、無ければ無し。 */
     static String assignConsumer(boolean terrain, boolean real, int index) {
-        if (terrain && real) return (index % 2 == 0) ? EXPERIMENT_TERRAIN_LOAD : EXPERIMENT_REAL_LOAD;
-        if (terrain) return EXPERIMENT_TERRAIN_LOAD;
-        if (real) return EXPERIMENT_REAL_LOAD;
-        return null;
+        return assignConsumer(terrain, real, false, false, index);
+    }
+
+    /**
+     * The hand-off rule (the gate replicates it from the published stage of each sample):
+     * outside the {@link #HORIZON_STAGE} samples rotate over the enabled experiments in the order
+     * terrain-LOAD, real-LOAD, hierarchical-LOAD; inside it they rotate over the enabled
+     * real-world ones only (real-LOAD, hierarchical-LOAD), because that look is where their
+     * must-appear and must-hide pixels come from. {@code index} counts the samples handed out
+     * under the same branch.
+     */
+    static String assignConsumer(boolean terrain, boolean real, boolean hier, boolean horizon,
+                                 int index) {
+        var list = new java.util.ArrayList<String>(3);
+        if (horizon && (real || hier)) {
+            if (real) list.add(EXPERIMENT_REAL_LOAD);
+            if (hier) list.add(EXPERIMENT_HIER_LOAD);
+        } else {
+            if (terrain) list.add(EXPERIMENT_TERRAIN_LOAD);
+            if (real) list.add(EXPERIMENT_REAL_LOAD);
+            if (hier) list.add(EXPERIMENT_HIER_LOAD);
+        }
+        return list.isEmpty() ? null : list.get(index % list.size());
+    }
+
+    /** How many samples the harness should wait for in {@code stage} (one per eligible experiment there). */
+    public static int samplesWantedIn(String stage) {
+        if (HORIZON_STAGE.equals(stage) && McNativeRealLoad.enabled() && McNativeHierarchicalLoad.enabled()) {
+            return 2;
+        }
+        return 1;
     }
 
     /** 標本 {@code at} を渡した先、渡していなければ {@code null}。 */
@@ -432,9 +461,14 @@ public final class McNativeDepthLadder implements Destroyable {
             requestReadback(colour, width, height);
             if (readbackInFlight) samplesRequested++;
             if (readbackInFlight) {
-                String consumer = assignConsumer(McNativeTerrainLoad.enabled(),
-                    McNativeRealLoad.enabled(), assigned);
-                if (consumer != null) assigned++;
+                boolean horizon = HORIZON_STAGE.equals(System.getProperty("voxy.harness.stage", ""));
+                boolean real = McNativeRealLoad.enabled(), hier = McNativeHierarchicalLoad.enabled();
+                boolean horizonBranch = horizon && (real || hier);
+                String consumer = assignConsumer(McNativeTerrainLoad.enabled(), real, hier, horizon,
+                    horizonBranch ? assignedHorizon : assigned);
+                if (consumer != null) {
+                    if (horizonBranch) assignedHorizon++; else assigned++;
+                }
                 sampleThisFrame = consumer == null ? -1 : at;
                 consumerThisFrame = consumer;
                 synchronized (NOTES) {
@@ -747,7 +781,7 @@ public final class McNativeDepthLadder implements Destroyable {
                 SAMPLES.add(sample);
             }
             if (Boolean.getBoolean(COEXIST_FLAG) || McNativeTerrainLoad.enabled()
-                    || McNativeRealLoad.enabled()) {
+                    || McNativeRealLoad.enabled() || McNativeHierarchicalLoad.enabled()) {
                 int[] q = rects[chosen];
                 int n = (q[2] - q[0]) * (q[3] - q[1]);
                 byte[] cls = new byte[n];
@@ -1342,6 +1376,9 @@ public final class McNativeDepthLadder implements Destroyable {
         sb.append("  \"terrainLoadDrawsRecorded\": ").append(McNativeTerrainLoad.drawsRecorded())
           .append(",\n");
         sb.append("  \"realLoadEnabled\": ").append(McNativeRealLoad.enabled()).append(",\n");
+        sb.append("  \"hierLoadEnabled\": ").append(McNativeHierarchicalLoad.enabled()).append(",\n");
+        sb.append("  \"hierLoadDrawsRecorded\": ").append(McNativeHierarchicalLoad.drawsRecorded())
+          .append(",\n");
         sb.append("  \"realLoadDrawsRecorded\": ").append(McNativeRealLoad.drawsRecorded())
           .append(",\n");
         sb.append("  \"device\": ").append(McNativeVulkanProbe.quote(deviceHandle()))

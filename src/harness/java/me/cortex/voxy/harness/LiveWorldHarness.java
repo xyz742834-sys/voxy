@@ -164,7 +164,8 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 || (nativeMode && marker.enabled() && marker.drawsRecorded() - markerStart < 2)
                 || (nativeMode && me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.sampling()
                     && me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.samplesRequested()
-                        - ladderReadyMark < 1)) return;
+                        - ladderReadyMark < me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder
+                            .samplesWantedIn(STAGES[stage]))) return;
             if (nativeMode) nativeCheckpoint(mc); else checkpoint(mc);
             if (stage == STAGES.length - 1) {
                 if (screenshotsPending.get() != 0) return;

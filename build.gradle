@@ -623,6 +623,12 @@ loom {
             if (project.hasProperty('harnessNativeRealLoad')) {
                 vmArg '-Dvoxy.native.realload=true'
             }
+            // Hierarchical-LOAD (needs instance mode): Voxy's whole hierarchical pipeline driven
+            // with Minecraft's matrix into Voxy's own target, composited into Minecraft's LOADed
+            // colour and depth with Voxy's depth test, judged per pixel. Off by default.
+            if (project.hasProperty('harnessNativeHierLoad')) {
+                vmArg '-Dvoxy.native.hierload=true'
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')

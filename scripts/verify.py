@@ -920,18 +920,37 @@ LADDER_SAMPLE_OR_STAGE = re.compile(
     r"\[voxy-harness\] stage=(\w+)|depth ladder sample requested at draw (\d+) ")
 
 
-LADDER_TERRAIN_LOAD, LADDER_REAL_LOAD = "terrainLoad", "realLoad"
+LADDER_TERRAIN_LOAD, LADDER_REAL_LOAD, LADDER_HIER_LOAD = "terrainLoad", "realLoad", "hierLoad"
+LADDER_HORIZON_STAGE = "horizon"
 
 
-def ladder_expected_consumer(terrain, real, index):
-    """McNativeDepthLadder.assignConsumer: which experiment sample `index` is handed to."""
-    if terrain and real:
-        return LADDER_TERRAIN_LOAD if index % 2 == 0 else LADDER_REAL_LOAD
-    if terrain:
-        return LADDER_TERRAIN_LOAD
-    if real:
-        return LADDER_REAL_LOAD
-    return None
+def ladder_expected_consumer(terrain, real, index, hier=False, horizon=False):
+    """McNativeDepthLadder.assignConsumer: which experiment a sample is handed to. Outside the
+    horizon stage samples rotate over the enabled experiments (terrain, real, hierarchical);
+    inside it over the enabled real-world ones (real, hierarchical). `index` counts the samples
+    handed out under the same branch."""
+    if horizon and (real or hier):
+        names = [n for n, on in ((LADDER_REAL_LOAD, real), (LADDER_HIER_LOAD, hier)) if on]
+    else:
+        names = [n for n, on in ((LADDER_TERRAIN_LOAD, terrain), (LADDER_REAL_LOAD, real),
+                                 (LADDER_HIER_LOAD, hier)) if on]
+    return names[index % len(names)] if names else None
+
+
+def ladder_expected_consumers(terrain, real, hier, stages):
+    """The hand-off for a whole sample list, from each sample's published stage."""
+    out, general, horizon_count = [], 0, 0
+    for stage in stages:
+        horizon = stage == LADDER_HORIZON_STAGE and (real or hier)
+        consumer = ladder_expected_consumer(terrain, real, horizon_count if horizon else general,
+                                            hier, horizon)
+        if consumer is not None:
+            if horizon:
+                horizon_count += 1
+            else:
+                general += 1
+        out.append(consumer)
+    return out
 
 
 def ladder_report_checks(output, report, expected_device=None, expected_extents=None,
@@ -956,6 +975,7 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
                         ("markerDrawEnabled", bool), ("markerDrawsRecorded", int),
                         ("terrainLoadEnabled", bool), ("terrainLoadDrawsRecorded", int),
                         ("realLoadEnabled", bool), ("realLoadDrawsRecorded", int),
+                        ("hierLoadEnabled", bool), ("hierLoadDrawsRecorded", int),
                         ("device", str)):
         if field not in report:
             raise ValueError(f"the depth ladder does not state {field}")
@@ -995,16 +1015,23 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
     if not report["terrainLoadEnabled"] and report["terrainLoadDrawsRecorded"]:
         raise ValueError(f"the terrain-LOAD probe was off but recorded"
                          f" {report['terrainLoadDrawsRecorded']} pass(es)")
+    if not report["hierLoadEnabled"] and report["hierLoadDrawsRecorded"]:
+        raise ValueError(f"the hierarchical-LOAD probe was off but recorded"
+                         f" {report['hierLoadDrawsRecorded']} pass(es)")
     if not report["realLoadEnabled"] and report["realLoadDrawsRecorded"]:
         raise ValueError(f"the real-LOAD probe was off but recorded"
                          f" {report['realLoadDrawsRecorded']} pass(es)")
     # Each sampled frame is handed to at most ONE experiment that writes Minecraft's depth after
     # the ladder's readbacks (both would otherwise see each other's depth). The rule is fixed:
     # both on -> alternate starting with terrain-LOAD; one on -> that one; none -> nobody.
+    hier_on = report.get("hierLoadEnabled") is True
+    expected = ladder_expected_consumers(
+        report["terrainLoadEnabled"], report["realLoadEnabled"], hier_on,
+        [s.get("stage") if isinstance(s, dict) else None for s in report["samples"]])
     for index, sample in enumerate(report["samples"]):
         if not isinstance(sample, dict):
             continue
-        want = ladder_expected_consumer(report["terrainLoadEnabled"], report["realLoadEnabled"], index)
+        want = expected[index]
         if sample.get("experiment", "missing") != want:
             raise ValueError(f"ladder sample {index} (draw {sample.get('at')}) was handed to"
                              f" {sample.get('experiment', 'missing')!r}, not {want!r} as the"
@@ -1306,7 +1333,7 @@ def launch_enables(command, prop):
 # The literal tokens the stage passes to the ladder launch (see run_stage("native-ladder")).
 LADDER_LAUNCH_FLAGS = ("-PharnessNativeDepthLadder=true", "-PharnessNativeCoexist=true",
                        "-PharnessNativeTerrainLoad=true", "-PharnessNativeInstance=true",
-                       "-PharnessNativeRealLoad=true")
+                       "-PharnessNativeRealLoad=true", "-PharnessNativeHierLoad=true")
 # Experiments that write or clear Minecraft's depth and must never be in the ladder launch.
 LADDER_LAUNCH_FORBIDDEN = ("harnessNativeTerrain", "harnessNativeMarker", "harnessNativeDepth")
 
@@ -1335,6 +1362,7 @@ def ladder_launch_requirements(command):
     return {"coexist": launch_enables(command, "harnessNativeCoexist"),
             "terrainLoad": launch_enables(command, "harnessNativeTerrainLoad"),
             "realLoad": launch_enables(command, "harnessNativeRealLoad"),
+            "hierLoad": launch_enables(command, "harnessNativeHierLoad"),
             "instance": launch_enables(command, "harnessNativeInstance")}
 
 
@@ -2116,75 +2144,410 @@ def halve_depth_range(m):
     return out
 
 
-def real_load_skip_provenance(entry, recount, log_text, ladder_sample):
+def real_load_skip_provenance(entry, recount, log_text, ladder_sample, spec=None):
     """Round-20 review R20-REAL-SKIP-PROVENANCE: the reason a sample was not judged must be
-    corroborated by what the probe and the log saw, not only taken from a fixed vocabulary."""
+    corroborated by what the probe and the log saw, not only taken from a fixed vocabulary.
+    `spec` names the experiment's log formats (real-LOAD by default; hierarchical-LOAD shares
+    the rules)."""
+    spec = spec or REAL_LOAD_SPEC
+    L, l = spec["label"], spec["line_label"]
     at, status = entry["at"], entry["status"]
     extra = sorted(set(entry) - REAL_LOAD_SKIP_KEYS)
     if extra:
-        raise ValueError(f"real-LOAD skip at draw {at} carries {extra}, which a skip never has")
+        raise ValueError(f"{L} skip at draw {at} carries {extra}, which a skip never has")
     if log_text is None:
-        raise ValueError(f"real-LOAD skip at draw {at} cannot be corroborated without the log")
-    line = next((m for m in REAL_LOAD_LOG_LINE.finditer(log_text) if int(m.group(1)) == at), None)
+        raise ValueError(f"{L} skip at draw {at} cannot be corroborated without the log")
+    line = next((m for m in spec["line_re"].finditer(log_text) if int(m.group(1)) == at), None)
     if line is None or line.group(3).strip():
-        raise ValueError(f"the real-load log line for skipped draw {at} is missing or carries"
+        raise ValueError(f"the {l} log line for skipped draw {at} is missing or carries"
                          f" more than its status")
     before = log_text[:line.start()]
     for field in ("previousCapture", "buildsSoFar", "atlasState", "cameraCapture"):
         if not finite_int(entry.get(field)):
-            raise ValueError(f"real-LOAD skip at draw {at} does not state {field}")
+            raise ValueError(f"{L} skip at draw {at} does not state {field}")
     # round-21: the build count a skip states is the number of build attempts logged before it
-    attempts = real_load_build_attempts(before)
+    attempts = spec["attempts"](before)
     if entry["buildsSoFar"] != len(attempts):
-        raise ValueError(f"real-LOAD skip at draw {at} says {entry['buildsSoFar']} build(s) so far but"
+        raise ValueError(f"{L} skip at draw {at} says {entry['buildsSoFar']} build(s) so far but"
                          f" the log shows {len(attempts)} attempt(s) before it")
     if status == "atlas-pending":
         if entry["atlasState"] != REAL_LOAD_ATLAS_PENDING_STATE:
-            raise ValueError(f"real-LOAD skip at draw {at} says atlas-pending but the atlas state was"
+            raise ValueError(f"{L} skip at draw {at} says atlas-pending but the atlas state was"
                              f" {entry['atlasState']}")
         if len(ATLAS_REQUEST_LOG.findall(before)) <= len(ATLAS_READY_LOG.findall(before)):
-            raise ValueError(f"real-LOAD skip at draw {at} says atlas-pending but the log has no"
+            raise ValueError(f"{L} skip at draw {at} says atlas-pending but the log has no"
                              f" outstanding atlas request at that point")
     elif status == "no-camera-this-frame":
         if entry["previousCapture"] != entry["cameraCapture"]:
-            raise ValueError(f"real-LOAD skip at draw {at} says no camera this frame but the capture"
+            raise ValueError(f"{L} skip at draw {at} says no camera this frame but the capture"
                              f" count moved from {entry['previousCapture']} to {entry['cameraCapture']}")
         # round-21: the instance lines on either side must show a frame without a capture
         earlier = INSTANCE_LOG.findall(before)
         later = INSTANCE_LOG.findall(log_text[line.end():])
         if not earlier or not later or \
                 int(later[0][-1]) - int(earlier[-1][-1]) >= int(later[0][0]) - int(earlier[-1][0]):
-            raise ValueError(f"real-LOAD skip at draw {at} says no camera this frame but the instance"
+            raise ValueError(f"{L} skip at draw {at} says no camera this frame but the instance"
                              f" lines around it show a capture every frame")
     elif status == "camera-extent-mismatch":
         cam, frame = entry.get("cameraExtent"), entry.get("frameExtent")
         if not (isinstance(cam, list) and isinstance(frame, list)) or cam == frame or \
                 frame != [ladder_sample.get("targetWidth"), ladder_sample.get("targetHeight")] or \
                 ladder_sample.get("stage") != "resize":
-            raise ValueError(f"real-LOAD skip at draw {at} says the camera extent {cam!r} differs from"
+            raise ValueError(f"{L} skip at draw {at} says the camera extent {cam!r} differs from"
                              f" the frame {frame!r}, which the ladder sample does not support")
     elif status == "no-world-engine":
         lines = INSTANCE_LOG.findall(before)
         # INSTANCE_LOG groups: frame, stage, factory, instance, engine, live, ...
         if not lines or (lines[-1][4] == "true" and lines[-1][5] == "true"):
-            raise ValueError(f"real-LOAD skip at draw {at} says no world engine but the last instance"
+            raise ValueError(f"{L} skip at draw {at} says no world engine but the last instance"
                              f" line before it shows a live engine")
     elif status == "nothing-meshed":
-        previous = [m for m in REAL_LOAD_LOG_LINE.finditer(before)]
+        previous = [m for m in spec["line_re"].finditer(before)]
         since = before[previous[-1].end():] if previous else before
-        empty = NOTHING_MESHED_LOG.findall(since)
+        empty = spec["nothing_re"].findall(since)
         if not empty or int(empty[-1]) != entry["buildsSoFar"]:
-            raise ValueError(f"real-LOAD skip at draw {at} says nothing meshed but no build that meshed"
+            raise ValueError(f"{L} skip at draw {at} says nothing meshed but no build that meshed"
                              f" nothing is logged before it")
     elif status == "build-budget-spent":
-        if entry["buildsSoFar"] != REAL_LOAD_BUILD_BUDGET:
-            raise ValueError(f"real-LOAD skip at draw {at} says the build budget was spent after"
-                             f" {entry['buildsSoFar']} of {REAL_LOAD_BUILD_BUDGET} builds")
+        if entry["buildsSoFar"] != spec["budget"]:
+            raise ValueError(f"{L} skip at draw {at} says the build budget was spent after"
+                             f" {entry['buildsSoFar']} of {spec['budget']} builds")
 
 REAL_LOAD_SKIPS = ("no-world-engine", "no-camera-this-frame", "camera-extent-mismatch",
                    "nothing-meshed", "build-budget-spent", "atlas-pending")
 REAL_LOAD_LOG = re.compile(r"real load at draw (\d+) status=(\S+)(?: "
                            + " ".join(f"{name}=(\\d+)" for name in TERRAIN_LOAD_COUNTS) + ")?")
+REAL_LOAD_SPEC = {"label": "real-LOAD", "line_label": "real-load", "prefix": "native-real-load",
+                  "line_re": REAL_LOAD_LOG_LINE, "attempts": real_load_build_attempts,
+                  "nothing_re": NOTHING_MESHED_LOG, "budget": REAL_LOAD_BUILD_BUDGET}
+
+
+def load_judged_entry_checks(entry, at, report, log_text, ladder_samples_by_at, previous_judged,
+                             spec):
+    """The checks every judged real-world LOAD sample shares (real-LOAD, hierarchical-LOAD):
+    the published projections against each other and the far plane, the stage, the camera
+    capture chronology, the atlas generation against the logged reads, and scene reuse across an
+    engine or atlas change. Returns the log text before the sample's own line (for the caller's
+    scene-line checks)."""
+    L = spec["label"]
+    if not isinstance(entry.get("projectionAdjusted"), bool):
+        raise ValueError(f"{L} at draw {at} does not say whether Minecraft's projection was"
+                         f" adjusted to 0..1 depth")
+    # round-20 R20-REAL-METADATA: reconcile the published scene and projection facts
+    published = ladder_samples_by_at.get(at, {})
+    if entry.get("stage") != published.get("stage"):
+        raise ValueError(f"{L} at draw {at} says stage {entry.get('stage')!r} but the ladder"
+                         f" sample says {published.get('stage')!r}")
+    mc_p, used_p = entry.get("mcProjection"), entry.get("projection")
+    if not (isinstance(mc_p, list) and isinstance(used_p, list) and len(mc_p) == 16
+            and len(used_p) == 16 and all(finite_number(v) for v in mc_p + used_p)):
+        raise ValueError(f"{L} at draw {at} does not publish both 16-entry projections")
+    same = all(abs(a - b) <= 1e-6 * max(1.0, abs(b)) for a, b in zip(used_p, mc_p))
+    halved = all(abs(a - b) <= 1e-6 * max(1.0, abs(b))
+                 for a, b in zip(used_p, halve_depth_range(mc_p)))
+    if entry["projectionAdjusted"] != (not same) or not (same or halved):
+        raise ValueError(f"{L} at draw {at} says projectionAdjusted="
+                         f"{entry['projectionAdjusted']} but its projection is"
+                         f" {'Minecraft’s' if same else ('the halved range' if halved else 'neither')}")
+    far = entry.get("farPlane")
+    want_far = abs(used_p[14] / used_p[10]) if abs(used_p[10]) > 1e-12 else None
+    if want_far is None or not finite_number(far) or abs(far - want_far) > 1e-3 * max(1.0, want_far):
+        raise ValueError(f"{L} at draw {at} reports farPlane={far!r} but its projection"
+                         f" gives {want_far!r}")
+    if not finite_int(entry.get("cameraCapture")) or entry["cameraCapture"] < 1:
+        raise ValueError(f"{L} at draw {at} has cameraCapture={entry.get('cameraCapture')!r}")
+    for field in ("engineId", "sceneBuild", "atlasGeneration"):
+        if not finite_int(entry.get(field)):
+            raise ValueError(f"{L} at draw {at} does not state {field}")
+    if entry["atlasGeneration"] < 1 or entry["atlasGeneration"] > report["atlasReads"]:
+        raise ValueError(f"{L} at draw {at} names atlas generation {entry['atlasGeneration']}"
+                         f" of {report['atlasReads']} read(s)")
+    head = ""
+    if log_text is not None:
+        own = next((m for m in spec["line_re"].finditer(log_text) if int(m.group(1)) == at), None)
+        head = log_text[:own.start()] if own else ""
+        # round-21 R21-ATLAS-PROVENANCE: the generation is the number of atlas reads logged
+        # before this sample
+        reads_before = len(ATLAS_READY_LOG.findall(head))
+        if entry["atlasGeneration"] != reads_before:
+            raise ValueError(f"{L} at draw {at} names atlas generation"
+                             f" {entry['atlasGeneration']} but {reads_before} atlas read(s) are"
+                             f" logged before it")
+    if previous_judged is not None:
+        if entry["cameraCapture"] <= previous_judged["cameraCapture"]:
+            raise ValueError(f"{L} at draw {at} has camera capture {entry['cameraCapture']},"
+                             f" not after the previous judged sample's")
+        if entry["sceneBuild"] < previous_judged["sceneBuild"]:
+            raise ValueError(f"{L} at draw {at} uses scene build {entry['sceneBuild']}, older"
+                             f" than the previous sample's")
+        for field in ("engineId", "atlasGeneration"):
+            if entry[field] != previous_judged[field] and \
+                    entry["sceneBuild"] == previous_judged["sceneBuild"]:
+                raise ValueError(f"{L} at draw {at}: {field} changed but the same scene"
+                                 f" (build {entry['sceneBuild']}) was reused")
+    return head
+
+
+def judge_load_sample(output, recount, entry, at, coexist_enabled, logged, log_text, spec):
+    """Recount one judged real-world LOAD sample from its retained files — the ladder crop, the
+    previous readback (the coexist crop when that ran), the experiment's crop and thumbnail, and
+    Voxy's reference colour and depth — and require zero violations. Returns (counts, the file
+    names it referenced)."""
+    L, l, prefix = spec["label"], spec["line_label"], spec["prefix"]
+    wanted = {"file": f"{prefix}-{at}.ppm.gz",
+              "frameFile": f"{prefix}-frame-{at}.ppm.gz",
+              "referenceFile": f"{prefix}-reference-{at}.ppm.gz",
+              "referenceDepthFile": f"{prefix}-depth-{at}.f32.gz"}
+    for field, name in wanted.items():
+        if entry.get(field) != name:
+            raise ValueError(f"{L} at draw {at} names {field}={entry.get(field)!r}, not {name!r}")
+        if not (output / name).is_file():
+            raise ValueError(f"the retained {L} file {name} is missing")
+    after, (aw, ah) = read_ppm_gz(output / wanted["file"])
+    ladder, (lw, lh) = read_ppm_gz(output / recount["sample"])
+    if (aw, ah) != (lw, lh):
+        raise ValueError(f"the {L} crop is {aw}x{ah} but the ladder crop is {lw}x{lh}")
+    before_name = (f"native-depth-ladder-coexist-{at}.ppm.gz" if coexist_enabled
+                   else recount["sample"])
+    before, _ = read_ppm_gz(output / before_name)
+    reference, (rw, rh) = read_ppm_gz(output / wanted["referenceFile"])
+    depth, (dw, dh) = read_f32_gz(output / wanted["referenceDepthFile"])
+    if (rw, rh) != (aw, ah) or (dw, dh) != (aw, ah):
+        raise ValueError(f"the {L} reference crops are {rw}x{rh} and {dw}x{dh}, not the"
+                         f" band's {aw}x{ah}")
+    if any(not (0.0 <= d <= 1.0) or math.isnan(d) for row in depth for d in row):
+        raise ValueError(f"the {L} reference depth at draw {at} holds values outside [0, 1]")
+    thumb, _ = read_ppm_gz(output / wanted["frameFile"])
+    if ladder_anchor_blocks(after, recount["rect"], thumb) == 0:
+        raise ValueError(f"the {L} crop at draw {at} covers no whole thumbnail block")
+    counts = terrain_load_judge(before, ladder, after, reference, depth)
+    for field, value in counts.items():
+        if entry[field] != value:
+            raise ValueError(f"{L} at draw {at} reports {field}={entry[field]} but the"
+                             f" retained crops say {value}")
+    if log_text is not None and logged[at][1] != [counts[k] for k in TERRAIN_LOAD_COUNTS]:
+        raise ValueError(f"the ladder log's {l} line for draw {at} says {logged[at][1]}"
+                         f" but the crops say {[counts[k] for k in TERRAIN_LOAD_COUNTS]}")
+    geometry_depths = [d for row in depth for d in row if d > 0.0]
+    for field, want in (("minDepth", min(geometry_depths, default=None)),
+                        ("maxDepth", max(geometry_depths, default=None))):
+        got = entry.get(field)
+        if want is None:
+            if got is not None:
+                raise ValueError(f"{L} at draw {at} reports {field}={got!r} with no geometry")
+        elif not finite_number(got) or abs(got - want) > 1e-6 * max(abs(want), 1e-30):
+            raise ValueError(f"{L} at draw {at} reports {field}={got!r} but the reference"
+                             f" depth crop says {want!r}")
+    ref_set = sum(1 for row in reference for px in row if tuple(px[:3]) != TERRAIN_LOAD_CLEAR_RGB)
+    if entry.get("referenceSet") != ref_set:
+        raise ValueError(f"{L} at draw {at} reports referenceSet={entry.get('referenceSet')!r}"
+                         f" but its reference crop holds {ref_set}")
+    if counts["other"] or counts["changedWhereNoGeometry"] or counts["visibleWhereHidden"] \
+            or counts["hiddenWhereVisible"]:
+        raise ValueError(f"{L} at draw {at}: other={counts['other']},"
+                         f" changedWhereNoGeometry={counts['changedWhereNoGeometry']},"
+                         f" visibleWhereHidden={counts['visibleWhereHidden']},"
+                         f" hiddenWhereVisible={counts['hiddenWhereVisible']}; Voxy's real"
+                         f" terrain did not compose per pixel with Minecraft's matrix")
+    return counts, set(wanted.values())
+
+
+HIER_LOAD_LOG_LINE = re.compile(r"hier load at draw (\d+) status=(\S+)(.*)$", re.M)
+HIER_LOAD_LOG = re.compile(r"hier load at draw (\d+) status=(\S+)(?: "
+                           + " ".join(f"{name}=(\\d+)" for name in TERRAIN_LOAD_COUNTS) + ")?")
+HIER_SCENE_LOG = re.compile(r"hier-LOAD scene #(\d+): (\d+) sections meshed, top radius (\d+),"
+                            r" depth (\d+)")
+HIER_NOTHING_LOG = re.compile(r"hier-LOAD: nothing meshed \(scene #(\d+)\)")
+HIER_LOAD_BUILD_BUDGET, HIER_LOAD_ITERATIONS, HIER_LOAD_TOP_RADIUS, HIER_LOAD_DEPTH = 6, 3, 1, 2
+HIER_LOAD_SKIP_KEYS = {"at", "status", "stage", "cameraCapture", "previousCapture", "buildsSoFar",
+                       "atlasState"}
+
+
+def hier_load_build_attempts(text):
+    return sorted([int(m.group(1)) for m in HIER_SCENE_LOG.finditer(text)]
+                  + [int(m.group(1)) for m in HIER_NOTHING_LOG.finditer(text)])
+
+
+HIER_LOAD_SPEC = {"label": "hierarchical-LOAD", "line_label": "hier-load", "prefix": "native-hier-load",
+                  "line_re": HIER_LOAD_LOG_LINE, "attempts": hier_load_build_attempts,
+                  "nothing_re": HIER_NOTHING_LOG, "budget": HIER_LOAD_BUILD_BUDGET}
+
+
+def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text, required=False):
+    """Voxy's HIERARCHICAL pipeline natively (VkHierarchicalScene: real mapper/bakery,
+    NodeManager, HiZ, traversal, prep/cull, table, opaque/temporal/translucent), driven with
+    Minecraft's matrix into Voxy's own target and composited into a pass that LOADs Minecraft's
+    colour and depth with Voxy's GREATER_OR_EQUAL (writes on). Judged per pixel exactly like
+    real-LOAD (judge_load_sample) against the ladder's bracket and Voxy's own depth of the same
+    frame; skips corroborated the same way (real_load_skip_provenance with this experiment's log
+    formats). At least one judged sample must hold pixels that must appear and one pixels that
+    must be hidden."""
+    L = HIER_LOAD_SPEC["label"]
+    enabled = ladder_report.get("hierLoadEnabled")
+    report_path = output / "native-hier-load.json"
+    logged = {}
+    if log_text is not None:
+        for m in HIER_LOAD_LOG.findall(log_text):
+            if int(m[0]) in logged:
+                raise ValueError(f"the ladder log holds two hier-load lines for draw {m[0]}")
+            logged[int(m[0])] = (m[1], [int(v) for v in m[2:] if v != ""])
+    retained = sorted(p.name for p in output.glob("native-hier-load-*"))
+    if required and not enabled:
+        raise ValueError("the ladder launch enabled the hierarchical-LOAD experiment but the ladder"
+                         " says hierLoadEnabled=false; the experiment's evidence is required")
+    if not enabled:
+        if report_path.is_file() or logged or retained:
+            raise ValueError("hierarchical-LOAD evidence is retained although the ladder says the"
+                             " experiment was off")
+        return {"enabled": False}
+    if not report_path.is_file():
+        raise ValueError("the hierarchical-LOAD experiment was on but native-hier-load.json is not"
+                         " retained")
+    report = json.loads(report_path.read_text())
+    for field, kind in (("enabled", bool), ("attempted", bool), ("drawsRecorded", int),
+                        ("builds", int), ("buildBudget", int), ("iterations", int),
+                        ("topRadius", int), ("depth", int), ("declaredDepthState", list),
+                        ("depthStateReadBack", bool), ("instanceMode", bool), ("results", list),
+                        ("problems", int), ("firstProblem", (str, type(None))),
+                        ("closeFailures", int), ("leakedScenes", int), ("deviceDiverged", bool),
+                        ("readbacksInFlight", int), ("atlasReads", int),
+                        ("device", (str, type(None))), ("notes", list)):
+        if field not in report:
+            raise ValueError(f"the {L} report does not state {field}")
+        value = report[field]
+        if kind is bool:
+            if not isinstance(value, bool):
+                raise ValueError(f"hierLoad.{field} is {value!r}, not a bool")
+        elif kind is int:
+            if not finite_int(value):
+                raise ValueError(f"hierLoad.{field} is {value!r}, not an int")
+        elif not isinstance(value, kind):
+            raise ValueError(f"hierLoad.{field} is {value!r}, not a {kind}")
+    if not report["enabled"] or not report["attempted"] or not report["instanceMode"]:
+        raise ValueError(f"the {L} probe reports enabled={report['enabled']},"
+                         f" attempted={report['attempted']}, instanceMode={report['instanceMode']}")
+    if (report["buildBudget"], report["iterations"], report["topRadius"], report["depth"]) != (
+            HIER_LOAD_BUILD_BUDGET, HIER_LOAD_ITERATIONS, HIER_LOAD_TOP_RADIUS, HIER_LOAD_DEPTH):
+        raise ValueError(f"the {L} probe runs budget {report['buildBudget']}, {report['iterations']}"
+                         f" iteration(s), top radius {report['topRadius']}, depth {report['depth']},"
+                         f" not what its source lays out")
+    if report["declaredDepthState"] != TERRAIN_LOAD_DEPTH_STATE or report["depthStateReadBack"]:
+        raise ValueError(f"the {L} probe declares {report['declaredDepthState']!r}"
+                         f" (read back: {report['depthStateReadBack']}), not Voxy's declared"
+                         f" {TERRAIN_LOAD_DEPTH_STATE}")
+    if report["notes"] or report["problems"] or report["closeFailures"] or report["leakedScenes"] \
+            or report["firstProblem"] is not None or report["deviceDiverged"] or report["readbacksInFlight"]:
+        raise ValueError(f"the {L} probe reports notes={report['notes']},"
+                         f" problems={report['problems']}, closeFailures={report['closeFailures']},"
+                         f" leakedScenes={report['leakedScenes']}, firstProblem={report['firstProblem']!r},"
+                         f" deviceDiverged={report['deviceDiverged']},"
+                         f" readbacksInFlight={report['readbacksInFlight']}")
+    if log_text is not None:
+        attempts = hier_load_build_attempts(log_text)
+        if attempts != list(range(1, len(attempts) + 1)) or report["builds"] != len(attempts):
+            raise ValueError(f"the {L} probe reports {report['builds']} build(s) but the log shows"
+                             f" build attempts {attempts}")
+        logged_reads = len(ATLAS_READY_LOG.findall(log_text))
+        if report["atlasReads"] != logged_reads:
+            raise ValueError(f"the {L} probe reports {report['atlasReads']} atlas read(s) but the"
+                             f" log shows {logged_reads}")
+    entries = report["results"]
+    ats = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not finite_int(entry.get("at")) \
+                or not isinstance(entry.get("status"), str):
+            raise ValueError(f"a {L} result is malformed: {entry!r}")
+        ats.append(entry["at"])
+    if len(ats) != len(set(ats)):
+        raise ValueError(f"the {L} results repeat a draw: {sorted(ats)}")
+    by_at = {e["at"]: e for e in entries}
+    sample_ats = [r["at"] for r in recounts]
+    if sorted(by_at) != sorted(sample_ats):
+        raise ValueError(f"{L} results exist for draws {sorted(by_at)} but the ladder handed it"
+                         f" draws {sorted(sample_ats)}; every handed sample must carry one")
+    if log_text is not None and sorted(logged) != sorted(sample_ats):
+        raise ValueError(f"the ladder log holds hier-load lines for draws {sorted(logged)} but the"
+                         f" ladder handed it draws {sorted(sample_ats)}")
+    judged = [e for e in entries if e["status"] == "judged"]
+    if report["drawsRecorded"] != len(judged):
+        raise ValueError(f"the {L} probe recorded {report['drawsRecorded']} pass(es) but judged"
+                         f" {len(judged)} sample(s); one pass per judged sample")
+    if ladder_report.get("hierLoadDrawsRecorded") != report["drawsRecorded"]:
+        raise ValueError(f"the ladder saw {ladder_report.get('hierLoadDrawsRecorded')!r} {L}"
+                         f" pass(es) but the probe reports {report['drawsRecorded']}")
+    if judged:
+        if report["device"] is None:
+            raise ValueError(f"the {L} probe judged samples but names no device")
+        if device_handle_of(report["device"], "hierLoad", "device") != \
+                device_handle_of(ladder_report["device"], "ladder", "device"):
+            raise ValueError(f"the {L} probe names device {report['device']} but the ladder names"
+                             f" {ladder_report['device']}")
+        if report["atlasReads"] < 1:
+            raise ValueError(f"the {L} probe judged samples but never read the block atlas")
+        builds_used = [e.get("sceneBuild") for e in judged]
+        if not all(finite_int(b) and 1 <= b <= report["builds"] for b in builds_used):
+            raise ValueError(f"the judged samples name scene builds {builds_used} but the probe"
+                             f" built {report['builds']}")
+    ladder_samples_by_at = {s.get("at"): s for s in ladder_report.get("samples") or [] if isinstance(s, dict)}
+    referenced = {"native-hier-load.json"}
+    out, visible_samples, hidden_samples, previous_judged = [], 0, 0, None
+    total = {name: 0 for name in TERRAIN_LOAD_COUNTS}
+    for recount in recounts:
+        at = recount["at"]
+        entry = by_at[at]
+        status = entry["status"]
+        if log_text is not None and logged[at][0] != status:
+            raise ValueError(f"the ladder log's hier-load line for draw {at} says status"
+                             f" {logged[at][0]!r} but the report says {status!r}")
+        if status != "judged":
+            if status not in REAL_LOAD_SKIPS:
+                raise ValueError(f"{L} at draw {at} has status {status!r}, not 'judged' nor a"
+                                 f" reason from {REAL_LOAD_SKIPS}")
+            extra = sorted(set(entry) - HIER_LOAD_SKIP_KEYS)
+            if extra:
+                raise ValueError(f"{L} skip at draw {at} carries {extra}, which a skip never has")
+            real_load_skip_provenance(entry, recount, log_text, ladder_samples_by_at.get(at, {}),
+                                      HIER_LOAD_SPEC)
+            out.append({"at": at, "status": status})
+            continue
+        for field in TERRAIN_LOAD_COUNTS:
+            if not finite_int(entry.get(field)) or entry[field] < 0:
+                raise ValueError(f"{L} at draw {at}: {field} is {entry.get(field)!r}")
+        head = load_judged_entry_checks(entry, at, report, log_text, ladder_samples_by_at,
+                                        previous_judged, HIER_LOAD_SPEC)
+        if entry.get("iterationsRun") != HIER_LOAD_ITERATIONS:
+            raise ValueError(f"{L} at draw {at} ran {entry.get('iterationsRun')!r} iteration(s), not"
+                             f" {HIER_LOAD_ITERATIONS}")
+        if log_text is not None:
+            scene = {int(m.group(1)): m for m in HIER_SCENE_LOG.finditer(head)}.get(entry["sceneBuild"])
+            want = None if scene is None else (int(scene.group(2)), int(scene.group(3)), int(scene.group(4)))
+            got = (entry.get("meshed"), HIER_LOAD_TOP_RADIUS, HIER_LOAD_DEPTH)
+            if want != got:
+                raise ValueError(f"{L} at draw {at} names scene #{entry['sceneBuild']} with"
+                                 f" {entry.get('meshed')!r} meshed sections but the log's build line"
+                                 f" says {want}")
+        previous_judged = entry
+        counts, names = judge_load_sample(output, recount, entry, at, coexist_enabled, logged,
+                                          log_text, HIER_LOAD_SPEC)
+        referenced.update(names)
+        visible_samples += bool(counts["expectVisible"])
+        hidden_samples += bool(counts["expectHidden"])
+        for k in total:
+            total[k] += counts[k]
+        out.append({"at": at, "status": status, "stage": entry.get("stage"), **counts})
+    stray = sorted(set(retained) - referenced)
+    if stray:
+        raise ValueError(f"{len(stray)} retained {L} file(s) belong to no judged result: {stray[:6]}")
+    if not visible_samples:
+        raise ValueError(f"no judged {L} sample holds a pixel where Voxy's terrain must appear, so"
+                         f" the experiment decided nothing")
+    if not hidden_samples:
+        raise ValueError(f"no judged {L} sample holds a pixel where Voxy's terrain must be hidden"
+                         f" behind nearer Minecraft geometry, so occlusion is untested")
+    return {"enabled": True, "samples": out, "judged": len(judged),
+            "visibleSamples": visible_samples, "hiddenSamples": hidden_samples,
+            "expectVisible": total["expectVisible"], "expectHidden": total["expectHidden"],
+            "undetermined": total["undetermined"], "geometry": total["geometry"]}
 
 
 def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text, required=False):
@@ -2343,14 +2706,8 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
             raise ValueError(f"real-LOAD at draw {at} names scene level {entry.get('sceneLevel')!r},"
                              f" centre {entry.get('sceneCentre')!r}, sections"
                              f" {entry.get('sceneSections')!r}, draws {entry.get('sceneDraws')!r}")
-        if not isinstance(entry.get("projectionAdjusted"), bool):
-            raise ValueError(f"real-LOAD at draw {at} does not say whether Minecraft's projection was"
-                             f" adjusted to 0..1 depth")
-        # round-20 R20-REAL-METADATA: reconcile the published scene and projection facts
-        published = ladder_samples_by_at.get(at, {})
-        if entry.get("stage") != published.get("stage"):
-            raise ValueError(f"real-LOAD at draw {at} says stage {entry.get('stage')!r} but the ladder"
-                             f" sample says {published.get('stage')!r}")
+        head = load_judged_entry_checks(entry, at, report, log_text, ladder_samples_by_at,
+                                        previous_judged, REAL_LOAD_SPEC)
         centre = entry.get("sceneCentre")
         if not (isinstance(centre, list) and len(centre) == 3 and all(finite_int(c) for c in centre)):
             raise ValueError(f"real-LOAD at draw {at} names scene centre {centre!r}")
@@ -2360,25 +2717,7 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
                 or entry["sceneDraws"] > 7 * entry["sceneSections"]:
             raise ValueError(f"real-LOAD at draw {at} names {entry['sceneSections']} sections,"
                              f" {entry.get('sceneQuads')!r} quads, {entry['sceneDraws']} draws")
-        mc_p, used_p = entry.get("mcProjection"), entry.get("projection")
-        if not (isinstance(mc_p, list) and isinstance(used_p, list) and len(mc_p) == 16
-                and len(used_p) == 16 and all(finite_number(v) for v in mc_p + used_p)):
-            raise ValueError(f"real-LOAD at draw {at} does not publish both 16-entry projections")
-        same = all(abs(a - b) <= 1e-6 * max(1.0, abs(b)) for a, b in zip(used_p, mc_p))
-        halved = all(abs(a - b) <= 1e-6 * max(1.0, abs(b))
-                     for a, b in zip(used_p, halve_depth_range(mc_p)))
-        if entry["projectionAdjusted"] != (not same) or not (same or halved):
-            raise ValueError(f"real-LOAD at draw {at} says projectionAdjusted="
-                             f"{entry['projectionAdjusted']} but its projection is"
-                             f" {'Minecraft’s' if same else ('the halved range' if halved else 'neither')}")
-        far = entry.get("farPlane")
-        want_far = abs(used_p[14] / used_p[10]) if abs(used_p[10]) > 1e-12 else None
-        if want_far is None or not finite_number(far) or abs(far - want_far) > 1e-3 * max(1.0, want_far):
-            raise ValueError(f"real-LOAD at draw {at} reports farPlane={far!r} but its projection"
-                             f" gives {want_far!r}")
-        if not finite_int(entry.get("cameraCapture")) or entry["cameraCapture"] < 1:
-            raise ValueError(f"real-LOAD at draw {at} has cameraCapture={entry.get('cameraCapture')!r}")
-        for field in ("engineId", "sceneBuild", "atlasGeneration", "excludedNear", "cutBlocks"):
+        for field in ("excludedNear", "cutBlocks"):
             if not finite_int(entry.get(field)):
                 raise ValueError(f"real-LOAD at draw {at} does not state {field}")
         if entry["cutBlocks"] != REAL_LOAD_CUT_BLOCKS or entry["excludedNear"] < 0:
@@ -2390,19 +2729,7 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         if not finite_number(nearest) or nearest < entry["cutBlocks"]:
             raise ValueError(f"real-LOAD at draw {at} drew a section {nearest!r} blocks from the camera,"
                              f" inside the {entry['cutBlocks']}-block cut")
-        if entry["atlasGeneration"] < 1 or entry["atlasGeneration"] > report["atlasReads"]:
-            raise ValueError(f"real-LOAD at draw {at} names atlas generation {entry['atlasGeneration']}"
-                             f" of {report['atlasReads']} read(s)")
         if log_text is not None:
-            own = next((m for m in REAL_LOAD_LOG_LINE.finditer(log_text) if int(m.group(1)) == at), None)
-            head = log_text[:own.start()] if own else ""
-            # round-21 R21-ATLAS-PROVENANCE: the generation is the number of atlas reads logged
-            # before this sample
-            reads_before = len(ATLAS_READY_LOG.findall(head))
-            if entry["atlasGeneration"] != reads_before:
-                raise ValueError(f"real-LOAD at draw {at} names atlas generation"
-                                 f" {entry['atlasGeneration']} but {reads_before} atlas read(s) are"
-                                 f" logged before it")
             # round-21 R20-REAL-METADATA: the scene facts are its build's log line
             scene = {int(m.group(1)): m for m in REAL_SCENE_LOG.finditer(head)}.get(entry["sceneBuild"])
             want = None if scene is None else (int(scene.group(2)), int(scene.group(3)), int(scene.group(4)),
@@ -2414,75 +2741,10 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
             if want != got:
                 raise ValueError(f"real-LOAD at draw {at} names scene #{entry['sceneBuild']} as {got} but"
                                  f" the log's build line says {want}")
-        if previous_judged is not None:
-            if entry["cameraCapture"] <= previous_judged["cameraCapture"]:
-                raise ValueError(f"real-LOAD at draw {at} has camera capture {entry['cameraCapture']},"
-                                 f" not after the previous judged sample's")
-            if entry["sceneBuild"] < previous_judged["sceneBuild"]:
-                raise ValueError(f"real-LOAD at draw {at} uses scene build {entry['sceneBuild']}, older"
-                                 f" than the previous sample's")
-            for field in ("engineId", "atlasGeneration"):
-                if entry[field] != previous_judged[field] and \
-                        entry["sceneBuild"] == previous_judged["sceneBuild"]:
-                    raise ValueError(f"real-LOAD at draw {at}: {field} changed but the same scene"
-                                     f" (build {entry['sceneBuild']}) was reused")
         previous_judged = entry
-        wanted = {"file": f"native-real-load-{at}.ppm.gz",
-                  "frameFile": f"native-real-load-frame-{at}.ppm.gz",
-                  "referenceFile": f"native-real-load-reference-{at}.ppm.gz",
-                  "referenceDepthFile": f"native-real-load-depth-{at}.f32.gz"}
-        for field, name in wanted.items():
-            if entry.get(field) != name:
-                raise ValueError(f"real-LOAD at draw {at} names {field}={entry.get(field)!r}, not {name!r}")
-            if not (output / name).is_file():
-                raise ValueError(f"the retained real-LOAD file {name} is missing")
-            referenced.add(name)
-        after, (aw, ah) = read_ppm_gz(output / wanted["file"])
-        ladder, (lw, lh) = read_ppm_gz(output / recount["sample"])
-        if (aw, ah) != (lw, lh):
-            raise ValueError(f"the real-LOAD crop is {aw}x{ah} but the ladder crop is {lw}x{lh}")
-        before_name = (f"native-depth-ladder-coexist-{at}.ppm.gz" if coexist_enabled
-                       else recount["sample"])
-        before, _ = read_ppm_gz(output / before_name)
-        reference, (rw, rh) = read_ppm_gz(output / wanted["referenceFile"])
-        depth, (dw, dh) = read_f32_gz(output / wanted["referenceDepthFile"])
-        if (rw, rh) != (aw, ah) or (dw, dh) != (aw, ah):
-            raise ValueError(f"the real-LOAD reference crops are {rw}x{rh} and {dw}x{dh}, not the"
-                             f" band's {aw}x{ah}")
-        if any(not (0.0 <= d <= 1.0) or math.isnan(d) for row in depth for d in row):
-            raise ValueError(f"the real-LOAD reference depth at draw {at} holds values outside [0, 1]")
-        thumb, _ = read_ppm_gz(output / wanted["frameFile"])
-        if ladder_anchor_blocks(after, recount["rect"], thumb) == 0:
-            raise ValueError(f"the real-LOAD crop at draw {at} covers no whole thumbnail block")
-        counts = terrain_load_judge(before, ladder, after, reference, depth)
-        for field, value in counts.items():
-            if entry[field] != value:
-                raise ValueError(f"real-LOAD at draw {at} reports {field}={entry[field]} but the"
-                                 f" retained crops say {value}")
-        if log_text is not None and logged[at][1] != [counts[k] for k in TERRAIN_LOAD_COUNTS]:
-            raise ValueError(f"the ladder log's real-load line for draw {at} says {logged[at][1]}"
-                             f" but the crops say {[counts[k] for k in TERRAIN_LOAD_COUNTS]}")
-        geometry_depths = [d for row in depth for d in row if d > 0.0]
-        for field, want in (("minDepth", min(geometry_depths, default=None)),
-                            ("maxDepth", max(geometry_depths, default=None))):
-            got = entry.get(field)
-            if want is None:
-                if got is not None:
-                    raise ValueError(f"real-LOAD at draw {at} reports {field}={got!r} with no geometry")
-            elif not finite_number(got) or abs(got - want) > 1e-6 * max(abs(want), 1e-30):
-                raise ValueError(f"real-LOAD at draw {at} reports {field}={got!r} but the reference"
-                                 f" depth crop says {want!r}")
-        ref_set = sum(1 for row in reference for px in row if tuple(px[:3]) != TERRAIN_LOAD_CLEAR_RGB)
-        if entry.get("referenceSet") != ref_set:
-            raise ValueError(f"real-LOAD at draw {at} reports referenceSet={entry.get('referenceSet')!r}"
-                             f" but its reference crop holds {ref_set}")
-        if counts["other"] or counts["changedWhereNoGeometry"] or counts["visibleWhereHidden"] \
-                or counts["hiddenWhereVisible"]:
-            raise ValueError(f"real-LOAD at draw {at}: other={counts['other']},"
-                             f" changedWhereNoGeometry={counts['changedWhereNoGeometry']},"
-                             f" visibleWhereHidden={counts['visibleWhereHidden']},"
-                             f" hiddenWhereVisible={counts['hiddenWhereVisible']}; Voxy's real"
-                             f" terrain did not compose per pixel with Minecraft's matrix")
+        counts, names = judge_load_sample(output, recount, entry, at, coexist_enabled, logged,
+                                          log_text, REAL_LOAD_SPEC)
+        referenced.update(names)
         if counts["expectVisible"]:
             visible_samples += 1
         if counts["expectHidden"]:
@@ -2712,7 +2974,8 @@ def ladder_z_direction(samples, checkpoints):
 
 def native_ladder_result(output, expected_device=None, expected_extents=None,
                          log_text=None, checkpoints=None, require_coexist=False,
-                         require_terrain_load=False, require_real_load=False):
+                         require_terrain_load=False, require_real_load=False,
+                         require_hier_load=False):
     """Gate the depth ladder's own launch: Minecraft's loaded depth, tested, never written.
 
     This run is SEPARATE from the main native launch because the terrain probe clears the
@@ -2736,6 +2999,9 @@ def native_ladder_result(output, expected_device=None, expected_extents=None,
         result["real_load"] = real_load_checks(
             output, report, [r for r in result["samples"] if handed.get(r["at"]) == LADDER_REAL_LOAD],
             bool(result["coexist"].get("enabled")), log_text, require_real_load)
+        result["hier_load"] = hier_load_checks(
+            output, report, [r for r in result["samples"] if handed.get(r["at"]) == LADDER_HIER_LOAD],
+            bool(result["coexist"].get("enabled")), log_text, require_hier_load)
         latest = result["samples"][-1]
         result["answer"] = (f"{len(result['samples'])} sample(s); the latest (draw"
                             f" {latest['at']}) brackets: " + "; ".join(latest["brackets"]))
@@ -2753,6 +3019,12 @@ def native_ladder_result(output, expected_device=None, expected_extents=None,
                                  f" samples ({result['coexist']['mixedSamples']} mixed)")
         else:
             result["answer"] += "; which direction is nearer is not judged here"
+        if result["hier_load"].get("enabled"):
+            hl = result["hier_load"]
+            result["answer"] += (f"; Voxy's hierarchical pipeline composited natively into"
+                                 f" Minecraft's LOADed frame: {hl['judged']} judged sample(s), zero"
+                                 f" violations, {hl['expectVisible']} pixel(s) expected visible,"
+                                 f" {hl['expectHidden']} expected hidden")
         if result["real_load"].get("enabled"):
             rl = result["real_load"]
             result["answer"] += (f"; real sections drawn with Minecraft's matrix in a LOADed pass:"
@@ -3488,7 +3760,8 @@ def retain_native_evidence(output, native_output, timestamp, summary):
             ladder_kept = {}
             for pattern in ("*.json", "native-depth-ladder-*.ppm.gz",
                             "native-terrain-load-*.ppm.gz", "native-terrain-load-*.f32.gz",
-                            "native-real-load-*.ppm.gz", "native-real-load-*.f32.gz"):
+                            "native-real-load-*.ppm.gz", "native-real-load-*.f32.gz",
+                            "native-hier-load-*.ppm.gz", "native-hier-load-*.f32.gz"):
                 for path in sorted(ladder_output.glob(pattern)):
                     shutil.copyfile(path, ladder_target / path.name)
                     ladder_kept["ladder/" + path.name] = hashlib.sha256(
@@ -3510,6 +3783,19 @@ def retain_native_evidence(output, native_output, timestamp, summary):
                         raise ValueError(f"the ladder's coexist result references {name!r},"
                                          f" which was not retained")
                     wanted.append("ladder/" + name)
+            for name_of in ("native-hier-load.json",):
+                path_of = ladder_output / name_of
+                if not path_of.is_file():
+                    continue
+                for entry in json.loads(path_of.read_text()).get("results") or []:
+                    for field in ("file", "frameFile", "referenceFile", "referenceDepthFile"):
+                        name = (entry or {}).get(field)
+                        if name is None:
+                            continue
+                        if "ladder/" + name not in ladder_kept:
+                            raise ValueError(f"the hierarchical-LOAD result references {name!r},"
+                                             f" which was not retained")
+                        wanted.append("ladder/" + name)
             real_load_path = ladder_output / "native-real-load.json"
             if real_load_path.is_file():
                 for entry in json.loads(real_load_path.read_text()).get("results") or []:
@@ -3882,7 +4168,8 @@ def replay_evidence(directory):
                                                  ladder_checkpoints,
                                                  require_coexist=launched["coexist"],
                                                  require_terrain_load=launched["terrainLoad"],
-                                                 require_real_load=launched["realLoad"])
+                                                 require_real_load=launched["realLoad"],
+                                                 require_hier_load=launched["hierLoad"])
             if not ladder_result["success"]:
                 raise ValueError(f"ladder gate: {ladder_result['failures']}")
             outcome["ladder"] = {"samples": ladder_result["samples"],
@@ -3922,6 +4209,18 @@ def replay_evidence(directory):
                                            + f"{entry['at']}"
                                            + (".f32.gz" if field == "referenceDepthFile" else ".ppm.gz"))
             outcome["ladder"]["real_load"] = ladder_result.get("real_load")
+            for entry in (ladder_result.get("hier_load") or {}).get("samples") or []:
+                if entry.get("status") == "judged":
+                    at_ = entry["at"]
+                    ladder_refs += [f"ladder/native-hier-load-{at_}.ppm.gz",
+                                    f"ladder/native-hier-load-frame-{at_}.ppm.gz",
+                                    f"ladder/native-hier-load-reference-{at_}.ppm.gz",
+                                    f"ladder/native-hier-load-depth-{at_}.f32.gz"]
+            outcome["ladder"]["hier_load"] = ladder_result.get("hier_load")
+            if (ladder_result.get("hier_load") or {}).get("enabled"):
+                outcome["replayed"].append("hierarchical-LOAD per-pixel recount of every judged"
+                                           " sample against the ladder's brackets and Voxy's"
+                                           " reference depth of the same frame")
             if (ladder_result.get("real_load") or {}).get("enabled"):
                 outcome["replayed"].append("real-LOAD per-pixel recount of every judged sample"
                                            " against the ladder's brackets and Voxy's reference"
@@ -4152,7 +4451,8 @@ def main():
                 require_coexist=launch_enables(ladder_run["command"], "harnessNativeCoexist"),
                 require_terrain_load=launch_enables(ladder_run["command"],
                                                     "harnessNativeTerrainLoad"),
-                require_real_load=launch_enables(ladder_run["command"], "harnessNativeRealLoad"))
+                require_real_load=launch_enables(ladder_run["command"], "harnessNativeRealLoad"),
+                require_hier_load=launch_enables(ladder_run["command"], "harnessNativeHierLoad"))
             ladder_run["success"] &= ladder_run["ladder"]["success"]
             ladder_run["instance"] = native_instance_result(
                 ladder_output, launch_enables(ladder_run["command"], "harnessNativeInstance"),

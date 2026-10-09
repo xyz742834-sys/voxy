@@ -37,6 +37,7 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
         me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.shutdown();
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainLoad.shutdown();
         me.cortex.voxy.client.core.vk.mcnative.McNativeRealLoad.shutdown();
+        me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.shutdown();
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.shutdown();
         me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.shutdown();
     }
@@ -67,6 +68,9 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
         // ⚠ real-LOAD も梯子の後 (梯子は標本を terrain-LOAD と交互に渡す)。毎フレーム呼ぶ:
         // MC の行列がこのフレームに捕捉されたかを数えるため。既定では何もしない。
         me.cortex.voxy.client.core.vk.mcnative.McNativeRealLoad.renderIfEnabled();
+        // ⚠ hierarchical-LOAD: Voxy's whole pipeline, composited into MC's LOADed frame on the
+        // frames the ladder hands it. Default off.
+        me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.renderIfEnabled();
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.renderIfEnabled();
         // ⚠ instance mode の観測。GPU には触らない。既定では何もしない。
         me.cortex.voxy.client.core.vk.mcnative.McNativeInstanceProbe.sampleIfEnabled();
