@@ -470,7 +470,8 @@ of the point — and the replay status of each is:
 | [20261009T085529-037358Z](runs/native-evidence/20261009T085529-037358Z/MANIFEST.json) | no — predates real-LOAD and the complete instance inventory (round 19 judged it) |
 | [20261009T100957-766731Z](runs/native-evidence/20261009T100957-766731Z/MANIFEST.json) | no — predates the round-20 real-LOAD reconciliation (round 20 confirmed its 10 judged samples) |
 | [20261009T105825-290625Z](runs/native-evidence/20261009T105825-290625Z/MANIFEST.json) | no — predates occlusion and the round-21 reconciliation (round 21 judged it) |
-| [20261009T120055-798091Z](runs/native-evidence/20261009T120055-798091Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction, coexistence, terrain-LOAD, instance mode and real-LOAD with occlusion judged |
+| [20261009T120055-798091Z](runs/native-evidence/20261009T120055-798091Z/MANIFEST.json) | no — predates the draw-time near cut (round 22 confirmed its occlusion sample) |
+| [20261009T125419-994300Z](runs/native-evidence/20261009T125419-994300Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction, coexistence, terrain-LOAD, instance mode and real-LOAD with occlusion judged |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1588,7 +1589,7 @@ depth extrema, both projections, far plane, captures, scene facts and stage are 
 scene is bound to its world engine and atlas generation and rebuilt when either changes (the gate
 refuses reuse, including across disconnect/reconnect); free failures are counted; the atlas is
 re-read when Minecraft replaces it and dropped at shutdown; a test per surviving guard.
-**Re-measured** (run [20261009T105825-290625Z](runs/native-evidence/20261009T105825-290625Z/MANIFEST.json), replay 0 in this checkout):
+**Re-measured** (run [20261009T105825-290625Z](runs/native-evidence/20261009T105825-290625Z/MANIFEST.json), which replayed 0 in the checkout it was built from; see the replay table):
 7 judged samples, zero violations, 85 359 pixels that had to show Voxy did, 0 that had to be
 hidden; the atlas was read twice — the resource-reload stage replaced it, the next scene was
 rebuilt with the new generation; no free failures. Occlusion by nearer Minecraft geometry is
@@ -1605,8 +1606,10 @@ build log line; skips are corroborated by the build attempts logged before them,
 lines' capture chronology (no-camera), by the `resize` stage (extent) and by the empty build's
 ordinal (nothing-meshed); the report's builds and atlas reads equal the log, and each sample's
 atlas generation equals the reads logged before it; a copy requested before a reset is discarded
-on arrival, and the cache is also dropped at session end and device release; a test per
-remaining guard. What the gate cannot do — authenticate a coordinated rewrite of report and
+on arrival, and the cache is also dropped at session end and device release; tests for the four
+guards round 21 named. (Round 22 found one more guard without a detecting test — the
+build-budget comparison — and added it; "every guard has a test" is not claimed: round 22's
+removal audit is the record of which guards a removal would expose.) What the gate cannot do — authenticate a coordinated rewrite of report and
 log together — is unchanged and stated, as for every other retained record.
 
 ## Occlusion: Minecraft's nearer geometry hides Voxy's real terrain (2026-10-09)
@@ -1631,10 +1634,16 @@ the harness's render distance.
 nothing visible: from y 121.6 the Voxy-only terrain lay behind a Minecraft hill at ~100 blocks as
 well as the wall. A first gated run measured occlusion but failed the ladder gate, because the
 frame rate had fallen (real-LOAD's scene builds and device-idle waits run on the render thread)
-and `descend` received no ladder sample. The harness now does not leave a stage the ladder has
-not sampled after it became ready, and the ladder's sample limit is 40 (16 stages).
+and `descend` received no ladder sample. The harness now waits, in a stage, until the ladder has
+*requested* a sample after the stage became ready — only while the ladder is sampling (flag on,
+under its sample limit, under its failure budget); with the ladder off, at its limit or past its
+failure budget it does not wait. The ladder's sample limit is 40 (16 stages). This guarantees a
+request, not a completed measurement; the gate decides the rest.
 
-**Measured** (run [20261009T120055-798091Z](runs/native-evidence/20261009T120055-798091Z/MANIFEST.json), replay 0 in this checkout):
+**Measured** (run [20261009T120055-798091Z](runs/native-evidence/20261009T120055-798091Z/MANIFEST.json), which replayed 0 in the
+checkout it was built from; round 22 confirmed it; re-measured identically at `horizon` by
+[20261009T125419-994300Z](runs/native-evidence/20261009T125419-994300Z/MANIFEST.json), replay 0 in this checkout, with the draw-time
+cut — nearest drawn section 511.5–512.5 blocks):
 at `horizon`, **2 003 pixels had to show Voxy's terrain over Minecraft's sky and did, 3 306 had
 to be hidden behind the wall Minecraft draws and were, zero violations, nothing undetermined.**
 Seven judged real-LOAD samples in all, zero violations; the other judged samples hold no Voxy
@@ -1646,6 +1655,18 @@ appearing where Minecraft's depth is farther, and hidden where Minecraft's geome
 hold for one look, at bracket grain, with Minecraft's own matrix. It is one look and one wall;
 the near cut is an approximation of Voxy's real mechanism; LoD selection, traversal, culling,
 translucency, lighting and a delivered renderer remain out of scope.
+
+**Round-22 review (2026-10-09).** Round 22 ([native-integration-review-r22.md](runs/native-integration-review-r22.md))
+**confirmed the occlusion measurement** (2 003 shown, 3 306 hidden, zero violations, nothing
+undetermined; the hidden-pixel requirement and the cut pin both refused their attacks) and closed
+R20-REAL-METADATA, R20-REAL-SKIP-PROVENANCE, R21-ATLAS-PROVENANCE and R21-ATLAS-RESET.
+Non-blocking residuals, addressed after it: the build-budget guard had no detecting test (added);
+the cut was checked only when a scene was built, so a cached scene could keep a section inside
+128 blocks after the camera moved within a coarse section (R22-NEAR-CUT-REUSE) — the scene now
+records its drawn sections, is rebuilt when the camera comes nearer than the cut to any of them
+or the render distance changes, and every judged sample publishes the nearest drawn section's
+distance at draw time, which the gate requires to be at least the cut; and four documentation
+statements (this paragraph's predecessors) were narrowed.
 
 ## What is NOT answered yet, and must be measured on hardware
 

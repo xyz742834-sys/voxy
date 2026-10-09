@@ -1,8 +1,9 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-22 candidate **8ba67fc5** (`8ba67fc562d2090422ecf1e8ba75a9d4dea9a2d2`, dispatched
-2026-10-09 in Orca worktree `native-review-r22`, terminal `term_8dd869f1-62ce-4877-8921-eb5b17dbf45f`). Round 21 judged `03ee3485`: REDESIGN on DELIVERY-BOUNDARY only; two R20 items closed;
+`vulkan-macos`, round-23 candidate = the docs commit on top of the run-evidence commit (the dispatch commit after
+it names the exact SHA). Round 22 judged `8ba67fc5`: REDESIGN on DELIVERY-BOUNDARY only; occlusion CONFIRMED;
+four R21 items closed; three non-blocking residuals addressed in `5476545d`. Round 21 judged `03ee3485`: REDESIGN on DELIVERY-BOUNDARY only; two R20 items closed;
 four residual and two new non-blocking items addressed in `d0a08faf`; occlusion measured. Round 20 judged `39584eba`: REDESIGN on DELIVERY-BOUNDARY only; R19 items closed;
 real-LOAD and the Blaze3D atlas read confirmed; six non-blocking items repaired in `da91d70e`. Round 19 judged `9a6ca051`: REDESIGN on DELIVERY-BOUNDARY only; R18 items closed;
 instance mode and matrix capture confirmed. Round 18 judged `a6e1c3a3`: REDESIGN on DELIVERY-BOUNDARY only;
@@ -33,10 +34,10 @@ stage's literal tokens as the authority; the terrain-LOAD experiment is now in t
 ## The review discipline (this is the spine)
 
 `scripts/verify.py` is the verification spine. Native work is **"measured", never "verified"**
-until a fresh independent review of a frozen commit records a verdict. Twenty-one rounds have
+until a fresh independent review of a frozen commit records a verdict. Twenty-two rounds have
 run, **all REDESIGN** — the standing delivery boundary (native LoD is not implemented) is
-always blocking. Rounds 18–21 had **no blocking finding besides the boundary**.
-Reports are in `docs/ai/runs/native-integration-review-r1..r21.{md,json}`.
+always blocking. Rounds 18–22 had **no blocking finding besides the boundary**.
+Reports are in `docs/ai/runs/native-integration-review-r1..r22.{md,json}`.
 
 **Owner directive (2026-10-09, via the coordination mail):** do not spend effort on waste; the
 parallel agents watch each other for it. Take the shortest safe route to real-world native
@@ -58,14 +59,14 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9 … -22 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r22`. Start
+-9 … -23 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r23`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 21, and what this HEAD claims
+### Findings status after round 22, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
@@ -81,7 +82,7 @@ report separately from any repair.
 | **Terrain-LOAD experiment** (Voxy's real terrain pipeline, depth writes on, into a pass that LOADs MC colour+depth) | **confirmed by r18** as a bounded measurement |
 | **Native instance mode** + MC matrix capture + `horizon` stage | confirmed by r19 (bounded); R19-INSTANCE-INVENTORY / R19-TEST-INSTANCE / R19-DOC-DRIFT repaired in `9caf152d`; **unreviewed** |
 | **Real-section LOAD** + Blaze3D atlas read | **confirmed by r20** (bounded: visible half only); R20 items addressed in `da91d70e`; r21 closed two and found four incomplete, those and two new r21 items addressed in `d0a08faf`; **unreviewed** |
-| **Occlusion** (render-distance cut, `horizon` wall, hidden pixels required) | in this HEAD, measured (2 003 shown / 3 306 hidden at `horizon`, zero violations); **unreviewed** |
+| **Occlusion** (render-distance cut, `horizon` wall, hidden pixels required) | **confirmed by r22** (one look, bracket grain); R22 residuals (budget-guard test, draw-time cut, wording) addressed after it; **unreviewed** |
 | non-blocking limits (anchor grain, consistent forgery, creator restore, geometry scope, depth-copy scope, recorder binding untested in JUnit) | **stated as limits** |
 
 B1 has one recurring shape: **the gate trusted something the thing under test controls.**
@@ -142,8 +143,9 @@ frame extent, every retained file a manifest member.
   sections inside MC's 128-block render distance cut and a stone wall 20 blocks ahead, 2 003
   pixels had to show Voxy over MC's sky and did, 3 306 had to be hidden behind the wall and
   were, zero violations; the gate now requires hidden pixels. One look, one wall; the near cut
-  approximates Voxy's real mechanism. The harness no longer leaves a stage the ladder has not
-  sampled (a slower frame rate once dropped `descend`).
+  approximates Voxy's real mechanism. The harness waits in a stage until the ladder has
+  requested a sample after the stage became ready, while the ladder is sampling (a slower frame
+  rate once dropped `descend`); it guarantees a request, not a measurement.
 - **Real sections, drawn with MC's own matrix through Voxy's terrain pipeline into MC's LOADed
   colour and depth, compose per pixel** (flag `voxy.native.realload`, `McNativeRealLoad`, gate
   `real_load_checks`; run `20261009T100957-766731Z`): 10 judged samples, zero violations, 143 425 pixels that had to
@@ -171,8 +173,9 @@ frame extent, every retained file a manifest member.
   everywhere** while the depth test sees non-zero values is not established.
 - The depth **scale** is measured only at bracket grain: the quad at 2⁻⁸ and the sweep's
   panels (≈ 2⁻⁸·¹ … 2⁻¹²·⁷) land on the side of Minecraft's brackets their values say; inside a
-  bracket nothing is decided. Real-world geometry (Voxy's LoD meshes against MC's chunks at the
-  same world scale) is not yet drawn; the sweep is synthetic and its camera is not MC's.
+  bracket nothing is decided. The terrain-LOAD sweep is synthetic and its camera is not MC's;
+  real-world geometry with MC's matrix is the real-LOAD experiment (one coarse level around the
+  camera), not Voxy's LoD selection.
 - The terrain-LOAD pipeline's depth state is **declared**, not read back from pipeline
   creation (the ladder's is). `VkTerrainRenderer` builds it with
   `depthTest(true).depthWrite(true).depthCompare(VkDepth.COMPARE_OP)`; the probe publishes
@@ -198,7 +201,7 @@ Gate/test counts at this HEAD: JUnit 347 (1 documented skip, 0 failures; 8 for t
 terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode,
 4 for real-LOAD);
 Python 282 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T120055-798091Z` (replay 0 **in this
+native stage green as `docs/ai/runs/native-evidence/20261009T125419-994300Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
 round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
@@ -207,17 +210,17 @@ terrain at x ≈ 768 from spawn, yaw -90, pitch 15 — added 2026-10-09 for the 
 experiment). Older retained runs do not replay under this
 gate, which is expected and tabled in the survey.
 
-## Round 22
+## Round 23
 
-Dispatched against `8ba67fc5` with `docs/ai/runs/native-review-prompt-r22.txt` (worktree
-`native-review-r22`, terminal `term_8dd869f1-62ce-4877-8921-eb5b17dbf45f`). When its report
-lands: copy it to `docs/ai/runs/native-integration-review-r22.{md,json}`, commit the report
+Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r23.txt` (if not already
+done — check `git log` for a "docs: record the round-23 dispatch" commit). When its report
+lands: copy it to `docs/ai/runs/native-integration-review-r23.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
 
-1. Import the round-22 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 23. Do the goal work alongside; do not wait for an overall
+1. Import the round-23 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 24. Do the goal work alongside; do not wait for an overall
    PASS (owner directive).
 2. The goal work, done in this HEAD: **Voxy's real terrain pipeline in a LOADed pass** as a
    separate probe (`McNativeTerrainLoad`, `voxy.native.terrainload`,
