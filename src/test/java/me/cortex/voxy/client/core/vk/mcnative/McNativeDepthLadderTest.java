@@ -247,5 +247,12 @@ public class McNativeDepthLadderTest {
         assertTrue(json.contains("\"coexistRgb\": [0.5, 1.0, 0.5]"), json);
         assertEquals(McNativeDepthLadder.PALETTE.length, McNativeDepthLadder.classify(128, 255, 128),
             "the coexist colour must be outside the ladder palette");
+        assertArrayEquals(new int[] {128, 255, 128}, McNativeDepthLadder.COEXIST_RGB_EXACT);
+        assertTrue(json.contains("\"coexistRgbExact\": [128, 255, 128]"), json);
+        // what recordCoexist binds and pushes: the GREATER_OR_EQUAL pipeline at rung 4's depth
+        Object[] plan = McNativeDepthLadder.coexistDrawPlan();
+        assertEquals(McNativeDepthLadder.OP_COEXIST, plan[0]);
+        assertEquals(McNativeDepthLadder.depths()[McNativeDepthLadder.COEXIST_RUNG], (Float) plan[1], 0f);
+        assertArrayEquals(McNativeDepthLadder.COEXIST_RGB, (float[]) plan[2], 0f);
     }
 }

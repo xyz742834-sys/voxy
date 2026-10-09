@@ -255,7 +255,10 @@ def coexist_entry(sample, field, after):
                 c["presentWhereFail"] += expect_fail
             else:
                 c["absent"] += 1
-                c["unchangedElsewhere"] += after[y][x] == sel[y][x]
+                if after[y][x] == sel[y][x]:
+                    c["unchangedElsewhere"] += 1
+                else:
+                    c["other"] += 1
                 c["absentWherePass"] += expect_pass
     return c
 
@@ -814,14 +817,23 @@ class LadderCoexistTest(unittest.TestCase):
     """The coexistence quad must compose per pixel against the same frame's brackets."""
 
     def run_coexist(self, violate=None, mutate_entry=None, log=None, skip_file=False,
-                    pairs=None):
+                    pairs=None, mutate_report=None, skip_frame=False, entries_override=None,
+                    after_override=None, require=True):
         pairs = direction_samples() if pairs is None else pairs
         afters = [coexist_after(f, s["flipped"], violate if i == 0 else None)
                   for i, (s, f) in enumerate(pairs)]
+        if after_override:
+            afters[0] = after_override(afters[0])
         entries = [coexist_entry(s, f, a) for (s, f), a in zip(pairs, afters)]
         if mutate_entry:
             mutate_entry(entries[0])
-        body = report(samples=[s for s, _ in pairs], coexistEnabled=True, coexist=entries)
+        if entries_override:
+            entries = entries_override(entries)
+        # the report gets its own list, so a report mutation cannot reach the log lines
+        body = report(samples=[s for s, _ in pairs], coexistEnabled=True,
+                      coexist=[dict(e) for e in entries])
+        if mutate_report:
+            mutate_report(body)
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             for (s, f), a in zip(pairs, afters):
@@ -829,11 +841,13 @@ class LadderCoexistTest(unittest.TestCase):
                 if not skip_file:
                     write_gz_ppm(out / f"native-depth-ladder-coexist-{s['at']}.ppm.gz", a)
                 _, rej = crops(f, s["flipped"])
-                write_gz_ppm(out / f"native-depth-ladder-coexist-frame-{s['at']}.ppm.gz",
-                             thumbnail(a, s["rect"], rej, s["rejectedRect"]))
+                if not skip_frame:
+                    write_gz_ppm(out / f"native-depth-ladder-coexist-frame-{s['at']}.ppm.gz",
+                                 thumbnail(a, s["rect"], rej, s["rejectedRect"]))
             (out / "native-depth-ladder.json").write_text(json.dumps(body))
             text = (log_for(body["samples"]) + coexist_log_for(entries)) if log is None else log
-            return native_ladder_result(out, DEVICE, EXTENTS, text, direction_checkpoints())
+            return native_ladder_result(out, DEVICE, EXTENTS, text, direction_checkpoints(),
+                                        require_coexist=require)
 
     def test_a_quad_that_composes_per_pixel_passes(self):
         result = self.run_coexist()
@@ -855,7 +869,111 @@ class LadderCoexistTest(unittest.TestCase):
     def test_a_pixel_the_quad_did_not_cover_changing_colour_fails(self):
         result = self.run_coexist(violate="changed")
         self.assertFalse(result["success"])
-        self.assertIn("did not cover changed colour", " ".join(result["failures"]))
+        self.assertIn("not byte-identical to the first crop", " ".join(result["failures"]))
+
+    def test_an_uncovered_pixel_of_another_shade_of_its_class_fails(self):
+        """Round-15 R15-COEXIST-RGB: (0,255,0) -> (64,192,64) passed as the same class."""
+        def shade(after):
+            for y, row in enumerate(after):
+                for x, px in enumerate(row):
+                    if px == PALETTE[RUNG0 + 4]:
+                        after[y][x] = (64, 192, 64)
+                        return after
+            return after
+        result = self.run_coexist(after_override=shade)
+        self.assertFalse(result["success"])
+        self.assertIn("not byte-identical", " ".join(result["failures"]))
+
+    def test_a_quad_pixel_of_another_green_is_not_the_quad(self):
+        """Round-15 R15-COEXIST-RGB: (128,255,128) -> (96,192,96) passed as the quad."""
+        def shade(after):
+            for y, row in enumerate(after):
+                for x, px in enumerate(row):
+                    if px == COEXIST_RGB:
+                        after[y][x] = (96, 192, 96)
+                        return after
+            return after
+        result = self.run_coexist(after_override=shade)
+        self.assertFalse(result["success"])
+        self.assertIn("not byte-identical", " ".join(result["failures"]))
+
+    def test_the_experiment_cannot_be_reported_off_when_the_launch_enabled_it(self):
+        """Round-15 R15-COEXIST-PRESENCE: coexistEnabled=false with no results replayed as 0
+        although the launch command and the log said the experiment ran."""
+        pairs = direction_samples()
+        gate = LadderGateTest()
+        body = report(samples=[s for s, _ in pairs])   # coexistEnabled False, coexist []
+        truthful_log = log_for(body["samples"]) + coexist_log_for(
+            [coexist_entry(s, f, coexist_after(f, s["flipped"])) for s, f in pairs])
+        # the launch enabled it: required
+        result = gate.run_gate(body, [f for _, f in pairs], checkpoints=direction_checkpoints(),
+                               log=log_for(body["samples"]))
+        self.assertTrue(result["success"], result["failures"])   # not required, log silent: fine
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            for s, f in pairs:
+                write_sample_files(out, s, f)
+            (out / "native-depth-ladder.json").write_text(json.dumps(body))
+            result = native_ladder_result(out, DEVICE, EXTENTS, log_for(body["samples"]),
+                                          direction_checkpoints(), require_coexist=True)
+            self.assertFalse(result["success"])
+            self.assertIn("enabled the coexistence experiment", " ".join(result["failures"]))
+            # not required by the command, but the log holds coexist lines: still refused
+            result = native_ladder_result(out, DEVICE, EXTENTS, truthful_log,
+                                          direction_checkpoints(), require_coexist=False)
+            self.assertFalse(result["success"])
+            self.assertIn("holds coexist lines", " ".join(result["failures"]))
+
+    def test_each_report_level_coexist_check_is_live(self):
+        """Round-15 R15-TEST-COEXIST: twelve guards had no test that fails without them."""
+        cases = [
+            (lambda b: b.update(coexistEnabled="true"), "coexistEnabled"),
+            (lambda b: b.update(coexist={"at": 1}), "coexist"),
+            (lambda b: b.update(coexistRung=3), "its source lays out"),
+            (lambda b: b.update(coexistRgb=[0.5, 0.5, 1.0]), "its source lays out"),
+            (lambda b: b["coexist"].append("junk"), "malformed"),
+            (lambda b: b["coexist"].append(dict(b["coexist"][0])), "repeat a draw"),
+            (lambda b: b["coexist"].pop(), "belong to no listed sample"),
+            (lambda b: b["coexist"][0].update(present=-1), "present is -1"),
+            # a renamed file leaves the real crop unreferenced: the inventory refuses first
+            (lambda b: b["coexist"][0].update(file="native-depth-ladder-coexist-9.ppm.gz"), "belong to no listed sample"),
+            (lambda b: b["coexist"][0].update(frameFile="x.ppm.gz"), "belong to no listed sample"),
+        ]
+        for mutate, fragment in cases:
+            result = self.run_coexist(mutate_report=mutate)
+            self.assertFalse(result["success"], fragment)
+            self.assertIn(fragment, " ".join(result["failures"]))
+
+    def test_a_missing_or_wrong_sized_frame_or_crop_fails(self):
+        result = self.run_coexist(skip_frame=True)
+        self.assertFalse(result["success"])
+        self.assertIn("coexist frame thumbnail", " ".join(result["failures"]))
+        result = self.run_coexist(after_override=lambda a: a + [list(a[-1])])
+        self.assertFalse(result["success"])
+        self.assertIn("but the ladder crop is", " ".join(result["failures"]))
+
+    def test_a_coexist_crop_that_does_not_match_its_thumbnail_fails(self):
+        """The second crop is anchored to the second readback's thumbnail."""
+        pairs = direction_samples()
+        afters = [coexist_after(f, s["flipped"]) for s, f in pairs]
+        entries = [coexist_entry(s, f, a) for (s, f), a in zip(pairs, afters)]
+        body = report(samples=[s for s, _ in pairs], coexistEnabled=True, coexist=entries)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            for (s, f), a in zip(pairs, afters):
+                write_sample_files(out, s, f)
+                write_gz_ppm(out / f"native-depth-ladder-coexist-{s['at']}.ppm.gz", a)
+                _, rej = crops(f, s["flipped"])
+                # a thumbnail of scene only: the crop is not where the report says
+                write_gz_ppm(out / f"native-depth-ladder-coexist-frame-{s['at']}.ppm.gz",
+                             thumbnail([[SCENE] * len(a[0]) for _ in a], s["rect"], rej,
+                                       s["rejectedRect"]))
+            (out / "native-depth-ladder.json").write_text(json.dumps(body))
+            result = native_ladder_result(out, DEVICE, EXTENTS,
+                                          log_for(body["samples"]) + coexist_log_for(entries),
+                                          direction_checkpoints(), require_coexist=True)
+        self.assertFalse(result["success"])
+        self.assertIn("did not come from there", " ".join(result["failures"]))
 
     def test_published_counts_the_crops_contradict_fail(self):
         def lie(entry):
@@ -888,6 +1006,21 @@ class LadderCoexistTest(unittest.TestCase):
         result = gate.run_gate(body, [f for _, f in pairs], checkpoints=direction_checkpoints())
         self.assertFalse(result["success"])
         self.assertIn("experiment was off", " ".join(result["failures"]))
+
+    def test_the_log_must_list_exactly_the_sampled_draws(self):
+        pairs = direction_samples()
+        afters = [coexist_after(f, s["flipped"]) for s, f in pairs]
+        entries = [coexist_entry(s, f, a) for (s, f), a in zip(pairs, afters)]
+        body = report(samples=[s for s, _ in pairs], coexistEnabled=True, coexist=entries)
+        extra = dict(entries[0]); extra["at"] = 9999
+        text = log_for(body["samples"]) + coexist_log_for(entries + [extra])
+        result = self.run_coexist(log=text)
+        self.assertFalse(result["success"])
+        self.assertIn("holds coexist lines for draws", " ".join(result["failures"]))
+        text = log_for(body["samples"]) + coexist_log_for(entries) + coexist_log_for(entries[:1])
+        result = self.run_coexist(log=text)
+        self.assertFalse(result["success"])
+        self.assertIn("two coexist lines", " ".join(result["failures"]))
 
 
 class LadderRetentionTest(unittest.TestCase):
@@ -1115,6 +1248,20 @@ class LadderRetentionTest(unittest.TestCase):
         code, out = self.replay(target)
         self.assertEqual(code, 1)
         self.assertIn("belong to no listed sample", out["error"])
+
+    def test_a_saved_launch_command_that_enabled_coexist_requires_its_evidence(self):
+        """Round-15 R15-COEXIST-PRESENCE, replay side: the retained launch command decides."""
+        target, _ = self.build()
+        summary_path = target / "summary.json"
+        summary = json.loads(summary_path.read_text())
+        summary["stages"]["native_environment"]["ladder_run"]["command"] = [
+            "gradlew", "runHarnessClient", "-PharnessNativeDepthLadder=true",
+            "-PharnessNativeCoexist=true"]
+        summary_path.write_text(json.dumps(summary))
+        self.rehash(target, "summary.json")
+        code, out = self.replay(target)
+        self.assertEqual(code, 1)
+        self.assertIn("enabled the coexistence experiment", out["error"])
 
     def test_a_saved_direction_that_disagrees_with_the_evidence_is_rejected(self):
         """Round-13 R13-Z-BINDING: the summary's saved direction was never reconciled."""

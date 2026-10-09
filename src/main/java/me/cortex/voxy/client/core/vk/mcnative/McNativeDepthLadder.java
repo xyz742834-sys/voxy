@@ -92,6 +92,8 @@ public final class McNativeDepthLadder implements Destroyable {
     public static final int COEXIST_RUNG = 4;
     /** 共存クアッドの色 (三値 1,2,1)。パレットの 10 色と重ならない。 */
     public static final float[] COEXIST_RGB = {0.5f, 1.0f, 0.5f};
+    /** GPU が実際に書く値 (実測: 128, 255, 128)。照合は<b>厳密一致</b> (round-15 review R15-COEXIST-RGB)。 */
+    public static final int[] COEXIST_RGB_EXACT = {128, 255, 128};
 
     /** 段の数。 */
     public static final int RUNGS = 8;
@@ -153,6 +155,8 @@ public final class McNativeDepthLadder implements Destroyable {
     private static final java.util.Map<Long, Coexist> COEXIST = new java.util.LinkedHashMap<>();
     /** 1 回目の読み戻しの帯の分類 (画素ごとのパレット添字)、2 回目が照合するまで保持。 */
     private static final java.util.Map<Long, byte[]> BAND_CLASSES = new java.util.HashMap<>();
+    /** 同じ帯の生 RGB (画素ごと 3 バイト)。覆われなかった画素はこれと厳密一致でなければならない。 */
+    private static final java.util.Map<Long, byte[]> BAND_PIXELS = new java.util.HashMap<>();
     private static McNativeDepthLadder instance;
     private static long drawsRecorded;
     private static long nextReadbackAt = 2;
@@ -398,6 +402,11 @@ public final class McNativeDepthLadder implements Destroyable {
         }
     }
 
+    /** 共存クアッドの描き方: {pipeline 添字, 深度}。{@link #recordCoexist} はこれを使う。 */
+    static Object[] coexistDrawPlan() {
+        return new Object[] {OP_COEXIST, depths()[COEXIST_RUNG], COEXIST_RGB};
+    }
+
     /** 共存クアッド: 帯全体、深度 z* = depths()[COEXIST_RUNG]、比較 GREATER_OR_EQUAL、書き込み無効。 */
     private void recordCoexist(VkCommandBuffer cmd, int width, int height) {
         try (MemoryStack stack = stackPush()) {
@@ -408,8 +417,9 @@ public final class McNativeDepthLadder implements Destroyable {
             scissor.extent().set(width, height);
             vkCmdSetViewport(cmd, 0, viewport);
             vkCmdSetScissor(cmd, 0, scissor);
-            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.pipelines[OP_COEXIST]);
-            push(cmd, stack, COEXIST_RGB, depths()[COEXIST_RUNG]);
+            Object[] plan = coexistDrawPlan();
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.pipelines[(Integer) plan[0]]);
+            push(cmd, stack, (float[]) plan[2], (Float) plan[1]);
             vkCmdDraw(cmd, 6, 1, 0, 0);
         }
     }
@@ -500,12 +510,13 @@ public final class McNativeDepthLadder implements Destroyable {
         try (var view = new GpuBufferSlice(buffer, 0, buffer.size()).map(true, false)) {
             var data = view.data();
             Sample sample = null;
-            byte[] classes;
+            byte[] classes, pixels;
             synchronized (NOTES) {
                 for (var s : SAMPLES) if (s.at() == at) sample = s;
                 classes = BAND_CLASSES.remove(at);
+                pixels = BAND_PIXELS.remove(at);
             }
-            if (sample == null || classes == null) {
+            if (sample == null || classes == null || pixels == null) {
                 fail("coexist readback at draw " + at + " has no ladder sample to compare with"
                     + " (readback order)");
                 return;
@@ -521,8 +532,14 @@ public final class McNativeDepthLadder implements Destroyable {
                     long p = rowBase + (long) x * 4;
                     int r = data.get((int) p) & 0xFF, g = data.get((int) p + 1) & 0xFF,
                         b = data.get((int) p + 2) & 0xFF;
-                    boolean coexist = level(r) == 1 && level(g) == 2 && level(b) == 1;
+                    // ⚠ exact bytes, not classes: a quad of another green or an uncovered pixel
+                    // of another shade must not pass (round-15 review R15-COEXIST-RGB)
+                    boolean coexist = r == COEXIST_RGB_EXACT[0] && g == COEXIST_RGB_EXACT[1]
+                        && b == COEXIST_RGB_EXACT[2];
                     int before = classes[i];
+                    int i3 = i * 3;
+                    boolean identical = pixels[i3] == (byte) r && pixels[i3 + 1] == (byte) g
+                        && pixels[i3 + 2] == (byte) b;
                     boolean expectPass = before == LOW || (before >= RUNG0
                         && before - RUNG0 < COEXIST_RUNG);
                     boolean expectFail = before >= RUNG0 && before - RUNG0 >= COEXIST_RUNG;
@@ -532,12 +549,9 @@ public final class McNativeDepthLadder implements Destroyable {
                         present++;
                         if (expectFail) presentWhereFail++;
                     } else {
-                        int cls = classify(r, g, b);
-                        if (cls == PALETTE.length) other++;
-                        else {
-                            absent++;
-                            if (cls == before) unchanged++;
-                        }
+                        absent++;
+                        if (identical) unchanged++;
+                        else other++;
                         if (expectPass) absentWherePass++;
                     }
                 }
@@ -625,18 +639,24 @@ public final class McNativeDepthLadder implements Destroyable {
             }
             if (Boolean.getBoolean(COEXIST_FLAG)) {
                 int[] q = rects[chosen];
-                byte[] cls = new byte[(q[2] - q[0]) * (q[3] - q[1])];
+                int n = (q[2] - q[0]) * (q[3] - q[1]);
+                byte[] cls = new byte[n];
+                byte[] raw = new byte[n * 3];
                 int i = 0;
                 for (int y = q[1]; y < q[3]; y++) {
                     long rowBase = (long) y * width * 4;
                     for (int x = q[0]; x < q[2]; x++, i++) {
                         long p = rowBase + (long) x * 4;
-                        cls[i] = (byte) classify(data.get((int) p) & 0xFF,
-                            data.get((int) p + 1) & 0xFF, data.get((int) p + 2) & 0xFF);
+                        raw[i * 3] = data.get((int) p);
+                        raw[i * 3 + 1] = data.get((int) p + 1);
+                        raw[i * 3 + 2] = data.get((int) p + 2);
+                        cls[i] = (byte) classify(raw[i * 3] & 0xFF, raw[i * 3 + 1] & 0xFF,
+                            raw[i * 3 + 2] & 0xFF);
                     }
                 }
                 synchronized (NOTES) {
                     BAND_CLASSES.put(at, cls);
+                    BAND_PIXELS.put(at, raw);
                 }
             }
             if (why != null) {
@@ -1137,6 +1157,8 @@ public final class McNativeDepthLadder implements Destroyable {
         sb.append("  \"coexistEnabled\": ").append(Boolean.getBoolean(COEXIST_FLAG)).append(",\n");
         sb.append("  \"coexistRung\": ").append(COEXIST_RUNG).append(",\n");
         sb.append("  \"coexistRgb\": ").append(floats(COEXIST_RGB)).append(",\n");
+        sb.append("  \"coexistRgbExact\": [").append(COEXIST_RGB_EXACT[0]).append(", ")
+          .append(COEXIST_RGB_EXACT[1]).append(", ").append(COEXIST_RGB_EXACT[2]).append("],\n");
         sb.append("  \"coexist\": [");
         var coexist = coexist();
         for (int i = 0; i < coexist.size(); i++) {

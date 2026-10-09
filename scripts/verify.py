@@ -915,7 +915,7 @@ LADDER_SAMPLE_OR_STAGE = re.compile(r"\[voxy-harness\] stage=(\w+)|depth ladder 
 
 
 def ladder_report_checks(output, report, expected_device=None, expected_extents=None,
-                         retained_crops=None, log_text=None):
+                         retained_crops=None, log_text=None, require_coexist=False):
     """Gate the per-pixel depth ladder: what Minecraft's own depth test says, pixel by pixel.
 
     Every threshold is drawn over the SAME band with depth writes off, LESS rungs ascending
@@ -1187,19 +1187,29 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
                 raise ValueError(f"ladder sample {index}.{label} is {name!r}, not the crop of"
                                  f" draw {at}")
         checks["samples"].append(recount_ladder_sample(output, sample))
-    checks["coexist"] = coexist_checks(output, report, checks["samples"], log_text)
+    checks["coexist"] = coexist_checks(output, report, checks["samples"], log_text,
+                                       require_coexist)
     return checks
 
 
-def coexist_checks(output, report, recounts, log_text):
+COEXIST_RGB_EXACT = (128, 255, 128)   # what the GPU writes for COEXIST_RGB, measured exact
+
+
+def coexist_checks(output, report, recounts, log_text, required=False):
     """The coexistence quad, per pixel, against the same frame's ladder brackets.
 
     For every sample the launch took with the experiment on, a second crop of the same band
     was retained after a quad at z* was drawn with Voxy's GREATER_OR_EQUAL compare and no
-    depth write. Pixel by pixel: where the first crop says d <= z* the quad must be there;
-    where it says d > z* it must not, and the pixel must still hold its ladder colour. Zero
-    violations, recounted from both retained crops; and at least one sample must hold pixels
-    of both kinds, or the experiment decided nothing.
+    depth write. Pixel by pixel: where the first crop says d <= z* the quad must be there
+    (exactly its colour); where it says d > z* it must not, and the pixel must be
+    byte-identical to the first crop. Zero violations, recounted from both retained crops;
+    at least one sample must hold pixels of both kinds, or the experiment decided nothing.
+
+    ⚠ Round-15 review R15-COEXIST-PRESENCE: a report flagged off with no results passed while
+    the launch command, the log and the saved results all said the experiment ran. The caller
+    says whether the launch enabled it (the stage always does; replay reads the retained
+    launch command), and a log that holds coexist lines is reconciled whether or not the
+    report admits to them.
     """
     enabled = report.get("coexistEnabled")
     if not isinstance(enabled, bool):
@@ -1207,26 +1217,41 @@ def coexist_checks(output, report, recounts, log_text):
     entries = report.get("coexist")
     if not isinstance(entries, list):
         raise ValueError("the ladder does not list its coexist results")
+    logged = {}
+    if log_text is not None:
+        for m in LADDER_COEXIST_LOG.findall(log_text):
+            if int(m[0]) in logged:
+                raise ValueError(f"the ladder log holds two coexist lines for draw {m[0]}")
+            logged[int(m[0])] = [int(v) for v in m[1:]]
+    if required and not enabled:
+        raise ValueError("the ladder launch enabled the coexistence experiment but the report"
+                         " says coexistEnabled=false; the experiment's evidence is required")
     if not enabled:
         if entries:
             raise ValueError("coexist results are listed although the experiment was off")
+        if logged:
+            raise ValueError(f"the ladder log holds coexist lines for draws {sorted(logged)} but"
+                             f" the report says the experiment was off")
         return {"enabled": False}
     if report.get("coexistRung") != COEXIST_RUNG or report.get("coexistRgb") != COEXIST_RGB:
         raise ValueError(f"the ladder publishes coexistRung={report.get('coexistRung')!r},"
                          f" coexistRgb={report.get('coexistRgb')!r}, not the"
                          f" {COEXIST_RUNG}/{COEXIST_RGB} its source lays out")
-    by_at = {}
+    ats = []
     for entry in entries:
         if not isinstance(entry, dict) or not finite_int(entry.get("at")):
             raise ValueError(f"a coexist entry is malformed: {entry!r}")
-        by_at[entry["at"]] = entry
+        ats.append(entry["at"])
+    if len(ats) != len(set(ats)):
+        raise ValueError(f"the coexist results repeat a draw: {sorted(ats)}")
+    by_at = {entry["at"]: entry for entry in entries}
     sample_ats = [r["at"] for r in recounts]
     if sorted(by_at) != sorted(sample_ats):
         raise ValueError(f"coexist results exist for draws {sorted(by_at)} but the ladder"
                          f" sampled draws {sorted(sample_ats)}; every sample must carry one")
-    logged = {}
-    if log_text is not None:
-        logged = {int(m[0]): [int(v) for v in m[1:]] for m in LADDER_COEXIST_LOG.findall(log_text)}
+    if log_text is not None and sorted(logged) != sorted(sample_ats):
+        raise ValueError(f"the ladder log holds coexist lines for draws {sorted(logged)} but"
+                         f" the ladder sampled draws {sorted(sample_ats)}")
     out, mixed = [], 0
     for recount in recounts:
         entry = by_at[recount["at"]]
@@ -1249,7 +1274,6 @@ def coexist_checks(output, report, recounts, log_text):
         before, (bw, bh) = read_ppm_gz(before_path)
         if (aw, ah) != (bw, bh):
             raise ValueError(f"the coexist crop is {aw}x{ah} but the ladder crop is {bw}x{bh}")
-        # the second crop is anchored to the second readback's own thumbnail, like the first
         frame_path = output / frame_name
         if not frame_path.is_file():
             raise ValueError(f"the retained coexist frame thumbnail {frame_name} is missing")
@@ -1261,49 +1285,45 @@ def coexist_checks(output, report, recounts, log_text):
                   "absentWherePass": 0, "presentWhereFail": 0, "unchangedElsewhere": 0}
         for y in range(ah):
             for x in range(aw):
-                px = after[y][x]
-                coexist = (ladder_level(px[0]), ladder_level(px[1]), ladder_level(px[2])) == (1, 2, 1)
-                cls = ladder_classify(before[y][x])
+                px, px0 = tuple(after[y][x][:3]), tuple(before[y][x][:3])
+                cls = ladder_classify(px0)
                 expect_pass = cls == LADDER_LOW or (LADDER_RUNG0 <= cls < LADDER_RUNG0 + COEXIST_RUNG)
-                expect_fail = cls >= LADDER_RUNG0 + COEXIST_RUNG and cls < LADDER_OTHER
+                expect_fail = LADDER_RUNG0 + COEXIST_RUNG <= cls < LADDER_OTHER
                 counts["expectedPass"] += expect_pass
                 counts["expectedFail"] += expect_fail
-                if coexist:
+                # ⚠ Round-15 review R15-COEXIST-RGB: classes were compared, so a quad pixel
+                # of another green and an uncovered pixel of another shade both passed. Exact.
+                if px == COEXIST_RGB_EXACT:
                     counts["present"] += 1
                     counts["presentWhereFail"] += expect_fail
                 else:
-                    after_cls = ladder_classify(px)
-                    if after_cls == LADDER_OTHER:
-                        counts["other"] += 1
+                    counts["absent"] += 1
+                    if px == px0:
+                        counts["unchangedElsewhere"] += 1
                     else:
-                        counts["absent"] += 1
-                        counts["unchangedElsewhere"] += after_cls == cls
+                        counts["other"] += 1
                     counts["absentWherePass"] += expect_pass
         for field, value in counts.items():
             if entry[field] != value:
                 raise ValueError(f"coexist at draw {recount['at']} reports {field}="
                                  f"{entry[field]} but the retained crops say {value}")
         if log_text is not None:
-            line = logged.get(recount["at"])
             want = [counts[k] for k in ("present", "absent", "other", "expectedPass",
                                          "expectedFail", "absentWherePass", "presentWhereFail",
                                          "unchangedElsewhere")]
-            if line != want:
+            if logged.get(recount["at"]) != want:
                 raise ValueError(f"the ladder log's coexist line for draw {recount['at']} says"
-                                 f" {line} but the crops say {want}")
+                                 f" {logged.get(recount['at'])} but the crops say {want}")
         if counts["other"]:
-            raise ValueError(f"coexist at draw {recount['at']}: {counts['other']} pixel(s) are"
-                             f" outside both palettes after the quad, so the band was"
-                             f" overwritten by something else")
+            raise ValueError(f"coexist at draw {recount['at']}: {counts['other']} pixel(s) the"
+                             f" quad did not cover are not byte-identical to the first crop,"
+                             f" so something else changed the band")
         if counts["absentWherePass"] or counts["presentWhereFail"]:
             raise ValueError(f"coexist at draw {recount['at']}: the quad is missing at"
                              f" {counts['absentWherePass']} pixel(s) whose depth is <= z* and"
                              f" present at {counts['presentWhereFail']} pixel(s) whose depth"
                              f" is > z*; Voxy's compare against Minecraft's depth did not"
                              f" compose per pixel")
-        if counts["unchangedElsewhere"] != counts["absent"]:
-            raise ValueError(f"coexist at draw {recount['at']}: {counts['absent'] - counts['unchangedElsewhere']}"
-                             f" pixel(s) the quad did not cover changed colour")
         if counts["expectedPass"] and counts["expectedFail"]:
             mixed += 1
         out.append({"at": recount["at"], **counts})
@@ -1507,7 +1527,7 @@ def ladder_z_direction(samples, checkpoints):
 
 
 def native_ladder_result(output, expected_device=None, expected_extents=None,
-                         log_text=None, checkpoints=None):
+                         log_text=None, checkpoints=None, require_coexist=False):
     """Gate the depth ladder's own launch: Minecraft's loaded depth, tested, never written.
 
     This run is SEPARATE from the main native launch because the terrain probe clears the
@@ -1523,7 +1543,7 @@ def native_ladder_result(output, expected_device=None, expected_extents=None,
         result["report"] = report
         retained_crops = [p.name for p in output.glob("native-depth-ladder-*.ppm.gz")]
         result.update(ladder_report_checks(output, report, expected_device, expected_extents,
-                                           retained_crops, log_text))
+                                           retained_crops, log_text, require_coexist))
         latest = result["samples"][-1]
         result["answer"] = (f"{len(result['samples'])} sample(s); the latest (draw"
                             f" {latest['at']}) brackets: " + "; ".join(latest["brackets"]))
@@ -2611,9 +2631,12 @@ def replay_evidence(directory):
             if not ladder_log.is_file():
                 raise ValueError("the ladder launch's log is not retained, so its sample"
                                  " inventory cannot be reconciled")
+            # ⚠ Round-15 review R15-COEXIST-PRESENCE: the retained launch command says whether
+            # the experiment was on; a report that says otherwise is not that launch's.
+            launched = "-PharnessNativeCoexist=true" in (ladder_stage.get("command") or [])
             ladder_result = native_ladder_result(ladder_dir, ladder_device, ladder_extents,
                                                  ladder_log.read_text(errors="replace"),
-                                                 ladder_checkpoints)
+                                                 ladder_checkpoints, require_coexist=launched)
             if not ladder_result["success"]:
                 raise ValueError(f"ladder gate: {ladder_result['failures']}")
             outcome["ladder"] = {"samples": ladder_result["samples"],
@@ -2846,7 +2869,8 @@ def main():
             ladder_run["ladder"] = native_ladder_result(
                 ladder_output, ladder_device, ladder_extents,
                 (output / "native-ladder.log").read_text(errors="replace"),
-                ladder_run["environment"].get("checkpoints") or [])
+                ladder_run["environment"].get("checkpoints") or [],
+                require_coexist="-PharnessNativeCoexist=true" in ladder_run["command"])
             ladder_run["success"] &= ladder_run["ladder"]["success"]
             native_log_checks(ladder_run, output / "native-ladder.log")
             ladder_run["scope"] = ("a second Minecraft launch, terrain and marker OFF, so the"

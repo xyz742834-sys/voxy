@@ -1,8 +1,8 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, HEAD **5509d19f** (`5509d19f8e5706e8972a69f2e01c6ecf7bf42db0`, round-15 candidate, the coexistence
-measurement; round 14 judged `059df4ca` and closed R13-Z-BINDING).
+`vulkan-macos`, HEAD = **the commit that repairs round 15** (round-16 candidate; SHA in the docs commit that
+follows it; round 15 judged `5509d19f`: coexistence CONFIRMED, R15-COEXIST-PRESENCE refuted).
 
 > Read `docs/ai/project-goal.md` and `docs/ai/current-state.md` first, then this. This file is
 > task state, not source of truth; when the work moves on, update it or delete it.
@@ -26,10 +26,11 @@ measurement; round 14 judged `059df4ca` and closed R13-Z-BINDING).
 ## The review discipline (this is the spine)
 
 `scripts/verify.py` is the verification spine. Native work is **"measured", never "verified"**
-until a fresh independent review of a frozen commit records a verdict. Fourteen rounds have
+until a fresh independent review of a frozen commit records a verdict. Fifteen rounds have
 run, **all REDESIGN** — the standing delivery boundary (native LoD is not implemented) is
-always blocking; round 14 closed R13-Z-BINDING and left only non-blocking items, repaired in
-this HEAD. Reports are in `docs/ai/runs/native-integration-review-r1..r14.{md,json}`.
+always blocking; round 15 confirmed the coexistence measurement and added
+R15-COEXIST-PRESENCE (gate accepted the experiment reported off), repaired in this HEAD.
+Reports are in `docs/ai/runs/native-integration-review-r1..r15.{md,json}`.
 
 Dispatch procedure (works; GPT-6.1-Sol, not Astra):
 
@@ -41,23 +42,24 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9 … -15 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r15`. Start
+-9 … -16 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r16`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 14, and what this HEAD claims
+### Findings status after round 15, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
-| every evidence/gate finding B1 … R13-Z-BINDING, R13-TEST-XZ | closed (r12, r14) |
+| every evidence/gate finding B1 … R13-Z-BINDING, R14-TEST-BINDINGS | closed |
 | DELIVERY-BOUNDARY | standing: diagnostics are not an accepted foundation; native LoD is unimplemented |
 | **Z direction** | confirmed (r13, r14): reverse-Z |
-| non-blocking R14-TEST-BINDINGS / R14-DOC-DRIFT | addressed in this HEAD (two guard tests; wording, date, handoff, source comments) |
-| **Coexistence, known-depth quad** (new goal work) | measured in this HEAD, gated per pixel, **unreviewed** |
-| non-blocking limits R10-ANCHOR-GRAIN / R10-CONSISTENT-FORGERY / R12-CREATOR-RESTORE / R13-GEOMETRY-SCOPE / R13-DEPTH-COPY-SCOPE | **stated as limits** |
+| **Coexistence, known-depth quad** | **confirmed by r15** as a bounded measurement (24 samples, zero exact-RGB violations) |
+| **R15-COEXIST-PRESENCE** | repaired in this HEAD — the retained launch command decides whether the experiment was on; the log's coexist lines are reconciled even when the report says off; duplicates rejected; **unreviewed** |
+| non-blocking R15-COEXIST-RGB / R15-TEST-COEXIST / R15-COEXIST-DUPLICATE / R14-DOC-DRIFT | addressed (exact bytes; a test per guard; this file) |
+| non-blocking limits (anchor grain, consistent forgery, creator restore, geometry scope, depth-copy scope, recorder binding untested in JUnit) | **stated as limits** |
 
 B1 has one recurring shape: **the gate trusted something the thing under test controls.**
 Repairs have removed that progressively — raw pixels instead of aggregates, source constants
@@ -86,10 +88,9 @@ frame extent, every retained file a manifest member.
 - **MC's depth attachment at the `LevelRenderer.render` tail holds non-zero depth** where the
   buffer copy reported 0.0: the re-rung ladder (2⁻¹⁶…2⁻²) saw 76 % of its first column pass
   over clouds in a frame from before the world loaded (run `20261007T011026-211934Z`, retained).
-  The per-pixel ladder in this HEAD measured: 18 samples (draw 2, then every 240 draws to 4082), **every one with `other` = 0 and `anomaly` = 0** — the band was drawn at every pixel and the depth test decided every pixel, in every sample. Draw 2 (world just opened): 42 825 px below 2⁻¹⁶ (sky), 28 131 px in (2⁻¹⁶, 2⁻¹⁴], 7 892 px in (2⁻¹⁴, 2⁻¹²] — the clouds. Draws 242–962 and 1682–2882 (overworld, spawn camera): 11–25 k px below 2⁻¹⁶ and 53–67 k px in (2⁻¹², 2⁻¹⁰], and the retained crop reads as a depth silhouette of the hills against the sky. Draws 1202 and 1442 (just after the travel teleport): every pixel below 2⁻¹⁶ — consistent with the cleared value, not shown to be it. From draw 3122 (after the resize, band 1152×86) the same terrain bracket; draw 3602 (nether): 80 030 px below 2⁻¹⁶, 2 738 px in (2⁻¹⁰, 2⁻⁸] and 16 304 px in (2⁻⁸, 2⁻⁶] — near walls. If the source facts about the projection hold (near 0.05, reverse-Z — direction still unmeasured), (2⁻¹², 2⁻¹⁰] is roughly 50–200 blocks and (2⁻⁸, 2⁻⁶] 3–12 blocks. Replay returns 0 with nine checks; 36 crops (both orientations of 18 samples) and 22 band crops from the screenshots are retained, 7.9 MB.
-- **MC clears its main depth to 0.0** at the start of `LevelRenderer.render` (frame-graph
-  "clear" pass → `clearColorAndDepthTextures(…, 0.0)`, read from the 26.2 bytecode). That is
-  the reverse-Z far value. Source evidence about the clear, not a measurement of the convention.
+  The per-pixel ladder's numbers are in the survey's "Round-8 review repairs, and the
+  per-pixel ladder" section and the newest run's `ladder/` directory; do not quote older
+  runs' counts as this HEAD's.
 - **A known-depth quad drawn with Voxy's compare op (`GREATER_OR_EQUAL`) against MC's LOADed
   depth composes per pixel** (flag `voxy.native.coexist`, in the ladder launch): on each
   sampled frame a second pass draws the quad at z* = 2⁻⁸ over the band, a second readback is
@@ -106,15 +107,16 @@ frame extent, every retained file a manifest member.
 
 - Native Voxy terrain is `BLOCKED_UNIMPLEMENTED`. The terrain experiment uses **synthetic**
   input and **clears MC's frame** to make comparison possible, i.e. it does not coexist.
-- The **Z convention is unmeasured.** A single band of known depths bounds a value, not a
-  direction. The band heuristic was deleted in `bb91527e`; `zConventionMeasuredHere: false` is
-  asserted by both depth gates. Do not reintroduce it.
+- The probe itself asserts no convention (`zConventionMeasuredHere: false`, required by both
+  depth gates); the **direction is the gate's reading of the two straight-down looks**
+  (reverse-Z, confirmed r13/r14). The band heuristic deleted in `bb91527e` must not return.
 - ⚠ **"The tail hook cannot support coexistence" was claimed in `3421640f` and RETRACTED the
   same day** (`fcd5ce18`). The linear rungs 0.0625..0.9375 sat inside the first block in front
   of the camera. Round 8 refuted the same claim independently. **Why the buffer copy read 0.0
   everywhere** while the depth test sees non-zero values is not established.
-- The depth **scale** (near/far mapping) is not measured; the direction is. Coexistence (a
-  depth-tested Voxy draw against MC's LOADed depth) is not yet attempted.
+- The depth **scale** beyond one value is not measured: the coexistence quad shows that a
+  depth of 2⁻⁸ in Voxy's convention lands where Minecraft's 2⁻⁸ does, nothing more. Voxy's
+  real terrain pipeline against MC's LOADed depth is not yet attempted.
 - No round has accepted the diagnostic layer as a foundation. Round 4's wording still governs:
   terrain investigation may be **experimental**, not "continuation from an accepted layer".
 
@@ -129,24 +131,24 @@ screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_ch
 (same function as the stage), saying explicitly "not replayed" for runs that retained none and
 refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 333 (1 documented skip, 0 failures); Python 185 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T045515-905630Z` (replay 0 **in this
+Gate/test counts at this HEAD: JUnit 333 (1 documented skip, 0 failures); Python 193 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T060453-272917Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays). The lifecycle now has thirteen
 checkpointed stages (`descend`, `ascend` added). Older retained runs do not replay under this
 gate, which is expected and tabled in the survey.
 
-## Round 15
+## Round 16
 
-Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r15.txt` (if not already
-done — check `git log` for a "docs: record the round-15 dispatch" commit). When its report
-lands: copy it to `docs/ai/runs/native-integration-review-r15.{md,json}`, commit the report
+Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r16.txt` (if not already
+done — check `git log` for a "docs: record the round-16 dispatch" commit). When its report
+lands: copy it to `docs/ai/runs/native-integration-review-r16.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
 
-1. Import the round-15 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 16.
+1. Import the round-16 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 17.
 2. Then the goal work, next step: **Voxy's real terrain pipeline in a LOADed pass**. The
    known-depth quad now composes per pixel; the terrain probe today CLEARS MC's frame to
    compare against Voxy's own target. The next experiment keeps that comparison but adds a
@@ -164,7 +166,7 @@ alone, then repair blocking findings in a separate commit.
 ```
 ./gradlew test --offline --no-daemon -PvkLibname=/opt/homebrew/lib/libvulkan.dylib \
   -PvkValidation=true -PvkSyncEnv=true          # JUnit
-python3 -m unittest discover -s scripts/tests   # 185 cases, ~6 min
+python3 -m unittest discover -s scripts/tests   # 193 cases, ~6 min
 python3 scripts/verify.py --only native --seconds 8 --timeout 1500   # launches MC twice, ~5 min
 python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/<run>   # no launch
 ```
@@ -199,4 +201,4 @@ not fingerprinted.
   replays; the others are tabled).
 - `docs/ai/harness.md` — the review rule.
 - `docs/ai/testing.md` — the stages and what each proves.
-- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 16 runs.
+- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 17 runs.

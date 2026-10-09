@@ -462,7 +462,8 @@ of the point — and the replay status of each is:
 | [20261007T031630-708042Z](runs/native-evidence/20261007T031630-708042Z/MANIFEST.json) | no — its fingerprint is of the tree before the Z-direction stages (round 12 confirmed its 19 samples) |
 | [20261009T033539-494735Z](runs/native-evidence/20261009T033539-494735Z/MANIFEST.json) | no — its log lines predate the stage/camera reconciliation and its fingerprint is of the tree before the round-13 repairs (round 13 confirmed its direction) |
 | [20261009T041151-205062Z](runs/native-evidence/20261009T041151-205062Z/MANIFEST.json) | no — predates the coexistence experiment and the fourth pipeline state (round 14 confirmed its direction) |
-| [20261009T045515-905630Z](runs/native-evidence/20261009T045515-905630Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction and coexistence judged |
+| [20261009T045515-905630Z](runs/native-evidence/20261009T045515-905630Z/MANIFEST.json) | no — predates the exact-RGB coexist rule and the required-evidence gate (round 15 confirmed its 24 samples) |
+| [20261009T060453-272917Z](runs/native-evidence/20261009T060453-272917Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction and coexistence judged |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1347,7 +1348,25 @@ sample with pixels on both sides of z\* (the `descend` look straddles rungs 3 an
 experiment decided nothing. The quad's pipeline is the fourth entry of the pinned
 `pipelineStates`.
 
-**Measured** (run 20261009T045515-905630Z, replay 0 in this checkout): 24 samples, every one with a coexist result, **zero violations in all 24** — no pixel whose bracket says d ≤ z\* lacked the quad, no pixel whose bracket says d > z\* showed it, and every uncovered pixel kept its ladder colour. Five samples hold pixels on both sides of z\*: draw 2 (clouds, 77 092 shown / 1 756 hidden), the two nether looks (82 768 / 16 304 each) and the two `descend` looks (45 734 shown / 53 338 hidden each) — the per-pixel composition is exact where it matters. The other 19 samples are entirely below z\* and entirely covered, as predicted. Replay returns 0 with eleven checks; the quad's pipeline state is the fourth pinned entry `[6, 1, 0]`.
+**Measured** (run 20261009T045515-905630Z, replay 0 in this checkout): 24 samples, every one with a coexist result, **zero violations in all 24** — no pixel whose bracket says d ≤ z\* lacked the quad, no pixel whose bracket says d > z\* showed it, and every uncovered pixel kept its ladder colour. Five samples hold pixels on both sides of z\*: draw 2 (clouds, 77 092 shown / 1 756 hidden), the two nether looks (82 768 / 16 304 each) and the two `descend` looks (45 734 shown / 53 338 hidden each) — the per-pixel composition is exact where it matters. The other 19 samples are entirely below z\* and entirely covered, as predicted. Replay returns 0 with ten listed checks (the coexist checks run inside the ladder's); the quad's pipeline state is the fourth pinned entry `[6, 1, 0]`.
+
+**Round-15 review (2026-10-09).** Round 15
+([native-integration-review-r15.md](runs/native-integration-review-r15.md)) **confirmed the
+coexistence measurement** — same frame, same pixels, Voxy's compare op, no depth write, the
+bracket rule sound including d = z\*, zero violations in an independent exact-RGB recount of all
+24 pairs (2 114 816 pixels) — and refuted the gate once more, blocking: a report flagged
+`coexistEnabled: false` with no results replayed as 0 while the retained launch command, the
+log's 24 coexist lines and the saved results said the experiment ran (R15-COEXIST-PRESENCE).
+Repaired after it: the stage and replay take whether the launch enabled the experiment from
+the retained launch command and require the evidence when it did; a log holding coexist lines
+is reconciled even if the report says off; duplicate results are refused. Non-blocking, also
+repaired: pixels were compared by three-level class, so a quad pixel of another green or an
+uncovered pixel of another shade passed — both sides now compare exact bytes (`(128, 255, 128)`
+for the quad, byte-identical to the first crop for uncovered pixels); twelve of the gate's
+coexist checks had no test that fails without them — each has one now. Stated limits: the
+recorder's pipeline binding is outside JUnit (a wrong binding fails the measurement, not a
+unit test); a passing pixel result does not authenticate that the GPU executed the compare, any
+more than any other retained record does.
 
 **What this does and does not say.** A draw with Voxy's compare op against Minecraft's loaded
 depth composes per pixel, at this hook, for a quad at one known depth — the first
