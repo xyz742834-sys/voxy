@@ -1,0 +1,314 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "9a6ca051d6f15beee6141ac1ca98552253deda7b",
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "scope": "Standing rounds 4-18 delivery boundary; no accepted native foundation or real-section native LoD delivery."
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R19-INSTANCE-INVENTORY",
+      "judgment": "REFUTED complete instance sample inventory enforcement",
+      "passing_attack": "sparse-samples",
+      "original_inventory_complete": true,
+      "source": "scripts/verify.py:1531"
+    },
+    {
+      "id": "R19-TEST-INSTANCE",
+      "judgment": "REFUTED complete explicit guard sensitivity",
+      "surviving_guards": [
+        {
+          "line": 1481,
+          "condition": "field not in report"
+        },
+        {
+          "line": 1490,
+          "condition": "not isinstance(value, kind)"
+        },
+        {
+          "line": 1522,
+          "condition": "field not in sample"
+        },
+        {
+          "line": 1525,
+          "condition": "kind is bool and (not isinstance(value, bool))"
+        },
+        {
+          "line": 1527,
+          "condition": "kind is int and (not finite_int(value))"
+        },
+        {
+          "line": 1529,
+          "condition": "kind is str and (not isinstance(value, str))"
+        },
+        {
+          "line": 1536,
+          "condition": "sample['activeSections'] < 0"
+        }
+      ],
+      "full_suite_tests": 260,
+      "full_suite_green": true
+    },
+    {
+      "id": "R19-DOC-DRIFT",
+      "judgment": "REFUTED current replay claims for older runs and Python command count",
+      "locations": [
+        "docs/ai/vulkan-native-integration-survey.md:1464",
+        "docs/ai/vulkan-native-integration-survey.md:1532",
+        "docs/ai/handoff.md:125",
+        "docs/ai/handoff.md:299"
+      ]
+    }
+  ],
+  "safe_for_normal_play": {
+    "gl_backend": true,
+    "minecraft_vulkan_backend_inert": true,
+    "would_ship_dormant_change_on_supported_gl_configuration": true,
+    "would_ship_dormant_change_on_minecraft_vulkan_as_disabled_voxy": true,
+    "would_ship_as_functioning_native_voxy": false,
+    "all_native_flags_unset_required": true,
+    "flags": [
+      "voxy.native.probe",
+      "voxy.native.marker",
+      "voxy.native.features",
+      "voxy.native.adopt",
+      "voxy.native.terrain",
+      "voxy.native.depth",
+      "voxy.native.depthladder",
+      "voxy.native.coexist",
+      "voxy.native.terrainload",
+      "voxy.native.instance"
+    ],
+    "native_instance_and_camera_inert_unflagged": true,
+    "harness_changes_development_only": true,
+    "scope": "Source inspection and fresh offline tests; no fresh normal-play launch."
+  },
+  "round18_findings_closed": {
+    "R18-TEST-TERRAINLOAD": true,
+    "R18-TERRAIN-METADATA": true,
+    "R18-DOC-SEAM": true
+  },
+  "instance_mode_judgment": {
+    "judgment": "CONFIRMED bounded GL-free instance/ingest and camera capture; REFUTED complete sample-inventory enforcement",
+    "samples": 82,
+    "frames": 4860,
+    "camera_captures": 4860,
+    "max_active_sections": 92,
+    "renderer_created": false,
+    "backend": null,
+    "complete_original_inventory": true,
+    "original_logs_scan_pass": true,
+    "exercised_cleanup_source_and_log_confirmed": true,
+    "universal_leak_freedom_proven": false,
+    "passing_replay_attacks": [
+      "sparse-samples",
+      "shutdown-error"
+    ],
+    "shutdown_error_rejected_by_direct_stage_log_scan": true,
+    "capture_values_or_freshness_retained": false,
+    "real_sections_drawn": false
+  },
+  "terrain_load_judgment": {
+    "judgment": "CONFIRMED bounded synthetic per-pixel terrain LOAD and R18 metadata repairs",
+    "samples": 21,
+    "pixels_compared": 1797376,
+    "counts": {
+      "geometry": 510356,
+      "noGeometry": 1287020,
+      "expectVisible": 454227,
+      "expectHidden": 24023,
+      "undetermined": 32106,
+      "visible": 468602,
+      "hidden": 41754,
+      "ambiguous": 0,
+      "other": 0,
+      "visibleWhereHidden": 0,
+      "hiddenWhereVisible": 0,
+      "changedWhereNoGeometry": 0
+    },
+    "mixed_samples": 15,
+    "zero_violations_confirmed": true,
+    "report_scene_facts_pinned": true,
+    "metadata_attacks_replaying_zero": [],
+    "corresponding_pin_removed_metadata_attacks_replaying_zero": [
+      "eye",
+      "near",
+      "drawCount",
+      "1x1",
+      "mvp",
+      "referenceSet"
+    ],
+    "guard_mutations_killed": 53,
+    "guard_mutations_total": 53,
+    "synthetic_scene": "depthSweep",
+    "declared_depth_state": [
+      6,
+      1,
+      1
+    ],
+    "depth_state_read_back": false,
+    "reference_cached_per_extent": true,
+    "bracket_grain_only": true,
+    "gpu_origin_authenticated": false
+  },
+  "coexist_judgment": {
+    "judgment": "CONFIRMED bounded exact-RGB coexistence and unchanged launch boundary",
+    "samples": 21,
+    "pixels_compared": 1797376,
+    "counts": {
+      "present": 1725560,
+      "absent": 71816,
+      "other": 0,
+      "expectedPass": 1725560,
+      "expectedFail": 71816,
+      "absentWherePass": 0,
+      "presentWhereFail": 0,
+      "unchangedElsewhere": 71816
+    },
+    "zero_violations_confirmed": true,
+    "no_depth_write": true,
+    "gpu_origin_authenticated": false
+  },
+  "z_direction_judgment": {
+    "judgment": "CONFIRMED bounded reverse-Z",
+    "direction": "larger depth value is nearer",
+    "near": {
+      "at": 4322,
+      "flipped": true,
+      "targetWidth": 1920,
+      "targetHeight": 1080,
+      "rect": [
+        384,
+        648,
+        1536,
+        734
+      ],
+      "counts": {
+        "anomaly": 0,
+        "low": 0,
+        "rungs": [
+          0,
+          0,
+          0,
+          45734,
+          53338,
+          0,
+          0,
+          0
+        ],
+        "other": 0
+      },
+      "rejectedFlipped": false,
+      "rejectedRect": [
+        384,
+        346,
+        1536,
+        432
+      ],
+      "rejectedOther": 99072,
+      "file": "native-depth-ladder-4322.ppm.gz",
+      "rejectedFile": "native-depth-ladder-rejected-4322.ppm.gz",
+      "frameFile": "native-depth-ladder-frame-4322.ppm.gz",
+      "stage": "descend",
+      "camera": [
+        0.5,
+        80.61999988555908,
+        0.5,
+        90.0,
+        0.0
+      ]
+    },
+    "far": {
+      "at": 4562,
+      "flipped": true,
+      "targetWidth": 1920,
+      "targetHeight": 1080,
+      "rect": [
+        384,
+        648,
+        1536,
+        734
+      ],
+      "counts": {
+        "anomaly": 0,
+        "low": 0,
+        "rungs": [
+          0,
+          0,
+          99072,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "other": 0
+      },
+      "rejectedFlipped": false,
+      "rejectedRect": [
+        384,
+        346,
+        1536,
+        432
+      ],
+      "rejectedOther": 98633,
+      "file": "native-depth-ladder-4562.ppm.gz",
+      "rejectedFile": "native-depth-ladder-rejected-4562.ppm.gz",
+      "frameFile": "native-depth-ladder-frame-4562.ppm.gz",
+      "stage": "ascend",
+      "camera": [
+        0.5,
+        176.61999988555908,
+        0.5,
+        90.0,
+        0.0
+      ]
+    },
+    "ground_y": 67,
+    "general_depth_scale_proven": false
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED retained per-pixel bracket measurement with preserved Z stage behavior",
+    "samples": 21,
+    "no_depth_write": true,
+    "anchors_per_kind": {
+      "ladder": 110166,
+      "rejected": 110166,
+      "coexist": 110166,
+      "terrain": 110166
+    },
+    "all_counts_reconciled": true,
+    "actual_pipeline_state_authenticated": false
+  },
+  "verification": {
+    "junit": {
+      "tests": 343,
+      "passed": 342,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "strict_gate_success": true
+    },
+    "python": {
+      "tests": 260,
+      "success": true
+    },
+    "replay": {
+      "exit": 0,
+      "checks": 12,
+      "source_entries": 417,
+      "manifest_members": 316,
+      "built_revision": "bb55f53b74205d30083229fe5891f2f01f6bc824"
+    },
+    "native_live_launched": false
+  },
+  "limitations": [
+    "No fresh Minecraft or packaged player run; no live OS handle/thread census or injected lifecycle failures.",
+    "Replay omits general launch diagnostic scanning; original logs separately scanned successfully.",
+    "Retained source/file hashes do not authenticate the compiled runtime or native GPU state.",
+    "Camera values and freshness not retained; real-section LOAD implementation is absent."
+  ]
+}
