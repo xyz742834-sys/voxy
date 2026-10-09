@@ -259,6 +259,22 @@ alone, then repair blocking findings in a separate commit.
    - Evidence like terrain-LOAD's (third crop, thumbnail, per-sample reference colour and depth
      crops — per sample here, because the matrix changes — report, log line), gated by a
      `real_load_checks` mirroring `terrain_load_checks` plus the published projection choice.
+   - **Where determinate pixels come from (worked out 2026-10-09):** MC's near plane is 0.05, so
+     its terrain bracket (2⁻¹², 2⁻¹⁰] is 51–205 blocks and sky is beyond. Voxy only holds what
+     the client ingested: around spawn (x = 0) and around the `travel` teleport (x = 768), each
+     ±128 blocks. Sections at x ≈ 640–896 are **Voxy-only** after `return` — the LoD case
+     itself. The existing looks face +z (yaw 0) and never see them, so add a stage, e.g.
+     `horizon` after `return`: `tp @s 0 120 0 -90 15` (face +x, pitch 15° down: the band's rays
+     run 1–9° below horizontal, so MC shows sky there and Voxy's far terrain at 640–896 blocks,
+     3.5–4.9° below, falls inside the band → expected VISIBLE). Mesh at a coarse level
+     (`meshAround(cx, cy, cz, r, level)` with level 2–3 so radius 4 covers ±1024 blocks; the
+     engine propagates ingest to `MAX_LOD_LAYER` = 4). Expected HIDDEN needs Voxy geometry whose
+     nearest fragment is farther than MC's nearer surface by a bracket; with the same world
+     ingested that is rare (coincident surfaces are undetermined by construction), so the gate
+     should require zero violations and at least one sample with expected-visible pixels, and
+     report hidden/undetermined counts without demanding them. Adding a stage means
+     `LIFECYCLE_STAGES` (13 → 14) and the shared test fixtures' stage lists change, as for
+     `descend`/`ascend`. Both launches would then carry instance mode.
    Open and not needed for that: why the buffer copy reads 0.0.
 4. Nothing in the ladder may ever write MC's depth. A variant that writes is a different probe
    with a different flag (which is what `McNativeTerrainLoad` is).
