@@ -1393,11 +1393,74 @@ is off by one replays 0; that guard is now tested.
 
 **What this does and does not say.** A draw with Voxy's compare op against Minecraft's loaded
 depth composes per pixel, at this hook, for a quad at one known depth — the first
-coexistence measurement, with zero tolerance. It is not Voxy's terrain pipeline (next: the
-synthetic terrain through `VkTerrainRenderer` into a `LOAD`ed pass, gated the same way), it
-writes no depth, and it says nothing about the depth *scale* beyond "a depth value of 2⁻⁸ in
-Voxy's convention lands where Minecraft's 2⁻⁸ does" — which is the one scale fact coexistence
-needs, and is exactly what this measures.
+coexistence measurement, with zero tolerance. It is not Voxy's terrain pipeline (that is the
+next section), it writes no depth, and it says nothing about the depth *scale* beyond "a depth
+value of 2⁻⁸ in Voxy's convention lands where Minecraft's 2⁻⁸ does" — which is the one scale
+fact coexistence needs, and is exactly what this measures.
+
+**Round-17 review (2026-10-09).** Round 17
+([native-integration-review-r17.md](runs/native-integration-review-r17.md)) confirmed the
+measurement a third time (24 pairs of the new run, exact RGB, zero violations), confirmed that
+all 23 coexist refusal guards now have a failing test, and kept R16-COEXIST-LAUNCH-SEMANTICS
+open on a residual: Gradle also sets a project property from the separated `-P x`, from
+`--project-prop x` / `--project-prop=x` and from the system property `org.gradle.project.x`
+(`-D…`, `--system-prop …`), measured against `./gradlew help` for all nine harness switches, and
+`launch_enables()` read none of those, so three such commands replayed 0 behind an off report.
+Repaired after it: `launch_enables()` reads every one of those forms; and, because modelling
+Gradle's CLI is not the authority, replay now requires the retained ladder command to carry the
+**literal tokens the stage passes** (`LADDER_LAUNCH_FLAGS`: depth ladder, coexist, terrain-LOAD)
+and to name no experiment that writes or clears Minecraft's depth — a command that lacks them,
+or no command, is not the stage's launch and is refused whatever else it spells. What the
+command cannot show — a property set through the environment (`ORG_GRADLE_PROJECT_…`, not
+retained) — is a stated limit; `gradle.properties` is fingerprinted, so a change there refuses
+replay. The two handoff residuals (the manual ladder command, the run count) are fixed.
+
+## Voxy's terrain pipeline in a LOADed pass, judged per pixel (2026-10-09)
+
+**The experiment.** The quad above used a purpose-built pipeline. This one uses **Voxy's own
+terrain pipeline** — `VkTerrainRenderer.recordDrawsInRenderPass`, the same shaders, the same
+indirect draws, Voxy's own depth state (`GREATER_OR_EQUAL`, depth test on, **depth writes on**)
+— recorded into a pass that `LOAD`s Minecraft's colour **and depth**, on the frames the ladder
+samples, after the ladder's two readbacks of that frame were requested, with a third readback
+of the same band afterwards. It is a **separate probe with its own flag**
+(`McNativeTerrainLoad`, `-Dvoxy.native.terrainload=true`, `-PharnessNativeTerrainLoad`), because
+the rule from round 15 stands: nothing in the ladder may write Minecraft's depth. It records
+only on sampled frames, only after the ladder's readbacks, and Minecraft clears depth every
+frame, so the ladder's samples remain Minecraft's own depth; the ladder publishes the probe's
+pass count (`terrainLoadDrawsRecorded`) and the gate requires one pass per sample.
+
+**The scene** is `SyntheticTerrain.depthSweep()`: five panels at the same x range, 32·k blocks
+away along +Z for k = 1, 2, 4, 8, 16, each 32 UP quads and 64 NORTH quads, seen from a point 8
+blocks up at z ≈ 0 looking slightly down +Z, so they form a non-overlapping staircase whose
+reverse-Z depths (near 0.1, far 2000, 60°) run from ≈ 2⁻⁸·¹ to ≈ 2⁻¹²·⁷ — on **both sides** of
+the bracket (2⁻¹², 2⁻¹⁰] in which the ladder measured Minecraft's overworld terrain. The
+projection is Voxy's `VkSceneUniform.perspective`/`lookAt` followed by an NDC affine map that
+fits the analytic footprint of the quads' cells inside the ladder band with a 5 % margin and
+leaves depth untouched (`McNativeTerrainLoad.fit`; JUnit pins the footprint, the depth
+invariance and the two-sided depth split, and a GPU test renders the reference on this machine
+and checks that every geometry pixel lies in the band and both depth sides exist).
+
+**The expectation per pixel comes from two independent measurements of the same frame.**
+The ladder's first crop gives Minecraft's depth bracket (lo, hi] at each pixel; Voxy's own
+render of the same scene with the same matrix into its own target — colour and D32 depth, read
+back once at build time — gives Voxy's depth d_V where it has geometry. Voxy's fragment passes
+at d_V ≥ d, so: d_V ≥ hi → the pixel must be **exactly Voxy's reference colour**; d_V ≤ lo →
+it must be **byte-identical to the previous readback** (the quad's crop, since the coexist
+experiment runs in the same launch); lo < d_V < hi → either (counted as undetermined); no
+geometry → unchanged. Violations are zero or the sample fails. The retained evidence per sample
+is the third crop, its quarter-scale thumbnail (anchored like the ladder's), and the reference
+colour and depth crops of the same band (once per frame size and rect, `.ppm.gz` and a
+`VXF32` float32 `.f32.gz`); the gate recounts every pixel from those files, reconciles the
+twelve counts with the report and with the log line, requires both determinate kinds in at
+least one sample, and reconciles the probe's report with the ladder's view of it (pass count,
+device, formats: colour 37, depth 126 = `D32_SFLOAT`, which the pipeline declares).
+
+**Stated limits.** The depth state is *declared* (`[6, 1, 1]`, `depthStateReadBack: false`),
+not read back from pipeline creation as the ladder's is — `VkGraphicsPipeline` builds it and the
+probe publishes what the builder was asked for. The scene is synthetic. The verdict is only as
+fine as the ladder's brackets: inside a bracket nothing is decided, and the gate counts those
+pixels rather than claiming them. A passing result does not authenticate that the GPU executed
+the compare, any more than any other retained record does.
 
 ## What is NOT answered yet, and must be measured on hardware
 

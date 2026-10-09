@@ -35,6 +35,7 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
     private void voxy$injectClose(CallbackInfo ci) {
         this.voxy$shutdownRenderer();
         me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.shutdown();
+        me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainLoad.shutdown();
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.shutdown();
         me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.shutdown();
     }
@@ -58,6 +59,10 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
         // terrain probe より先に呼ぶ: あちらは有効なとき MC の深度をクリアするので、
         // 後に呼ぶと測る対象が消える。既定ではどちらも何もしない。
         me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.renderIfEnabled();
+        // ⚠ terrain-LOAD は梯子の<b>後</b>: 梯子が同じフレームで読み戻しを要求した後に、
+        // 梯子の帯へ Voxy の地形を LOAD パスで描いて深度も書く (梯子自身は決して書かない)。
+        // 既定では何もしない。
+        me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainLoad.renderIfEnabled();
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.renderIfEnabled();
         me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.renderIfEnabled();
     }

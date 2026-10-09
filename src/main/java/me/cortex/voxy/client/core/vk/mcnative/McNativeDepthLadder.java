@@ -162,6 +162,12 @@ public final class McNativeDepthLadder implements Destroyable {
     private static long nextReadbackAt = 2;
     private static boolean attempted;
     private static boolean readbackInFlight;
+    /**
+     * このフレームで読み戻しを要求した標本の draw 本数、無ければ -1。{@code McNativeTerrainLoad}
+     * が同じフレームの<b>後</b>で取り出す ({@link #takeSampleThisFrame})。梯子自身は MC の深度を
+     * 決して書かない; 書く実験は別の probe と別のフラグである (handoff の規則 3)。
+     */
+    private static long sampleThisFrame = -1;
     private static int problems;
     private static String firstProblem;
     private static int closeFailures;
@@ -226,6 +232,36 @@ public final class McNativeDepthLadder implements Destroyable {
             return List.copyOf(COEXIST.values());
         }
     }
+
+    /** 帯の状態の引き渡し: 標本、1 回目の分類、<b>直近の読み戻し</b>の生 RGB (quad の後ならその後)。 */
+    record Band(Sample sample, byte[] classes, byte[] pixels) {}
+
+    /**
+     * このフレームで梯子が読み戻しを要求した標本の draw 本数を返し、忘れる (無ければ -1)。
+     * 描画スレッドで、梯子の {@link #renderIfEnabled} の後に呼ぶこと。
+     */
+    static long takeSampleThisFrame() {
+        long at = sampleThisFrame;
+        sampleThisFrame = -1;
+        return at;
+    }
+
+    /**
+     * 標本 {@code at} の帯 (分類と直近の生 RGB) を取り出して忘れる。{@code McNativeTerrainLoad}
+     * の 3 回目の読み戻しが照合に使う。無ければ {@code null} (読み戻しの順序が崩れた)。
+     */
+    static Band takeBand(long at) {
+        synchronized (NOTES) {
+            Sample sample = null;
+            synchronized (SAMPLES) {
+                for (var s : SAMPLES) if (s.at() == at) sample = s;
+            }
+            byte[] classes = BAND_CLASSES.remove(at);
+            byte[] pixels = BAND_PIXELS.remove(at);
+            if (sample == null || classes == null || pixels == null) return null;
+            return new Band(sample, classes, pixels);
+        }
+    }
     private boolean destroyed;
 
     private McNativeDepthLadder(VulkanDevice device, long ownerDevice, int colourFormat,
@@ -242,6 +278,11 @@ public final class McNativeDepthLadder implements Destroyable {
     }
 
     // ---------------- 入口 ----------------
+
+    /** 帯 (NDC、GL 規約の y) {@code {x0, y0, x1, y1}}。terrain-LOAD が足跡を合わせる先。 */
+    public static float[] band() {
+        return new float[] {BAND_X0, BAND_Y0, BAND_X1, BAND_Y1};
+    }
 
     /** 各段の NDC 深度。{@code 2^-16, 2^-14, …, 2^-2} の昇順 (gate の定数と同じ式)。 */
     public static float[] depths() {
@@ -350,6 +391,7 @@ public final class McNativeDepthLadder implements Destroyable {
             nextReadbackAt = drawsRecorded + READBACK_INTERVAL;
             long at = drawsRecorded;
             requestReadback(colour, width, height);
+            if (readbackInFlight) sampleThisFrame = at;
             if (Boolean.getBoolean(COEXIST_FLAG) && readbackInFlight) {
                 // ⚠ Same frame, same pixels: a second LOAD pass draws the coexistence quad over
                 // the band with Voxy's compare op and NO depth write, then a second readback.
@@ -511,10 +553,13 @@ public final class McNativeDepthLadder implements Destroyable {
             var data = view.data();
             Sample sample = null;
             byte[] classes, pixels;
+            // ⚠ terrain-LOAD (a separate probe) reads the same frame after the quad: leave the
+            // classes in place and hand it the band AS THE QUAD LEFT IT, byte for byte.
+            boolean keepForTerrain = McNativeTerrainLoad.enabled();
             synchronized (NOTES) {
                 for (var s : SAMPLES) if (s.at() == at) sample = s;
-                classes = BAND_CLASSES.remove(at);
-                pixels = BAND_PIXELS.remove(at);
+                classes = keepForTerrain ? BAND_CLASSES.get(at) : BAND_CLASSES.remove(at);
+                pixels = keepForTerrain ? BAND_PIXELS.get(at) : BAND_PIXELS.remove(at);
             }
             if (sample == null || classes == null || pixels == null) {
                 fail("coexist readback at draw " + at + " has no ladder sample to compare with"
@@ -525,6 +570,7 @@ public final class McNativeDepthLadder implements Destroyable {
             int w = q[2] - q[0], h = q[3] - q[1];
             long present = 0, absent = 0, other = 0, expectedPass = 0, expectedFail = 0;
             long absentWherePass = 0, presentWhereFail = 0, unchanged = 0;
+            byte[] afterQuad = keepForTerrain ? new byte[w * h * 3] : null;
             int i = 0;
             for (int y = q[1]; y < q[3]; y++) {
                 long rowBase = (long) y * width * 4;
@@ -532,6 +578,11 @@ public final class McNativeDepthLadder implements Destroyable {
                     long p = rowBase + (long) x * 4;
                     int r = data.get((int) p) & 0xFF, g = data.get((int) p + 1) & 0xFF,
                         b = data.get((int) p + 2) & 0xFF;
+                    if (afterQuad != null) {
+                        afterQuad[i * 3] = (byte) r;
+                        afterQuad[i * 3 + 1] = (byte) g;
+                        afterQuad[i * 3 + 2] = (byte) b;
+                    }
                     // ⚠ exact bytes, not classes: a quad of another green or an uncovered pixel
                     // of another shade must not pass (round-15 review R15-COEXIST-RGB)
                     boolean coexist = r == COEXIST_RGB_EXACT[0] && g == COEXIST_RGB_EXACT[1]
@@ -564,6 +615,7 @@ public final class McNativeDepthLadder implements Destroyable {
                 absentWherePass, presentWhereFail, unchanged, file, frameFile);
             synchronized (NOTES) {
                 COEXIST.put(at, result);
+                if (afterQuad != null) BAND_PIXELS.put(at, afterQuad);
             }
             if (other != 0 || absentWherePass != 0 || presentWhereFail != 0 || unchanged != absent) {
                 problems++;
@@ -637,7 +689,7 @@ public final class McNativeDepthLadder implements Destroyable {
             synchronized (SAMPLES) {
                 SAMPLES.add(sample);
             }
-            if (Boolean.getBoolean(COEXIST_FLAG)) {
+            if (Boolean.getBoolean(COEXIST_FLAG) || McNativeTerrainLoad.enabled()) {
                 int[] q = rects[chosen];
                 int n = (q[2] - q[0]) * (q[3] - q[1]);
                 byte[] cls = new byte[n];
@@ -1222,6 +1274,13 @@ public final class McNativeDepthLadder implements Destroyable {
         sb.append("  \"markerDrawEnabled\": ").append(Boolean.getBoolean(McNativeMarkerDraw.FLAG))
           .append(",\n");
         sb.append("  \"markerDrawsRecorded\": ").append(McNativeMarkerDraw.status().drawsRecorded())
+          .append(",\n");
+        // ⚠ terrain-LOAD writes Voxy's depth into MC's attachment, but only AFTER this probe's
+        // readbacks of the same frame were requested, and only on sampled frames; MC clears
+        // depth every frame, so the ladder's samples remain MC's own depth. Both are published
+        // so the gate can reconcile the pass count with the sample count.
+        sb.append("  \"terrainLoadEnabled\": ").append(McNativeTerrainLoad.enabled()).append(",\n");
+        sb.append("  \"terrainLoadDrawsRecorded\": ").append(McNativeTerrainLoad.drawsRecorded())
           .append(",\n");
         sb.append("  \"device\": ").append(McNativeVulkanProbe.quote(deviceHandle()))
           .append(",\n");

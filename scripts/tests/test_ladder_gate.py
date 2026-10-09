@@ -192,7 +192,8 @@ def report(samples=None, **overrides):
             "samples": samples if samples is not None else [sample()[0]],
             "problems": 0, "firstProblem": None, "closeFailures": 0, "leakedPipelines": 0,
             "deviceDiverged": False, "terrainProbeEnabled": False, "terrainDrawsRecorded": 0,
-            "markerDrawEnabled": False, "markerDrawsRecorded": 0, "device": hex(DEVICE),
+            "markerDrawEnabled": False, "markerDrawsRecorded": 0,
+            "terrainLoadEnabled": False, "terrainLoadDrawsRecorded": 0, "device": hex(DEVICE),
             "notes": []}
     body.update(overrides)
     return body
@@ -269,6 +270,211 @@ def coexist_log_for(entries):
                    f" expectedFail={c['expectedFail']} absentWherePass={c['absentWherePass']}"
                    f" presentWhereFail={c['presentWhereFail']} unchanged={c['unchangedElsewhere']}\n"
                    for c in entries)
+
+
+# ---------------- terrain-LOAD fixtures ----------------
+
+TERRAIN_REF = (10, 90, 200)   # Voxy's reference colour in the fixtures: outside both palettes
+# The stage's ladder launch, as retained in summary.json: the literal tokens the gate requires.
+LADDER_COMMAND = ["gradlew", "runHarnessClient", "--offline", "-PharnessNative=true",
+                  "-PharnessGraphicsBackend=vulkan", "-PharnessNativeFeatures=true",
+                  "-PharnessNativeAdopt=true", "-PharnessNativeProbe=true",
+                  *verify.LADDER_LAUNCH_FLAGS]
+
+
+def terrain_depth(width, height, kind="sweep"):
+    """Voxy's reference depth over the band: left third no geometry, then a near panel (0.5,
+    at or above every bracket top), a far panel (1e-6, at or below every bracket bottom) and a
+    stripe inside Minecraft's terrain bracket (undetermined)."""
+    rows = []
+    for y in range(height):
+        row = []
+        for x in range(width):
+            t = x / max(1, width)
+            if kind == "near-only":
+                d = 0.5
+            elif t < 1 / 3:
+                d = 0.0
+            elif t < 0.55:
+                d = 0.5
+            elif t < 0.65:
+                d = 0.003   # inside (2^-10, 2^-8]: undetermined against the near look
+            else:
+                d = 1e-6
+            row.append(d)
+        rows.append(row)
+    return rows
+
+
+def write_gz_f32(path, rows):
+    import gzip
+    import struct
+    with gzip.open(path, "wb") as out:
+        out.write(f"VXF32\n{len(rows[0])} {len(rows)}\n".encode("ascii"))
+        for row in rows:
+            out.write(struct.pack("<" + "f" * len(row), *row))
+
+
+def terrain_expect(ladder_depth, voxy_depth):
+    """The fixture's own statement of the rule (not the gate's): Voxy passes at d_V >= d."""
+    # the ladder colour only says which bracket d is in, so decide from the bracket
+    if ladder_depth < D[0]:
+        lo, hi = None, D[0]
+    else:
+        passed = [i for i in range(RUNGS) if D[i] < ladder_depth]
+        if not passed:
+            return 1 if voxy_depth >= D[0] else -1
+        i = passed[-1]
+        lo, hi = D[i], (D[i + 1] if i + 1 < RUNGS else 1.0)
+    if lo is not None and voxy_depth <= lo:
+        return -1
+    if voxy_depth >= hi:
+        return 1
+    return 0
+
+
+def terrain_after(field, before, depth, violate=None):
+    """The band after Voxy's terrain pass: the reference colour where its depth is at or above
+    the bracket's top (and, by choice, where undetermined), the previous readback elsewhere.
+    `violate` paints one wrong pixel: "visible", "hidden", "other" or "changed"."""
+    after = []
+    for y, row in enumerate(field):
+        out = []
+        for x, d in enumerate(row):
+            dv = depth[y][x]
+            if dv > 0.0 and terrain_expect(d, dv) >= 0:
+                out.append(TERRAIN_REF)
+            else:
+                out.append(before[y][x])
+        after.append(out)
+
+    def first(pred):
+        return next((y, x) for y, row in enumerate(field) for x, d in enumerate(row) if pred(y, x, d))
+    if violate == "visible":      # the reference colour where Voxy must be hidden
+        y, x = first(lambda y, x, d: depth[y][x] > 0 and terrain_expect(d, depth[y][x]) < 0)
+        after[y][x] = TERRAIN_REF
+    elif violate == "hidden":     # the previous colour where Voxy must appear
+        y, x = first(lambda y, x, d: depth[y][x] > 0 and terrain_expect(d, depth[y][x]) > 0)
+        after[y][x] = before[y][x]
+    elif violate == "other":
+        y, x = first(lambda y, x, d: depth[y][x] > 0 and terrain_expect(d, depth[y][x]) > 0)
+        after[y][x] = (1, 2, 3)
+    elif violate == "changed":    # a pixel without geometry changed
+        y, x = first(lambda y, x, d: depth[y][x] == 0.0)
+        after[y][x] = (1, 2, 3)
+    return after
+
+
+def terrain_entry(sample, field, before, depth, after):
+    """The counts the implementation publishes, derived independently from the crops."""
+    c = {name: 0 for name in verify.TERRAIN_LOAD_COUNTS}
+    for y, row in enumerate(field):
+        for x, d in enumerate(row):
+            dv = depth[y][x]
+            px = after[y][x]
+            same_before = px == before[y][x]
+            if not dv > 0.0:
+                c["noGeometry"] += 1
+                if not same_before:
+                    c["changedWhereNoGeometry"] += 1
+                continue
+            c["geometry"] += 1
+            e = terrain_expect(d, dv)
+            c["expectVisible" if e > 0 else "expectHidden" if e < 0 else "undetermined"] += 1
+            same_ref = px == TERRAIN_REF
+            if same_ref and same_before:
+                c["ambiguous"] += 1
+            elif same_ref:
+                c["visible"] += 1
+                if e < 0:
+                    c["visibleWhereHidden"] += 1
+            elif same_before:
+                c["hidden"] += 1
+                if e > 0:
+                    c["hiddenWhereVisible"] += 1
+            else:
+                c["other"] += 1
+    rect = sample["rect"]
+    suffix = f"{sample['targetWidth']}x{sample['targetHeight']}-{rect[0]}-{rect[1]}-{rect[2]}-{rect[3]}"
+    geometry = [d for row in depth for d in row if d > 0.0]
+    entry = {"at": sample["at"], **c,
+             "minDepth": min(geometry) if geometry else None,
+             "maxDepth": max(geometry) if geometry else None,
+             "file": f"native-terrain-load-{sample['at']}.ppm.gz",
+             "frameFile": f"native-terrain-load-frame-{sample['at']}.ppm.gz",
+             "referenceFile": f"native-terrain-load-reference-{suffix}.ppm.gz",
+             "referenceDepthFile": f"native-terrain-load-depth-{suffix}.f32.gz"}
+    return entry
+
+
+def terrain_log_for(entries):
+    return "".join("[native-vk] terrain load at draw " + str(e["at"]) + " "
+                   + " ".join(f"{k}={e[k]}" for k in verify.TERRAIN_LOAD_COUNTS)
+                   + f" depth=[{e['minDepth']} {e['maxDepth']}]\n" for e in entries)
+
+
+def terrain_report(entries, **overrides):
+    body = {"enabled": True, "attempted": True, "built": True, "drawsRecorded": len(entries),
+            "width": FULL_W, "height": FULL_H, "colourFormat": 37, "depthFormat": 126,
+            "scene": "depthSweep", "eye": [80.0, 8.0, 0.0], "centre": [80.0, 2.0, 300.0],
+            "fovDegrees": 60.0, "near": 0.1, "far": 2000.0, "fitMargin": 0.05,
+            "mvp": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+            "drawCount": 10, "referenceSet": 1234, "declaredDepthState": [6, 1, 1],
+            "depthStateReadBack": False, "ladderEnabled": True,
+            "results": [dict(e) for e in entries], "problems": 0, "firstProblem": None,
+            "closeFailures": 0, "leakedScenes": 0, "leakBudget": 3, "deviceDiverged": False,
+            "readbacksInFlight": 0, "device": hex(DEVICE), "notes": []}
+    body.update(overrides)
+    return body
+
+
+def write_terrain_files(out, sample, field, after, depth, entry):
+    """The third crop, its thumbnail, and the reference colour/depth crops (once per rect)."""
+    _, rej = crops(field, sample["flipped"])
+    write_gz_ppm(out / entry["file"], after)
+    write_gz_ppm(out / entry["frameFile"], thumbnail(after, sample["rect"], rej,
+                                                      sample["rejectedRect"]))
+    if not (out / entry["referenceFile"]).is_file():
+        reference = [[TERRAIN_REF if d > 0.0 else (13, 13, 26) for d in row] for row in depth]
+        write_gz_ppm(out / entry["referenceFile"], reference)
+        write_gz_f32(out / entry["referenceDepthFile"], depth)
+
+
+def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=True,
+                        terrain=True):
+    """Write everything the stage's ladder launch retains for `pairs`: the ladder crops, the
+    coexist crops and entries, the terrain-LOAD crops/references and entries. Returns the
+    ladder report body, the terrain report body and the complete log text."""
+    afters = [coexist_after(f, s["flipped"]) for s, f in pairs]
+    coexist_entries = [coexist_entry(s, f, a) for (s, f), a in zip(pairs, afters)]
+    terrain_entries = []
+    for i, ((s, f), quad) in enumerate(zip(pairs, afters)):
+        write_sample_files(out, s, f)
+        if coexist:
+            write_gz_ppm(out / f"native-depth-ladder-coexist-{s['at']}.ppm.gz", quad)
+            _, rej = crops(f, s["flipped"])
+            write_gz_ppm(out / f"native-depth-ladder-coexist-frame-{s['at']}.ppm.gz",
+                         thumbnail(quad, s["rect"], rej, s["rejectedRect"]))
+        if terrain:
+            before = quad if coexist else crops(f, s["flipped"])[0]
+            depth = terrain_depth(len(f[0]), len(f), depth_kind)
+            after = terrain_after(f, before, depth, violate if i == 0 else None)
+            entry = terrain_entry(s, f, before, depth, after)
+            write_terrain_files(out, s, f, after, depth, entry)
+            terrain_entries.append(entry)
+    body = report(samples=[s for s, _ in pairs], coexistEnabled=coexist,
+                  coexist=[dict(e) for e in coexist_entries] if coexist else [],
+                  terrainLoadEnabled=terrain,
+                  terrainLoadDrawsRecorded=len(terrain_entries) if terrain else 0)
+    tl = terrain_report(terrain_entries) if terrain else None
+    if tl is not None:
+        (out / "native-terrain-load.json").write_text(json.dumps(tl))
+    text = log_for(body["samples"])
+    if coexist:
+        text += coexist_log_for(coexist_entries)
+    if terrain:
+        text += terrain_log_for(terrain_entries)
+    return body, tl, text
 
 
 def log_for(samples, stage_lines=True):
@@ -945,14 +1151,30 @@ class LadderCoexistTest(unittest.TestCase):
             self.assertIn(fragment, " ".join(result["failures"]))
 
     def test_the_launch_token_is_read_with_gradles_property_semantics(self):
-        """Round-16 R16-COEXIST-LAUNCH-SEMANTICS: hasProperty, not the value."""
+        """Round-16/17 R16-COEXIST-LAUNCH-SEMANTICS: hasProperty, not the value, in every CLI
+        form round 17 measured against ./gradlew help."""
         enables = verify.launch_enables
-        for token in ("-PharnessNativeCoexist=true", "-PharnessNativeCoexist=false",
-                      "-PharnessNativeCoexist=", "-PharnessNativeCoexist"):
-            self.assertTrue(enables(["gradlew", token], "harnessNativeCoexist"), token)
+        for command in (["-PharnessNativeCoexist=true"], ["-PharnessNativeCoexist=false"],
+                        ["-PharnessNativeCoexist="], ["-PharnessNativeCoexist"],
+                        ["-PharnessNativeCoexist=x=y"],
+                        ["-PharnessNativeCoexist=true", "-PharnessNativeCoexist=false"],
+                        ["-P", "harnessNativeCoexist=false"], ["-P", "harnessNativeCoexist"],
+                        ["--project-prop", "harnessNativeCoexist=false"],
+                        ["--project-prop=harnessNativeCoexist=false"],
+                        ["--project-prop", "harnessNativeCoexist"],
+                        ["-Dorg.gradle.project.harnessNativeCoexist=false"],
+                        ["-D", "org.gradle.project.harnessNativeCoexist"],
+                        ["--system-prop", "org.gradle.project.harnessNativeCoexist=false"],
+                        ["--system-prop=org.gradle.project.harnessNativeCoexist"]):
+            self.assertTrue(enables(["gradlew", *command], "harnessNativeCoexist"), command)
         for command in ([], None, ["gradlew", "-PharnessNativeCoexistence=true"],
-                        ["-DharnessNativeCoexist=true"], ["harnessNativeCoexist=true"], [7]):
+                        ["-Pharnessnativecoexist=true"], ["-DharnessNativeCoexist=true"],
+                        ["harnessNativeCoexist=true"], [7], ["-P"], ["--project-prop"],
+                        ["-P", "harnessNativeCoexistence"], ["-D", "harnessNativeCoexist=true"],
+                        ["--system-prop", "harnessNativeCoexist=true"]):
             self.assertFalse(enables(command, "harnessNativeCoexist"), command)
+        self.assertEqual(verify.ladder_launch_requirements(LADDER_COMMAND),
+                         {"coexist": True, "terrainLoad": True})
 
     def test_a_result_list_that_is_not_a_list_is_refused_as_such(self):
         """Round-16: the type guard's removal survived because the fragment asserted was
@@ -1133,19 +1355,23 @@ class LadderRetentionTest(unittest.TestCase):
             if samples is None:
                 s, field = sample(kind=kind, flipped=flipped)
                 samples = [(s, field)]
-            # every retained launch carries the two straight-down looks, which replay judges
+            # every retained launch carries the two straight-down looks, which replay judges,
+            # and (since round 17) the coexist and terrain-LOAD evidence its command enables
             samples = list(samples) + direction_samples()
-            body = report(samples=[s for s, _ in samples])
             if with_files:
-                for s, field in samples:
-                    write_sample_files(ladder_output, s, field)
+                body, _, log_text = full_ladder_package(ladder_output, samples)
+            else:
+                body = report(samples=[s for s, _ in samples], coexistEnabled=True,
+                              terrainLoadEnabled=True, terrainLoadDrawsRecorded=len(samples))
+                log_text = log_for(body["samples"])
             (ladder_output / "native-depth-ladder.json").write_text(json.dumps(body))
             if with_own_result:
                 (ladder_output / "native-result.json").write_text(json.dumps(
                     {"complete": True, "success": True, "failures": [],
                      "checkpoints": checkpoints}))
-            (root / "native-ladder.log").write_text("ladder log\n" + log_for(body["samples"]))
+            (root / "native-ladder.log").write_text("ladder log\n" + log_text)
             stage["ladder_run"] = {"environment": {"checkpoints": checkpoints},
+                                   "command": list(LADDER_COMMAND),
                                    "ladder": {"z_direction": {"direction": saved_direction}}}
         (root / "summary.json").write_text(json.dumps(
             {"stages": {"native_environment": stage}}))
@@ -1169,10 +1395,17 @@ class LadderRetentionTest(unittest.TestCase):
     def test_the_ladder_launch_is_retained_and_hashed(self):
         target, kept = self.build()
         self.assertNotIn("error", kept)
-        self.assertEqual(kept["ladder"]["samples"][:3],
-                         ["ladder/native-depth-ladder-2.ppm.gz",
-                          "ladder/native-depth-ladder-rejected-2.ppm.gz",
-                          "ladder/native-depth-ladder-frame-2.ppm.gz"])
+        for name in ("ladder/native-depth-ladder-2.ppm.gz",
+                     "ladder/native-depth-ladder-rejected-2.ppm.gz",
+                     "ladder/native-depth-ladder-frame-2.ppm.gz",
+                     "ladder/native-depth-ladder-coexist-2.ppm.gz",
+                     "ladder/native-terrain-load-2.ppm.gz",
+                     "ladder/native-terrain-load-frame-2.ppm.gz"):
+            self.assertIn(name, kept["ladder"]["samples"])
+        self.assertTrue(any(n.startswith("ladder/native-terrain-load-reference-")
+                            for n in kept["ladder"]["samples"]), kept["ladder"]["samples"])
+        self.assertTrue(any(n.startswith("ladder/native-terrain-load-depth-")
+                            for n in kept["ladder"]["samples"]), kept["ladder"]["samples"])
         for name in ("ladder/native-depth-ladder.json", "ladder/native-depth-ladder-2.ppm.gz",
                      "ladder/native-depth-ladder-rejected-2.ppm.gz",
                      "ladder/native-result.json", "ladder/native-ladder.log"):
@@ -1334,46 +1567,74 @@ class LadderRetentionTest(unittest.TestCase):
         self.assertIn("belong to no listed sample", out["error"])
 
     def test_a_saved_launch_command_that_enabled_coexist_requires_its_evidence(self):
-        """Round-15 R15-COEXIST-PRESENCE, replay side: the retained launch command decides."""
+        """Round-15 R15-COEXIST-PRESENCE, replay side: with the stage's command retained, an
+        off/empty coexist report (and its crops and log lines removed) is refused."""
         target, _ = self.build()
-        summary_path = target / "summary.json"
-        summary = json.loads(summary_path.read_text())
-        summary["stages"]["native_environment"]["ladder_run"]["command"] = [
-            "gradlew", "runHarnessClient", "-PharnessNativeDepthLadder=true",
-            "-PharnessNativeCoexist=true"]
-        summary_path.write_text(json.dumps(summary))
-        self.rehash(target, "summary.json")
+        path = target / "ladder" / "native-depth-ladder.json"
+        body = json.loads(path.read_text())
+        body.update(coexistEnabled=False, coexist=[])
+        path.write_text(json.dumps(body))
+        self.rehash(target, "ladder/native-depth-ladder.json")
+        manifest = json.loads((target / "MANIFEST.json").read_text())
+        for name in list(manifest["files"]):
+            if "coexist" in name:
+                (target / name).unlink()
+                del manifest["files"][name]
+        (target / "MANIFEST.json").write_text(json.dumps(manifest))
+        log_path = target / "ladder" / "native-ladder.log"
+        log_path.write_text("".join(line + "\n" for line in log_path.read_text().splitlines()
+                                    if "coexist" not in line))
+        self.rehash(target, "ladder/native-ladder.log")
         code, out = self.replay(target)
         self.assertEqual(code, 1)
         self.assertIn("enabled the coexistence experiment", out["error"])
 
-    def test_every_gradle_form_of_the_coexist_token_requires_its_evidence(self):
-        """Round-16 R16-COEXIST-LAUNCH-SEMANTICS: build.gradle switches on hasProperty, so
-        `=false`, `=` and the bare property all launch the experiment; replay read only
-        `=true` and accepted an off report behind those commands."""
-        for token in ("-PharnessNativeCoexist=false", "-PharnessNativeCoexist",
-                      "-PharnessNativeCoexist="):
+    def test_a_ladder_command_that_is_not_the_stages_is_refused_whatever_it_spells(self):
+        """Round-16/17 R16-COEXIST-LAUNCH-SEMANTICS: replay modelled the token (`=true`, then
+        attached forms) while Gradle also honours `-P x`, `--project-prop`, and
+        `org.gradle.project.*` system properties. The stage always passes literal tokens, so
+        the retained command must carry them: anything else is not the stage's launch."""
+        forms = (["-PharnessNativeCoexist=false"], ["-PharnessNativeCoexist"],
+                 ["-P", "harnessNativeCoexist=false"],
+                 ["--project-prop", "harnessNativeCoexist"],
+                 ["--project-prop=harnessNativeCoexist=false"],
+                 ["-Dorg.gradle.project.harnessNativeCoexist=false"],
+                 ["--system-prop", "org.gradle.project.harnessNativeCoexist=false"],
+                 ["-PharnessNativeCoexistence=true"], [])
+        for form in forms:
             target, _ = self.build()
             summary_path = target / "summary.json"
             summary = json.loads(summary_path.read_text())
-            summary["stages"]["native_environment"]["ladder_run"]["command"] = [
-                "gradlew", "runHarnessClient", "-PharnessNativeDepthLadder=true", token]
+            command = [t for t in LADDER_COMMAND if t != "-PharnessNativeCoexist=true"] + form
+            summary["stages"]["native_environment"]["ladder_run"]["command"] = command
             summary_path.write_text(json.dumps(summary))
             self.rehash(target, "summary.json")
             code, out = self.replay(target)
-            self.assertEqual(code, 1, token)
-            self.assertIn("enabled the coexistence experiment", out["error"])
-        # a command that names no such property did not enable it: an off report is that launch's
+            self.assertEqual(code, 1, form)
+            self.assertIn("not the stage's ladder launch", out["error"])
+        # no command at all
         target, _ = self.build()
         summary_path = target / "summary.json"
         summary = json.loads(summary_path.read_text())
-        summary["stages"]["native_environment"]["ladder_run"]["command"] = [
-            "gradlew", "runHarnessClient", "-PharnessNativeDepthLadder=true",
-            "-PharnessNativeCoexistence=true"]
+        del summary["stages"]["native_environment"]["ladder_run"]["command"]
         summary_path.write_text(json.dumps(summary))
         self.rehash(target, "summary.json")
         code, out = self.replay(target)
-        self.assertEqual(code, 0, out)
+        self.assertEqual(code, 1)
+        self.assertIn("has no command", out["error"])
+        # a command that also enables a depth-writing experiment
+        for extra in ("-PharnessNativeTerrain=true", "-P", "--project-prop"):
+            target, _ = self.build()
+            summary_path = target / "summary.json"
+            summary = json.loads(summary_path.read_text())
+            command = list(LADDER_COMMAND) + ([extra] if extra.startswith("-PharnessNativeTerrain")
+                                              else [extra, "harnessNativeMarker"])
+            summary["stages"]["native_environment"]["ladder_run"]["command"] = command
+            summary_path.write_text(json.dumps(summary))
+            self.rehash(target, "summary.json")
+            code, out = self.replay(target)
+            self.assertEqual(code, 1, extra)
+            self.assertIn("writes or clears Minecraft's depth", out["error"])
 
     def test_a_saved_direction_that_disagrees_with_the_evidence_is_rejected(self):
         """Round-13 R13-Z-BINDING: the summary's saved direction was never reconciled."""

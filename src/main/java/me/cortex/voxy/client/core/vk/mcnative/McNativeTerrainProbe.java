@@ -7,7 +7,6 @@ import com.mojang.blaze3d.vulkan.VulkanDevice;
 import me.cortex.voxy.client.core.vk.SyntheticTerrain;
 import me.cortex.voxy.client.core.vk.VkContext;
 import me.cortex.voxy.client.core.vk.VkDepth;
-import me.cortex.voxy.client.core.vk.VkFrameTracker;
 import me.cortex.voxy.client.core.vk.VkRenderTarget;
 import me.cortex.voxy.client.core.vk.VkSceneUniform;
 import me.cortex.voxy.client.core.vk.VkTerrainRenderer;
@@ -16,7 +15,6 @@ import com.mojang.blaze3d.vulkan.VulkanConst;
 import me.cortex.voxy.common.Logger;
 import net.minecraft.client.Minecraft;
 import org.joml.Vector4f;
-import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.vulkan.VkCommandBuffer;
 
 import java.nio.ByteBuffer;
@@ -329,108 +327,20 @@ public final class McNativeTerrainProbe implements Destroyable {
                 + "; a pixel comparison between the two would not mean anything");
             return null;
         }
-        boolean startedTracker = false;
-        VkTerrainResources res = null;
-        VkTerrainRenderer renderer = null;
-        VkRenderTarget reference = null;
-        // ⚠ round-6 review R6-TERRAIN-WAIT: finally は<b>無条件に</b>解放していた。
-        // 提出したのにフェンス待ちが成功しなかった場合、完了を観測していない資源を
-        // 壊すことになる (使用中参照)。「提出した」と「待ちを観測した」を分けて持つ。
-        boolean submitted = false;
-        boolean waitObserved = false;
-        try {
-            boolean wasRunning = frameTrackerRunning();
-            VkFrameTracker.init();
-            startedTracker = !wasRunning;
-
-            var terrain = SyntheticTerrain.boundaryCases();
-            // stateId は疎に散らばるので、モデルバッファは実際に使われる最大値で確保する。
-            res = new VkTerrainResources(terrain.sectionCount(), terrain.totalQuads(), 4096,
-                terrain.maxStateId() + 1);
-            int[] starts = terrain.writeGeometry(res.geometry);
-            terrain.writeMetadata(res.sectionMetadata, starts);
-            terrain.writePositions(res.positionScratch);
-            res.fillModels(VkTerrainResources.MODEL_FLAG_SHADED);
-            var draws = terrain.opaqueDrawCommands(starts, SyntheticTerrain.ORIGIN);
-            SyntheticTerrain.writeDrawCommands(res.drawCall, draws, res.indexQuadCapacity);
-
-            renderer = new VkTerrainRenderer(res, width, height,
-                VkTerrainRenderer.Barriers.CONSERVATIVE);
-            // 視点は固定する。毎フレーム書き換えないので、ホスト書き込みのバリアが
-            // MC のパスの中で要らなくなり、参照と完全に同じ入力になる。
-            VkSceneUniform.write(res.uniform, closeUpMvp(width, height), new int[]{0, 0, 0}, 1,
-                new float[]{0, 0, 0});
-
-            reference = new VkRenderTarget(width, height);
-            var tracker = VkFrameTracker.get();
-            var cmd = tracker.beginFrame();
-            renderer.record(cmd, reference, draws.size(), CLEAR, VkDepth.CLEAR);
-            reference.recordReadback(cmd);
-            tracker.endFrame();
-            submitted = true;
-            tracker.waitForFrame();
-            waitObserved = true;
-
-            int[] pixels = new int[width * height];
-            long base = reference.readbackBuffer().addr();
-            long set = 0;
-            int clearRgb = packClear();
-            for (int i = 0; i < pixels.length; i++) {
-                int rgb = MemoryUtil.memGetInt(base + (long) i * 4) & 0x00FFFFFF;
-                pixels[i] = rgb;
-                if (rgb != clearRgb) set++;
-            }
-            if (set == 0) {
-                note("Voxy's own target drew nothing, so there is no reference to compare"
-                    + " Minecraft's frame against");
-                return null;
-            }
-            Logger.info("[native-vk] terrain reference on the adopted device: " + set
-                + " of " + pixels.length + " pixels are not background");
-            var built = new McNativeTerrainProbe(device, format, width, height, res, renderer,
-                draws.size(), pixels, set, VkContext.get().device.address());
-            res = null;
-            renderer = null;
-            return built;
-        } catch (Throwable t) {
-            note("could not build the terrain probe: " + t);
-            var trace = t.getStackTrace();
-            for (int i = 0; i < Math.min(6, trace.length); i++) note("  at " + trace[i]);
+        // ⚠ round-6 review R6-TERRAIN-WAIT の規律 (提出したが待ちを観測できなければ漏らす) は
+        // {@link McNativeTerrainScene#build} にある。ここは budget と結果の扱いだけ。
+        var scene = McNativeTerrainScene.build(format, width, height,
+            SyntheticTerrain.boundaryCases(), closeUpMvp(width, height), SyntheticTerrain.ORIGIN,
+            false, CLEAR, McNativeTerrainProbe::note, () -> leakedProbes++);
+        if (scene == null) return null;
+        if (scene.set == 0) {
+            note("Voxy's own target drew nothing, so there is no reference to compare"
+                + " Minecraft's frame against");
+            scene.free();
             return null;
-        } finally {
-            // ⚠ round-6 review R6-TERRAIN-WAIT: <b>提出したが待ちを観測できていない</b>なら
-            // 何も壊さない。診断 1 個ぶんの資源を漏らす方が、実行中の参照を壊すより遥かに良い。
-            if (submitted && !waitObserved) {
-                leakedProbes++;
-                note("the reference frame was submitted but its fence wait was not observed to"
-                    + " succeed; leaking the reference target, renderer and resources on purpose"
-                    + " rather than destroying something that may still be in use");
-            } else {
-                if (reference != null) {
-                    try { reference.free(); } catch (Throwable t) {
-                        note("could not free the reference target: " + t);
-                    }
-                }
-                if (renderer != null) {
-                    try { renderer.free(); } catch (Throwable ignored) { }
-                }
-                if (res != null) {
-                    try { res.free(); } catch (Throwable ignored) { }
-                }
-            }
-            if (startedTracker) {
-                // 参照画像を描くためだけに起こしたので、ここで片付ける。
-                // 毎フレームの経路はトラッカーを使わない (MC のコマンドバッファに積むだけ)。
-                // ⚠ round-6 review R6-TERRAIN-WAIT: 以前ここのコメントは
-                // 「waitIdle は使わない」と書いていたが、{@code VkFrameTracker.shutdown} は
-                // {@code destroy} 経由で<b>実際に vkDeviceWaitIdle を呼ぶ</b>。
-                // 採用した device は MC のものなので、これは MC の投入まで待たせる。
-                // 正しさの問題ではないが、コメントが事実と違っていた。
-                try { VkFrameTracker.shutdown(); } catch (Throwable t) {
-                    note("could not shut the frame tracker down after building the reference: " + t);
-                }
-            }
         }
+        return new McNativeTerrainProbe(device, format, width, height, scene.res, scene.renderer,
+            scene.drawCount, scene.colour, scene.set, VkContext.get().device.address());
     }
 
     /**
@@ -447,9 +357,7 @@ public final class McNativeTerrainProbe implements Destroyable {
 
     /** 背景色を RGBA8_UNORM の RGB に詰めたもの。 */
     private static int packClear() {
-        return (Math.round(CLEAR[2] * 255) << 16)
-            | (Math.round(CLEAR[1] * 255) << 8)
-            | Math.round(CLEAR[0] * 255);
+        return McNativeTerrainScene.packRgb(CLEAR);
     }
 
     // ---------------- 比較 ----------------
@@ -833,15 +741,6 @@ public final class McNativeTerrainProbe implements Destroyable {
         try {
             return VkContext.get().isAdopted();
         } catch (Throwable t) {
-            return false;
-        }
-    }
-
-    private static boolean frameTrackerRunning() {
-        try {
-            VkFrameTracker.get();
-            return true;
-        } catch (IllegalStateException e) {
             return false;
         }
     }

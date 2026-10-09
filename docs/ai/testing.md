@@ -28,10 +28,13 @@ The lifecycle has thirteen checkpointed stages since 2026-10-07: the eleven befo
 it), which the depth ladder's gate reads the Z direction from.
 Since 2026-10-07 the stage launches Minecraft **twice**: the first launch carries the
 marker, terrain, depth-copy and proof-file diagnostics; the second carries only the
-depth ladder (`-PharnessNativeDepthLadder`) and its coexistence experiment
-(`-PharnessNativeCoexist`; any `-P` token naming a harness property enables it, as
-Gradle's `hasProperty` does, and the gate reads the retained command the same way), because the terrain probe clears the
-depth attachment the ladder measures. Both launches are gated, logged
+depth ladder (`-PharnessNativeDepthLadder`), its coexistence experiment
+(`-PharnessNativeCoexist`) and the terrain-LOAD experiment (`-PharnessNativeTerrainLoad`,
+Voxy's real terrain pipeline into a pass that LOADs MC's colour and depth, after the
+ladder's readbacks), because the terrain probe clears the depth attachment the ladder
+measures. Any Gradle form naming a harness property enables it (`hasProperty`); the gate
+reads the retained command with Gradle's semantics and, on replay, additionally requires
+the stage's literal tokens, refusing any ladder command that lacks them. Both launches are gated, logged
 (`native.log`, `native-ladder.log`) and retained; the ladder launch lives under
 `ladder/` in the evidence directory and `--replay-evidence` re-runs its gate against
 the launch's own checkpoints. Replay also requires every retained file to be a

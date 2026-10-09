@@ -1164,4 +1164,47 @@ public final class SyntheticTerrain {
     public static SyntheticTerrain minimal() {
         return new SyntheticTerrain().add(new Section(0, 0, 0, 0).face(Face.UP, 1));
     }
+
+    /**
+     * 深度の掃引 (native の terrain-LOAD 実験 {@code McNativeTerrainLoad} 用)。
+     *
+     * <p>同じ x 範囲 (セクション x = 2) に、+Z 方向へ 32·k ブロック (k = 1, 2, 4, 8, 16)
+     * 離れた 5 枚のパネル。各セクションは UP 32 quad (y = 0 の帯、通し番号 0..31) と
+     * NORTH 64 quad (通し番号 32..95 → y = 1..3 の 32×2 の壁、−Z を向く)。z ≈ 0 の少し高い
+     * 視点から +Z を見ると、パネルは互いに重ならない階段になって奥へ遠ざかり、その NDC 深度
+     * (逆Z、near 0.1) は 2⁻⁸ 付近から 2⁻¹³ 付近まで掃く — 梯子が Minecraft の地形に測った
+     * 区間 (2⁻¹², 2⁻¹⁰] の<b>両側</b>に画素を置くための配置である。
+     */
+    public static SyntheticTerrain depthSweep() {
+        var t = new SyntheticTerrain();
+        for (int k : new int[] {1, 2, 4, 8, 16}) {
+            t.add(new Section(2, 0, k, 0).face(Face.UP, 32).face(Face.NORTH, 64));
+        }
+        return t;
+    }
+
+    /**
+     * 不透明な各 quad が占めるセル {@code {x0, y0, z0, x1, y1, z1}} (ブロック座標、
+     * {@code baseSectionPos} = 0 基準)。{@link #writeRun} と同じ配置規則 — セクション内の
+     * 通し番号 k → (k & 31, k >> 5 & 31, k >> 10 & 31)、LoD 倍率 2^level、セクション原点
+     * (pos << level) · 32 — から導く ({@code quad_util.glsl setupQuad}: {@code basePoint =
+     * quadStart * lodScale + (baseSection << 5)})。面の押し出し/凹みは無視するので、セルは
+     * quad を含む上界である。半透明の run は不透明パスでは描かれないので含めない。
+     */
+    public List<float[]> opaqueQuadCells() {
+        var out = new ArrayList<float[]>();
+        for (var s : this.sections) {
+            float scale = 1 << s.level;
+            float ox = (s.x << s.level) * 32f, oy = (s.y << s.level) * 32f,
+                oz = (s.z << s.level) * 32f;
+            int k = s.translucentCount;
+            int opaque = s.totalQuads() - s.translucentCount;
+            for (int i = 0; i < opaque; i++, k++) {
+                int px = k & 0x1F, py = (k >> 5) & 0x1F, pz = (k >> 10) & 0x1F;
+                out.add(new float[] {ox + px * scale, oy + py * scale, oz + pz * scale,
+                    ox + (px + 1) * scale, oy + (py + 1) * scale, oz + (pz + 1) * scale});
+            }
+        }
+        return out;
+    }
 }

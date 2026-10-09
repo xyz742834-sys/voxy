@@ -602,6 +602,15 @@ loom {
             if (project.hasProperty('harnessNativeCoexist')) {
                 vmArg '-Dvoxy.native.coexist=true'
             }
+            // Terrain-LOAD experiment inside the ladder launch: Voxy's real terrain pipeline
+            // draws a synthetic depth sweep into a pass that LOADs Minecraft's colour and
+            // depth, with Voxy's own depth state (writes ON for Voxy's geometry), after the
+            // ladder's readbacks of the same frame; checked per pixel against the ladder's
+            // brackets and Voxy's own reference depth. A separate probe from the ladder, which
+            // never writes depth. Off by default.
+            if (project.hasProperty('harnessNativeTerrainLoad')) {
+                vmArg '-Dvoxy.native.terrainload=true'
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')

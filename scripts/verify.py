@@ -934,6 +934,7 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
                         ("deviceDiverged", bool), ("notes", list),
                         ("terrainProbeEnabled", bool), ("terrainDrawsRecorded", int),
                         ("markerDrawEnabled", bool), ("markerDrawsRecorded", int),
+                        ("terrainLoadEnabled", bool), ("terrainLoadDrawsRecorded", int),
                         ("device", str)):
         if field not in report:
             raise ValueError(f"the depth ladder does not state {field}")
@@ -967,6 +968,12 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
         raise ValueError(f"the marker draw was enabled={report['markerDrawEnabled']} and"
                          f" recorded {report['markerDrawsRecorded']} draw(s) in the same run;"
                          f" it writes depth, so the ladder's frame was not Minecraft's alone")
+    # The terrain-LOAD probe writes Voxy's depth into Minecraft's attachment, but only after
+    # this probe's readbacks of the same frame; terrain_load_checks reconciles its pass count
+    # with the sample count. Off, it must have recorded nothing.
+    if not report["terrainLoadEnabled"] and report["terrainLoadDrawsRecorded"]:
+        raise ValueError(f"the terrain-LOAD probe was off but recorded"
+                         f" {report['terrainLoadDrawsRecorded']} pass(es)")
     if report["notes"]:
         raise ValueError(f"the depth ladder reported notes: {report['notes']}")
     if report["problems"] or report["closeFailures"] or report["leakedPipelines"]:
@@ -1196,20 +1203,88 @@ COEXIST_RGB_EXACT = (128, 255, 128)   # what the GPU writes for COEXIST_RGB, mea
 
 
 def launch_enables(command, prop):
-    """Whether a retained launch command enabled the Gradle property `prop`.
+    """Whether a retained launch command enabled the Gradle project property `prop`.
 
     ⚠ Round-16 review R16-COEXIST-LAUNCH-SEMANTICS: replay tested membership of the exact
     `-P<prop>=true` token, but build.gradle switches every harness flag on
-    `project.hasProperty(...)`, so `-P<prop>=false`, `-P<prop>=` and bare `-P<prop>` all
-    launch the experiment. The command's meaning is Gradle's: any token naming the property
-    enables it. Nothing else does (a different property with this prefix is another property).
+    `project.hasProperty(...)`, so any value — `=false`, `=`, none — launches the experiment.
+    ⚠ Round-17 review, same finding: Gradle also sets the property from the separated
+    `-P <prop>[=v]`, from `--project-prop <prop>[=v]` / `--project-prop=<prop>[=v]`, and from
+    the system property `org.gradle.project.<prop>` given as `-Dorg.gradle.project.<prop>[=v]`,
+    `-D org.gradle.project.<prop>[=v]`, `--system-prop org.gradle.project.<prop>[=v]` or
+    `--system-prop=...` (measured by that review against `./gradlew help` for all nine harness
+    switches). All of those forms are read here. A different property that merely shares the
+    prefix is another property. Outside the command — gradle.properties (fingerprinted, so a
+    change refuses replay) and the environment (`ORG_GRADLE_PROJECT_<prop>`, not retained) —
+    is not read, which is why `ladder_launch_requirements` additionally demands the stage's
+    own literal tokens.
     """
-    for token in command or []:
-        if not isinstance(token, str):
+    tokens = [t for t in (command or []) if isinstance(t, str)]
+    system_name = f"org.gradle.project.{prop}"
+
+    def names(value, name):
+        return value == name or value.startswith(name + "=")
+
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+        following = tokens[i + 1] if i + 1 < len(tokens) else None
+        if token in ("-P", "--project-prop"):
+            if following is not None and names(following, prop):
+                return True
+            i += 2
             continue
-        if token == f"-P{prop}" or token.startswith(f"-P{prop}="):
-            return True
+        if token in ("-D", "--system-prop"):
+            if following is not None and names(following, system_name):
+                return True
+            i += 2
+            continue
+        if token.startswith("--project-prop="):
+            if names(token[len("--project-prop="):], prop):
+                return True
+        elif token.startswith("-P"):
+            if names(token[2:], prop):
+                return True
+        elif token.startswith("--system-prop="):
+            if names(token[len("--system-prop="):], system_name):
+                return True
+        elif token.startswith("-D"):
+            if names(token[2:], system_name):
+                return True
+        i += 1
     return False
+
+
+# The literal tokens the stage passes to the ladder launch (see run_stage("native-ladder")).
+LADDER_LAUNCH_FLAGS = ("-PharnessNativeDepthLadder=true", "-PharnessNativeCoexist=true",
+                       "-PharnessNativeTerrainLoad=true")
+# Experiments that write or clear Minecraft's depth and must never be in the ladder launch.
+LADDER_LAUNCH_FORBIDDEN = ("harnessNativeTerrain", "harnessNativeMarker", "harnessNativeDepth")
+
+
+def ladder_launch_requirements(command):
+    """What a retained ladder launch command obliges the evidence to hold.
+
+    ⚠ Round-17 review R16-COEXIST-LAUNCH-SEMANTICS residual: modelling Gradle's CLI is not
+    the authority; the STAGE is. It always passes the literal LADDER_LAUNCH_FLAGS, so a
+    retained ladder command that lacks any of them — or no command at all — is not the stage's
+    launch and is refused outright, whatever else it spells. A command that also names an
+    experiment that writes or clears Minecraft's depth is refused too. What remains is read
+    with Gradle's semantics (launch_enables) and is always "required".
+    """
+    if not isinstance(command, list) or not command:
+        raise ValueError("the retained ladder launch has no command, so what it enabled cannot"
+                         " be established; the stage always retains one")
+    missing = [flag for flag in LADDER_LAUNCH_FLAGS if flag not in command]
+    if missing:
+        raise ValueError(f"the retained ladder launch command lacks {missing}, which the stage"
+                         f" always passes literally; it is not the stage's ladder launch")
+    for prop in LADDER_LAUNCH_FORBIDDEN:
+        if launch_enables(command, prop):
+            raise ValueError(f"the retained ladder launch command enables -P{prop}, which writes"
+                             f" or clears Minecraft's depth; the ladder launch never does")
+    return {"coexist": launch_enables(command, "harnessNativeCoexist"),
+            "terrainLoad": launch_enables(command, "harnessNativeTerrainLoad")}
 
 
 def coexist_checks(output, report, recounts, log_text, required=False):
@@ -1349,6 +1424,325 @@ def coexist_checks(output, report, recounts, log_text, required=False):
                          " experiment decided nothing per pixel")
     return {"enabled": True, "samples": out, "mixedSamples": mixed,
             "z": EXPECTED_LADDER_DEPTHS[COEXIST_RUNG]}
+
+
+# ---------------- terrain-LOAD: Voxy's real terrain pipeline against Minecraft's loaded depth ----------------
+
+TERRAIN_LOAD_SCENE = "depthSweep"
+# {compareOp, testEnable, writeEnable} VkTerrainRenderer declares: Voxy's GREATER_OR_EQUAL,
+# depth test on, depth WRITES ON (this is Voxy's geometry, not a probe quad).
+TERRAIN_LOAD_DEPTH_STATE = [VK_COMPARE_OP_GREATER_OR_EQUAL, 1, 1]
+TERRAIN_LOAD_COUNTS = ("geometry", "noGeometry", "expectVisible", "expectHidden",
+                       "undetermined", "visible", "hidden", "ambiguous", "other",
+                       "visibleWhereHidden", "hiddenWhereVisible", "changedWhereNoGeometry")
+TERRAIN_LOAD_LOG = re.compile(r"terrain load at draw (\d+) "
+                              + " ".join(f"{name}=(\\d+)" for name in TERRAIN_LOAD_COUNTS)
+                              + r" depth=\[")
+TERRAIN_LOAD_COLOUR_FORMAT, TERRAIN_LOAD_DEPTH_FORMAT = 37, 126   # R8G8B8A8_UNORM, D32_SFLOAT
+
+
+def read_f32_gz(path):
+    """A gzipped `VXF32\n<w> <h>\n` header followed by w*h little-endian float32 values."""
+    import gzip
+    raw = gzip.open(path, "rb").read()
+    first = raw.index(b"\n")
+    if raw[:first] != b"VXF32":
+        raise ValueError(f"{path.name} is not a VXF32 depth crop")
+    second = raw.index(b"\n", first + 1)
+    w, h = (int(v) for v in raw[first + 1:second].split())
+    body = raw[second + 1:]
+    if len(body) != w * h * 4:
+        raise ValueError(f"{path.name} holds {len(body)} bytes for {w}x{h} float32 values")
+    values = struct.unpack("<" + "f" * (w * h), body)
+    return [list(values[y * w:(y + 1) * w]) for y in range(h)], (w, h)
+
+
+def terrain_load_expectation(ladder_class, voxy_depth):
+    """1 = Voxy's pixel must appear, -1 = must not, 0 = the bracket does not decide.
+
+    The ladder class gives Minecraft's depth d: LOW is d < z0, BASE is d = z0, rung i is
+    z_i < d <= z_{i+1} (the last rung z_7 < d <= 1). Voxy's fragment passes when d_V >= d
+    (GREATER_OR_EQUAL), so d_V at or above the bracket's top always passes and d_V at or
+    below its bottom always fails. Same rule as McNativeTerrainLoad.expectation.
+    """
+    z = EXPECTED_LADDER_DEPTHS
+    if ladder_class == LADDER_LOW:
+        return 1 if voxy_depth >= z[0] else 0
+    if ladder_class == LADDER_BASE:
+        return 1 if voxy_depth >= z[0] else -1
+    rung = ladder_class - LADDER_RUNG0
+    if rung < 0 or rung >= LADDER_RUNGS:
+        return 0
+    if voxy_depth <= z[rung]:
+        return -1
+    top = z[rung + 1] if rung + 1 < LADDER_RUNGS else 1.0
+    return 1 if voxy_depth >= top else 0
+
+
+def terrain_load_judge(before, ladder, after, reference, depth):
+    """Count every band pixel the way McNativeTerrainLoad.judge does, from the retained crops:
+    `ladder` classifies Minecraft's depth, `before` is the previous readback (the quad's
+    crop when the coexist experiment ran, else the ladder's), `after` the third readback,
+    `reference` and `depth` Voxy's own render of the same scene."""
+    counts = {name: 0 for name in TERRAIN_LOAD_COUNTS}
+    for y, row in enumerate(after):
+        for x, px in enumerate(row):
+            px = tuple(px[:3])
+            px_before = tuple(before[y][x][:3])
+            same_as_before = px == px_before
+            d = depth[y][x]
+            if not (d > 0.0):
+                counts["noGeometry"] += 1
+                if not same_as_before:
+                    counts["changedWhereNoGeometry"] += 1
+                continue
+            counts["geometry"] += 1
+            same_as_ref = px == tuple(reference[y][x][:3])
+            expect = terrain_load_expectation(ladder_classify(tuple(ladder[y][x][:3])), d)
+            if expect > 0:
+                counts["expectVisible"] += 1
+            elif expect < 0:
+                counts["expectHidden"] += 1
+            else:
+                counts["undetermined"] += 1
+            if same_as_ref and same_as_before:
+                counts["ambiguous"] += 1
+            elif same_as_ref:
+                counts["visible"] += 1
+                if expect < 0:
+                    counts["visibleWhereHidden"] += 1
+            elif same_as_before:
+                counts["hidden"] += 1
+                if expect > 0:
+                    counts["hiddenWhereVisible"] += 1
+            else:
+                counts["other"] += 1
+    return counts
+
+
+def terrain_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
+                        required=False):
+    """Voxy's REAL terrain pipeline, drawn into a pass that LOADs Minecraft's colour and depth
+    with Voxy's own depth state (writes on), judged per pixel against two independent
+    measurements of the same frame: the ladder's bracket of Minecraft's depth and Voxy's own
+    reference depth of the same synthetic scene. A separate probe from the ladder (which never
+    writes depth); it records only on sampled frames, after the ladder's readbacks.
+
+    Per pixel with Voxy geometry: depth at or above the bracket's top -> Voxy's reference
+    colour, exactly; at or below its bottom -> byte-identical to the previous readback;
+    between -> either (counted as undetermined). Pixels without geometry must not change.
+    Zero violations, counts recounted from the retained crops and reconciled with the report
+    and the log; at least one sample must hold both determinate kinds, or the experiment
+    decided nothing.
+    """
+    enabled = ladder_report.get("terrainLoadEnabled")
+    report_path = output / "native-terrain-load.json"
+    logged = {}
+    if log_text is not None:
+        for m in TERRAIN_LOAD_LOG.findall(log_text):
+            if int(m[0]) in logged:
+                raise ValueError(f"the ladder log holds two terrain-load lines for draw {m[0]}")
+            logged[int(m[0])] = [int(v) for v in m[1:]]
+    retained = sorted(p.name for p in output.glob("native-terrain-load-*"))
+    if required and not enabled:
+        raise ValueError("the ladder launch enabled the terrain-LOAD experiment but the ladder"
+                         " says terrainLoadEnabled=false; the experiment's evidence is required")
+    if not enabled:
+        if report_path.is_file():
+            raise ValueError("a terrain-LOAD report is retained although the ladder says the"
+                             " experiment was off")
+        if logged:
+            raise ValueError(f"the ladder log holds terrain-load lines for draws {sorted(logged)}"
+                             f" but the ladder says the experiment was off")
+        if retained:
+            raise ValueError(f"terrain-LOAD files are retained although the experiment was off:"
+                             f" {retained[:6]}")
+        return {"enabled": False}
+    if not report_path.is_file():
+        raise ValueError("the terrain-LOAD experiment was on but native-terrain-load.json is not"
+                         " retained")
+    report = json.loads(report_path.read_text())
+    for field, kind in (("enabled", bool), ("attempted", bool), ("built", bool),
+                        ("drawsRecorded", int), ("width", int), ("height", int),
+                        ("colourFormat", int), ("depthFormat", int), ("scene", str),
+                        ("eye", list), ("centre", list), ("mvp", list), ("drawCount", int),
+                        ("referenceSet", int), ("declaredDepthState", list),
+                        ("depthStateReadBack", bool), ("ladderEnabled", bool),
+                        ("results", list), ("problems", int), ("firstProblem", (str, type(None))),
+                        ("closeFailures", int), ("leakedScenes", int), ("deviceDiverged", bool),
+                        ("readbacksInFlight", int), ("device", str), ("notes", list)):
+        if field not in report:
+            raise ValueError(f"the terrain-LOAD report does not state {field}")
+        value = report[field]
+        if kind is bool:
+            if not isinstance(value, bool):
+                raise ValueError(f"terrainLoad.{field} is {value!r}, not a bool")
+        elif kind is int:
+            if not finite_int(value):
+                raise ValueError(f"terrainLoad.{field} is {value!r}, not an int")
+        elif not isinstance(value, kind):
+            raise ValueError(f"terrainLoad.{field} is {value!r}, not a {kind}")
+    if not report["enabled"] or not report["attempted"] or not report["built"]:
+        raise ValueError(f"the terrain-LOAD probe reports enabled={report['enabled']},"
+                         f" attempted={report['attempted']}, built={report['built']}")
+    if not report["ladderEnabled"]:
+        raise ValueError("the terrain-LOAD probe ran without the ladder, so no bracket exists")
+    if report["scene"] != TERRAIN_LOAD_SCENE:
+        raise ValueError(f"the terrain-LOAD scene is {report['scene']!r}, not the"
+                         f" {TERRAIN_LOAD_SCENE!r} its source lays out")
+    if report["declaredDepthState"] != TERRAIN_LOAD_DEPTH_STATE:
+        raise ValueError(f"the terrain-LOAD probe declares depth state"
+                         f" {report['declaredDepthState']!r}, not Voxy's"
+                         f" {TERRAIN_LOAD_DEPTH_STATE} (GREATER_OR_EQUAL, test on, writes on)")
+    if report["depthStateReadBack"]:
+        raise ValueError("the terrain-LOAD probe claims to have read its depth state back from"
+                         " pipeline creation, which it does not do (the state is declared)")
+    if report["colourFormat"] != TERRAIN_LOAD_COLOUR_FORMAT:
+        raise ValueError(f"the terrain-LOAD colour format is {report['colourFormat']}, not"
+                         f" {TERRAIN_LOAD_COLOUR_FORMAT}")
+    if report["depthFormat"] != TERRAIN_LOAD_DEPTH_FORMAT:
+        raise ValueError(f"the terrain-LOAD depth format is {report['depthFormat']}, not the"
+                         f" D32_SFLOAT ({TERRAIN_LOAD_DEPTH_FORMAT}) the pipeline declares")
+    if len(report["mvp"]) != 16 or not all(finite_number(v) for v in report["mvp"]):
+        raise ValueError(f"the terrain-LOAD mvp is not 16 finite numbers: {report['mvp']!r}")
+    if report["drawCount"] < 1 or report["referenceSet"] < 1:
+        raise ValueError(f"the terrain-LOAD scene has drawCount={report['drawCount']},"
+                         f" referenceSet={report['referenceSet']}; nothing was drawn")
+    if report["notes"]:
+        raise ValueError(f"the terrain-LOAD probe reported notes: {report['notes']}")
+    if (report["problems"] or report["closeFailures"] or report["leakedScenes"]
+            or report["firstProblem"] is not None):
+        raise ValueError(f"the terrain-LOAD probe reports problems={report['problems']},"
+                         f" closeFailures={report['closeFailures']},"
+                         f" leakedScenes={report['leakedScenes']},"
+                         f" firstProblem={report['firstProblem']!r}")
+    if report["deviceDiverged"]:
+        raise ValueError("Minecraft's device diverged during the terrain-LOAD run")
+    if report["readbacksInFlight"]:
+        raise ValueError(f"{report['readbacksInFlight']} terrain-LOAD readback(s) never"
+                         f" completed, so the report is not final")
+    ladder_device = device_handle_of(ladder_report["device"], "ladder", "device")
+    if device_handle_of(report["device"], "terrainLoad", "device") != ladder_device:
+        raise ValueError(f"the terrain-LOAD probe names device {report['device']} but the ladder"
+                         f" names {ladder_report['device']}")
+    sample_ats = [r["at"] for r in recounts]
+    if report["drawsRecorded"] != len(sample_ats):
+        raise ValueError(f"the terrain-LOAD probe recorded {report['drawsRecorded']} pass(es)"
+                         f" but the ladder sampled {len(sample_ats)} frame(s); one pass per"
+                         f" sample is required")
+    if ladder_report.get("terrainLoadDrawsRecorded") != report["drawsRecorded"]:
+        raise ValueError(f"the ladder saw {ladder_report.get('terrainLoadDrawsRecorded')!r}"
+                         f" terrain-LOAD pass(es) but the probe reports"
+                         f" {report['drawsRecorded']}")
+    entries = report["results"]
+    ats = []
+    for entry in entries:
+        if not isinstance(entry, dict) or not finite_int(entry.get("at")):
+            raise ValueError(f"a terrain-LOAD result is malformed: {entry!r}")
+        ats.append(entry["at"])
+    if len(ats) != len(set(ats)):
+        raise ValueError(f"the terrain-LOAD results repeat a draw: {sorted(ats)}")
+    by_at = {entry["at"]: entry for entry in entries}
+    if sorted(by_at) != sorted(sample_ats):
+        raise ValueError(f"terrain-LOAD results exist for draws {sorted(by_at)} but the ladder"
+                         f" sampled draws {sorted(sample_ats)}; every sample must carry one")
+    if log_text is not None and sorted(logged) != sorted(sample_ats):
+        raise ValueError(f"the ladder log holds terrain-load lines for draws {sorted(logged)}"
+                         f" but the ladder sampled draws {sorted(sample_ats)}")
+    referenced = {"native-terrain-load.json"}
+    out, mixed = [], 0
+    for recount in recounts:
+        at = recount["at"]
+        entry = by_at[at]
+        for field in TERRAIN_LOAD_COUNTS:
+            if not finite_int(entry.get(field)) or entry[field] < 0:
+                raise ValueError(f"terrain-LOAD at draw {at}: {field} is {entry.get(field)!r}")
+        rect = recount["rect"]
+        published = next((s for s in ladder_report.get("samples") or []
+                          if isinstance(s, dict) and s.get("at") == at), {})
+        width, height = published.get("targetWidth"), published.get("targetHeight")
+        suffix = f"{width}x{height}-{rect[0]}-{rect[1]}-{rect[2]}-{rect[3]}"
+        wanted = {"file": f"native-terrain-load-{at}.ppm.gz",
+                  "frameFile": f"native-terrain-load-frame-{at}.ppm.gz",
+                  "referenceFile": f"native-terrain-load-reference-{suffix}.ppm.gz",
+                  "referenceDepthFile": f"native-terrain-load-depth-{suffix}.f32.gz"}
+        for field, name in wanted.items():
+            if entry.get(field) != name:
+                raise ValueError(f"terrain-LOAD at draw {at} names {field}={entry.get(field)!r},"
+                                 f" not {name!r}")
+            if not (output / name).is_file():
+                raise ValueError(f"the retained terrain-LOAD file {name} is missing")
+            referenced.add(name)
+        after, (aw, ah) = read_ppm_gz(output / wanted["file"])
+        ladder, (lw, lh) = read_ppm_gz(output / recount["sample"])
+        if (aw, ah) != (lw, lh):
+            raise ValueError(f"the terrain-LOAD crop is {aw}x{ah} but the ladder crop is"
+                             f" {lw}x{lh}")
+        before_name = (f"native-depth-ladder-coexist-{at}.ppm.gz" if coexist_enabled
+                       else recount["sample"])
+        before, (bw, bh) = read_ppm_gz(output / before_name)
+        if (bw, bh) != (aw, ah):
+            raise ValueError(f"the previous readback's crop {before_name} is {bw}x{bh}, not"
+                             f" {aw}x{ah}")
+        reference, (rw, rh) = read_ppm_gz(output / wanted["referenceFile"])
+        depth, (dw, dh) = read_f32_gz(output / wanted["referenceDepthFile"])
+        if (rw, rh) != (aw, ah) or (dw, dh) != (aw, ah):
+            raise ValueError(f"the terrain-LOAD reference crops are {rw}x{rh} and {dw}x{dh},"
+                             f" not the band's {aw}x{ah}")
+        if any(not (0.0 <= d <= 1.0) or math.isnan(d) for row in depth for d in row):
+            raise ValueError(f"the terrain-LOAD reference depth at draw {at} holds values"
+                             f" outside [0, 1]")
+        thumb, _ = read_ppm_gz(output / wanted["frameFile"])
+        if ladder_anchor_blocks(after, rect, thumb) == 0:
+            raise ValueError(f"the terrain-LOAD crop at draw {at} covers no whole thumbnail"
+                             f" block, so its position cannot be checked")
+        counts = terrain_load_judge(before, ladder, after, reference, depth)
+        for field, value in counts.items():
+            if entry[field] != value:
+                raise ValueError(f"terrain-LOAD at draw {at} reports {field}={entry[field]} but"
+                                 f" the retained crops say {value}")
+        if log_text is not None and logged.get(at) != [counts[k] for k in TERRAIN_LOAD_COUNTS]:
+            raise ValueError(f"the ladder log's terrain-load line for draw {at} says"
+                             f" {logged.get(at)} but the crops say"
+                             f" {[counts[k] for k in TERRAIN_LOAD_COUNTS]}")
+        geometry_depths = [d for row in depth for d in row if d > 0.0]
+        for field, want in (("minDepth", min(geometry_depths, default=None)),
+                            ("maxDepth", max(geometry_depths, default=None))):
+            got = entry.get(field)
+            if want is None:
+                if got is not None:
+                    raise ValueError(f"terrain-LOAD at draw {at} reports {field}={got!r} with"
+                                     f" no geometry in the band")
+            elif not finite_number(got) or abs(got - want) > 1e-6 * max(abs(want), 1e-30):
+                raise ValueError(f"terrain-LOAD at draw {at} reports {field}={got!r} but the"
+                                 f" reference depth crop says {want!r}")
+        if counts["geometry"] == 0:
+            raise ValueError(f"terrain-LOAD at draw {at}: the reference holds no geometry in the"
+                             f" band, so the pass drew nothing to judge")
+        if counts["other"]:
+            raise ValueError(f"terrain-LOAD at draw {at}: {counts['other']} pixel(s) are neither"
+                             f" Voxy's reference colour nor the previous readback's")
+        if counts["changedWhereNoGeometry"]:
+            raise ValueError(f"terrain-LOAD at draw {at}: {counts['changedWhereNoGeometry']}"
+                             f" pixel(s) without Voxy geometry changed")
+        if counts["visibleWhereHidden"] or counts["hiddenWhereVisible"]:
+            raise ValueError(f"terrain-LOAD at draw {at}: Voxy's pixel appears at"
+                             f" {counts['visibleWhereHidden']} pixel(s) whose depth is at or"
+                             f" below Minecraft's bracket and is missing at"
+                             f" {counts['hiddenWhereVisible']} pixel(s) whose depth is at or"
+                             f" above it; Voxy's terrain did not compose per pixel")
+        if counts["expectVisible"] and counts["expectHidden"]:
+            mixed += 1
+        out.append({"at": at, **counts, **wanted})
+    stray = sorted(set(retained) - referenced)
+    if stray:
+        raise ValueError(f"{len(stray)} retained terrain-LOAD file(s) belong to no listed result:"
+                         f" {stray[:6]}")
+    if not mixed:
+        raise ValueError("no terrain-LOAD sample holds both pixels that must appear and pixels"
+                         " that must not, so the experiment decided nothing per pixel")
+    return {"enabled": True, "samples": out, "mixedSamples": mixed,
+            "declaredDepthState": TERRAIN_LOAD_DEPTH_STATE, "scene": TERRAIN_LOAD_SCENE}
 
 
 def recount_ladder_sample(output, sample):
@@ -1544,7 +1938,8 @@ def ladder_z_direction(samples, checkpoints):
 
 
 def native_ladder_result(output, expected_device=None, expected_extents=None,
-                         log_text=None, checkpoints=None, require_coexist=False):
+                         log_text=None, checkpoints=None, require_coexist=False,
+                         require_terrain_load=False):
     """Gate the depth ladder's own launch: Minecraft's loaded depth, tested, never written.
 
     This run is SEPARATE from the main native launch because the terrain probe clears the
@@ -1561,6 +1956,9 @@ def native_ladder_result(output, expected_device=None, expected_extents=None,
         retained_crops = [p.name for p in output.glob("native-depth-ladder-*.ppm.gz")]
         result.update(ladder_report_checks(output, report, expected_device, expected_extents,
                                            retained_crops, log_text, require_coexist))
+        result["terrain_load"] = terrain_load_checks(
+            output, report, result["samples"], bool(result["coexist"].get("enabled")),
+            log_text, require_terrain_load)
         latest = result["samples"][-1]
         result["answer"] = (f"{len(result['samples'])} sample(s); the latest (draw"
                             f" {latest['at']}) brackets: " + "; ".join(latest["brackets"]))
@@ -1578,6 +1976,11 @@ def native_ladder_result(output, expected_device=None, expected_extents=None,
                                  f" samples ({result['coexist']['mixedSamples']} mixed)")
         else:
             result["answer"] += "; which direction is nearer is not judged here"
+        if result["terrain_load"].get("enabled"):
+            tl = result["terrain_load"]
+            result["answer"] += (f"; Voxy's terrain pipeline in a LOADed pass composed per pixel"
+                                 f" with zero violations in {len(tl['samples'])} samples"
+                                 f" ({tl['mixedSamples']} with both determinate kinds)")
         result.update(success=True)
     except (OSError, ValueError, KeyError, TypeError, EOFError, zlib.error) as exc:
         result["failures"].append(f"{type(exc).__name__}: {exc}")
@@ -2300,7 +2703,8 @@ def retain_native_evidence(output, native_output, timestamp, summary):
             ladder_target = target / "ladder"
             ladder_target.mkdir(exist_ok=True)
             ladder_kept = {}
-            for pattern in ("*.json", "native-depth-ladder-*.ppm.gz"):
+            for pattern in ("*.json", "native-depth-ladder-*.ppm.gz",
+                            "native-terrain-load-*.ppm.gz", "native-terrain-load-*.f32.gz"):
                 for path in sorted(ladder_output.glob(pattern)):
                     shutil.copyfile(path, ladder_target / path.name)
                     ladder_kept["ladder/" + path.name] = hashlib.sha256(
@@ -2322,6 +2726,15 @@ def retain_native_evidence(output, native_output, timestamp, summary):
                         raise ValueError(f"the ladder's coexist result references {name!r},"
                                          f" which was not retained")
                     wanted.append("ladder/" + name)
+            terrain_load_path = ladder_output / "native-terrain-load.json"
+            if terrain_load_path.is_file():
+                for entry in json.loads(terrain_load_path.read_text()).get("results") or []:
+                    for field in ("file", "frameFile", "referenceFile", "referenceDepthFile"):
+                        name = (entry or {}).get(field)
+                        if not name or "ladder/" + name not in ladder_kept:
+                            raise ValueError(f"the terrain-LOAD result references {name!r},"
+                                             f" which was not retained")
+                        wanted.append("ladder/" + name)
             for sample in ladder_report.get("samples") or []:
                 for field in ("file", "rejectedFile", "frameFile"):
                     name = (sample or {}).get(field)
@@ -2650,10 +3063,14 @@ def replay_evidence(directory):
                                  " inventory cannot be reconciled")
             # ⚠ Round-15 review R15-COEXIST-PRESENCE: the retained launch command says whether
             # the experiment was on; a report that says otherwise is not that launch's.
-            launched = launch_enables(ladder_stage.get("command"), "harnessNativeCoexist")
+            # ⚠ Round-17 review: the stage's literal tokens are the authority; a command that
+            # lacks them is not the stage's launch (ladder_launch_requirements refuses it).
+            launched = ladder_launch_requirements(ladder_stage.get("command"))
             ladder_result = native_ladder_result(ladder_dir, ladder_device, ladder_extents,
                                                  ladder_log.read_text(errors="replace"),
-                                                 ladder_checkpoints, require_coexist=launched)
+                                                 ladder_checkpoints,
+                                                 require_coexist=launched["coexist"],
+                                                 require_terrain_load=launched["terrainLoad"])
             if not ladder_result["success"]:
                 raise ValueError(f"ladder gate: {ladder_result['failures']}")
             outcome["ladder"] = {"samples": ladder_result["samples"],
@@ -2679,6 +3096,14 @@ def replay_evidence(directory):
             for entry in ladder.get("coexist") or []:
                 ladder_refs.append("ladder/" + str(entry.get("file", "")))
                 ladder_refs.append("ladder/" + str(entry.get("frameFile", "")))
+            for entry in (ladder_result.get("terrain_load") or {}).get("samples") or []:
+                for field in ("file", "frameFile", "referenceFile", "referenceDepthFile"):
+                    ladder_refs.append("ladder/" + str(entry.get(field, "")))
+            outcome["ladder"]["terrain_load"] = ladder_result.get("terrain_load")
+            if (ladder_result.get("terrain_load") or {}).get("enabled"):
+                outcome["replayed"].append("terrain-LOAD per-pixel recount of every retained"
+                                           " crop against the ladder's brackets and Voxy's"
+                                           " reference depth")
         else:
             outcome["not_replayed"].append("the depth ladder: this run retained no ladder"
                                            " launch, so no bound on Minecraft's depth is"
@@ -2871,8 +3296,7 @@ def main():
                 f"-PharnessSeconds={args.seconds}", "-PharnessNative=true",
                 "-PharnessGraphicsBackend=vulkan", "-PharnessNativeFeatures=true",
                 "-PharnessNativeAdopt=true", "-PharnessNativeProbe=true",
-                "-PharnessNativeDepthLadder=true", "-PharnessNativeCoexist=true"],
-                output, args.timeout)
+                *LADDER_LAUNCH_FLAGS], output, args.timeout)
             ladder_run["environment"] = native_environment_result(ladder_output)
             ladder_run["success"] &= ladder_run["environment"]["success"]
             ladder_device, ladder_extents = None, None
@@ -2887,7 +3311,9 @@ def main():
                 ladder_output, ladder_device, ladder_extents,
                 (output / "native-ladder.log").read_text(errors="replace"),
                 ladder_run["environment"].get("checkpoints") or [],
-                require_coexist=launch_enables(ladder_run["command"], "harnessNativeCoexist"))
+                require_coexist=launch_enables(ladder_run["command"], "harnessNativeCoexist"),
+                require_terrain_load=launch_enables(ladder_run["command"],
+                                                    "harnessNativeTerrainLoad"))
             ladder_run["success"] &= ladder_run["ladder"]["success"]
             native_log_checks(ladder_run, output / "native-ladder.log")
             ladder_run["scope"] = ("a second Minecraft launch, terrain and marker OFF, so the"

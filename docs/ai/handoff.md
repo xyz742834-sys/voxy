@@ -204,7 +204,8 @@ python3 scripts/verify.py --only native --seconds 8 --timeout 1500   # launches 
 python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/<run>   # no launch
 ```
 
-Manual isolated ladder run (what launch 2 does; terrain OFF is required):
+Manual isolated ladder run (what launch 2 does, including its two experiments; terrain
+probe and marker OFF are required):
 
 ```
 O=$(mktemp -d)/ladder; mkdir -p $O/game; echo ladder > $O/game/.voxy-harness
@@ -213,7 +214,8 @@ printf 'preferredGraphicsBackend:"vulkan"\nonboardAccessibility:false\ntutorialS
   -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true \
   -PharnessOutput=$O -PharnessRunDir=$O/game -PharnessSeconds=6 -PharnessNative=true \
   -PharnessGraphicsBackend=vulkan -PharnessNativeAdopt=true -PharnessNativeFeatures=true \
-  -PharnessNativeDepthLadder=true
+  -PharnessNativeProbe=true -PharnessNativeDepthLadder=true -PharnessNativeCoexist=true \
+  -PharnessNativeTerrainLoad=true
 ```
 
 ⚠ `verify.py` fails the run if any file under `src/` or `scripts/` changes mid-run
@@ -234,4 +236,4 @@ not fingerprinted.
   replays; the others are tabled).
 - `docs/ai/harness.md` — the review rule.
 - `docs/ai/testing.md` — the stages and what each proves.
-- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 17 runs.
+- `docs/ai/runs/native-evidence/<run>/` — retained evidence, one directory per run (count them; the survey's replay table lists each).
