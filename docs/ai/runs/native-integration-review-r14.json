@@ -1,0 +1,475 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "059df4ca59ad2e9ca8d4d50646d21fc0a06335cc",
+  "review_round": 14,
+  "blocking_findings": [
+    {
+      "id": "R14-DELIVERY",
+      "judgment": "CONFIRMED",
+      "summary": "Standing rounds 4-13 delivery boundary: native Voxy LoD and an accepted diagnostic foundation remain absent; candidate explicitly accepts this boundary. No new blocking direction/evidence finding identified.",
+      "locations": [
+        "docs/ai/project-goal.md:9-17",
+        "docs/ai/project-goal.md:40-51"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R14-TEST-BINDINGS",
+      "judgment": "REFUTED",
+      "summary": "All 175 Python tests pass with the sample-log/report stage guard removed; all 175 also pass with sample/checkpoint cameraY matching removed. Baseline refuses contradictory packages each mutant accepts. Actual HEAD guards work.",
+      "locations": [
+        "scripts/verify.py:1063",
+        "scripts/verify.py:1333",
+        "scripts/tests/test_ladder_gate.py:642-688"
+      ],
+      "reproductions": [
+        "python3 .agent-run/r14-mutants.py log_sample_stage --full",
+        "python3 .agent-run/r14-mutants.py sample_checkpoint_camera --full",
+        "python3 .agent-run/r14-test-escapes.py"
+      ]
+    },
+    {
+      "id": "R14-DOC-DRIFT",
+      "judgment": "REFUTED",
+      "summary": "R13-DOC-DRIFT remains open: survey still calls direction unmeasured; handoff still describes round-13 candidate and prior tests/run; current-state measurement date is wrong; source comments still overstate post-return/native-call proof.",
+      "locations": [
+        "docs/ai/vulkan-native-integration-survey.md:1243-1247",
+        "docs/ai/handoff.md:3-4",
+        "docs/ai/handoff.md:102-104",
+        "docs/ai/handoff.md:125-128",
+        "docs/ai/current-state.md:59-62",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:733-734",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:763"
+      ]
+    },
+    {
+      "id": "R10-ANCHOR-GRAIN",
+      "judgment": "CONFIRMED",
+      "summary": "Complete 4x4 blocks anchor crop position; boundary pixels and within-block permutations remain outside full positional proof."
+    },
+    {
+      "id": "R10-CONSISTENT-FORGERY",
+      "judgment": "CONFIRMED",
+      "summary": "Coordinated rewrite of images, report counts, sample log, saved summary direction and manifest passes conventional Z. Editable consistency records do not authenticate GPU origin."
+    },
+    {
+      "id": "R12-CREATOR-RESTORE",
+      "judgment": "CONFIRMED",
+      "summary": "Post-return states do not authenticate what Vulkan consumed. Inspected creator forwards unchanged state; prior bytecode instrumentation was not repeated."
+    }
+  ],
+  "safe_for_normal_play": {
+    "gl_backend": true,
+    "minecraft_vulkan_backend_inert": true,
+    "would_ship_dormant_change_on_supported_gl_configuration": true,
+    "would_ship_as_functioning_native_voxy": false,
+    "all_native_flags_unset_required": true,
+    "ladder_inert_without_flag": true,
+    "ladder_depth_writes_when_flagged": false,
+    "harness_changes_development_only": true,
+    "scope": "Source-inspected dormant-change safety and fresh unit tests. No Minecraft/player packaged-jar or live GL/Vulkan launch. Voxy stays disabled on Minecraft Vulkan."
+  },
+  "round13_findings_closed": {
+    "R13-Z-BINDING": true,
+    "R13-TEST-XZ": true,
+    "R13-DOC-DRIFT": false
+  },
+  "z_direction_judgment": {
+    "judgment": "CONFIRMED bounded reverse-Z observation and repaired listed consistency checks; REFUTED scale or arbitrary-package GPU authentication",
+    "direction": "larger depth value is nearer (reverse-Z)",
+    "near": {
+      "at": 4082,
+      "cameraY": 80.61999988555908,
+      "groundY": 67,
+      "aboveGround": 13.619999885559082,
+      "brackets": [
+        3,
+        4
+      ],
+      "rungs": [
+        0,
+        0,
+        0,
+        45734,
+        53338,
+        0,
+        0,
+        0
+      ]
+    },
+    "far": {
+      "at": 4322,
+      "cameraY": 176.61999988555908,
+      "groundY": 67,
+      "aboveGround": 109.61999988555908,
+      "brackets": [
+        2
+      ],
+      "rungs": [
+        0,
+        0,
+        99072,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "nearer_look_identified_independently_of_depth": true,
+    "geometry_scope": "Empirical local scene ordering from downward cameras and retained thumbnails; off-centre band, larger displaced higher-camera footprint, no identical-surface or per-ray bound.",
+    "geometry_scope_accurately_stated": true,
+    "scale_measured": false,
+    "coexistence_measured": false,
+    "stage_camera_log_reconciled": true,
+    "shared_ground_required": true,
+    "checkpoint_teleport_geometry_required": true,
+    "sample_checkpoint_camera_y_required": true,
+    "lower_earlier_descend_required": true,
+    "saved_direction_reconciled": true,
+    "metadata_only_passing_reversal_found": false,
+    "coordinated_image_passing_reversal_found": true,
+    "passing_reversal_changed_files": [
+      "summary.json",
+      "ladder/native-depth-ladder.json",
+      "ladder/native-depth-ladder-4082.ppm.gz",
+      "ladder/native-depth-ladder-4322.ppm.gz",
+      "ladder/native-depth-ladder-frame-4082.ppm.gz",
+      "ladder/native-depth-ladder-frame-4322.ppm.gz",
+      "ladder/native-depth-ladder-rejected-4082.ppm.gz",
+      "ladder/native-depth-ladder-rejected-4322.ppm.gz",
+      "ladder/native-ladder.log",
+      "MANIFEST.json"
+    ],
+    "passing_reversal_minimum_proven": false
+  },
+  "terrain_experiment_judgment": {
+    "judgment": "CONFIRMED bounded synthetic equality; REFUTED native LoD/coexistence/accepted-foundation acceptance",
+    "retained_pairs": 21,
+    "all_retained_pairs_independently_identical": true,
+    "selected_draw": 4085,
+    "reported_non_background_pixels": 26116,
+    "mismatches": 0,
+    "synthetic_input": true,
+    "clears_minecraft_frame": true,
+    "accepted_foundation": false
+  },
+  "depth_result_judgment": {
+    "judgment": "CONFIRMED retained all-zero quantized copy and producer-reported raw zero; REFUTED direction/scale/cause from copy",
+    "width": 1708,
+    "height": 960,
+    "quantized_zero_samples": 1639680,
+    "independently_checked_quantized_copy": true,
+    "raw_exact_zero_independently_retained": false,
+    "z_convention_measured_by_copy": false,
+    "copy_discrepancy_explained": false
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED per-pixel retained counts, anchored blocks, isolated identity, bounded reverse-Z and repaired listed bindings; REFUTED native integration acceptance",
+    "retained_samples": 20,
+    "independently_matching_anchored_blocks": 210642,
+    "manifest_members": 217,
+    "matching_selected_source_entries": 408,
+    "own_launch_isolated": true,
+    "terrain_and_marker_off": true,
+    "device": "0x7ae1c50018",
+    "original_replay_exit": 0,
+    "replayed_checks": 10,
+    "replay_table": {
+      "runs": 15,
+      "older_exit_1": 14,
+      "newest_exit_0": 1
+    },
+    "camera_log_tolerance": 0.001,
+    "x_z_tolerance_blocks": 2,
+    "y_tolerance_blocks": 1,
+    "pitch_tolerance_degrees": 1,
+    "yaw_checked_for_equality": false,
+    "probe_zConventionMeasuredHere": false,
+    "accepted_foundation": false
+  },
+  "tests": {
+    "junit": {
+      "tests": 333,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "skips": [
+        "me.cortex.voxy.vk.VkBarriersTest.missingBarrierIsDetected()"
+      ],
+      "task_executed": true
+    },
+    "python": {
+      "tests": 175,
+      "failures": 0,
+      "errors": 0,
+      "skips": 0,
+      "seconds": 390.005
+    },
+    "fixtures_changed_or_shrunk": false,
+    "in_memory_mutants": {
+      "log_sample_stage": {
+        "mutant": "log_sample_stage",
+        "full_suite": false,
+        "run": 13,
+        "failures": [],
+        "errors": [],
+        "skips": [],
+        "success": true,
+        "fixtures_changed": false
+      },
+      "log_sample_stage-full": {
+        "mutant": "log_sample_stage",
+        "full_suite": true,
+        "run": 175,
+        "failures": [],
+        "errors": [],
+        "skips": [],
+        "success": true,
+        "fixtures_changed": false
+      },
+      "first_eligible": {
+        "mutant": "first_eligible",
+        "full_suite": false,
+        "run": 13,
+        "failures": [
+          "test_the_last_look_of_each_stage_is_the_one_judged (test_ladder_gate.LadderDirectionTest)"
+        ],
+        "errors": [],
+        "skips": [],
+        "success": false,
+        "fixtures_changed": false
+      },
+      "sample_checkpoint_camera": {
+        "mutant": "sample_checkpoint_camera",
+        "full_suite": false,
+        "run": 13,
+        "failures": [],
+        "errors": [],
+        "skips": [],
+        "success": true,
+        "fixtures_changed": false
+      },
+      "ignore_xz": {
+        "mutant": "ignore_xz",
+        "full_suite": false,
+        "run": 13,
+        "failures": [
+          "test_a_camera_not_where_the_stage_put_it_fails (test_ladder_gate.LadderDirectionTest)"
+        ],
+        "errors": [],
+        "skips": [],
+        "success": false,
+        "fixtures_changed": false
+      },
+      "sample_checkpoint_camera-full": {
+        "mutant": "sample_checkpoint_camera",
+        "full_suite": true,
+        "run": 175,
+        "failures": [],
+        "errors": [],
+        "skips": [],
+        "success": true,
+        "fixtures_changed": false
+      },
+      "log_harness_stage": {
+        "mutant": "log_harness_stage",
+        "full_suite": false,
+        "run": 13,
+        "failures": [
+          "test_a_stage_label_the_harness_log_contradicts_fails (test_ladder_gate.LadderDirectionTest)"
+        ],
+        "errors": [],
+        "skips": [],
+        "success": false,
+        "fixtures_changed": false
+      },
+      "checkpoint_geometry": {
+        "mutant": "checkpoint_geometry",
+        "full_suite": false,
+        "run": 13,
+        "failures": [
+          "test_split_grounds_or_a_checkpoint_that_contradicts_its_teleport_fail (test_ladder_gate.LadderDirectionTest)"
+        ],
+        "errors": [],
+        "skips": [],
+        "success": false,
+        "fixtures_changed": false
+      },
+      "shared_ground": {
+        "mutant": "shared_ground",
+        "full_suite": false,
+        "run": 13,
+        "failures": [
+          "test_split_grounds_or_a_checkpoint_that_contradicts_its_teleport_fail (test_ladder_gate.LadderDirectionTest)"
+        ],
+        "errors": [],
+        "skips": [],
+        "success": false,
+        "fixtures_changed": false
+      }
+    }
+  },
+  "attack_results": [
+    {
+      "name": "labels_camera_swapped",
+      "exit": 1,
+      "changed_files": [
+        "ladder/native-depth-ladder.json",
+        "MANIFEST.json"
+      ],
+      "error": "ValueError: ladder gate: [\"ValueError: the ladder log for draw 4082 says stage 'descend' but the report says 'ascend'\"]",
+      "direction": null
+    },
+    {
+      "name": "labels_split_ground",
+      "exit": 1,
+      "changed_files": [
+        "summary.json",
+        "ladder/native-depth-ladder.json",
+        "ladder/native-result.json",
+        "MANIFEST.json"
+      ],
+      "error": "ValueError: ladder gate: [\"ValueError: the ladder log for draw 4082 says stage 'descend' but the report says 'ascend'\"]",
+      "direction": null
+    },
+    {
+      "name": "images_histograms_log_unsaved",
+      "exit": 1,
+      "changed_files": [
+        "ladder/native-depth-ladder.json",
+        "ladder/native-depth-ladder-4082.ppm.gz",
+        "ladder/native-depth-ladder-4322.ppm.gz",
+        "ladder/native-depth-ladder-frame-4082.ppm.gz",
+        "ladder/native-depth-ladder-frame-4322.ppm.gz",
+        "ladder/native-depth-ladder-rejected-4082.ppm.gz",
+        "ladder/native-depth-ladder-rejected-4322.ppm.gz",
+        "ladder/native-ladder.log",
+        "MANIFEST.json"
+      ],
+      "error": "ValueError: the retained summary saved the direction 'larger depth value is nearer (reverse-Z)' but the retained evidence now reads 'smaller depth value is nearer (conventional Z)'",
+      "direction": "smaller depth value is nearer (conventional Z)"
+    },
+    {
+      "name": "images_histograms_log_saved",
+      "exit": 0,
+      "changed_files": [
+        "summary.json",
+        "ladder/native-depth-ladder.json",
+        "ladder/native-depth-ladder-4082.ppm.gz",
+        "ladder/native-depth-ladder-4322.ppm.gz",
+        "ladder/native-depth-ladder-frame-4082.ppm.gz",
+        "ladder/native-depth-ladder-frame-4322.ppm.gz",
+        "ladder/native-depth-ladder-rejected-4082.ppm.gz",
+        "ladder/native-depth-ladder-rejected-4322.ppm.gz",
+        "ladder/native-ladder.log",
+        "MANIFEST.json"
+      ],
+      "error": null,
+      "direction": "smaller depth value is nearer (conventional Z)"
+    },
+    {
+      "name": "checkpoint_split_ground",
+      "exit": 1,
+      "changed_files": [
+        "summary.json",
+        "ladder/native-result.json",
+        "MANIFEST.json"
+      ],
+      "error": "ValueError: ladder gate: [\"ValueError: the two looks state different grounds ({'descend': 67, 'ascend': -29}); the harness measures one ground for both, so these checkpoints are not its\"]",
+      "direction": null
+    },
+    {
+      "name": "checkpoint_camera_contradiction",
+      "exit": 1,
+      "changed_files": [
+        "summary.json",
+        "ladder/native-result.json",
+        "MANIFEST.json"
+      ],
+      "error": "ValueError: ladder gate: ['ValueError: the ascend checkpoint states cameraY=136.62, not the 176.62 its ground and teleport imply']",
+      "direction": null
+    },
+    {
+      "name": "checkpoint_player_contradiction",
+      "exit": 1,
+      "changed_files": [
+        "summary.json",
+        "ladder/native-result.json",
+        "MANIFEST.json"
+      ],
+      "error": "ValueError: ladder gate: ['ValueError: the ascend checkpoint states playerY=135, not the 175.00 its ground and teleport imply']",
+      "direction": null
+    },
+    {
+      "name": "checkpoint_pitch_contradiction",
+      "exit": 1,
+      "changed_files": [
+        "summary.json",
+        "ladder/native-result.json",
+        "MANIFEST.json"
+      ],
+      "error": "ValueError: ladder gate: ['ValueError: the ascend checkpoint states playerPitch=30, not the 90.00 its ground and teleport imply']",
+      "direction": null
+    },
+    {
+      "name": "log_stage_contradiction",
+      "exit": 1,
+      "changed_files": [
+        "ladder/native-ladder.log",
+        "MANIFEST.json"
+      ],
+      "error": "ValueError: ladder gate: [\"ValueError: the harness log had stage 'overworld' current when draw 4082 was sampled, but the report labels it 'descend'\"]",
+      "direction": null
+    },
+    {
+      "name": "log_camera_contradiction",
+      "exit": 1,
+      "changed_files": [
+        "ladder/native-ladder.log",
+        "MANIFEST.json"
+      ],
+      "error": "ValueError: ladder gate: ['ValueError: the ladder log for draw 4082 says camera [0.5, 176.61999988555908, 0.5, 90.0, 0.0] but the report says [0.5, 80.61999988555908, 0.5, 90.0, 0.0]']",
+      "direction": null
+    },
+    {
+      "name": "reordered_reconciled_pair",
+      "exit": 1,
+      "changed_files": [
+        "ladder/native-depth-ladder.json",
+        "ladder/native-ladder.log",
+        "MANIFEST.json"
+      ],
+      "error": "ValueError: ladder gate: ['ValueError: the descend sample (draw 4322) does not precede the ascend sample (draw 4082), contradicting the lifecycle order']",
+      "direction": null
+    }
+  ],
+  "evidence_source_binding": {
+    "retained_revision": "bebcbd649b5b4f1459a5ca4a78951695aca4c523",
+    "run_worktree_dirty": true,
+    "changed_sources_during_run": [],
+    "selected_source_bytes_match_reviewed_head": true,
+    "commit_identity_authenticated": false
+  },
+  "not_checked": [
+    "No Minecraft/native/live launch, by instruction.",
+    "No fresh environment/validation-loader gate, full screenshot measurement or player packaged-jar runtime.",
+    "No full original readbacks, retained world save, unpainted band reference or per-ray distance survey.",
+    "No depth scale, other hooks/seeds/devices, coexistence, native LoD, sustained world updates/lifetimes or GPU pressure acceptance.",
+    "No authentication of editable records, dependencies, runtime binaries, JVM, driver or GPU execution.",
+    "Round-12 production-creator bytecode instrumentation was not repeated."
+  ],
+  "review_report": "docs/ai/runs/native-integration-review.md",
+  "supporting_artifacts": [
+    ".agent-run/r14-gradle.log",
+    ".agent-run/r14-python.log",
+    ".agent-run/r14-replay.log",
+    ".agent-run/r14-attacks.json",
+    ".agent-run/r14-independent.json",
+    ".agent-run/r14-replay-table.json",
+    ".agent-run/r14-test-escapes.json",
+    ".agent-run/r14-mutant-log_sample_stage-full.json",
+    ".agent-run/r14-mutant-sample_checkpoint_camera-full.json"
+  ]
+}
