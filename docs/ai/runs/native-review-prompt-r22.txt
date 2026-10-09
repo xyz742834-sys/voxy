@@ -1,0 +1,61 @@
+You are an INDEPENDENT reviewer, round 22. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (8ba67fc562d2090422ecf1e8ba75a9d4dea9a2d2). Round 21 returned REDESIGN against 03ee3485 on the
+standing DELIVERY-BOUNDARY only: it closed R20-REAL-ENGINE-IDENTITY and R20-DESTROY-ACCOUNTING;
+it found R20-REAL-METADATA, R20-REAL-SKIP-PROVENANCE, R20-TEST-REALLOAD incomplete and added
+R21-ATLAS-PROVENANCE, R21-ATLAS-RESET, R21-REPAIR-HANDOFF (all non-blocking). Report:
+docs/ai/runs/native-integration-review-r21.md, machine verdict ...-r21.json.
+
+The HEAD:
+(1) REPAIRS (d0a08faf): scene quads capped at MAX_QUADS and each judged sample's scene facts
+equal its numbered build log line ("real-LOAD scene #N: ..."); skips corroborated by build
+attempts logged before them, by the instance lines' capture chronology (no-camera), by the
+resize stage (extent), by the empty build's ordinal (nothing-meshed); report builds and atlas
+reads equal the log; each sample's atlas generation equals the reads logged before it; a copy
+requested before a reset is discarded on arrival (epoch) and the atlas is reset at session end
+and device release; a test per remaining guard; the survey's round-20 wording corrected.
+(2) NEW, measured: OCCLUSION. The real-section scene no longer draws sections nearer than
+Minecraft's render distance (128 blocks; an approximation at level-3 granularity of Voxy not
+drawing where vanilla terrain draws). The horizon look moves to y 160, pitch 18, so the band's
+rays clear Minecraft's hills and meet only Voxy-only terrain; a stone wall 20 blocks ahead covers
+half of it; edit removes it and returns to its old position. real_load_checks now REQUIRES a
+judged sample with pixels that must be hidden, and pins the cut.
+(3) a0fab3f1: the first gated occlusion run failed the ladder gate because the frame rate fell
+and descend got no ladder sample; the harness now does not leave a stage the ladder has not
+sampled after it became ready, and the ladder's sample limit is 40. Nothing in the gate changed.
+Newest run docs/ai/runs/native-evidence/20261009T120055-798091Z (built from a0fab3f1): at
+horizon 2003 must-appear pixels shown, 3306 must-hide pixels hidden, zero violations; Z
+direction, coexistence, terrain-LOAD, instance mode judged in the same run.
+
+The boundary from rounds 4-21 still governs and the candidate accepts it. It claims (a) the R21
+items are repaired, (b) the occlusion measurement — both halves of per-pixel composition for
+one look, at bracket grain, with Minecraft's own matrix — and no more (one look, one wall, an
+approximated near cut; not LoD selection, traversal, culling, translucency, lighting or a
+delivered renderer), (c) the survey/handoff claim no more. Judge all three.
+
+Judge, CONFIRMED or REFUTED with file/line or command:
+1. Re-run your R21 attacks (invented quads/centre, conceal-* skips, stale atlas generation/count,
+   atlas reset with a pending callback) against the new run; name any that replay 0.
+2. Occlusion: recount the horizon sample independently; is the near cut what the source says;
+   does the harness change alter any other stage (positions, the Z-direction looks, the GL live
+   scenario that shares the harness)? Attack the hidden-pixel requirement and the cut pin.
+3. The per-stage sampling wait: can it hang a run (ladder off, limit reached, problems), and does
+   it change what any gate measures?
+4. Tests: JUnit 347 (1 documented skip), Python 282; guard removals for real_load_checks,
+   real_load_skip_provenance and the new requirements. Fixtures must not be shrunk.
+5. Survey/handoff overstatement.
+6. Safety for normal play with every voxy.native.* flag unset, on GL and on Minecraft Vulkan.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T120055-798091Z
+Do NOT run scripts/verify.py --only native or --only live; judge the committed evidence.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round21_findings_closed (mapping
+R20-REAL-METADATA, R20-REAL-SKIP-PROVENANCE, R20-TEST-REALLOAD, R21-ATLAS-PROVENANCE,
+R21-ATLAS-RESET, R21-REPAIR-HANDOFF to true/false), occlusion_judgment, real_load_judgment,
+atlas_judgment, instance_mode_judgment, terrain_load_judgment, coexist_judgment,
+z_direction_judgment and ladder_judgment.
