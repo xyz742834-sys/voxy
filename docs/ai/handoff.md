@@ -233,8 +233,25 @@ alone, then repair blocking findings in a separate commit.
    pass, judged per pixel".
 3. **Done (measured): the real-section LOAD experiment, confirmed by r20 for the visible half;
    occlusion measured in this HEAD (unreviewed)** — see "What is measured". **Next, in order:**
-   (a) Voxy's real near-terrain cut: the vanilla visible-section stream feeding the depth bound,
-   natively, instead of the level-3 render-distance approximation; (b) LoD beyond one level: mesh the
+   **Review state (2026-10-09):** rounds 18–23 had no blocking finding besides the delivery
+   boundary, and after round 23 no open code or gate finding remains (its residuals were wording,
+   fixed in `32de53c2`). Round 24 is NOT dispatched for wording alone; it goes with the next
+   implementation milestone below (owner directive: no evidence-only loops).
+   **Next milestone, designed 2026-10-09 (not in the tree): `McNativeHierarchicalLoad`** — Voxy's
+   whole hierarchical pipeline natively, the step from "real sections at one level" to Voxy's LoD:
+   `VkHierarchicalScene` (real world mapper/bakery, `NodeManager`, HiZ, traversal, prep/cull,
+   table, opaque/temporal/translucent — `VkHierarchicalScene.record`, `:737`) driven on the ladder's
+   hand-off frames with MC's matrix (`McNativeCamera`, the same `prepare(mvp, camSection, sub, …)`
+   the interop probe used), rendering into Voxy's own `VkRenderTarget`; then a **composite pass in
+   MC's LOADed colour+depth** that writes Voxy's colour and depth where Voxy's depth ≥ MC's
+   (GREATER_OR_EQUAL, writes on) — the native analogue of the GL path's resolve, without GL. The
+   per-pixel judge is the real-LOAD one unchanged: the ladder's bracket against Voxy's own depth of
+   the same frame. Questions it answers: does Voxy's own LoD selection/culling produce terrain that
+   composes with MC's depth natively, and what must be submitted outside MC's pass (traversal
+   compute, HiZ) and how its lifetime ties to MC's submissions — which is item (c). Reuse:
+   `VkHierarchicalScene`, `VkDepthResolve` (shape of the composite), the ladder/real-LOAD gate.
+   Then: (a) Voxy's real near-terrain cut: the vanilla visible-section stream feeding the depth
+   bound, natively, instead of the level-3 render-distance approximation; (b) LoD beyond one level: mesh the
    levels the hierarchical scene selects (`VkHierarchicalScene` traversal) instead of one fixed
    level; (c) tie the scene's lifetime to MC's submissions without the per-sample
    `vkDeviceWaitIdle` (today's safe-but-blocking uniform write). The historical design notes
