@@ -18,15 +18,18 @@ import verify
 from verify import native_ladder_result
 from test_marker_gate import write_gz_ppm
 from test_ladder_gate import (DEVICE, EXTENTS, TERRAIN_REF, direction_checkpoints,
-                              direction_samples, full_ladder_package)
+                              direction_samples, full_ladder_package, sample)
 
 
 class HierLoadGateTest(unittest.TestCase):
 
     def run_gate(self, hier_violate=None, hier_status=None, mutate_ladder=None, mutate_hier=None,
                  mutate_files=None, log=None, require=True, depth_kind="sweep", terrain=False,
-                 real=False, frames=False, require_frames=None):
-        pairs = direction_samples()
+                 real=False, frames=False, require_frames=None, pairs=None):
+        # the two straight-down ground looks hold no clear pixel; Voxy's GL rule shows it only on
+        # clear pixels, so a later look with clear sky between clouds carries the must-show side
+        if pairs is None:
+            pairs = direction_samples() + [sample(at=3480, kind="clouds", stage="reconnect")]
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             body, tl, text = full_ladder_package(out, pairs, terrain=terrain, real=real, hier=True,
@@ -57,15 +60,16 @@ class HierLoadGateTest(unittest.TestCase):
         self.assertTrue(result["success"], result["failures"])
         hl = result["hier_load"]
         self.assertTrue(hl["enabled"])
-        self.assertEqual(hl["judged"], 2)
+        self.assertEqual(hl["judged"], 3)
         self.assertGreater(hl["expectVisible"], 0)
         self.assertGreater(hl["expectHidden"], 0)
         self.assertIn("hierarchical pipeline composited natively", result["answer"])
 
     def test_alongside_terrain_and_real_load_every_sample_goes_to_one_experiment(self):
-        result = self.run_gate(terrain=True, real=True, hier_status=None)
-        # two samples outside horizon: terrain then real; hier gets none -> its gate must say so
-        self.assertRefused(result, "decided nothing")
+        # three samples outside horizon go terrain, real, hier: the hierarchy gets only the last,
+        # a ground look with no clear pixel, so nothing may show -> its gate must say so
+        ground = direction_samples() + [sample(at=3480, kind="near", stage="reconnect")]
+        self.assertRefused(self.run_gate(terrain=True, real=True, pairs=ground), "decided nothing")
 
     def test_pixel_violations_fail(self):
         for violate, fragment in (("visible", "visibleWhereHidden=1"),
@@ -75,7 +79,9 @@ class HierLoadGateTest(unittest.TestCase):
             self.assertRefused(self.run_gate(hier_violate=violate), fragment)
 
     def test_occlusion_and_visibility_are_both_required(self):
-        self.assertRefused(self.run_gate(depth_kind="near-only"), "occlusion is untested")
+        # the hierarchy gets only an all-clear look: everything may show, nothing is hidden
+        sky = direction_samples() + [sample(at=3480, kind="zero", stage="reconnect")]
+        self.assertRefused(self.run_gate(terrain=True, real=True, pairs=sky), "occlusion is untested")
 
     def test_skips_are_corroborated_with_this_experiments_log(self):
         # honest skips on the first sample, the second judged with both kinds: passes
@@ -181,7 +187,7 @@ class HierLoadGateTest(unittest.TestCase):
     def test_every_frame_rendering_is_reconciled_with_the_log(self):
         ok = self.run_gate(frames=True)
         self.assertTrue(ok["success"], ok["failures"])
-        self.assertEqual(ok["hier_load"]["frames"]["framesComposited"], 4998)
+        self.assertEqual(ok["hier_load"]["frames"]["framesComposited"], 4997)
         self.assertEqual(self.run_gate()["hier_load"]["frames"], {"everyFrame": False})
         self.assertRefused(self.run_gate(frames=False, require_frames=True),
                            "everyFrame=false")

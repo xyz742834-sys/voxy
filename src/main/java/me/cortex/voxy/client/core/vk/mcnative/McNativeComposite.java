@@ -18,11 +18,11 @@ import static org.lwjgl.system.MemoryStack.stackPush;
 import static org.lwjgl.vulkan.VK10.*;
 
 /**
- * The native depth-tested composite: Voxy's own target (colour + D32 depth) drawn into a pass
- * that LOADs Minecraft's colour and depth, with Voxy's {@link VkDepth#COMPARE_OP} and depth
- * writes on. The native analogue of the GL path's resolve, without GL: a Voxy pixel lands
- * exactly where its depth is at or nearer than Minecraft's; pixels Voxy did not draw (depth =
- * {@link VkDepth#CLEAR}) are discarded and Minecraft's stay untouched.
+ * The native composite: Voxy's own target colour (and its depth reprojected into Minecraft's
+ * space, which marks where Voxy drew) drawn into a pass that LOADs Minecraft's colour and depth.
+ * Voxy's GL composition rule: a Voxy pixel lands only where Minecraft's depth is still the clear
+ * value — the fragment depth is 0 and the test is {@link VkDepth#COMPARE_OP} (GREATER_OR_EQUAL),
+ * writes off. Pixels Voxy did not draw are discarded and Minecraft's stay untouched.
  *
  * <p>Shape taken from {@code VkDepthResolve} (full-screen triangle, texelFetch, Voxy's shader and
  * pipeline helpers). Differences: two sampled sources, a colour AND depth attachment (Minecraft's
@@ -57,7 +57,8 @@ final class McNativeComposite {
         this.pipeline = VkGraphicsPipeline.builder(this.shader)
             .colorFormat(VkRenderTarget.FORMAT_COLOR)
             .depthFormat(VkRenderTarget.FORMAT_DEPTH)
-            .depthTest(true).depthWrite(true)
+            // Voxy's GL rule: only where Minecraft's depth is still clear (native_composite.frag)
+            .depthTest(true).depthWrite(false)
             .depthCompare(VkDepth.COMPARE_OP)
             .cullMode(VK_CULL_MODE_NONE)
             .build();

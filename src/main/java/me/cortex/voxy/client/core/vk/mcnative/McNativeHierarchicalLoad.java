@@ -36,15 +36,16 @@ import java.util.OptionalDouble;
  * needs native instance mode): {@link VkHierarchicalScene} — the real world mapper/bakery,
  * {@code NodeManager}, HiZ, traversal, prep/cull, table, opaque/temporal/translucent — driven with
  * Minecraft's own matrix ({@link McNativeCamera}) on the frames the ladder hands it, rendering
- * into Voxy's own {@link VkRenderTarget}; then {@link McNativeComposite} writes Voxy's colour and
- * depth into a pass that LOADs Minecraft's colour and depth, with Voxy's GREATER_OR_EQUAL and
- * writes on — the native analogue of the GL path's resolve, without GL.
+ * into Voxy's own {@link VkRenderTarget}; then {@link McNativeComposite} writes Voxy's colour into
+ * a pass that LOADs Minecraft's colour and depth — only where Minecraft's depth is still clear,
+ * Voxy's GL composition rule (the GL path's stencil from Minecraft's depth) — the native analogue
+ * of the GL path's resolve, without GL.
  *
  * <h2>What is judged</h2>
- * The same per-pixel rule as real-LOAD: the ladder's bracket of Minecraft's depth against Voxy's
- * own depth of the same frame (the target, read back after the last iteration). Voxy's colour
- * must appear exactly where its depth is at or above the bracket top, the previous readback must
- * stay where it is at or below the bottom; between, either; no Voxy pixel, unchanged.
+ * Since 2026-10-10 the GL rule, per pixel against the ladder of the same frame: where Voxy drew
+ * (its target, read back after the last iteration), its colour must appear exactly on the
+ * ladder's CLEAR pixels (Minecraft's depth exactly 0) and every other pixel must stay as the
+ * previous readback had it; no Voxy pixel, unchanged.
  *
  * <h2>Per hand-off</h2>
  * {@link #ITERATIONS} rounds of: device observed idle (no earlier Minecraft submission can still
@@ -55,11 +56,12 @@ import java.util.OptionalDouble;
  * rounds let LoD selection converge on a frame that is rendered only every few seconds.
  *
  * <h2>Stated limits of this slice</h2>
- * Voxy renders with Minecraft's projection (far plane 2048), not its own near 16 / far 48000 with a
- * depth reprojection at the composite as the GL path does, so LoD beyond Minecraft's far plane is
- * clipped. No near cut: Voxy's vanilla-bound mechanism (visible-section stream feeding the depth
- * bound) is not native, so near terrain coincides with Minecraft's (undetermined at bracket
- * grain). The device-idle wait per hand-off is safe but blocking.
+ * Voxy renders with its own near 16 / far 48000 projection; its depth is reprojected into
+ * Minecraft's space (the R32F image) but not written into Minecraft's depth, which nothing after
+ * the level-render tail reads. Minecraft's terrain does not occlude Voxy's traversal/HiZ as on GL
+ * (Voxy's submission runs before Minecraft's frame executes), so culling is less effective, not
+ * less correct. Composited at the level-render tail, after Minecraft's translucents. The
+ * device-idle wait per hand-off is safe but blocking.
  */
 public final class McNativeHierarchicalLoad implements Destroyable {
     /**
@@ -85,6 +87,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     static final int BUILD_BUDGET = 6;
     static final float[] CLEAR = {0.05f, 0.05f, 0.10f, 1.0f};
     static final VkHierarchicalScene.Visibility VISIBILITY = VkHierarchicalScene.Visibility.CULL;
+    /** Voxy's GL composition rule: Voxy only where Minecraft's depth is still clear. */
+    static final boolean CLEAR_ONLY = true;
     static final int[] DECLARED_DEPTH_STATE = McNativeTerrainLoad.DECLARED_DEPTH_STATE;
     static final String JUDGED = "judged", NO_ENGINE = "no-world-engine",
         NO_CAMERA = "no-camera-this-frame", EXTENT = "camera-extent-mismatch",
@@ -665,7 +669,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                     maxDepth = Float.isNaN(maxDepth) ? d : Math.max(maxDepth, d);
                 }
             }
-            long[] counts = McNativeTerrainLoad.judge(band.classes(), band.pixels(), after, refRgb, refDepth);
+            // Voxy's GL rule: shown exactly on the ladder's CLEAR pixels, hidden everywhere else
+            long[] counts = McNativeTerrainLoad.judge(band.classes(), band.pixels(), after, refRgb, refDepth,
+                CLEAR_ONLY);
             String file = McNativeTerrainLoad.writeCrop(data, width, q, "native-hier-load-" + at + ".ppm.gz");
             String frameFile = McNativeTerrainLoad.writeFrame(data, width, height,
                 "native-hier-load-frame-" + at + ".ppm.gz");

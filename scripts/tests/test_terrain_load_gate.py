@@ -336,6 +336,17 @@ class TerrainLoadGateTest(unittest.TestCase):
         self.assertEqual(e(last, 0.5), 0)
         self.assertEqual(e(last, 1.0), 1)
         self.assertEqual(e(verify.LADDER_OTHER, 0.5), 0)
+        # CLEAR (2026-10-10): Minecraft's depth exactly 0, so any Voxy depth passes
+        CLEAR = verify.LADDER_CLEAR
+        self.assertEqual(e(CLEAR, 1e-9), 1)
+        self.assertEqual(e(CLEAR, 0.5), 1)
+        # Voxy's GL rule (hierarchical composite): shown only on CLEAR, hidden everywhere else
+        c = verify.terrain_load_expectation_clear_only
+        self.assertEqual(c(CLEAR), 1)
+        for cls in [LOW, BASE, verify.LADDER_OTHER] + [R0 + i for i in range(verify.LADDER_RUNGS)]:
+            self.assertEqual(c(cls), -1, cls)
+        self.assertTrue(verify.HIER_LOAD_SPEC["clear_only"])
+        self.assertFalse(verify.REAL_LOAD_SPEC.get("clear_only", False))
         self.assertEqual(verify.TERRAIN_LOAD_DEPTH_STATE, [6, 1, 1])
         self.assertEqual(verify.TERRAIN_LOAD_SCENE, "depthSweep")
 

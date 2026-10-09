@@ -811,8 +811,12 @@ EXPECTED_LADDER_BAND = [-0.6, 0.36, 0.6, 0.2]
 # to the same grey and made a rejected-orientation crop look drawn. Now dark purple.
 EXPECTED_LADDER_PALETTE = [[1.0, 1.0, 1.0], [0.5, 0.0, 0.5], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0],
                            [1.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0],
-                           [1.0, 0.5, 0.0], [0.5, 0.0, 1.0]]
+                           [1.0, 0.5, 0.0], [0.5, 0.0, 1.0], [1.0, 0.5, 1.0]]
+# Index 10 = CLEAR (2026-10-10): Voxy's GREATER_OR_EQUAL at depth 0, drawn after LOW and before the
+# rungs, so it survives exactly where Minecraft's depth is the clear value 0 — Minecraft drew
+# nothing there. LOW is then 0 < d < z_0. Voxy's GL path composes only on such pixels.
 LADDER_BASE, LADDER_LOW, LADDER_RUNG0 = 0, 1, 2
+LADDER_CLEAR = LADDER_RUNG0 + 8
 LADDER_OTHER = len(EXPECTED_LADDER_PALETTE)
 
 
@@ -910,7 +914,7 @@ LADDER_COEXIST_LOG = re.compile(
 LADDER_SAMPLE_LOG = re.compile(r"depth ladder sample at draw (\d+) ")
 LADDER_SAMPLE_LOG_DETAIL = re.compile(
     r"depth ladder sample at draw (\d+) flipped=(true|false) counts=\[anomaly=(\d+) low=(\d+)"
-    r" r0=(\d+) r1=(\d+) r2=(\d+) r3=(\d+) r4=(\d+) r5=(\d+) r6=(\d+) r7=(\d+) other=(\d+)\]"
+    r" clear=(\d+) r0=(\d+) r1=(\d+) r2=(\d+) r3=(\d+) r4=(\d+) r5=(\d+) r6=(\d+) r7=(\d+) other=(\d+)\]"
     r" stage=(\S*) camera=\[(\S+) (\S+) (\S+) (\S+) (\S+)\]")
 HARNESS_STAGE_LOG = re.compile(r"\[voxy-harness\] stage=(\w+)")
 # The REQUEST line is written when the frame is captured; the sample line when the GPU
@@ -1146,22 +1150,22 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
             # the sample line (callback time) must repeat what the request line (capture
             # time) said about the stage and camera; the stage of record is the request's
             request = requests[sample["at"]]
-            if list(line[12:18]) != list(request):
+            if list(line[13:19]) != list(request):
                 raise ValueError(f"the ladder log's request for draw {sample['at']} says"
                                  f" stage/camera {list(request)} but its sample line says"
-                                 f" {list(line[12:18])}")
+                                 f" {list(line[13:19])}")
             counts = sample.get("counts") or {}
             want = [str(sample.get("flipped")).lower(), str(counts.get("anomaly")),
-                    str(counts.get("low"))] + [str(v) for v in (counts.get("rungs") or [])] \
-                   + [str(counts.get("other"))]
-            if list(line[:12]) != want:
+                    str(counts.get("low")), str(counts.get("clear"))] \
+                   + [str(v) for v in (counts.get("rungs") or [])] + [str(counts.get("other"))]
+            if list(line[:13]) != want:
                 raise ValueError(f"the ladder log for draw {sample['at']} says"
-                                 f" flipped/counts {list(line[:12])} but the report says {want}")
-            if line[12] != str(sample.get("stage")):
+                                 f" flipped/counts {list(line[:13])} but the report says {want}")
+            if line[13] != str(sample.get("stage")):
                 raise ValueError(f"the ladder log for draw {sample['at']} says stage"
-                                 f" {line[12]!r} but the report says {sample.get('stage')!r}")
+                                 f" {line[13]!r} but the report says {sample.get('stage')!r}")
             logged_camera = []
-            for v in line[13:18]:
+            for v in line[14:19]:
                 try:
                     logged_camera.append(float(v))
                 except ValueError:
@@ -1234,7 +1238,7 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
                                  f" resolves to {want} in a {full_w}x{full_h} frame"
                                  f" (flipped={flipped})")
         counts = sample["counts"]
-        for field in ("anomaly", "low", "other"):
+        for field in ("anomaly", "low", "clear", "other"):
             if not finite_int(counts.get(field)) or counts[field] < 0:
                 raise ValueError(f"ladder sample {index}.counts.{field} is"
                                  f" {counts.get(field)!r}")
@@ -1244,7 +1248,7 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
             raise ValueError(f"ladder sample {index}.counts.rungs is {rungs!r}")
         rect = sample["rect"]
         area = (rect[2] - rect[0]) * (rect[3] - rect[1])
-        total = counts["anomaly"] + counts["low"] + counts["other"] + sum(rungs)
+        total = counts["anomaly"] + counts["low"] + counts["clear"] + counts["other"] + sum(rungs)
         if total != area:
             raise ValueError(f"ladder sample {index} counts {total} pixels but its band holds"
                              f" {area}")
@@ -1462,8 +1466,9 @@ def coexist_checks(output, report, recounts, log_text, required=False):
             for x in range(aw):
                 px, px0 = tuple(after[y][x][:3]), tuple(before[y][x][:3])
                 cls = ladder_classify(px0)
-                expect_pass = cls == LADDER_LOW or (LADDER_RUNG0 <= cls < LADDER_RUNG0 + COEXIST_RUNG)
-                expect_fail = LADDER_RUNG0 + COEXIST_RUNG <= cls < LADDER_OTHER
+                expect_pass = cls in (LADDER_LOW, LADDER_CLEAR) or (
+                    LADDER_RUNG0 <= cls < LADDER_RUNG0 + COEXIST_RUNG)
+                expect_fail = LADDER_RUNG0 + COEXIST_RUNG <= cls < LADDER_RUNG0 + LADDER_RUNGS
                 counts["expectedPass"] += expect_pass
                 counts["expectedFail"] += expect_fail
                 # ⚠ Round-15 review R15-COEXIST-RGB: classes were compared, so a quad pixel
@@ -1814,6 +1819,8 @@ def terrain_load_expectation(ladder_class, voxy_depth):
     below its bottom always fails. Same rule as McNativeTerrainLoad.expectation.
     """
     z = EXPECTED_LADDER_DEPTHS
+    if ladder_class == LADDER_CLEAR:
+        return 1   # Minecraft's depth is exactly 0: any Voxy depth passes GREATER_OR_EQUAL
     if ladder_class == LADDER_LOW:
         return 1 if voxy_depth >= z[0] else 0
     if ladder_class == LADDER_BASE:
@@ -1827,7 +1834,14 @@ def terrain_load_expectation(ladder_class, voxy_depth):
     return 1 if voxy_depth >= top else 0
 
 
-def terrain_load_judge(before, ladder, after, reference, depth):
+def terrain_load_expectation_clear_only(ladder_class):
+    """Voxy's GL composition rule (McNativeTerrainLoad.expectationClearOnly): the GL path draws
+    Voxy only where Minecraft's depth is the clear value (a stencil built from Minecraft's depth),
+    so Voxy must show on the ladder's CLEAR pixels and nowhere else, whatever its depth."""
+    return 1 if ladder_class == LADDER_CLEAR else -1
+
+
+def terrain_load_judge(before, ladder, after, reference, depth, clear_only=False):
     """Count every band pixel the way McNativeTerrainLoad.judge does, from the retained crops:
     `ladder` classifies Minecraft's depth, `before` is the previous readback (the quad's
     crop when the coexist experiment ran, else the ladder's), `after` the third readback,
@@ -1846,7 +1860,9 @@ def terrain_load_judge(before, ladder, after, reference, depth):
                 continue
             counts["geometry"] += 1
             same_as_ref = px == tuple(reference[y][x][:3])
-            expect = terrain_load_expectation(ladder_classify(tuple(ladder[y][x][:3])), d)
+            cls = ladder_classify(tuple(ladder[y][x][:3]))
+            expect = (terrain_load_expectation_clear_only(cls) if clear_only
+                      else terrain_load_expectation(cls, d))
             if expect > 0:
                 counts["expectVisible"] += 1
             elif expect < 0:
@@ -2340,7 +2356,8 @@ def judge_load_sample(output, recount, entry, at, coexist_enabled, logged, log_t
     thumb, _ = read_ppm_gz(output / wanted["frameFile"])
     if ladder_anchor_blocks(after, recount["rect"], thumb) == 0:
         raise ValueError(f"the {L} crop at draw {at} covers no whole thumbnail block")
-    counts = terrain_load_judge(before, ladder, after, reference, depth)
+    counts = terrain_load_judge(before, ladder, after, reference, depth,
+                                clear_only=spec.get("clear_only", False))
     for field, value in counts.items():
         if entry[field] != value:
             raise ValueError(f"{L} at draw {at} reports {field}={entry[field]} but the"
@@ -2546,7 +2563,9 @@ def hier_frames_checks(report, log_text, entries, required, ladder_draws=None):
 
 HIER_LOAD_SPEC = {"label": "hierarchical-LOAD", "line_label": "hier-load", "prefix": "native-hier-load",
                   "line_re": HIER_LOAD_LOG_LINE, "attempts": hier_load_build_attempts,
-                  "nothing_re": HIER_NOTHING_LOG, "budget": HIER_LOAD_BUILD_BUDGET}
+                  "nothing_re": HIER_NOTHING_LOG, "budget": HIER_LOAD_BUILD_BUDGET,
+                  # Voxy's GL rule: shown exactly on CLEAR pixels, hidden on every other
+                  "clear_only": True}
 
 
 def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text, required=False,
@@ -3000,10 +3019,10 @@ def recount_ladder_sample(output, sample):
         for px in row:
             counts[ladder_classify(px)] += 1
     published = sample["counts"]
-    ours = {"anomaly": counts[LADDER_BASE], "low": counts[LADDER_LOW],
+    ours = {"anomaly": counts[LADDER_BASE], "low": counts[LADDER_LOW], "clear": counts[LADDER_CLEAR],
             "rungs": counts[LADDER_RUNG0:LADDER_RUNG0 + LADDER_RUNGS],
             "other": counts[LADDER_OTHER]}
-    for field in ("anomaly", "low", "rungs", "other"):
+    for field in ("anomaly", "low", "clear", "rungs", "other"):
         if published[field] != ours[field]:
             raise ValueError(f"recounting {sample['file']} finds {field}={ours[field]}, not the"
                              f" published {published[field]}; the aggregate does not match the"
@@ -3077,7 +3096,7 @@ def ladder_anchor_blocks(crop_rows, crop_rect, thumb_rows):
 def ladder_brackets(counts):
     """The per-pixel depth brackets a sample's counts describe, as text; no bound, no direction."""
     z = EXPECTED_LADDER_DEPTHS
-    parts = [f"d < {z[0]:.3g}: {counts['low']} px"]
+    parts = [f"d == 0 (clear): {counts.get('clear', 0)} px", f"0 < d < {z[0]:.3g}: {counts['low']} px"]
     for i, n in enumerate(counts["rungs"]):
         upper = f"{z[i + 1]:.3g}" if i + 1 < LADDER_RUNGS else None
         parts.append((f"{z[i]:.3g} < d <= {upper}" if upper else f"d > {z[i]:.3g}")
@@ -3139,10 +3158,11 @@ def ladder_z_direction(samples, checkpoints):
                              f" y={want_y:.2f} looking straight down, so the Z direction was"
                              f" not measured")
         chosen = max(candidates, key=lambda smp: smp["at"])
-        if chosen["low"]:
+        if chosen["low"] or chosen.get("clear"):
             raise ValueError(f"the {stage} sample at draw {chosen['at']} has {chosen['low']}"
-                             f" pixel(s) below the smallest rung looking straight down at the"
-                             f" ground, so that look is not of the ground")
+                             f" pixel(s) below the smallest rung and {chosen.get('clear')} clear"
+                             f" looking straight down at the ground, so that look is not of the"
+                             f" ground")
         indices = [i for i, n in enumerate(chosen["rungs"]) if n]
         picked[stage] = {"at": chosen["at"], "cameraY": chosen["camera"][1],
                          "groundY": ground, "aboveGround": chosen["camera"][1] - ground,

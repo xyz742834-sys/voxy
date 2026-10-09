@@ -381,6 +381,8 @@ public final class McNativeTerrainLoad implements Destroyable {
      */
     static int expectation(int ladderClass, float voxyDepth) {
         float[] z = McNativeDepthLadder.depths();
+        // Minecraft's depth is exactly the clear value 0: any Voxy depth passes GREATER_OR_EQUAL
+        if (ladderClass == McNativeDepthLadder.CLEAR) return 1;
         if (ladderClass == McNativeDepthLadder.LOW) return voxyDepth >= z[0] ? 1 : 0;
         if (ladderClass == McNativeDepthLadder.BASE) return voxyDepth >= z[0] ? 1 : -1;
         int rung = ladderClass - McNativeDepthLadder.RUNG0;
@@ -400,6 +402,22 @@ public final class McNativeTerrainLoad implements Destroyable {
      * @param refDepth 参照の深度、帯の順 ({@link VkDepth#CLEAR} = 幾何なし)
      */
     static long[] judge(byte[] classes, byte[] before, byte[] after, int[] refRgb, float[] refDepth) {
+        return judge(classes, before, after, refRgb, refDepth, false);
+    }
+
+    /**
+     * Voxy's GL composition rule (2026-10-10): Voxy's terrain appears only where Minecraft drew
+     * nothing — the GL path builds a stencil from Minecraft's depth and draws only where it is the
+     * clear value. A composite under that rule must show Voxy exactly on CLEAR pixels and leave
+     * every other pixel as it was, whatever Voxy's depth.
+     */
+    static int expectationClearOnly(int ladderClass) {
+        return ladderClass == McNativeDepthLadder.CLEAR ? 1 : -1;
+    }
+
+    /** @param clearOnly judge by {@link #expectationClearOnly} instead of the depth-test rule */
+    static long[] judge(byte[] classes, byte[] before, byte[] after, int[] refRgb, float[] refDepth,
+                        boolean clearOnly) {
         long[] c = new long[COUNTS];
         int n = classes.length;
         for (int i = 0; i < n; i++) {
@@ -416,7 +434,7 @@ public final class McNativeTerrainLoad implements Destroyable {
             boolean sameAsRef = (after[i3] & 0xFF) == (rgb & 0xFF)
                 && (after[i3 + 1] & 0xFF) == ((rgb >> 8) & 0xFF)
                 && (after[i3 + 2] & 0xFF) == ((rgb >> 16) & 0xFF);
-            int expect = expectation(classes[i], refDepth[i]);
+            int expect = clearOnly ? expectationClearOnly(classes[i]) : expectation(classes[i], refDepth[i]);
             if (expect > 0) c[EXPECT_VISIBLE]++;
             else if (expect < 0) c[EXPECT_HIDDEN]++;
             else c[UNDETERMINED]++;

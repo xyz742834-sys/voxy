@@ -42,6 +42,7 @@ RUNGS = verify.LADDER_RUNGS
 D = verify.EXPECTED_LADDER_DEPTHS
 PALETTE = [tuple(int(round(c * 255)) for c in colour) for colour in verify.EXPECTED_LADDER_PALETTE]
 BASE, LOW, RUNG0 = verify.LADDER_BASE, verify.LADDER_LOW, verify.LADDER_RUNG0
+CLEAR = verify.LADDER_CLEAR
 SCENE = (60, 120, 30)  # grass-ish: a channel in the gap, so "other"
 # The device the shared lifecycle-checkpoint fixture names; the ladder must name the same one.
 DEVICE = verify.device_handle_of(
@@ -74,7 +75,10 @@ def depth_field(width, height, kind="gradient"):
 
 
 def colour_of(d):
-    """What the GPU leaves at a pixel of depth d: GREATER control, else the last LESS rung."""
+    """What the GPU leaves at a pixel of depth d: the CLEAR quad (GREATER_OR_EQUAL at 0) where d is
+    exactly 0, else the GREATER control, else the last LESS rung."""
+    if d == 0.0:
+        return PALETTE[CLEAR]
     if d < D[0]:
         return PALETTE[LOW]
     passed = [i for i in range(RUNGS) if D[i] < d]
@@ -82,7 +86,7 @@ def colour_of(d):
 
 
 def counts_of(field):
-    counts = {"anomaly": 0, "low": 0, "rungs": [0] * RUNGS, "other": 0}
+    counts = {"anomaly": 0, "low": 0, "clear": 0, "rungs": [0] * RUNGS, "other": 0}
     for row in field:
         for d in row:
             c = colour_of(d)
@@ -90,6 +94,8 @@ def counts_of(field):
                 counts["anomaly"] += 1
             elif c == PALETTE[LOW]:
                 counts["low"] += 1
+            elif c == PALETTE[CLEAR]:
+                counts["clear"] += 1
             else:
                 counts["rungs"][PALETTE.index(c) - RUNG0] += 1
     return counts
@@ -330,6 +336,8 @@ def write_gz_f32(path, rows):
 def terrain_expect(ladder_depth, voxy_depth):
     """The fixture's own statement of the rule (not the gate's): Voxy passes at d_V >= d."""
     # the ladder colour only says which bracket d is in, so decide from the bracket
+    if ladder_depth == 0.0:
+        return 1   # CLEAR: Minecraft's depth is exactly 0, any Voxy depth passes
     if ladder_depth < D[0]:
         lo, hi = None, D[0]
     else:
@@ -345,10 +353,16 @@ def terrain_expect(ladder_depth, voxy_depth):
     return 0
 
 
-def terrain_after(field, before, depth, violate=None):
+def clear_expect(ladder_depth, voxy_depth):
+    """The fixture's statement of Voxy's GL rule: shown exactly where Minecraft's depth is 0."""
+    return 1 if ladder_depth == 0.0 else -1
+
+
+def terrain_after(field, before, depth, violate=None, expect=None):
     """The band after Voxy's terrain pass: the reference colour where its depth is at or above
     the bracket's top (and, by choice, where undetermined), the previous readback elsewhere.
     `violate` paints one wrong pixel: "visible", "hidden", "other" or "changed"."""
+    terrain_expect = expect or globals()["terrain_expect"]
     after = []
     for y, row in enumerate(field):
         out = []
@@ -377,8 +391,9 @@ def terrain_after(field, before, depth, violate=None):
     return after
 
 
-def terrain_entry(sample, field, before, depth, after):
+def terrain_entry(sample, field, before, depth, after, expect=None):
     """The counts the implementation publishes, derived independently from the crops."""
+    terrain_expect = expect or globals()["terrain_expect"]
     c = {name: 0 for name in verify.TERRAIN_LOAD_COUNTS}
     for y, row in enumerate(field):
         for x, d in enumerate(row):
@@ -470,6 +485,7 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
     afters = [coexist_after(f, s["flipped"]) for s, f in pairs]
     coexist_entries = [coexist_entry(s, f, a) for (s, f), a in zip(pairs, afters)]
     terrain_entries, real_entries, hier_entries = [], [], []
+    hier_violated = False
     consumers = verify.ladder_expected_consumers(terrain, real, hier, [s["stage"] for s, _ in pairs])
     for i, ((s, f), quad) in enumerate(zip(pairs, afters)):
         write_sample_files(out, s, f)
@@ -494,7 +510,13 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
                 hier_entries.append(skip)
                 continue
             depth = terrain_depth(len(f[0]), len(f), depth_kind)
-            after = terrain_after(f, before, depth, hier_violate if not hier_entries else None)
+            # paint the violation on the first sample that has a pixel of its kind
+            try:
+                after = terrain_after(f, before, depth, None if hier_violated else hier_violate,
+                                      expect=clear_expect)
+                hier_violated = hier_violated or hier_violate is not None
+            except StopIteration:
+                after = terrain_after(f, before, depth, None, expect=clear_expect)
             entry = hier_entry(s, f, before, depth, after)
             write_real_files(out, s, f, after, depth, entry)
             write_gz_f32(out / entry["voxyDepthFile"], hier_raw_depth(depth, entry, s))
@@ -572,7 +594,7 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
 def hier_entry(sample, field, before, depth, after):
     """The hierarchical-LOAD probe's published result for a judged sample: real-LOAD's counts and
     projection facts, its own files, scene build and iteration count."""
-    entry = real_entry(sample, field, before, depth, after)
+    entry = real_entry(sample, field, before, depth, after, clear_expect)
     at = sample["at"]
     for key in ("sceneLevel", "sceneCentre", "sceneSections", "sceneQuads", "sceneDraws",
                 "excludedNear", "cutBlocks", "nearestSection"):
@@ -655,10 +677,10 @@ def hier_log_for(entries, atlas_logged=False, frames=None):
     return "".join(lines)
 
 
-def real_entry(sample, field, before, depth, after):
+def real_entry(sample, field, before, depth, after, expect=None):
     """The real-LOAD probe's published result for a judged sample: the same counts as
     terrain-LOAD (derived independently from the crops) plus the scene and projection facts."""
-    entry = terrain_entry(sample, field, before, depth, after)
+    entry = terrain_entry(sample, field, before, depth, after, expect)
     at = sample["at"]
     projection = verify._mat_perspective(math.radians(70), 16 / 9, 0.05, 2048.0)
     entry.update(status="judged", stage=sample["stage"], cameraCapture=sample["at"],
@@ -752,7 +774,7 @@ def log_for(samples, stage_lines=True, late_sample_lines=False):
                      f" stage={s.get('stage')} camera=[{cam}]\n")
         sample_line = (f"[native-vk] depth ladder sample at draw {s.get('at', 0)}"
                        f" flipped={str(s.get('flipped', False)).lower()} counts=[anomaly="
-                       f"{c.get('anomaly')} low={c.get('low')} {rungs} other={c.get('other')}]"
+                       f"{c.get('anomaly')} low={c.get('low')} clear={c.get('clear')} {rungs} other={c.get('other')}]"
                        f" stage={s.get('stage')} camera=[{cam}]\n")
         if late_sample_lines:
             if pending is not None:
@@ -821,7 +843,9 @@ class LadderGateTest(unittest.TestCase):
         result = self.run_gate(body, fields)
         self.assertTrue(result["success"], result["failures"])
         w, h = band_size()
-        self.assertEqual(result["samples"][0]["low"], w * h)
+        # since 2026-10-10 exactly-cleared pixels are their own class, CLEAR, not LOW
+        self.assertEqual(result["samples"][0]["clear"], w * h)
+        self.assertEqual(result["samples"][0]["low"], 0)
         self.assertEqual(result["samples"][0]["rungs"], [0] * RUNGS)
 
     def test_a_flipped_sample_passes_when_the_orientation_is_published(self):
@@ -950,7 +974,8 @@ class LadderGateTest(unittest.TestCase):
         self.assertEqual(verify.EXPECTED_LADDER_PALETTE,
                          [[1.0, 1.0, 1.0], [0.5, 0.0, 0.5], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0],
                           [1.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0],
-                          [1.0, 0.5, 0.0], [0.5, 0.0, 1.0]])
+                          [1.0, 0.5, 0.0], [0.5, 0.0, 1.0], [1.0, 0.5, 1.0]])
+        self.assertEqual(verify.LADDER_CLEAR, 10)
         self.assertEqual(verify.LADDER_FRAME_SCALE, 4)
         self.assertEqual(verify.ladder_band_rect(1708, 960, False), [342, 307, 1366, 384])
         self.assertEqual(verify.ladder_band_rect(1708, 960, True), [342, 576, 1366, 653])
@@ -1227,8 +1252,8 @@ class LadderDirectionTest(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertIn("requests draw 3000 twice", " ".join(result["failures"]))
         # the sample line disagrees with its request (stage), report agreeing with the request
-        disagree = late.replace("flipped=false counts=[anomaly=0 low=0 r0=0 r1=0 r2=0 r3=",
-                                "flipped=false counts=[anomaly=0 low=0 r0=0 r1=0 r2=0 r3=", 1)
+        disagree = late.replace("flipped=false counts=[anomaly=0 low=0 clear=0 r0=0 r1=0 r2=0 r3=",
+                                "flipped=false counts=[anomaly=0 low=0 clear=0 r0=0 r1=0 r2=0 r3=", 1)
         parts = disagree.split("stage=descend camera=")
         # the first occurrence is the request line, the second the sample line of draw 3000
         self.assertGreaterEqual(len(parts), 3)
@@ -1382,6 +1407,13 @@ class LadderCoexistTest(unittest.TestCase):
         self.assertTrue(result["coexist"]["enabled"])
         self.assertEqual(result["coexist"]["mixedSamples"], 1)   # the near look straddles z*
         self.assertIn("zero violations", result["answer"])
+
+    def test_cleared_pixels_expect_the_quad(self):
+        # CLEAR (depth exactly 0) is nearer than z*: the quad must be there, not refused as
+        # "present where it must fail" (its class index lies past the rungs)
+        sky = direction_samples() + [sample(at=3480, kind="clouds", stage="reconnect")]
+        result = self.run_coexist(pairs=sky)
+        self.assertTrue(result["success"], result["failures"])
 
     def test_the_quad_present_where_the_depth_is_farther_fails(self):
         result = self.run_coexist(violate="present")
@@ -1679,7 +1711,12 @@ class LadderRetentionTest(unittest.TestCase):
                 samples = [(s, field)]
             # every retained launch carries the two straight-down looks, which replay judges,
             # and (since round 17) the coexist and terrain-LOAD evidence its command enables
-            samples = list(samples) + direction_samples()
+            # two horizon looks over clear sky between clouds: horizon samples go real-LOAD then
+            # the hierarchy, which composes Voxy only on clear pixels (Voxy's GL rule) and so
+            # needs one to show anything
+            horizon = [sample(at=2520, kind="clouds", stage="horizon"),
+                       sample(at=2760, kind="clouds", stage="horizon")]
+            samples = list(samples) + horizon + direction_samples()
             # the stage's ladder launch runs every experiment its command enables, including
             # instance mode and real-LOAD (alternating with terrain-LOAD)
             import test_instance_gate
@@ -1749,7 +1786,8 @@ class LadderRetentionTest(unittest.TestCase):
         recount = out["ladder"]["samples"][0]
         self.assertTrue(recount["flipped"])
         self.assertGreater(recount["rungs"][0], 0)
-        self.assertGreater(recount["low"], 0)
+        # the clouds field's gaps are exactly 0: the CLEAR class since 2026-10-10
+        self.assertGreater(recount["clear"], 0)
         self.assertEqual(recount["other"], 0)
         self.assertTrue(any("depth-ladder" in step for step in out["replayed"]))
         self.assertFalse(any("depth ladder" in step for step in out["not_replayed"]))

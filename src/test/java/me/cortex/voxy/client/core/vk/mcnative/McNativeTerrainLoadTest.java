@@ -221,4 +221,16 @@ public class McNativeTerrainLoadTest {
         assertTrue(ladder.contains("\"terrainLoadDrawsRecorded\": 0"), ladder);
         assertEquals("depthSweep", McNativeTerrainLoad.SCENE);
     }
+
+    /** The CLEAR class (Minecraft's depth exactly 0) and Voxy's GL composition rule. */
+    @org.junit.jupiter.api.Test
+    void clearPixelsAlwaysPassAndTheGlRuleShowsVoxyOnlyThere() {
+        int clear = McNativeDepthLadder.CLEAR, low = McNativeDepthLadder.LOW, rung = McNativeDepthLadder.RUNG0;
+        org.junit.jupiter.api.Assertions.assertEquals(1, McNativeTerrainLoad.expectation(clear, 1e-9f));
+        org.junit.jupiter.api.Assertions.assertEquals(0, McNativeTerrainLoad.expectation(low, 1e-9f));
+        org.junit.jupiter.api.Assertions.assertEquals(1, McNativeTerrainLoad.expectationClearOnly(clear));
+        org.junit.jupiter.api.Assertions.assertEquals(-1, McNativeTerrainLoad.expectationClearOnly(low));
+        org.junit.jupiter.api.Assertions.assertEquals(-1, McNativeTerrainLoad.expectationClearOnly(rung + 7));
+        org.junit.jupiter.api.Assertions.assertEquals(-1, McNativeTerrainLoad.expectationClearOnly(McNativeDepthLadder.BASE));
+    }
 }

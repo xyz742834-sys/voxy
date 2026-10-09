@@ -186,10 +186,15 @@ public class McNativeDepthLadderTest {
         assertTrue(json.contains("\"rungs\": 8"), json);
         assertTrue(json.contains(expected.append(']').toString()), json);
         assertTrue(json.contains("\"band\": [-0.6, 0.36, 0.6, 0.2]"), json);
-        assertEquals(10, McNativeDepthLadder.PALETTE.length, "base + low + eight rungs");
+        assertEquals(11, McNativeDepthLadder.PALETTE.length, "base + low + eight rungs + clear");
         assertTrue(json.contains("\"palette\": [[1.0, 1.0, 1.0], [0.5, 0.0, 0.5], [1.0, 0.0, 1.0],"
             + " [0.0, 1.0, 1.0], [1.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0],"
-            + " [0.0, 0.0, 1.0], [1.0, 0.5, 0.0], [0.5, 0.0, 1.0]]"), json);
+            + " [0.0, 0.0, 1.0], [1.0, 0.5, 0.0], [0.5, 0.0, 1.0], [1.0, 0.5, 1.0]]"), json);
+        // CLEAR (2026-10-10) is appended so the other indices keep their meaning
+        assertEquals(10, McNativeDepthLadder.CLEAR);
+        assertEquals(McNativeDepthLadder.CLEAR, McNativeDepthLadder.classify(255, 128, 255));
+        assertEquals(McNativeDepthLadder.PALETTE.length, McNativeDepthLadder.classify(255, 0, 128),
+            "half-way shades stay 'other'");
         // The band rect formula is the one the gate re-derives.
         // pixel-centre coverage: x=341 (centre 341.5) lies left of the edge at 341.6
         assertArrayEquals(new int[] {342, 307, 1366, 384},

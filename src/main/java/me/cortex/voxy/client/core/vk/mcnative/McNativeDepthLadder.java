@@ -41,6 +41,10 @@ import static org.lwjgl.vulkan.VK10.*;
  *   <li>比較 GREATER、深度 {@code z_0}、色 LOW (暗い紫) — {@code d < z_0} の画素だけ残る。
  *       これが LESS 経路の<b>正の対照</b>: LESS が全段落ちる画素でも、深度テストが
  *       機能していれば GREATER が通る。どちらも通らなければ (d == z_0 を除き) 異常。</li>
+ *   <li>比較 GREATER_OR_EQUAL、深度 0、色 CLEAR (薄い桃) — {@code d == 0} の画素だけ残る
+ *       (2026-10-10)。MC がその画素に何も描いていない (深度がクリアのまま) ことを示す。
+ *       Voxy の GL 経路が地形を描くのは<b>この画素だけ</b> (MC の深度から作るステンシル) なので、
+ *       その規則で合成する実験はこの区別を要る。LOW は {@code 0 < d < z_0} になる。</li>
  *   <li>比較 LESS、深度 {@code z_0 < z_1 < … < z_7} の<b>昇順</b>、段ごとに別の色 —
  *       画素に最後に残った色は {@code max { i : z_i < d }} を表す。</li>
  * </ol>
@@ -122,8 +126,9 @@ public final class McNativeDepthLadder implements Destroyable {
         {0.0f, 0.0f, 1.0f},   // rung 5  blue
         {1.0f, 0.5f, 0.0f},   // rung 6  orange
         {0.5f, 0.0f, 1.0f},   // rung 7  violet
+        {1.0f, 0.5f, 1.0f},   // CLEAR (light pink): GREATER_OR_EQUAL at 0, so d == 0 exactly
     };
-    public static final int BASE = 0, LOW = 1, RUNG0 = 2;
+    public static final int BASE = 0, LOW = 1, RUNG0 = 2, CLEAR = RUNG0 + RUNGS;
 
     /**
      * 三つのパイプラインの比較演算、添字で引く。{@link #create} はこの配列からパイプラインを
@@ -505,7 +510,7 @@ public final class McNativeDepthLadder implements Destroyable {
 
     // ---------------- 記録 ----------------
 
-    /** BASE (ALWAYS) → LOW (GREATER z_0) → 段 0..7 (LESS、昇順)。<b>深度には書かない</b>。 */
+    /** BASE (ALWAYS) → LOW (GREATER z_0) → CLEAR (GREATER_OR_EQUAL 0) → 段 0..7 (LESS、昇順)。<b>深度には書かない</b>。 */
     private void record(VkCommandBuffer cmd, int width, int height) {
         try (MemoryStack stack = stackPush()) {
             var viewport = org.lwjgl.vulkan.VkViewport.calloc(1, stack)
@@ -522,6 +527,11 @@ public final class McNativeDepthLadder implements Destroyable {
             vkCmdDraw(cmd, 6, 1, 0, 0);
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.pipelines[OP_GREATER]);
             push(cmd, stack, PALETTE[LOW], z[0]);
+            vkCmdDraw(cmd, 6, 1, 0, 0);
+            // CLEAR: Voxy's GREATER_OR_EQUAL (the coexist pipeline, writes off) at depth 0 passes
+            // exactly where Minecraft's depth is still the clear value 0
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.pipelines[OP_COEXIST]);
+            push(cmd, stack, PALETTE[CLEAR], 0.0f);
             vkCmdDraw(cmd, 6, 1, 0, 0);
             vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.pipelines[OP_LESS]);
             for (int i = 0; i < RUNGS; i++) {
@@ -686,9 +696,10 @@ public final class McNativeDepthLadder implements Destroyable {
                     int i3 = i * 3;
                     boolean identical = pixels[i3] == (byte) r && pixels[i3 + 1] == (byte) g
                         && pixels[i3 + 2] == (byte) b;
-                    boolean expectPass = before == LOW || (before >= RUNG0
+                    boolean expectPass = before == LOW || before == CLEAR || (before >= RUNG0
                         && before - RUNG0 < COEXIST_RUNG);
-                    boolean expectFail = before >= RUNG0 && before - RUNG0 >= COEXIST_RUNG;
+                    boolean expectFail = before >= RUNG0 && before - RUNG0 >= COEXIST_RUNG
+                        && before - RUNG0 < RUNGS;
                     if (expectPass) expectedPass++;
                     if (expectFail) expectedFail++;
                     if (coexist) {
@@ -837,7 +848,8 @@ public final class McNativeDepthLadder implements Destroyable {
     }
 
     private static String describe(long[] c) {
-        var sb = new StringBuilder("[anomaly=").append(c[BASE]).append(" low=").append(c[LOW]);
+        var sb = new StringBuilder("[anomaly=").append(c[BASE]).append(" low=").append(c[LOW])
+            .append(" clear=").append(c[CLEAR]);
         for (int i = 0; i < RUNGS; i++) sb.append(" r").append(i).append('=').append(c[RUNG0 + i]);
         return sb.append(" other=").append(c[PALETTE.length]).append(']').toString();
     }
@@ -1336,6 +1348,7 @@ public final class McNativeDepthLadder implements Destroyable {
             sb.append(", \"rect\": ").append(ints(s.rect()));
             sb.append(", \"counts\": {\"anomaly\": ").append(s.counts()[BASE]);
             sb.append(", \"low\": ").append(s.counts()[LOW]);
+            sb.append(", \"clear\": ").append(s.counts()[CLEAR]);
             sb.append(", \"rungs\": [");
             for (int r = 0; r < RUNGS; r++) sb.append(r > 0 ? ", " : "").append(s.counts()[RUNG0 + r]);
             sb.append("], \"other\": ").append(s.counts()[PALETTE.length]).append("}");
