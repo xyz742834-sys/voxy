@@ -146,7 +146,18 @@ public final class McNativeDepthLadder implements Destroyable {
     private static final long READBACK_BUDGET_BYTES = 40L << 20;
     private static final int FAILURE_BUDGET = 3;
     private static final long READBACK_INTERVAL = 240;
-    private static final int SAMPLE_LIMIT = 24;
+    /** 16 lifecycle stages, at least one sample each (the harness waits for it), most two. */
+    private static final int SAMPLE_LIMIT = 40;
+    private static long samplesRequested;
+
+    /** How many samples the ladder has requested so far (the harness waits on it per stage). */
+    public static long samplesRequested() { return samplesRequested; }
+
+    /** Whether the ladder is on and can still take samples (so a stage may wait for one). */
+    public static boolean sampling() {
+        return Boolean.getBoolean(FLAG) && !deviceDiverged && problems < FAILURE_BUDGET
+            && SAMPLES.size() < SAMPLE_LIMIT;
+    }
     private static final int LEAK_BUDGET = 3;
 
     private static final List<String> NOTES = new ArrayList<>();
@@ -419,6 +430,7 @@ public final class McNativeDepthLadder implements Destroyable {
             nextReadbackAt = drawsRecorded + READBACK_INTERVAL;
             long at = drawsRecorded;
             requestReadback(colour, width, height);
+            if (readbackInFlight) samplesRequested++;
             if (readbackInFlight) {
                 String consumer = assignConsumer(McNativeTerrainLoad.enabled(),
                     McNativeRealLoad.enabled(), assigned);

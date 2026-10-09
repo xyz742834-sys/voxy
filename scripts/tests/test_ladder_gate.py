@@ -186,7 +186,7 @@ def report(samples=None, **overrides):
             "rungs": RUNGS, "depthWritesEnabled": False, "zConventionMeasuredHere": False,
             "rungDepths": list(D), "band": list(verify.EXPECTED_LADDER_BAND),
             "palette": [list(c) for c in verify.EXPECTED_LADDER_PALETTE],
-            "readbackInterval": 240, "sampleLimit": 24, "frameScale": 4,
+            "readbackInterval": 240, "sampleLimit": 40, "frameScale": 4,
             "pipelineStates": [[1, 1, 0], [7, 1, 0], [4, 1, 0], [6, 1, 0]],
             "coexistEnabled": False, "coexistRung": 4, "coexistRgb": [0.5, 1.0, 0.5], "coexist": [],
             "samples": samples if samples is not None else [sample()[0]],

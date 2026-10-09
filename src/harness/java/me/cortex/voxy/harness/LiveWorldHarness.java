@@ -39,6 +39,13 @@ public final class LiveWorldHarness implements ClientModInitializer {
     private int stage;
     /** Marker draws recorded when this stage began; native mode waits for real frames. */
     private long markerStart;
+    /**
+     * The depth ladder's request count when this stage first became ready (-1 until then). In a
+     * native launch with the ladder on, a stage is not left until the ladder has requested a
+     * sample after that point: a slower frame rate (measured 2026-10-09: under 240 ladder draws
+     * in the 8-second `descend`) must not silently drop a gated look.
+     */
+    private long ladderReadyMark = -1;
     private boolean entered;
     private boolean done;
     private long started = System.nanoTime();
@@ -101,6 +108,7 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 frameStart = d == null ? 0 : d.frames();
                 markerStart = me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw
                     .status().drawsRecorded();
+                ladderReadyMark = -1;
                 enter(mc);
                 return;
             }
@@ -126,6 +134,9 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 return;
             }
             if (!inWorld(mc) || !ready(mc)) return;
+            if (ladderReadyMark < 0) {
+                ladderReadyMark = me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.samplesRequested();
+            }
             // Prevent an inactive window or a pause menu from silently halting the test.
             mc.options.pauseOnLostFocus = false;
             if (mc.gui.screen() != null && mc.gui.screen().isPauseScreen()) mc.gui.setScreen(null);
@@ -150,7 +161,10 @@ public final class LiveWorldHarness implements ClientModInitializer {
             var marker = me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.status();
             if (elapsed < dwell + (stage == 2 ? 1 : 0)
                 || (!nativeMode && (d == null || d.frames() - frameStart < 20))
-                || (nativeMode && marker.enabled() && marker.drawsRecorded() - markerStart < 2)) return;
+                || (nativeMode && marker.enabled() && marker.drawsRecorded() - markerStart < 2)
+                || (nativeMode && me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.sampling()
+                    && me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.samplesRequested()
+                        - ladderReadyMark < 1)) return;
             if (nativeMode) nativeCheckpoint(mc); else checkpoint(mc);
             if (stage == STAGES.length - 1) {
                 if (screenshotsPending.get() != 0) return;
