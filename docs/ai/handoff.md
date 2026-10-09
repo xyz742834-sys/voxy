@@ -1,8 +1,8 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, HEAD = **the commit that adds the coexistence experiment** (round-15 candidate; its SHA is
-recorded in the docs commit that follows it; round 14 judged `059df4ca` and closed R13-Z-BINDING).
+`vulkan-macos`, HEAD **5509d19f** (`5509d19f8e5706e8972a69f2e01c6ecf7bf42db0`, round-15 candidate, the coexistence
+measurement; round 14 judged `059df4ca` and closed R13-Z-BINDING).
 
 > Read `docs/ai/project-goal.md` and `docs/ai/current-state.md` first, then this. This file is
 > task state, not source of truth; when the work moves on, update it or delete it.

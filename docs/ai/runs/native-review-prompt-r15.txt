@@ -1,0 +1,70 @@
+You are an INDEPENDENT reviewer, round 15. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (5509d19f8e5706e8972a69f2e01c6ecf7bf42db0). Round 14 returned REDESIGN against
+059df4ca with R13-Z-BINDING and R13-TEST-XZ CLOSED; its only blocking item was the standing
+delivery boundary. Non-blocking: R14-TEST-BINDINGS (two reconciliation guards had no test
+that fails without them) and R14-DOC-DRIFT. Its report is
+docs/ai/runs/native-integration-review-r14.md and its machine verdict
+docs/ai/runs/native-integration-review-r14.json.
+
+This HEAD addresses the non-blocking items (two guard tests; the wording, date, handoff and
+source comments) and takes the NEXT GOAL STEP: a first coexistence measurement. Flag
+voxy.native.coexist, enabled only in the ladder launch: on every frame the ladder samples,
+after the ladder's readback is requested, a second LOAD pass draws one quad over the same band
+at z* = the depth of rung 4 (2^-8) with Voxy's own depth compare (VkDepth.COMPARE_OP,
+GREATER_OR_EQUAL, reverse-Z) and NO depth write, in a colour outside the ladder palette; then
+a second readback. Because z* is a rung value no bracket straddles it: pixels below the
+smallest rung or in rungs 0-3 must show the quad, pixels in rungs 4-7 must not and must keep
+their ladder colour. The gate recounts both retained crops pixel by pixel, requires zero
+violations, zero out-of-palette pixels, published counts and the log's coexist line equal to
+the recount, every sample to carry a coexist result, and at least one sample with pixels on
+both sides of z* (the descend look). The quad's pipeline is the fourth pinned pipelineState.
+
+The boundary from rounds 4-14 still governs and the candidate accepts it: an independently
+accepted diagnostic foundation is still REDESIGN. The candidate does NOT claim an accepted
+layer. It claims (a) the round-14 non-blocking items are addressed, (b) a draw with Voxy's
+compare op against Minecraft's loaded depth composes per pixel at this hook for a quad at
+one known depth, with zero tolerance, from retained, reconciled evidence, and (c) the survey
+claims no more than that. Judge all three.
+
+Read docs/ai/project-goal.md and docs/ai/vulkan-native-integration-survey.md first; the
+survey's "Coexistence, first measurement" section and docs/ai/handoff.md state what changed.
+
+Judge, saying CONFIRMED or REFUTED with the file/line or command for each:
+
+1. THE COEXISTENCE MEASUREMENT. Does the second pass really test the quad against
+   Minecraft's loaded depth in the same frame as the ladder's first readback (ordering of the
+   two readbacks; what the first crop's class per pixel means after the ladder's own draws
+   with writes off)? Is "no bracket straddles z*" right for GREATER_OR_EQUAL at exactly a rung
+   value (d == z*)? What could make every sample pass without the compare having composed
+   against Minecraft's depth? Inspect the retained before/after crops of the descend sample.
+2. THE GATE AND REPLAY. Run your mutation table against
+   docs/ai/runs/native-evidence/20261009T045515-905630Z/ladder/ (quad present where the depth is
+   farther, absent where nearer, a changed uncovered pixel, swapped before/after crops,
+   counts lies, a missing coexist crop or log line, the experiment flagged off with results
+   listed), naming any mutation that replays as 0.
+3. TESTS. JUnit 333 (1 documented skip, 0 failures) and 185 Python cases, including
+   LadderCoexistTest. Re-run your in-memory direction mutations and the two guards named in
+   round 14; try removing each coexist check; name any test that would pass against broken
+   code. Fixtures must not be shrunk.
+4. WHETHER THE SURVEY OVERSTATES. Sixteen retained runs; only the newest replays, by design.
+   Judge the coexistence section, the round-14 paragraph and the corrected passages.
+5. SAFETY FOR NORMAL PLAY. With voxy.native.probe / .marker / .features / .adopt / .terrain /
+   .depth / .depthladder / .coexist all unset, would you ship this to a player on the GL
+   backend? On Minecraft's Vulkan backend? Confirm the coexist quad cannot act unflagged and
+   never writes Minecraft's depth even when flagged.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T045515-905630Z
+Do NOT run scripts/verify.py --only native or --only live (it launches Minecraft and takes the
+GPU); judge the committed evidence instead.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round14_findings_closed (an
+object mapping R14-TEST-BINDINGS and R14-DOC-DRIFT to true/false), coexist_judgment (with at
+least same_frame_same_pixels, compare_op_is_voxys, no_depth_write, bracket_rule_sound,
+zero_violations_confirmed, mixed_sample_present, claims_supported), z_direction_judgment,
+terrain_experiment_judgment, depth_result_judgment, and ladder_judgment.
