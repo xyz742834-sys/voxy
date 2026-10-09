@@ -1,0 +1,65 @@
+You are an INDEPENDENT reviewer, round 16. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (a49b926f0f596f504099f735219c91df9f0b2f78). Round 15 returned REDESIGN against
+5509d19f: it CONFIRMED the coexistence measurement (same frame, same pixels, Voxy's compare
+op, no depth write, bracket rule sound including d = z*, zero violations in an independent
+exact-RGB recount of all 24 pairs) and refuted the gate: a report flagged coexistEnabled=false
+with no results replayed as 0 while the retained launch command, the log's 24 coexist lines
+and the saved results said the experiment ran (R15-COEXIST-PRESENCE). Non-blocking:
+R15-COEXIST-RGB (classes compared, not bytes), R15-TEST-COEXIST (twelve guards untested; the
+recorder's pipeline binding outside JUnit), R15-COEXIST-DUPLICATE, R14-DOC-DRIFT residual. Its
+report is docs/ai/runs/native-integration-review-r15.md and its machine verdict
+docs/ai/runs/native-integration-review-r15.json.
+
+The HEAD repairs: the stage and replay take whether the launch enabled the experiment from the
+retained launch command (-PharnessNativeCoexist=true in summary.json's ladder_run.command)
+and require the evidence when it did; a log holding coexist lines is reconciled even if the
+report says off, and the log's coexist draws must equal the sampled draws exactly (no
+duplicates); duplicate results are refused; the quad is detected by exact bytes (128,255,128)
+and uncovered pixels must be byte-identical to the first crop, in both the Java callback and
+the gate; every coexist guard has a test that fails without it; the recorder's draw plan
+(pipeline index, depth, colour) is exposed and pinned by JUnit (the bind call itself remains
+outside any test, stated as a limit); the handoff passages round 15 named are corrected.
+
+The boundary from rounds 4-15 still governs and the candidate accepts it: an independently
+accepted diagnostic foundation is still REDESIGN. The candidate does NOT claim an accepted
+layer. It claims (a) R15-COEXIST-PRESENCE is repaired and the non-blocking items addressed,
+(b) the coexistence measurement stands as round 15 confirmed it, now with exact-byte
+semantics, from retained, reconciled, required evidence, and (c) the survey claims no more
+than that. Judge all three.
+
+Read docs/ai/project-goal.md and docs/ai/vulkan-native-integration-survey.md first; the
+survey's "Coexistence, first measurement" section (with its round-15 paragraph) and
+docs/ai/handoff.md state what changed.
+
+Judge, saying CONFIRMED or REFUTED with the file/line or command for each:
+
+1. R15-COEXIST-PRESENCE. Re-run your flag-off attacks (empty report with and without
+   crops, with the log intact; with the log's coexist lines removed too; with the summary's
+   command edited) against docs/ai/runs/native-evidence/20261009T060453-272917Z and say what a
+   passing downgrade now requires.
+2. THE COEXISTENCE GATE, as now stated. Re-run your bucket-colour attacks, the duplicate, and
+   your full mutation table; name any mutation that replays as 0.
+3. TESTS. JUnit 333 (1 documented skip, 0 failures) and 193 Python cases. Re-run your nineteen
+   guard removals against the coexist tests and name any that all tests still pass; re-run
+   the recorder-binding JVM mutation and judge the stated limit. Fixtures must not be shrunk.
+4. WHETHER THE SURVEY OVERSTATES. Seventeen retained runs; only the newest replays, by
+   design. Judge the coexistence section, its round-15 paragraph, and the handoff.
+5. SAFETY FOR NORMAL PLAY. With voxy.native.probe / .marker / .features / .adopt / .terrain /
+   .depth / .depthladder / .coexist all unset, would you ship this to a player on the GL
+   backend? On Minecraft's Vulkan backend? Confirm the coexist quad cannot act unflagged and
+   never writes Minecraft's depth even when flagged.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T060453-272917Z
+Do NOT run scripts/verify.py --only native or --only live (it launches Minecraft and takes the
+GPU); judge the committed evidence instead.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round15_findings_closed (an
+object mapping R15-COEXIST-PRESENCE, R15-COEXIST-RGB, R15-TEST-COEXIST, R15-COEXIST-DUPLICATE,
+R14-DOC-DRIFT to true/false), coexist_judgment, z_direction_judgment,
+terrain_experiment_judgment, depth_result_judgment, and ladder_judgment.

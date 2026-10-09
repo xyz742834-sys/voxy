@@ -1,8 +1,8 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, HEAD = **the commit that repairs round 15** (round-16 candidate; SHA in the docs commit that
-follows it; round 15 judged `5509d19f`: coexistence CONFIRMED, R15-COEXIST-PRESENCE refuted).
+`vulkan-macos`, HEAD **a49b926f** (`a49b926f0f596f504099f735219c91df9f0b2f78`, round-16 candidate; round 15 judged
+`5509d19f`: coexistence CONFIRMED, R15-COEXIST-PRESENCE refuted and repaired here).
 
 > Read `docs/ai/project-goal.md` and `docs/ai/current-state.md` first, then this. This file is
 > task state, not source of truth; when the work moves on, update it or delete it.
