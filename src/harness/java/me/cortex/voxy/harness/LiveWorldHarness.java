@@ -50,7 +50,15 @@ public final class LiveWorldHarness implements ClientModInitializer {
     private long editVersion;
     private static final String WORLD = "voxy-harness";
     private static final String[] STAGES = {"create", "warmup", "turn", "travel", "return",
-        "edit", "remove", "resize", "reload", "nether", "overworld", "disconnect", "reconnect"};
+        "edit", "remove", "resize", "reload", "nether", "overworld", "descend", "ascend",
+        "disconnect", "reconnect"};
+    /**
+     * The Z-direction experiment: the same ground, looked at straight down from two heights.
+     * The depth ladder (its own launch) samples both; the gate compares the brackets. The
+     * offsets are pinned in scripts/verify.py too; the eye height is Minecraft's.
+     */
+    static final int DESCEND_ABOVE_GROUND = 12, ASCEND_ABOVE_GROUND = 108;
+    private int groundY = Integer.MIN_VALUE;
 
     @Override public void onInitializeClient() {
         if (!FabricLoader.getInstance().isDevelopmentEnvironment() || !Boolean.getBoolean("voxy.harness")) return;
@@ -104,7 +112,7 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 advance();
                 return;
             }
-            if (stage == 11) {
+            if (stage == 13) {
                 if (mc.level != null || mc.hasSingleplayerServer()) return;
                 advance();
                 return;
@@ -116,6 +124,9 @@ public final class LiveWorldHarness implements ClientModInitializer {
             if (stage == 2 && elapsed < dwell) {
                 mc.player.setYRot((float) (elapsed * 180));
                 mc.player.setXRot(30);
+            } else if (stage == 11 || stage == 12) {
+                mc.player.setYRot(0);
+                mc.player.setXRot(90);
             } else {
                 mc.player.setYRot(0);
                 mc.player.setXRot(30);
@@ -143,6 +154,9 @@ public final class LiveWorldHarness implements ClientModInitializer {
 
     private void enter(Minecraft mc) {
         System.out.println("[voxy-harness] stage=" + STAGES[stage]);
+        // Diagnostics that sample during the run (the depth ladder) read this to label
+        // their samples with the lifecycle stage they were taken in.
+        System.setProperty("voxy.harness.stage", STAGES[stage]);
         switch (stage) {
             case 0 -> {
                 mc.options.pauseOnLostFocus = false;
@@ -183,8 +197,15 @@ public final class LiveWorldHarness implements ClientModInitializer {
             case 8 -> reload = mc.reloadResourcePacks();
             case 9 -> command(mc, "execute in minecraft:the_nether run tp @s 0 100 0 0 30");
             case 10 -> command(mc, "execute in minecraft:overworld run tp @s 0 120 0 0 30");
-            case 11 -> mc.disconnect(new TitleScreen(), false);
-            case 12 -> mc.createWorldOpenFlows().openWorld(WORLD, () -> {});
+            case 11 -> {
+                // the highest motion-blocking block under (0, 0) in the loaded chunk: the
+                // ground the two looks straight down compare against
+                groundY = mc.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, 0, 0);
+                command(mc, "tp @s 0 " + (groundY + DESCEND_ABOVE_GROUND) + " 0 0 90");
+            }
+            case 12 -> command(mc, "tp @s 0 " + (groundY + ASCEND_ABOVE_GROUND) + " 0 0 90");
+            case 13 -> mc.disconnect(new TitleScreen(), false);
+            case 14 -> mc.createWorldOpenFlows().openWorld(WORLD, () -> {});
             default -> { }
         }
     }
@@ -203,6 +224,8 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 yield reload.isDone();
             }
             case 9 -> mc.level.dimension() == Level.NETHER && near(mc, 0, 100, 0);
+            case 11 -> groundY != Integer.MIN_VALUE && near(mc, 0, groundY + DESCEND_ABOVE_GROUND, 0);
+            case 12 -> groundY != Integer.MIN_VALUE && near(mc, 0, groundY + ASCEND_ABOVE_GROUND, 0);
             default -> true;
         };
     }
@@ -265,6 +288,13 @@ public final class LiveWorldHarness implements ClientModInitializer {
         // as a fact rather than guessing from how the image looks.
         entry.put("frameCoveredByGui",
             mc.gui.screen() != null || mc.gui.overlay() != null);
+        // Where the player and camera were, and (for the two straight-down stages) the ground
+        // height the teleport was computed from. The ladder gate compares its samples'
+        // camera positions against these.
+        entry.put("playerY", mc.player.getY());
+        entry.put("cameraY", mc.gameRenderer.mainCamera().position().y);
+        entry.put("playerPitch", mc.player.getXRot());
+        entry.put("groundY", groundY == Integer.MIN_VALUE ? null : groundY);
         nativeCheckpoints.add(entry);
         screenshotsPending.incrementAndGet();
         Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image -> {

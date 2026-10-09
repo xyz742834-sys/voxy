@@ -459,7 +459,8 @@ of the point — and the replay status of each is:
 | [20261007T020025-032770Z](runs/native-evidence/20261007T020025-032770Z/MANIFEST.json) | no — its samples predate the frame thumbnails round 9 asked for; kept as the first per-pixel measurement (18 samples, counts confirmed by round 9) |
 | [20261007T022908-162255Z](runs/native-evidence/20261007T022908-162255Z/MANIFEST.json) | no — its source fingerprint is of the tree before the round-10 repairs, which the replay now requires to match the checkout (round 10 confirmed its 18 samples) |
 | [20261007T025423-410921Z](runs/native-evidence/20261007T025423-410921Z/MANIFEST.json) | no — predates the published pipeline states; its fingerprint is of the tree before the round-11 repairs (round 11 confirmed its 18 samples) |
-| [20261007T031630-708042Z](runs/native-evidence/20261007T031630-708042Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources |
+| [20261007T031630-708042Z](runs/native-evidence/20261007T031630-708042Z/MANIFEST.json) | no — its fingerprint is of the tree before the Z-direction stages (round 12 confirmed its 19 samples) |
+| [20261009T033539-494735Z](runs/native-evidence/20261009T033539-494735Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; 24 samples, Z direction judged |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1198,6 +1199,20 @@ thumbnail, log and manifest can pass, as no hash rooted in an editable manifest 
 origin. The replay's claim is "these records agree with each other, with the pinned source
 constants and with this checkout's sources", not authenticity against a forger.
 
+**Round-12 review (2026-10-07).** Round 12
+([native-integration-review-r12.md](runs/native-integration-review-r12.md)) returned REDESIGN
+against `9b6a1816` with **both round-11 findings closed** (B1, R10-CREATE-TEST): the only
+blocking item is the standing delivery boundary — bounded diagnostic observations are not an
+accepted foundation and do not deliver native Voxy LoD — which this document has never
+contested. It confirmed 19 samples, 198 546 anchored blocks and the 408-entry inventory match,
+and named as non-blocking limits (stated here, not repaired): a creator that rewrites the state
+for the Vulkan call and restores it afterwards passes both JUnit and the gate (the Vulkan call
+is outside any test; what checks it is the measurement); block-grain anchoring; consistent
+forgery. Two wordings it called too strong are softened in place ("were created with" in the
+gate message; "checked by the measurement" above now reads as a limit, not a check). For the
+first time in twelve rounds no evidence or gate finding is open; the next work is the goal
+work, starting with the Z direction below.
+
 **Round-11 review repairs (2026-10-07).** Round 11
 ([native-integration-review-r11.md](runs/native-integration-review-r11.md)) returned REDESIGN
 against `867cd25d`: it closed R9-SURVEY-OVERCLAIM, R10-LOG-DETAILS and R10-DEPTH-FIXTURE,
@@ -1217,8 +1232,9 @@ the pipelines if it is not the table's op with the test on and writes off; the o
 are published as `pipelineStates` and `depthWritesEnabled` is derived from them rather than
 written as a literal; the gate pins both. A JUnit test injects a creator that rewrites the state
 and requires the refusal. The production creator is now a three-line `vulkanCreator` whose only
-act is the Vulkan call; a mutation that builds its own struct inside it is beyond any test
-without a device and is what the measurement itself (depth-tested colours) checks. Replay table:
+act is the Vulkan call; a mutation that builds its own struct inside it, or rewrites the state
+for the call and restores it, is beyond any test without a device and beyond the post-return
+read-back — a stated limit, not something the measurement is claimed to check. Replay table:
 after this change **only the newest run replays**, by design; every older cell says "no".
 
 **What the per-pixel ladder does and does not say.** It gives, per sample and per pixel of one
@@ -1226,6 +1242,54 @@ band, the bracket of rungs the depth attachment's value falls in, by Minecraft's
 test, with the depth path positively controlled. It does not say which direction is nearer
 (unmeasured, and the gate forbids claiming it), nor why the buffer copy read 0.0 where the test
 sees non-zero values, nor anything about other regions of the screen.
+
+## The Z direction, measured (2026-10-07)
+
+Rounds 7–12 kept one thing honestly unmeasured: a band of known depths brackets a *value*,
+and which direction of that value is nearer cannot be read from one look. The source facts
+(Minecraft clears depth to 0.0; `setPerspective` is called with near and far swapped) pointed
+at reverse-Z but were not a measurement. The measurement needs two looks at known geometry.
+
+**Method.** Two lifecycle stages were added to the harness, after `overworld` and before the
+disconnect: `descend` teleports the player to **12 blocks above the highest block under
+(0, 0)** (the client heightmap, recorded in the checkpoint as `groundY`), pitch 90 — straight
+down; `ascend` to **108 blocks above** the same block, pitch 90. The ladder, in its own launch
+as before, now labels every sample with the harness stage it was taken in and with the main
+camera's position and rotation at the moment the readback was requested. The gate — not the
+probe, which still asserts `zConventionMeasuredHere: false` — takes the last sample of each of
+the two stages whose camera is where that stage put it (y = ground + offset + the 1.62 eye
+height, within one block; pitch 90 within one degree; x, z at the teleport), requires no pixel
+below the smallest rung in either (straight down at the ground, nothing is sky), and compares
+the bracket indices: if every bracket of the nearer look lies strictly above every bracket of
+the farther look, the larger depth value is nearer; if strictly below, the smaller is. Anything
+else fails the stage. The direction is therefore derived from the retained per-pixel counts of
+two retained crops, anchored to retained thumbnails, with the camera positions and the ground
+height retained beside them.
+
+**Measured** (run [20261009T033539-494735Z](runs/native-evidence/20261009T033539-494735Z/MANIFEST.json),
+replay 0 in this checkout, 24 samples):
+
+| Look | Camera y | Above ground (y = 67) | Brackets with pixels | Pixels |
+| --- | --- | --- | --- | --- |
+| descend, draw 5042 | 80.62 | 13.6 | 3 = (2⁻¹⁰, 2⁻⁸], 4 = (2⁻⁸, 2⁻⁶] | 45 734 + 53 338 |
+| ascend, draw 5522 | 176.62 | 109.6 | 2 = (2⁻¹², 2⁻¹⁰] | 99 072 |
+
+Every pixel of the nearer look holds a **larger** depth value than every pixel of the farther
+look: **the larger depth value is nearer — Minecraft's main depth attachment is reverse-Z**,
+at this hook, by its own depth test, in two retained looks whose geometry the harness set. The
+retained thumbnails show the ground patch in both (grass and trees from 13 blocks; the same
+hills as a far carpet from 110). Under near = 0.05 the brackets correspond to roughly 3–51
+blocks and 51–205 blocks, consistent with the heights; that correspondence is an illustration,
+not part of the measurement.
+
+**What this does and does not say.** It establishes the direction of Minecraft's depth values
+in the attachment reachable at the `LevelRenderer.render` tail, for a world the harness built
+from a fixed seed, with the camera straight down over one spot. It says nothing about the
+depth *scale* (near/far planes, or whether the mapping is the swapped-`setPerspective` one the
+bytecode suggests), about other hooks, or about coexistence: a depth-tested Voxy draw at this
+hook is the next experiment, and it will be gated the same way. The probe still publishes no
+convention; the direction is the gate's reading of two looks, and every input to that reading
+is retained.
 
 ## What is NOT answered yet, and must be measured on hardware
 
@@ -1246,6 +1310,8 @@ sees non-zero values, nor anything about other regions of the screen.
    above: only the launch argument does, and `getBackendDescription()` reports the LWJGL
    version rather than the API, so the backend's identity must come from the device
    class (as the probe does), never from that string.
+6. ~~Which direction of Minecraft's depth value is nearer~~ — measured above: larger is
+   nearer (reverse-Z), from two straight-down looks. The depth *scale* is still unmeasured.
 
 ## Proposed first step (bounded, evidence-first)
 

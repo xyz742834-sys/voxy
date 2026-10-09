@@ -270,16 +270,25 @@ def run_stage(name, arguments, output, timeout):
     return result
 
 
+# The harness's checkpointed lifecycle stages (LiveWorldHarness.STAGES minus "create" and
+# "disconnect", which checkpoint nothing). "descend" and "ascend" are the Z-direction
+# experiment: the same ground looked at straight down from two heights above it.
+LIFECYCLE_STAGES = ("warmup", "turn", "travel", "return", "edit", "remove", "resize", "reload",
+                    "nether", "overworld", "descend", "ascend", "reconnect")
+DESCEND_ABOVE_GROUND, ASCEND_ABOVE_GROUND = 12, 108   # LiveWorldHarness.*_ABOVE_GROUND
+PLAYER_EYE_HEIGHT = 1.62                              # Minecraft's standing eye height
+
+
 def native_environment_result(output):
     """Independently reject preferences, fallback, partial observations and missing images."""
     result = {"success": False, "failures": [], "scope": "Minecraft Vulkan environment; no Voxy LoD acceptance"}
-    expected = {"warmup", "turn", "travel", "return", "edit", "remove", "resize", "reload", "nether", "overworld", "reconnect"}
+    expected = set(LIFECYCLE_STAGES)
     try:
         evidence = json.loads((output / "native-result.json").read_text())
         cases = evidence["checkpoints"]
         if evidence.get("complete") is not True or evidence.get("success") is not True or evidence.get("failures") != []:
             raise ValueError("Native environment scenario did not complete cleanly")
-        if len(cases) != 11 or {c["stage"] for c in cases} != expected:
+        if len(cases) != len(LIFECYCLE_STAGES) or {c["stage"] for c in cases} != expected:
             raise ValueError("Missing or duplicate native lifecycle checkpoints")
         devices = set()
         for case in cases:
@@ -990,7 +999,7 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
     want_states = [[VK_COMPARE_OP_LESS, 1, 0], [VK_COMPARE_OP_ALWAYS, 1, 0],
                    [VK_COMPARE_OP_GREATER, 1, 0]]
     if states != want_states:
-        raise ValueError(f"the ladder's pipelines were created with depth states {states!r},"
+        raise ValueError(f"the ladder published post-creation depth states {states!r},"
                          f" not LESS/ALWAYS/GREATER with the test on and writes off"
                          f" {want_states}")
     if report.get("frameScale") != LADDER_FRAME_SCALE:
@@ -1046,7 +1055,7 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
                             ("targetHeight", int), ("rect", list), ("counts", dict),
                             ("rejectedFlipped", bool), ("rejectedRect", list),
                             ("rejectedOther", int), ("file", str), ("rejectedFile", str),
-                            ("frameFile", str)):
+                            ("frameFile", str), ("stage", str), ("camera", list)):
             if field not in sample:
                 raise ValueError(f"ladder sample {index} does not state {field}")
             value = sample[field]
@@ -1060,6 +1069,10 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
                 raise ValueError(f"ladder sample {index}.{field} is {value!r}, not a"
                                  f" {kind.__name__}")
         at = sample["at"]
+        camera = sample["camera"]
+        if len(camera) != 5 or any(v is not None and not finite_number(v) for v in camera):
+            raise ValueError(f"ladder sample {index}.camera is {camera!r}, not five finite"
+                             f" numbers (or nulls)")
         if at < 1:
             raise ValueError(f"ladder sample {index} is at draw {at}, so it is not bound to any"
                              f" capture")
@@ -1237,8 +1250,69 @@ def ladder_brackets(counts):
     return parts
 
 
+def ladder_z_direction(samples, checkpoints):
+    """Read the Z direction from the two straight-down looks, or raise.
+
+    The harness teleports the player to DESCEND_ABOVE_GROUND and then ASCEND_ABOVE_GROUND
+    blocks above the highest block under (0, 0), pitch 90, and records the ground height it
+    used in those two checkpoints. The ladder samples both. Each sample's camera must be where
+    that stage put it; the nearer look's bracket indices must all exceed the farther look's
+    (or all fall below). Which look is nearer is known from the teleports, so the comparison
+    reads which direction of the depth value is nearer — the one thing a single band could
+    never say (rounds 7-11). `samples` are the recounted samples (counts from pixels).
+    """
+    by_stage = {c.get("stage"): c for c in checkpoints if isinstance(c, dict)}
+    picked = {}
+    for stage, offset in (("descend", DESCEND_ABOVE_GROUND), ("ascend", ASCEND_ABOVE_GROUND)):
+        checkpoint = by_stage.get(stage)
+        if checkpoint is None:
+            raise ValueError(f"no {stage} checkpoint, so the Z direction was not measured")
+        ground = checkpoint.get("groundY")
+        if not finite_number(ground):
+            raise ValueError(f"the {stage} checkpoint states no ground height")
+        want_y = ground + offset + PLAYER_EYE_HEIGHT
+        candidates = []
+        for sample in samples:
+            if sample.get("stage") != stage:
+                continue
+            cam = sample.get("camera") or []
+            if len(cam) != 5 or any(not finite_number(v) for v in cam):
+                continue
+            if (abs(cam[0] - 0.5) <= 2 and abs(cam[2] - 0.5) <= 2 and abs(cam[1] - want_y) <= 1.0
+                    and abs(cam[3] - 90) <= 1.0):
+                candidates.append(sample)
+        if not candidates:
+            raise ValueError(f"no ladder sample was taken during {stage} with the camera at"
+                             f" y={want_y:.2f} looking straight down, so the Z direction was"
+                             f" not measured")
+        chosen = max(candidates, key=lambda smp: smp["at"])
+        if chosen["low"]:
+            raise ValueError(f"the {stage} sample at draw {chosen['at']} has {chosen['low']}"
+                             f" pixel(s) below the smallest rung looking straight down at the"
+                             f" ground, so that look is not of the ground")
+        indices = [i for i, n in enumerate(chosen["rungs"]) if n]
+        picked[stage] = {"at": chosen["at"], "cameraY": chosen["camera"][1],
+                         "groundY": ground, "aboveGround": chosen["camera"][1] - ground,
+                         "brackets": indices, "rungs": chosen["rungs"]}
+    near, far = picked["descend"], picked["ascend"]
+    if max(far["brackets"]) < min(near["brackets"]):
+        direction = "larger depth value is nearer (reverse-Z)"
+    elif max(near["brackets"]) < min(far["brackets"]):
+        direction = "smaller depth value is nearer (conventional Z)"
+    else:
+        raise ValueError(f"the two straight-down looks do not separate: nearer look brackets"
+                         f" {near['brackets']}, farther look brackets {far['brackets']}; the"
+                         f" Z direction was not measured")
+    return {"direction": direction, "near": near, "far": far,
+            "basis": "two looks straight down at the same ground from"
+                     f" {DESCEND_ABOVE_GROUND} and {ASCEND_ABOVE_GROUND} blocks above it"
+                     " (harness teleports; camera positions published by the ladder; ground"
+                     " height from the checkpoints); every pixel bracket of the nearer look"
+                     " lies strictly on one side of every bracket of the farther look"}
+
+
 def native_ladder_result(output, expected_device=None, expected_extents=None,
-                         log_text=None):
+                         log_text=None, checkpoints=None):
     """Gate the depth ladder's own launch: Minecraft's loaded depth, tested, never written.
 
     This run is SEPARATE from the main native launch because the terrain probe clears the
@@ -1257,9 +1331,17 @@ def native_ladder_result(output, expected_device=None, expected_extents=None,
                                            retained_crops, log_text))
         latest = result["samples"][-1]
         result["answer"] = (f"{len(result['samples'])} sample(s); the latest (draw"
-                            f" {latest['at']}) brackets: " + "; ".join(latest["brackets"])
-                            + "; which direction is nearer is unmeasured")
+                            f" {latest['at']}) brackets: " + "; ".join(latest["brackets"]))
+        # The probe never infers the direction (zConventionMeasuredHere stays false); this
+        # gate derives it from the two straight-down looks when the checkpoints are given.
         result["z_convention_measured"] = False
+        if checkpoints is not None:
+            for recount, sample in zip(result["samples"], report["samples"]):
+                recount["stage"], recount["camera"] = sample.get("stage"), sample.get("camera")
+            result["z_direction"] = ladder_z_direction(result["samples"], checkpoints)
+            result["answer"] += "; " + result["z_direction"]["direction"]
+        else:
+            result["answer"] += "; which direction is nearer is not judged here"
         result.update(success=True)
     except (OSError, ValueError, KeyError, TypeError, EOFError, zlib.error) as exc:
         result["failures"].append(f"{type(exc).__name__}: {exc}")
@@ -2322,14 +2404,14 @@ def replay_evidence(directory):
             if not ladder_log.is_file():
                 raise ValueError("the ladder launch's log is not retained, so its sample"
                                  " inventory cannot be reconciled")
-            ladder_checks = ladder_report_checks(
-                ladder_dir, ladder, ladder_device, ladder_extents,
-                [p.name for p in ladder_dir.glob("native-depth-ladder-*.ppm.gz")],
-                ladder_log.read_text(errors="replace"))
-            outcome["ladder"] = {"samples": [
-                {k: v for k, v in sample.items() if k != "brackets"} | {"brackets": sample["brackets"]}
-                for sample in ladder_checks["samples"]],
-                "checkpoints": len(ladder_checkpoints)}
+            ladder_result = native_ladder_result(ladder_dir, ladder_device, ladder_extents,
+                                                 ladder_log.read_text(errors="replace"),
+                                                 ladder_checkpoints)
+            if not ladder_result["success"]:
+                raise ValueError(f"ladder gate: {ladder_result['failures']}")
+            outcome["ladder"] = {"samples": ladder_result["samples"],
+                                 "z_direction": ladder_result.get("z_direction"),
+                                 "checkpoints": len(ladder_checkpoints)}
             outcome["replayed"].append("depth-ladder acceptance checks (its own launch,"
                                        " terrain and marker off, identity from its own"
                                        " checkpoints)")
@@ -2460,7 +2542,7 @@ def main():
             result["success"] &= result["gate"].get("complete", False) and result["gate"]["success"]
             checkpoints = result["gate"].get("checkpoints", [])
             result["missing_images"] = [c["stage"] for c in checkpoints if not (output / (c["stage"] + ".png")).is_file()]
-            result["success"] &= len(checkpoints) == 11 and not result["missing_images"]
+            result["success"] &= len(checkpoints) == len(LIFECYCLE_STAGES) and not result["missing_images"]
             # Includes shutdown diagnostics, after the in-client result was written.
             result["diagnostics"] = diagnostics((output / "live.log").read_text(errors="replace"))
             result["application_errors"] = [line.strip() for line in (output / "live.log").read_text(errors="replace").splitlines()
@@ -2544,7 +2626,8 @@ def main():
                 ladder_run["success"] = False
             ladder_run["ladder"] = native_ladder_result(
                 ladder_output, ladder_device, ladder_extents,
-                (output / "native-ladder.log").read_text(errors="replace"))
+                (output / "native-ladder.log").read_text(errors="replace"),
+                ladder_run["environment"].get("checkpoints") or [])
             ladder_run["success"] &= ladder_run["ladder"]["success"]
             native_log_checks(ladder_run, output / "native-ladder.log")
             ladder_run["scope"] = ("a second Minecraft launch, terrain and marker OFF, so the"

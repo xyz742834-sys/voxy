@@ -21,7 +21,7 @@ class NativeGateTest(unittest.TestCase):
                         graphicsQueueFamily=0, computeQueueFamily=3, transferQueueFamily=3)
         for role in ("colour", "depth"):
             renderer[role] = dict(vkImage=15, vkImageView=16, width=960, height=540)
-        stages = "warmup turn travel return edit remove resize reload nether overworld reconnect".split()
+        stages = "warmup turn travel return edit remove resize reload nether overworld descend ascend reconnect".split()
         self.evidence = dict(complete=True, success=True, failures=[], voxyIntegrationStatus="BLOCKED_UNIMPLEMENTED",
             checkpoints=[dict(stage=s, renderer=copy.deepcopy(renderer)) for s in stages])
         for stage in stages:

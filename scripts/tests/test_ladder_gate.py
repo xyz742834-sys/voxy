@@ -62,6 +62,10 @@ def depth_field(width, height, kind="gradient"):
                 d = 0.0
             elif kind == "clouds":
                 d = 3e-5 if (x // 40 + y // 7) % 2 else 0.0
+            elif kind == "near":      # ground ~8-12 blocks away: bracket 4, (2^-8, 2^-6]
+                d = 0.0045 + 0.004 * ((x + y) % 7) / 7
+            elif kind == "far":       # the same ground ~105-125 blocks away: bracket 2
+                d = 0.00042 + 0.00005 * ((x + y) % 7) / 7
             else:
                 raise ValueError(kind)
             row.append(d)
@@ -127,7 +131,32 @@ def thumbnail(selected, rect, rejected, rejected_rect):
     return thumb
 
 
-def sample(at=2, flipped=False, kind="gradient", field=None):
+GROUND_Y = 70
+CAMERA_FOR = {"descend": [0.5, GROUND_Y + verify.DESCEND_ABOVE_GROUND + verify.PLAYER_EYE_HEIGHT,
+                          0.5, 90.0, 0.0],
+              "ascend": [0.5, GROUND_Y + verify.ASCEND_ABOVE_GROUND + verify.PLAYER_EYE_HEIGHT,
+                         0.5, 90.0, 0.0]}
+
+
+def direction_checkpoints():
+    """Lifecycle checkpoints with the two straight-down stages' ground height recorded."""
+    base = json.loads(json.dumps(test_marker_gate.ProofFileGateTest.CHECKPOINTS))
+    for case in base:
+        case["renderer"]["colour"] = {"vkImage": 15, "vkImageView": 16,
+                                      "width": FULL_W, "height": FULL_H}
+    out = []
+    for case in base:
+        out.append(case)
+    for stage in ("descend", "ascend"):
+        extra = json.loads(json.dumps(base[0]))
+        extra["stage"] = stage
+        extra["groundY"] = GROUND_Y
+        extra["cameraY"] = CAMERA_FOR[stage][1]
+        out.append(extra)
+    return out
+
+
+def sample(at=2, flipped=False, kind="gradient", field=None, stage="warmup", camera=None):
     w, h = band_size(flipped)
     field = depth_field(w, h, kind) if field is None else field
     rect = verify.ladder_band_rect(FULL_W, FULL_H, flipped)
@@ -138,8 +167,16 @@ def sample(at=2, flipped=False, kind="gradient", field=None):
             "rejectedRect": rejected_rect, "rejectedOther": rw * rh,
             "file": f"native-depth-ladder-{at}.ppm.gz",
             "rejectedFile": f"native-depth-ladder-rejected-{at}.ppm.gz",
-            "frameFile": f"native-depth-ladder-frame-{at}.ppm.gz"}
+            "frameFile": f"native-depth-ladder-frame-{at}.ppm.gz",
+            "stage": stage,
+            "camera": list(camera) if camera is not None else [0.5, 121.62, 0.5, 30.0, 0.0]}
     return body, field
+
+
+def direction_samples(near_kind="near", far_kind="far", near_at=3000, far_at=3240):
+    """The two straight-down looks, as the ladder would sample them."""
+    return [sample(at=near_at, kind=near_kind, stage="descend", camera=CAMERA_FOR["descend"]),
+            sample(at=far_at, kind=far_kind, stage="ascend", camera=CAMERA_FOR["ascend"])]
 
 
 def report(samples=None, **overrides):
@@ -189,7 +226,7 @@ def log_for(samples):
 class LadderGateTest(unittest.TestCase):
     def run_gate(self, body=None, fields=None, drop=(), skip_files=False, expected_device=DEVICE,
                  expected_extents=EXTENTS, selected=None, rejected=None, frame_from=None,
-                 log=None, extra_files=()):
+                 log=None, extra_files=(), checkpoints=None):
         if body is None:
             s, field = sample()
             body, fields = report(samples=[s]), [field]
@@ -204,7 +241,8 @@ class LadderGateTest(unittest.TestCase):
                 write_sample_files(out, name, field)
             (out / "native-depth-ladder.json").write_text(json.dumps(body))
             return native_ladder_result(out, expected_device, expected_extents,
-                                        log_for(body.get("samples") or []) if log is None else log)
+                                        log_for(body.get("samples") or []) if log is None else log,
+                                        checkpoints)
 
     def one(self, **kw):
         """A report with one sample built from kw, plus its field."""
@@ -229,9 +267,10 @@ class LadderGateTest(unittest.TestCase):
         self.assertEqual(recount["other"], 0)
         self.assertGreater(recount["low"], 0)
         self.assertTrue(all(n > 0 for n in recount["rungs"]), recount["rungs"])
-        self.assertIn("which direction is nearer is unmeasured", result["answer"])
+        self.assertIn("not judged here", result["answer"])
         self.assertFalse(result["z_convention_measured"])
         self.assertNotIn("bounds", result)
+        self.assertNotIn("z_direction", result)
 
     def test_a_cleared_field_is_all_low_and_still_a_measurement(self):
         """Every pixel below the smallest rung: the GREATER control catches all of them."""
@@ -525,7 +564,7 @@ class LadderGateTest(unittest.TestCase):
             self.assertIn(field, " ".join(result["failures"]))
         for field in ("at", "flipped", "targetWidth", "targetHeight", "rect", "counts",
                       "rejectedFlipped", "rejectedRect", "rejectedOther", "file", "rejectedFile",
-                      "frameFile"):
+                      "frameFile", "stage", "camera"):
             body, fields = self.one()
             body["samples"][0].pop(field)
             result = self.run_gate(body, fields)
@@ -542,6 +581,86 @@ class LadderGateTest(unittest.TestCase):
         body, fields = self.one()
         body["terrainDrawsRecorded"] = False
         self.assertFails(self.run_gate(body, fields), "terrainDrawsRecorded")
+
+
+class LadderDirectionTest(unittest.TestCase):
+    """The gate, not the probe, reads the Z direction from the two straight-down looks."""
+
+    def run_direction(self, pairs=None, checkpoints=None, **kw):
+        pairs = direction_samples(**kw) if pairs is None else pairs
+        body = report(samples=[s for s, _ in pairs])
+        fields = [f for _, f in pairs]
+        gate = LadderGateTest()
+        return gate.run_gate(body, fields,
+                             checkpoints=direction_checkpoints() if checkpoints is None else checkpoints)
+
+    def test_the_nearer_look_in_higher_brackets_reads_reverse_z(self):
+        result = self.run_direction()
+        self.assertTrue(result["success"], result["failures"])
+        self.assertIn("larger depth value is nearer", result["z_direction"]["direction"])
+        self.assertEqual(result["z_direction"]["near"]["brackets"], [4])
+        self.assertEqual(result["z_direction"]["far"]["brackets"], [2])
+        self.assertAlmostEqual(result["z_direction"]["near"]["aboveGround"], 13.62)
+        self.assertFalse(result["z_convention_measured"])
+        self.assertIn("reverse-Z", result["answer"])
+
+    def test_the_nearer_look_in_lower_brackets_reads_conventional_z(self):
+        result = self.run_direction(near_kind="far", far_kind="near")
+        self.assertTrue(result["success"], result["failures"])
+        self.assertIn("smaller depth value is nearer", result["z_direction"]["direction"])
+
+    def test_looks_that_do_not_separate_fail(self):
+        result = self.run_direction(near_kind="near", far_kind="near")
+        self.assertFalse(result["success"])
+        self.assertIn("do not separate", " ".join(result["failures"]))
+
+    def test_a_missing_look_fails(self):
+        pairs = direction_samples()[1:]
+        result = self.run_direction(pairs=pairs)
+        self.assertFalse(result["success"])
+        self.assertIn("no ladder sample was taken during descend", " ".join(result["failures"]))
+
+    def test_a_camera_not_where_the_stage_put_it_fails(self):
+        pairs = direction_samples()
+        pairs[0][0]["camera"][1] += 3.0
+        result = self.run_direction(pairs=pairs)
+        self.assertFalse(result["success"])
+        self.assertIn("descend", " ".join(result["failures"]))
+        pairs = direction_samples()
+        pairs[1][0]["camera"][3] = 30.0
+        result = self.run_direction(pairs=pairs)
+        self.assertFalse(result["success"])
+
+    def test_a_look_with_sky_in_it_fails(self):
+        pairs = direction_samples(near_kind="clouds")
+        result = self.run_direction(pairs=pairs)
+        self.assertFalse(result["success"])
+        self.assertIn("below the smallest rung", " ".join(result["failures"]))
+
+    def test_a_checkpoint_without_a_ground_height_fails(self):
+        checkpoints = direction_checkpoints()
+        for case in checkpoints:
+            if case["stage"] == "ascend":
+                case["groundY"] = None
+        result = self.run_direction(checkpoints=checkpoints)
+        self.assertFalse(result["success"])
+        self.assertIn("no ground height", " ".join(result["failures"]))
+
+    def test_the_last_look_of_each_stage_is_the_one_judged(self):
+        """An early sample taken before the ground loaded must not decide the direction."""
+        early, _ = sample(at=2900, kind="clouds", stage="descend", camera=CAMERA_FOR["descend"])
+        pairs = [(early, depth_field(*band_size(), "clouds"))] + direction_samples()
+        result = self.run_direction(pairs=pairs)
+        self.assertTrue(result["success"], result["failures"])
+        self.assertEqual(result["z_direction"]["near"]["at"], 3000)
+
+    def test_without_checkpoints_no_direction_is_judged(self):
+        gate = LadderGateTest()
+        pairs = direction_samples()
+        result = gate.run_gate(report(samples=[s for s, _ in pairs]), [f for _, f in pairs])
+        self.assertTrue(result["success"], result["failures"])
+        self.assertNotIn("z_direction", result)
+        self.assertIn("not judged here", result["answer"])
 
 
 class LadderRetentionTest(unittest.TestCase):
@@ -561,10 +680,7 @@ class LadderRetentionTest(unittest.TestCase):
         (root / "source-sha256.json").write_text(json.dumps(REAL_FINGERPRINTS))
         # The shared checkpoint fixture names a device; the ladder also needs the colour
         # extent each checkpoint observed, which is what pins the sample's frame size.
-        checkpoints = json.loads(json.dumps(test_marker_gate.ProofFileGateTest.CHECKPOINTS))
-        for case in checkpoints:
-            case["renderer"]["colour"] = {"vkImage": 15, "vkImageView": 16,
-                                          "width": FULL_W, "height": FULL_H}
+        checkpoints = direction_checkpoints()
         stage = {"gate": {"checkpoints": checkpoints}}
         if with_ladder:
             ladder_output = root / "native-ladder"
@@ -572,6 +688,8 @@ class LadderRetentionTest(unittest.TestCase):
             if samples is None:
                 s, field = sample(kind=kind, flipped=flipped)
                 samples = [(s, field)]
+            # every retained launch carries the two straight-down looks, which replay judges
+            samples = list(samples) + direction_samples()
             body = report(samples=[s for s, _ in samples])
             if with_files:
                 for s, field in samples:
@@ -605,7 +723,7 @@ class LadderRetentionTest(unittest.TestCase):
     def test_the_ladder_launch_is_retained_and_hashed(self):
         target, kept = self.build()
         self.assertNotIn("error", kept)
-        self.assertEqual(kept["ladder"]["samples"],
+        self.assertEqual(kept["ladder"]["samples"][:3],
                          ["ladder/native-depth-ladder-2.ppm.gz",
                           "ladder/native-depth-ladder-rejected-2.ppm.gz",
                           "ladder/native-depth-ladder-frame-2.ppm.gz"])
@@ -615,10 +733,11 @@ class LadderRetentionTest(unittest.TestCase):
             self.assertIn(name, kept["files"])
             self.assertTrue((target / name).is_file(), name)
 
-    def test_the_retained_ladder_replays_with_its_brackets(self):
+    def test_the_retained_ladder_replays_with_its_brackets_and_direction(self):
         target, _ = self.build(kind="clouds", flipped=True)
         code, out = self.replay(target)
         self.assertEqual(code, 0, out)
+        self.assertIn("larger depth value is nearer", out["ladder"]["z_direction"]["direction"])
         recount = out["ladder"]["samples"][0]
         self.assertTrue(recount["flipped"])
         self.assertGreater(recount["rungs"][0], 0)
@@ -761,7 +880,7 @@ class LadderRetentionTest(unittest.TestCase):
         target, _ = self.build(samples=[(s1, f1), (s2, f2)])
         path = target / "ladder" / "native-depth-ladder.json"
         body = json.loads(path.read_text())
-        body["samples"] = body["samples"][:1]
+        body["samples"] = body["samples"][:1] + body["samples"][2:]
         path.write_text(json.dumps(body))
         self.rehash(target, "ladder/native-depth-ladder.json")
         code, out = self.replay(target)

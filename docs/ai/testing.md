@@ -18,11 +18,14 @@ Thus even a full runner PASS does not mean the native integration target works.
 The development harness also has an environment-only native lifecycle mode:
 `python3 scripts/verify.py --only native`. It requests Minecraft Vulkan and verifies
 the actual `VulkanDevice`, device/instance/VMA handles and native color/depth image
-views at all eleven lifecycle checkpoints, retaining screenshots. It forces Khronos
+views at all thirteen lifecycle checkpoints, retaining screenshots. It forces Khronos
 validation and synchronization validation through the loader environment and requires
 loader evidence that the validation layer was inserted. It never creates Voxy's
 private Vulkan context or calls the GL interop probe in this mode. Voxy currently
 disables itself; this environment gate cannot certify Voxy native LoD rendering.
+The lifecycle has thirteen checkpointed stages since 2026-10-07: the eleven before plus
+`descend` and `ascend` (straight down at the ground under (0, 0) from 12 and 108 blocks above
+it), which the depth ladder's gate reads the Z direction from.
 Since 2026-10-07 the stage launches Minecraft **twice**: the first launch carries the
 marker, terrain, depth-copy and proof-file diagnostics; the second carries only the
 depth ladder (`-PharnessNativeDepthLadder`), because the terrain probe clears the

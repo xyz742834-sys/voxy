@@ -165,11 +165,15 @@ public final class McNativeDepthLadder implements Destroyable {
      *                       両 crop をこのサムネイルの述べた位置に重ね、一致を要求する —
      *                       crop がどこから切り出されたかを producer の言葉以外で縛るため
      *                       (round-9 review R8-LADDER-GATE: 向きと矩形を揃って偽ると通った)
+     * @param stage          読み戻しを要求した時点の harness の段階名 (system property)
+     * @param camera         その時点のカメラ {x, y, z, pitch, yaw}。Z の向きの実験は
+     *                       同じ地面を既知の二つの高さから真下に見る: gate は段階ごとの
+     *                       カメラ高さを checkpoint の地面高さと照らし、区間の移動を読む
      */
     public record Sample(long at, boolean flipped, int targetWidth, int targetHeight, int[] rect,
                          long[] counts, boolean rejectedFlipped, int[] rejectedRect,
                          long rejectedOther, String file, String rejectedFile,
-                         String frameFile) {}
+                         String frameFile, String stage, double[] camera) {}
 
     // ---------------- 保持するもの ----------------
 
@@ -359,9 +363,11 @@ public final class McNativeDepthLadder implements Destroyable {
                 GpuBuffer.USAGE_MAP_READ | GpuBuffer.USAGE_COPY_DST, bytes);
             final GpuBuffer readback = buffer;
             final long at = drawsRecorded;
+            final String stage = System.getProperty("voxy.harness.stage", "");
+            final double[] camera = cameraNow();
             readbackInFlight = true;
             gpu.createCommandEncoder().copyTextureToBuffer(colour.texture(), readback, 0,
-                () -> measure(readback, width, height, at), 0);
+                () -> measure(readback, width, height, at, stage, camera), 0);
             buffer = null;
         } catch (Throwable t) {
             fail("the ladder readback could not be requested: " + t);
@@ -383,7 +389,19 @@ public final class McNativeDepthLadder implements Destroyable {
      * <p>⚠ 向きは仮定しない (round 6 B4)。両向きの計数と crop を残し、採用した向きでは
      * "other" が 0、棄却した向きでは "other" が多数であることを gate が要求する。
      */
-    private static void measure(GpuBuffer buffer, int width, int height, long at) {
+    /** {x, y, z, pitch, yaw} of Minecraft's main camera right now, or NaNs if unreachable. */
+    private static double[] cameraNow() {
+        try {
+            var cam = Minecraft.getInstance().gameRenderer.mainCamera();
+            var p = cam.position();
+            return new double[] {p.x, p.y, p.z, cam.xRot(), cam.yRot()};
+        } catch (Throwable t) {
+            return new double[] {Double.NaN, Double.NaN, Double.NaN, Double.NaN, Double.NaN};
+        }
+    }
+
+    private static void measure(GpuBuffer buffer, int width, int height, long at, String stage,
+                                double[] camera) {
         try (var view = new GpuBufferSlice(buffer, 0, buffer.size()).map(true, false)) {
             var data = view.data();
             long[][] counts = new long[2][];
@@ -404,7 +422,7 @@ public final class McNativeDepthLadder implements Destroyable {
                 "native-depth-ladder-frame-" + at + ".ppm.gz");
             var sample = new Sample(at, flipped, width, height, rects[chosen], c,
                 !flipped, rects[1 - chosen], counts[1 - chosen][other], file, rejectedFile,
-                frameFile);
+                frameFile, stage, camera);
             String why = null;
             if (c[other] != 0) {
                 why = "sample at draw " + at + ": " + c[other] + " pixel(s) of the band are"
@@ -928,7 +946,13 @@ public final class McNativeDepthLadder implements Destroyable {
             sb.append(", \"file\": ").append(McNativeVulkanProbe.quote(s.file()));
             sb.append(", \"rejectedFile\": ").append(McNativeVulkanProbe.quote(s.rejectedFile()));
             sb.append(", \"frameFile\": ").append(McNativeVulkanProbe.quote(s.frameFile()));
-            sb.append('}');
+            sb.append(", \"stage\": ").append(McNativeVulkanProbe.quote(s.stage()));
+            sb.append(", \"camera\": [");
+            for (int k = 0; k < 5; k++) {
+                double v = s.camera()[k];
+                sb.append(k > 0 ? ", " : "").append(Double.isFinite(v) ? Double.toString(v) : "null");
+            }
+            sb.append("]}");
         }
         sb.append(samples.isEmpty() ? "],\n" : "\n  ],\n");
         sb.append("  \"problems\": ").append(problems).append(",\n");
