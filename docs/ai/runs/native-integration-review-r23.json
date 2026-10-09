@@ -1,0 +1,239 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "14743bf43b3051149262b2f032182930c3e9b9b0",
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "message": "Standing default-off experimental foundation/native LoD delivery boundary remains.",
+      "evidence": [
+        "docs/ai/project-goal.md:9",
+        "src/main/java/me/cortex/voxy/client/VoxyClient.java:106",
+        "docs/ai/handoff.md:183"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R21-REPAIR-HANDOFF",
+      "judgment": "CONFIRMED",
+      "claim_judgment": "REFUTED",
+      "message": "All specifically named round-22 sentences were repaired, but another survey sentence still claims old-run replay in this checkout.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:1565",
+        ".agent-run/r23/stale-replay.log"
+      ],
+      "old_run_replay_exit": 1,
+      "source_mismatches": 10
+    },
+    {
+      "id": "R23-DOC-RUN-INVENTORY",
+      "judgment": "CONFIRMED",
+      "message": "Survey seven-sample statement is true for the older run only; newest linked run has six judged/four skips. Current handoff horizon pitch 15 is stale against source/logged pitch 18.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:1649",
+        "docs/ai/handoff.md:209",
+        ".agent-run/r23/recount.json"
+      ]
+    }
+  ],
+  "safe_for_normal_play": true,
+  "safety_scope": "All voxy.native.* flags unset from startup; source/offline supported GL and disabled-Voxy Minecraft Vulkan; no fresh normal-play run.",
+  "round22_findings_closed": {
+    "R20-TEST-REALLOAD": true,
+    "R21-REPAIR-HANDOFF": false,
+    "R22-NEAR-CUT-REUSE": true
+  },
+  "round22_named_documentation_sentences_repaired": true,
+  "occlusion_judgment": {
+    "judgment": "CONFIRMED",
+    "sample": 2162,
+    "stage": "horizon",
+    "expectVisible": 2003,
+    "visible": 2003,
+    "expectHidden": 3306,
+    "hidden": 3306,
+    "violations": 0,
+    "undetermined": 0,
+    "nearestSection": 511.5,
+    "cutBlocks": 128,
+    "scope": "One look, one wall, bracket grain, Minecraft captured matrix; coarse draw-time section-box cut; no native LoD delivery acceptance."
+  },
+  "real_load_judgment": {
+    "judgment": "CONFIRMED",
+    "judged_samples": 6,
+    "skips": 4,
+    "counts": {
+      "geometry": 5309,
+      "noGeometry": 508227,
+      "expectVisible": 2003,
+      "expectHidden": 3306,
+      "undetermined": 0,
+      "visible": 2003,
+      "hidden": 3306,
+      "ambiguous": 0,
+      "other": 0,
+      "visibleWhereHidden": 0,
+      "hiddenWhereVisible": 0,
+      "changedWhereNoGeometry": 0
+    },
+    "draw_time_cut_reproduction": "camera movement and render-distance changes retire the cache before drawing; old predicate negative control fails",
+    "nearest_distances": [
+      512.5,
+      511.5,
+      511.5,
+      511.5,
+      511.5,
+      511.5
+    ],
+    "actual_section_inventory_retained": false,
+    "scope": "Both determinate composition halves at horizon only; five other judged samples hold no geometry; no judged post-reconnect draw."
+  },
+  "atlas_judgment": {
+    "judgment": "CONFIRMED",
+    "reads": 3,
+    "judged_generations": [
+      1,
+      2
+    ],
+    "scope": "Source/log chronology reconciled; reset epoch and identity reuse code unchanged from round22. No new live atlas-content/callback-submission test."
+  },
+  "instance_mode_judgment": {
+    "judgment": "CONFIRMED",
+    "inventories": {
+      "main": {
+        "samples": 77,
+        "frames": 4560,
+        "maxActiveSections": 138
+      },
+      "ladder/": {
+        "samples": 77,
+        "frames": 4560,
+        "maxActiveSections": 45
+      }
+    },
+    "scope": "Engine/ingest/occupancy/no-renderer and independently matched logs; not persistent section-content acceptance."
+  },
+  "terrain_load_judgment": {
+    "judgment": "CONFIRMED",
+    "samples": 10,
+    "counts": {
+      "geometry": 240696,
+      "noGeometry": 608456,
+      "expectVisible": 220160,
+      "expectHidden": 1092,
+      "undetermined": 19444,
+      "visible": 235411,
+      "hidden": 5285,
+      "ambiguous": 0,
+      "other": 0,
+      "visibleWhereHidden": 0,
+      "hiddenWhereVisible": 0,
+      "changedWhereNoGeometry": 0
+    },
+    "scope": "Synthetic pipeline, declared depth state, bracket grain."
+  },
+  "coexist_judgment": {
+    "judgment": "CONFIRMED",
+    "samples": 20,
+    "counts": {
+      "present": 1648886,
+      "absent": 69642,
+      "expectedPass": 1648886,
+      "expectedFail": 69642,
+      "absentWherePass": 0,
+      "presentWhereFail": 0
+    },
+    "scope": "Known-depth quad, exact RGB, zero violations."
+  },
+  "z_direction_judgment": {
+    "judgment": "CONFIRMED",
+    "direction": "larger depth value is nearer (reverse-Z)",
+    "near": {
+      "at": 4082,
+      "cameraY": 80.61999988555908,
+      "groundY": 67,
+      "aboveGround": 13.619999885559082,
+      "brackets": [
+        3,
+        4
+      ],
+      "rungs": [
+        0,
+        0,
+        0,
+        45734,
+        53338,
+        0,
+        0,
+        0
+      ]
+    },
+    "far": {
+      "at": 4322,
+      "cameraY": 176.61999988555908,
+      "groundY": 67,
+      "aboveGround": 109.61999988555908,
+      "brackets": [
+        2
+      ],
+      "rungs": [
+        0,
+        0,
+        99072,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "basis": "two looks straight down at the same ground from 12 and 108 blocks above it (harness teleports; camera positions published by the ladder; ground height from the checkpoints); every pixel bracket of the nearer look lies strictly on one side of every bracket of the farther look",
+    "scope": "Two straight-down looks over the same reported/logged/checkpointed ground; bracket grain; no general depth calibration."
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED",
+    "samples": 20,
+    "sample_limit": 40,
+    "interval": 240,
+    "horizon_thumbnail_blocks_per_crop": 4845,
+    "scope": "Own launch, terrain CLEAR/marker off, independent retained recounts. Conditional request-based stage wait with timeout."
+  },
+  "checks": {
+    "junit": {
+      "tests": 347,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "skip_names": [
+        [
+          "me.cortex.voxy.vk.VkBarriersTest",
+          "missingBarrierIsDetected()"
+        ]
+      ]
+    },
+    "python": {
+      "tests": 282,
+      "passed": 282,
+      "version": "3.14",
+      "fixtures_shrunk": false
+    },
+    "replay_exit": 0,
+    "source_fingerprints": 422,
+    "manifest_members": 312,
+    "guard_removals": 77,
+    "guard_failures": 73,
+    "guard_errors": 4,
+    "guard_survivors": [],
+    "budget_removal_detected_by_existing_test": true,
+    "source_contract_exit": 0
+  },
+  "limitations": [
+    "No live/native/normal-play GL or Vulkan launch",
+    "Actual scene-section inventory and per-frame model-view/uniform bytes absent",
+    "No post-reconnect judged real-LOAD draw",
+    "CPU extraction does not prove driver consumption/submission lifetimes",
+    "No compiled-JAR attestation or full raw atlas/screenshots",
+    "Coordinated record rewrites and engine relabeling not authenticated"
+  ]
+}
