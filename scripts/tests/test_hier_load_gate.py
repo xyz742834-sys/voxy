@@ -1,8 +1,9 @@
 """The hierarchical-LOAD gate: Voxy's hierarchical pipeline composited into Minecraft's frame.
 
-VkHierarchicalScene renders into Voxy's own target with Minecraft's matrix; a native composite
-writes its colour and depth into Minecraft's LOADed frame with Voxy's depth test. Each judged
-sample is recounted pixel by pixel with the same rule and helper as real-LOAD; skips are
+VkHierarchicalScene renders into Voxy's own target with Voxy's own projection of Minecraft's
+camera; its depth is reprojected into Minecraft's space; a native composite writes its colour into
+Minecraft's LOADed frame by Voxy's GL rule (only where Minecraft's depth is still clear). Each
+judged sample is recounted pixel by pixel with real-LOAD's helper in clear-only mode; skips are
 corroborated with the same rules and this experiment's log formats; the ladder hands samples to
 three experiments, the horizon stage only to the real-world ones.
 """
@@ -273,10 +274,26 @@ class HierLoadGateTest(unittest.TestCase):
         self.assertIn("beyondMinecraftFar", ok["hier_load"])
         # rendered with Minecraft's own projection: not Voxy's near/far
         self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(
-            voxyProjection=list(r["results"][0]["projection"]))), "not Minecraft's projection with Voxy's")
+            voxyProjection=list(r["results"][0]["projection"]))), "is not Voxy's projection of its raw")
         self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(voxyProjection=[1.0] * 3)),
                            "not 16 numbers")
-        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(voxyNear=0.05)), "renders with near 0.05")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(voxyFar=2048.0)), "renders with far 2048.0")
+        # round-26 R26-PROJECTION-EQUIVALENCE: near follows the vanilla distance, extra transforms kept
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(voxyNear=8.0)),
+                           "gives Voxy's near 16.0")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(vanillaRenderDistance=32.0)),
+                           "gives Voxy's near 8.0")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(sodiumChunkRenderDisabled=None)),
+                           "sodiumChunkRenderDisabled=None")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(rawProjection=[0.0] * 15)),
+                           "rawProjection=")
+        def bobbed(r):   # the frame's projection carries an extra transform over the raw one,
+            e = r["results"][0]   # which the published voxyProjection ignored
+            e["rawProjection"] = verify._mat_mul(e["projection"],
+                                                 [1, 0, 0, 0, 0, 1, 0.01, 0, 0, -0.01, 1, 0, 0, 0, 0, 1])
+        self.assertRefused(self.run_gate(mutate_hier=bobbed), "with this frame's extra transforms")
+        self.assertEqual((verify.voxy_near(32, False), verify.voxy_near(48, False), verify.voxy_near(128, True)),
+                         (8.0, 16.0, 0.1))
         self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(voxyDepthFile="x.f32.gz")),
                            "names voxyDepthFile='x.f32.gz'")
         # the composite wrote Voxy's depth unreprojected

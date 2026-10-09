@@ -91,7 +91,9 @@ public class VkDepthResolve {
         }
 
         this.pipeline = VkGraphicsPipeline.builder(this.shader)
-            .colorFormat(VkInteropImage.Kind.DEPTH_R32F.vkFormat)
+            // the R32F value itself: naming the interop enum would initialise IOSurface bindings
+            // on the native path (round-26 review)
+            .colorFormat(org.lwjgl.vulkan.VK10.VK_FORMAT_R32_SFLOAT)
             // 深度アタッチメント無しのパス。宣言も UNDEFINED にしないと
             // VkRenderingInfo と食い違う
             .depthFormat(VK_FORMAT_UNDEFINED)

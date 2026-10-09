@@ -56,9 +56,10 @@ import java.util.OptionalDouble;
  * rounds let LoD selection converge on a frame that is rendered only every few seconds.
  *
  * <h2>Stated limits of this slice</h2>
- * Voxy renders with its own near 16 / far 48000 projection; its depth is reprojected into
- * Minecraft's space (the R32F image) but not written into Minecraft's depth, which nothing after
- * the level-render tail reads. Minecraft's terrain does not occlude Voxy's traversal/HiZ as on GL
+ * Voxy renders with its own projection (VoxyRenderSystem.computeProjectionMat's, near from the
+ * vanilla distance, far 48000); its depth is reprojected into Minecraft's space (the R32F image)
+ * but not written into Minecraft's depth — whether a later pass (post-processing) reads that depth
+ * is not inventoried. Minecraft's terrain does not occlude Voxy's traversal/HiZ as on GL
  * (Voxy's submission runs before Minecraft's frame executes), so culling is less effective, not
  * less correct. Composited at the level-render tail, after Minecraft's translucents. The
  * device-idle wait per hand-off is safe but blocking.
@@ -139,7 +140,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                          int atlasGeneration, float[] mcProjection, float[] projection,
                          int meshed, int iterations, long previousCapture, int buildsSoFar,
                          int atlasState, int meshedAtBuild, String visibility,
-                         float[] voxyProjection, String voxyDepthFile) {}
+                         float[] voxyProjection, String voxyDepthFile, float[] rawProjection,
+                         float voxyNear, float vanillaRenderDistance, boolean sodiumChunkRenderDisabled) {}
 
     private record Pending(int[][] rects, int[][] colour, float[][] depth, float[][] rawDepth,
                            Result partial) {}
@@ -356,9 +358,16 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             return;
         }
         double farPlane = VkHostViewport.farPlaneDistance(vkProjection);
-        // Voxy's own projection (its depth row only), as VoxyRenderSystem.computeProjectionMat;
-        // the composite's space stays Minecraft's
-        var voxyProjection = VkHostViewport.voxyProjection(vkProjection, VkHostViewport.VOXY_NEAR,
+        // Voxy's own projection, as VoxyRenderSystem.computeProjectionMat: Minecraft's raw camera
+        // projection with Voxy's depth row, times the extra transforms this frame's projection
+        // carries over the raw one; near from the vanilla render distance. The composite's space
+        // stays Minecraft's.
+        var rawVk = adjusted ? VkHostViewport.projectionForVulkan(view.rawProjection(), view.modelView(),
+            sub, ahead) : view.rawProjection();
+        float vanillaDistance = me.cortex.voxy.client.core.VoxyRenderSystem.getVanillaRenderDistance();
+        boolean sodiumOff = VoxyClient.disableSodiumChunkRender();
+        float voxyNear = VkHostViewport.voxyNear(vanillaDistance, sodiumOff);
+        var voxyProjection = VkHostViewport.voxyProjectionGl(vkProjection, rawVk, voxyNear,
             VkHostViewport.VOXY_FAR);
         float[] mvp = VkHostViewport.mvp(voxyProjection, view.modelView(), sub);
         float[] mcMvp = VkHostViewport.mvp(vkProjection, view.modelView(), sub);
@@ -456,7 +465,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             adjusted, farPlane, 0, capture, System.identityHashCode(world), probe.buildOrdinal,
             probe.atlasGeneration, mcProjection, usedProjection, probe.scene.meshedSections(),
             ITERATIONS, previousCapture, builds, -1, probe.meshedAtBuild,
-            probe.scene.visibility().name(), voxyProjection.get(new float[16]), null);
+            probe.scene.visibility().name(), voxyProjection.get(new float[16]), null,
+            rawVk.get(new float[16]), voxyNear, vanillaDistance, sodiumOff);
         synchronized (NOTES) {
             PENDING.put(at, new Pending(rects, bandColour, bandDepth, bandRaw, partial));
         }
@@ -608,7 +618,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             return;
         }
         var r = new Result(at, reason, stage, null, Float.NaN, Float.NaN, null, null, null, null, null,
-            Double.NaN, 0, capture, 0, 0, 0, null, null, 0, 0, previousCapture, builds, atlasState, 0, null, null, null);
+            Double.NaN, 0, capture, 0, 0, 0, null, null, 0, 0, previousCapture, builds, atlasState, 0, null, null, null, null, Float.NaN, Float.NaN,
+            false);
         synchronized (NOTES) {
             RESULTS.put(at, r);
         }
@@ -726,7 +737,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 p.farPlane(), refSet, p.cameraCapture(), p.engineId(), p.sceneBuild(),
                 p.atlasGeneration(), p.mcProjection(), p.projection(), p.meshed(), p.iterations(),
                 p.previousCapture(), p.buildsSoFar(), -1, p.meshedAtBuild(), p.visibility(),
-                p.voxyProjection(), rawWritten ? rawName : null);
+                p.voxyProjection(), rawWritten ? rawName : null, p.rawProjection(), p.voxyNear(),
+                p.vanillaRenderDistance(), p.sodiumChunkRenderDisabled());
             synchronized (NOTES) {
                 RESULTS.put(at, result);
             }
@@ -885,7 +897,6 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"iterations\": ").append(ITERATIONS).append(",\n");
         sb.append("  \"topRadius\": ").append(TOP_RADIUS).append(",\n");
         sb.append("  \"depth\": ").append(DEPTH).append(",\n");
-        sb.append("  \"voxyNear\": ").append(VkHostViewport.VOXY_NEAR).append(",\n");
         sb.append("  \"voxyFar\": ").append(VkHostViewport.VOXY_FAR).append(",\n");
         sb.append("  \"declaredDepthState\": [").append(DECLARED_DEPTH_STATE[0]).append(", ")
           .append(DECLARED_DEPTH_STATE[1]).append(", ").append(DECLARED_DEPTH_STATE[2]).append("],\n");
@@ -925,6 +936,10 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 sb.append(", \"visibility\": ").append(McNativeVulkanProbe.quote(r.visibility()));
                 sb.append(", \"voxyProjection\": ").append(floats(r.voxyProjection()));
                 sb.append(", \"voxyDepthFile\": ").append(McNativeVulkanProbe.quote(r.voxyDepthFile()));
+                sb.append(", \"rawProjection\": ").append(floats(r.rawProjection()));
+                sb.append(", \"voxyNear\": ").append(r.voxyNear());
+                sb.append(", \"vanillaRenderDistance\": ").append(r.vanillaRenderDistance());
+                sb.append(", \"sodiumChunkRenderDisabled\": ").append(r.sodiumChunkRenderDisabled());
                 sb.append(", \"iterationsRun\": ").append(r.iterations());
             } else {
                 sb.append(", \"atlasState\": ").append(r.atlasState());

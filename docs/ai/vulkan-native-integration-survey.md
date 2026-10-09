@@ -1796,12 +1796,15 @@ blocks near the camera.
 
 **What changed** (`429ce46a`). The hierarchical scene renders with Voxy's own projection —
 Minecraft's matrix with only the depth row replaced by near 16 / far 48 000, reverse Z
-(`VkHostViewport.voxyProjection`, the existing helper, = `VoxyRenderSystem.computeProjectionMat`).
+(`VkHostViewport.voxyProjection`, the existing helper — equal to `VoxyRenderSystem.computeProjectionMat`
+only for a pure projection at vanilla distances above 32 blocks; round 26 R26-PROJECTION-EQUIVALENCE,
+since then the full port `voxyProjectionGl`, see "Round-26 repairs").
 In Voxy's submission the existing reprojecting `VkDepthResolve` (`depth_resolve.frag` with
 `REPROJECT_DEPTH`, the GL path's `blit_texture_depth_cutout` formula: unproject with Voxy's MVP,
 project with Minecraft's, clamp just inside Minecraft's far plane, FAR passed through) writes that
-depth in Minecraft's depth space into an R32F image. The composite samples that image, so the
-judged reference depth is exactly what the composite writes. `VkDepthResolve` gained a plain
+depth in Minecraft's depth space into an R32F image. The composite samples that image; since
+`6dffc1b4` it uses it only to know where Voxy drew (its fragment depth is the clear value, writes
+off), and the judged reference depth is that image. `VkDepthResolve` gained a plain
 Vulkan-texture output (the interop overload calls it and keeps its final GENERAL barrier; the
 interop tests pass unchanged).
 
@@ -1847,8 +1850,10 @@ judged hierarchical samples, zero violations, and **no undetermined pixel**: eve
 decided — 23 359 had to show and did, 350 597 had to stay Minecraft's and did. Minecraft's sky is
 exactly clear: the LOW class is empty in all 23 ladder samples. 5 119 frames composited.
 
-**Limits.** Minecraft's depth does not receive Voxy's depth (writes off; nothing after the
-level-render tail reads it). On GL the excluded pixels also enter Voxy's own depth as NEAR, so
+**Limits.** Minecraft's depth does not receive Voxy's depth (writes off). Whether anything after
+the level-render tail reads Minecraft's depth was not inventoried — Minecraft 26.2 keeps
+post-processing after level rendering with a depth-texture input option (round 26) — and the
+retained colour match is per sampled band, not whole-image GL parity. On GL the excluded pixels also enter Voxy's own depth as NEAR, so
 Minecraft's terrain occludes Voxy's HiZ/traversal; natively Voxy's submission runs before
 Minecraft's frame executes, so that occlusion is absent — less culling, not a different picture.
 

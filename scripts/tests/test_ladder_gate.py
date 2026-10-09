@@ -607,6 +607,8 @@ def hier_entry(sample, field, before, depth, after):
                  visibility=verify.HIER_LOAD_VISIBILITY,
                  projection=list(HIER_MC_PROJECTION), mcProjection=list(HIER_MC_PROJECTION),
                  voxyProjection=verify.voxy_projection(HIER_MC_PROJECTION),
+                 rawProjection=list(HIER_MC_PROJECTION), voxyNear=16.0,
+                 vanillaRenderDistance=128.0, sodiumChunkRenderDisabled=False,
                  voxyDepthFile=f"native-hier-load-voxydepth-{at}.f32.gz",
                  previousCapture=at - 1, buildsSoFar=1)
     return entry
@@ -641,7 +643,7 @@ def hier_report(entries, **overrides):
             "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
             "readbacksInFlight": 0, "atlasReads": 1 if judged else 0, "device": hex(DEVICE),
             "notes": [], "everyFrame": False, "framesComposited": 0, "frameSkips": {},
-            "voxyNear": verify.HIER_VOXY_NEAR, "voxyFar": verify.HIER_VOXY_FAR}
+            "voxyFar": verify.HIER_VOXY_FAR}
     body.update(overrides)
     return body
 

@@ -324,6 +324,36 @@ public class VkHostViewportTest {
         return new float[]{v.x, v.y, v.z, v.w};
     }
 
+    /**
+     * round-26 R26-PROJECTION-EQUIVALENCE: {@code VoxyRenderSystem.computeProjectionMat} keeps the
+     * extra transforms the frame's projection carries over the raw camera projection and replaces
+     * only the raw projection's depth row; its near plane depends on the vanilla distance.
+     */
+    @Test
+    void theGlProjectionKeepsExtraTransformsAndPicksNearLikeGl() {
+        var raw = mcLikeProjection();
+        // no extra transform: the plain helper
+        var plain = VkHostViewport.voxyProjection(raw, 16f, VkHostViewport.VOXY_FAR);
+        var same = VkHostViewport.voxyProjectionGl(raw, raw, 16f, VkHostViewport.VOXY_FAR);
+        for (int c = 0; c < 4; c++) for (int r = 0; r < 4; r++)
+            assertEquals(plain.get(c, r), same.get(c, r), 1e-6f * Math.max(1f, Math.abs(plain.get(c, r))));
+        // a bobbing-like extra transform: kept, applied before the replaced raw projection
+        var extra = new Matrix4f().rotateX(0.03f).rotateZ(-0.02f).translate(0.01f, -0.02f, 0f);
+        var base = new Matrix4f(raw).mul(extra);
+        var gl = VkHostViewport.voxyProjectionGl(base, raw, 16f, VkHostViewport.VOXY_FAR);
+        var want = new Matrix4f(plain).mul(extra);
+        for (int c = 0; c < 4; c++) for (int r = 0; r < 4; r++)
+            assertEquals(want.get(c, r), gl.get(c, r), 1e-5f * Math.max(1f, Math.abs(want.get(c, r))));
+        // and that differs from replacing the depth row of the bobbed matrix
+        var naive = VkHostViewport.voxyProjection(base, 16f, VkHostViewport.VOXY_FAR);
+        float diff = 0;
+        for (int c = 0; c < 4; c++) for (int r = 0; r < 4; r++) diff = Math.max(diff, Math.abs(naive.get(c, r) - gl.get(c, r)));
+        assertTrue(diff > 1e-6f, "the extra transform must matter");
+        assertEquals(8f, VkHostViewport.voxyNear(32f, false));
+        assertEquals(16f, VkHostViewport.voxyNear(48f, false));
+        assertEquals(0.1f, VkHostViewport.voxyNear(128f, true));
+    }
+
     private static Matrix4f voxyProjection() {
         return VkHostViewport.voxyProjection(mcLikeProjection(),
             VkHostViewport.VOXY_NEAR, VkHostViewport.VOXY_FAR);

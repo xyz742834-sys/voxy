@@ -243,7 +243,9 @@ public final class VkHostViewport {
      *
      * <h2>⚠ 変わるのは深度だけである</h2>
      * {@code VoxyRenderSystem.computeProjectionMat} は MC の投影行列の
-     * <b>m22 / m32 だけ</b>を書き換える [確認済]。行 0・1・3 は触らない。したがって
+     * <b>m22 / m32 だけ</b>を書き換える [確認済]。⚠ ただしこれは<b>余分な変換 (bobbing) の無い
+     * 投影で、near 16 の場合</b>に限る — 全体の写しは {@link #voxyProjectionGl} と
+     * {@link #voxyNear} (round-26 R26-PROJECTION-EQUIVALENCE)。行 0・1・3 は触らない。したがって
      * <b>{@code x_ndc} と {@code y_ndc} は MC のものと完全に一致する</b> —
      * 色は同じ画面位置に出るので、<b>色は素通し、深度だけを画素ごとに変換すればよい</b>。
      * これが再投影ブリットが成立する根拠である。
@@ -266,6 +268,31 @@ public final class VkHostViewport {
      * @param near         手前の平面 (ブロック)。{@link #VOXY_NEAR}
      * @param far          奥の平面 (ブロック)。{@link #VOXY_FAR}
      */
+    /**
+     * {@code VoxyRenderSystem.computeProjectionMat}, all of it, for reverse-Z 0..1 (round-26
+     * R26-PROJECTION-EQUIVALENCE): the extra transforms the frame's projection carries over
+     * Minecraft's raw camera projection (view bobbing) are factored out and kept, and only the raw
+     * projection's depth row is replaced — {@code voxyProjection(raw, near, far) * inverse(raw) *
+     * base}. With {@code base == raw} it is {@link #voxyProjection}.
+     *
+     * @param base  the projection this frame draws with (0..1, reverse Z)
+     * @param rawMc Minecraft's raw camera projection, in the same depth convention
+     */
+    public static Matrix4f voxyProjectionGl(Matrix4fc base, Matrix4fc rawMc, float near, float far) {
+        var extra = new Matrix4f(rawMc).invert().mul(base);
+        return extra.mulLocal(voxyProjection(rawMc, near, far));
+    }
+
+    /**
+     * Voxy's near plane as {@code VoxyRenderSystem.computeProjectionMat} picks it: 8 blocks when
+     * the vanilla render distance is at most 32 blocks (else vanilla terrain does not cover a
+     * 16-block near plane), 16 otherwise, 0.1 when Sodium's chunk rendering is disabled.
+     */
+    public static float voxyNear(float vanillaRenderDistanceBlocks, boolean sodiumChunkRenderDisabled) {
+        float near = vanillaRenderDistanceBlocks <= 32.0f ? 8f : 16f;
+        return sodiumChunkRenderDisabled ? 0.1f : near;
+    }
+
     public static Matrix4f voxyProjection(Matrix4fc mcProjection, float near, float far) {
         if (!(near > 0) || !(far > near)) {
             throw new IllegalArgumentException("need 0 < near < far, got near=" + near + " far=" + far);

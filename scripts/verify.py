@@ -2406,11 +2406,19 @@ HIER_REPROJECT_EPS = 2.0 / ((1 << 24) - 1)
 HIER_REPROJECT_TOLERANCE = 1e-3
 
 
-def voxy_projection(mc):
+def voxy_near(vanilla_render_distance, sodium_chunk_render_disabled):
+    """VoxyRenderSystem.computeProjectionMat's near plane: 8 at vanilla distances up to 32 blocks,
+    16 above, 0.1 when Sodium's chunk rendering is disabled."""
+    if sodium_chunk_render_disabled:
+        return 0.1
+    return 8.0 if vanilla_render_distance <= 32.0 else 16.0
+
+
+def voxy_projection(mc, near=HIER_VOXY_NEAR):
     """Minecraft's reverse-Z 0..1 projection with only its depth row (m22, m32 — column-major
     indices 10, 14) replaced by Voxy's near/far; near and far swap for reverse Z."""
     m = list(mc)
-    n, f = HIER_VOXY_FAR, HIER_VOXY_NEAR
+    n, f = HIER_VOXY_FAR, near
     m[10], m[14] = f / (n - f), f * n / (n - f)
     return m
 
@@ -2449,14 +2457,26 @@ def hier_reprojection_checks(output, entry, at, recount, ladder_sample):
     if entry.get("voxyDepthFile") != name or not (output / name).is_file():
         raise ValueError(f"{L} at draw {at} names voxyDepthFile={entry.get('voxyDepthFile')!r}"
                          f" (want {name!r}, retained)")
-    proj, vp = entry.get("projection"), entry.get("voxyProjection")
-    for label, m in (("projection", proj), ("voxyProjection", vp)):
+    proj, vp, raw = entry.get("projection"), entry.get("voxyProjection"), entry.get("rawProjection")
+    for label, m in (("projection", proj), ("voxyProjection", vp), ("rawProjection", raw)):
         if not isinstance(m, list) or len(m) != 16 or not all(finite_number(v) for v in m):
             raise ValueError(f"{L} at draw {at} publishes {label}={m!r}, not 16 numbers")
-    want = voxy_projection(proj)
-    if any(abs(a - b) > 1e-6 * max(1.0, abs(b)) for a, b in zip(vp, want)):
-        raise ValueError(f"{L} at draw {at}: voxyProjection is not Minecraft's projection with"
-                         f" Voxy's near {HIER_VOXY_NEAR} / far {HIER_VOXY_FAR}")
+    # round-26 R26-PROJECTION-EQUIVALENCE: VoxyRenderSystem.computeProjectionMat in full — the
+    # raw camera projection's depth row replaced (near from the vanilla distance), times the
+    # extra transforms this frame's projection carries over the raw one
+    distance, sodium_off = entry.get("vanillaRenderDistance"), entry.get("sodiumChunkRenderDisabled")
+    if not finite_number(distance) or not isinstance(sodium_off, bool):
+        raise ValueError(f"{L} at draw {at} states vanillaRenderDistance={distance!r},"
+                         f" sodiumChunkRenderDisabled={sodium_off!r}")
+    near = voxy_near(distance, sodium_off)
+    if not finite_number(entry.get("voxyNear")) or abs(entry["voxyNear"] - near) > 1e-6:
+        raise ValueError(f"{L} at draw {at} renders with near {entry.get('voxyNear')!r}, but a vanilla"
+                         f" distance of {distance} blocks gives Voxy's near {near}")
+    want = _mat_mul(_mat_mul(voxy_projection(raw, near), _mat_invert(raw)), proj)
+    if any(abs(a - b) > 1e-5 * max(1.0, abs(b)) for a, b in zip(vp, want)):
+        raise ValueError(f"{L} at draw {at}: voxyProjection is not Voxy's projection of its raw"
+                         f" camera projection (near {near} / far {HIER_VOXY_FAR}) with this frame's"
+                         f" extra transforms")
     raw, (w, h) = read_f32_gz(output / name)
     ref, (rw, rh) = read_f32_gz(output / entry["referenceDepthFile"])
     if (w, h) != (rw, rh):
@@ -2571,11 +2591,14 @@ HIER_LOAD_SPEC = {"label": "hierarchical-LOAD", "line_label": "hier-load", "pref
 def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text, required=False,
                      require_frames=False):
     """Voxy's HIERARCHICAL pipeline natively (VkHierarchicalScene: real mapper/bakery,
-    NodeManager, HiZ, traversal, prep/cull, table, opaque/temporal/translucent), driven with
-    Minecraft's matrix into Voxy's own target and composited into a pass that LOADs Minecraft's
-    colour and depth with Voxy's GREATER_OR_EQUAL (writes on). Judged per pixel exactly like
-    real-LOAD (judge_load_sample) against the ladder's bracket and Voxy's own depth of the same
-    frame; skips corroborated the same way (real_load_skip_provenance with this experiment's log
+    NodeManager, HiZ, traversal, prep/cull, table, opaque/temporal/translucent, Voxy's CULL mode),
+    driven with Voxy's own projection of Minecraft's camera into Voxy's own target, its depth
+    reprojected into Minecraft's space, and composited into a pass that LOADs Minecraft's colour
+    and depth by Voxy's GL rule (only where Minecraft's depth is still clear; fragment depth 0,
+    GREATER_OR_EQUAL, writes off). Judged per pixel with judge_load_sample in clear-only mode
+    against the ladder's CLEAR class of the same frame: Voxy shows on CLEAR pixels where it drew
+    and nowhere else; every reference depth re-derived from Voxy's raw depth
+    (hier_reprojection_checks); skips corroborated the same way (real_load_skip_provenance with this experiment's log
     formats). At least one judged sample must hold pixels that must appear and one pixels that
     must be hidden."""
     L = HIER_LOAD_SPEC["label"]
@@ -2627,9 +2650,9 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         raise ValueError(f"the {L} probe runs budget {report['buildBudget']}, {report['iterations']}"
                          f" iteration(s), top radius {report['topRadius']}, depth {report['depth']},"
                          f" not what its source lays out")
-    if report.get("voxyNear") != HIER_VOXY_NEAR or report.get("voxyFar") != HIER_VOXY_FAR:
-        raise ValueError(f"the {L} probe renders with near {report.get('voxyNear')!r} / far"
-                         f" {report.get('voxyFar')!r}, not Voxy's {HIER_VOXY_NEAR} / {HIER_VOXY_FAR}")
+    if report.get("voxyFar") != HIER_VOXY_FAR:
+        raise ValueError(f"the {L} probe renders with far {report.get('voxyFar')!r}, not Voxy's"
+                         f" {HIER_VOXY_FAR}")
     if report["declaredDepthState"] != TERRAIN_LOAD_DEPTH_STATE or report["depthStateReadBack"]:
         raise ValueError(f"the {L} probe declares {report['declaredDepthState']!r}"
                          f" (read back: {report['depthStateReadBack']}), not Voxy's declared"
@@ -4606,8 +4629,9 @@ def replay_evidence(directory):
             outcome["ladder"]["hier_load"] = ladder_result.get("hier_load")
             if (ladder_result.get("hier_load") or {}).get("enabled"):
                 outcome["replayed"].append("hierarchical-LOAD per-pixel recount of every judged"
-                                           " sample against the ladder's brackets and Voxy's"
-                                           " reference depth of the same frame")
+                                           " sample by Voxy's GL rule against the ladder's CLEAR"
+                                           " class of the same frame, and the reprojection of"
+                                           " every reference depth")
             if (ladder_result.get("real_load") or {}).get("enabled"):
                 outcome["replayed"].append("real-LOAD per-pixel recount of every judged sample"
                                            " against the ladder's brackets and Voxy's reference"

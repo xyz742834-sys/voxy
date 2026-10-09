@@ -54,8 +54,12 @@ public abstract class MixinDefaultChunkRenderer extends ShaderChunkRenderer {
                 // native instance mode (experimental, flagged): copy Minecraft's own matrices
                 // and camera for the native probes at the level-render tail. No GL, no draw.
                 var target = renderPass.getTarget();
+                // and Minecraft's raw camera projection, which Voxy's own projection factors out
+                // (VoxyRenderSystem.computeProjectionMat)
                 me.cortex.voxy.client.core.vk.mcnative.McNativeCamera.capture(
-                    matrices.projection(), matrices.modelView(), camera.x, camera.y, camera.z,
+                    matrices.projection(), net.minecraft.client.Minecraft.getInstance().gameRenderer
+                        .gameRenderState().levelRenderState.cameraRenderState.projectionMatrix,
+                    matrices.modelView(), camera.x, camera.y, camera.z,
                     target.width, target.height);
                 return;
             }
