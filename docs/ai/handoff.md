@@ -1,8 +1,8 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-24 candidate = the docs commit on top of the run-evidence commit (the dispatch commit after
-it names the exact SHA): the hierarchical-LOAD milestone. Round 23 judged `14743bf4`: REDESIGN on DELIVERY-BOUNDARY
+`vulkan-macos`, round-24 candidate **03461cea** (dispatched 2026-10-10, worktree `native-review-r24`): the
+hierarchical-LOAD milestone. Round 23 judged `14743bf4`: REDESIGN on DELIVERY-BOUNDARY
 only; no open code or gate finding; its wording residuals fixed in `32de53c2`. Round 22 judged `8ba67fc5`: REDESIGN on DELIVERY-BOUNDARY only; occlusion CONFIRMED;
 four R21 items closed; three non-blocking residuals addressed in `5476545d`. Round 21 judged `03ee3485`: REDESIGN on DELIVERY-BOUNDARY only; two R20 items closed;
 four residual and two new non-blocking items addressed in `d0a08faf`; occlusion measured. Round 20 judged `39584eba`: REDESIGN on DELIVERY-BOUNDARY only; R19 items closed;
@@ -223,8 +223,9 @@ gate, which is expected and tabled in the survey.
 
 ## Round 24
 
-Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r24.txt` (if not already
-done — check `git log` for a "docs: record the round-24 dispatch" commit). When its report
+Dispatched 2026-10-10 against `03461cea` (`03461cead0826525768d53c631276ffae0a6d8b9`) with
+`docs/ai/runs/native-review-prompt-r24.txt` (worktree `native-review-r24`, terminal
+`term_b574e3c4-97fa-4456-8f60-1df536422301`). When its report
 lands: copy it to `docs/ai/runs/native-integration-review-r24.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 

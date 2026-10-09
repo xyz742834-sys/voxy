@@ -1,0 +1,58 @@
+You are an INDEPENDENT reviewer, round 24. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (03461cead0826525768d53c631276ffae0a6d8b9). Round 23 returned REDESIGN against 14743bf4 on the
+standing DELIVERY-BOUNDARY only, with no open code or gate finding; its wording residuals were
+fixed in 32de53c2. Report: docs/ai/runs/native-integration-review-r23.md, machine verdict ...-r23.json.
+
+This round judges an implementation milestone (9a8f6c02, 0fb4c968, 7cab9bc2, run evidence
+c1cde636, docs 03461cea): Voxy's hierarchical pipeline natively, composited into Minecraft's
+LOADed frame.
+- McNativeHierarchicalLoad (flag voxy.native.hierload, -PharnessNativeHierLoad): on frames the
+  depth ladder hands it, VkHierarchicalScene (world mapper, bakery, NodeManager, HiZ, traversal,
+  prep/cull, table, opaque/temporal/translucent, unchanged) renders with Minecraft's matrix into
+  Voxy's own VkRenderTarget, three iterations per hand-off with serviceRequests after each fence.
+- McNativeComposite + shaders lod/vk/native_composite.{vert,frag}: a full-screen triangle in a pass
+  that LOADs Minecraft's colour and depth, depth test/write on with Voxy's compare op, discarding
+  where Voxy drew nothing and writing gl_FragDepth from Voxy's depth.
+- McNativeDepthLadder: three-way hand-off (terrain, real, hier; only real and hier in the horizon
+  stage); the gate replicates it (ladder_expected_consumers). LOW palette colour changed from grey
+  to dark purple because fogged terrain quantised to the old grey.
+- verify.py: hier_load_checks, sharing judge_load_sample / load_judged_entry_checks /
+  real_load_skip_provenance with real-LOAD (factored out of real_load_checks; real-LOAD messages
+  claimed unchanged). Instance gate now requires stored level-0 sections near the camera
+  (maxStoredNearCamera) instead of a non-zero active-section count.
+Run docs/ai/runs/native-evidence/20261009T175351-583841Z (built from 7cab9bc2): hier_load 6 judged, zero
+violations, 82073 must-show shown, at horizon 2605 shown and 3962 hidden; real_load 5 judged,
+zero violations.
+
+The boundary from rounds 4-23 still governs and the candidate accepts it. Stated limits: Minecraft's
+projection (far 2048, no reprojection), no native near cut, a device-idle wait per hand-off,
+rendering only on hand-off frames.
+
+Judge, CONFIRMED or REFUTED with file/line or command:
+1. GPU submission and resource lifetime of McNativeHierarchicalLoad and McNativeComposite: fences,
+   barriers/layouts for the composite sources, destroy-queue retirement, frame tracker lifetime,
+   shutdown paths (normal close and McNativeVkContext immediate shutdown).
+2. Composite correctness: depth compare and gl_FragDepth against Voxy's declared depth state; the
+   discard rule; that the per-pixel reference is the image the composite reads.
+3. Gate soundness: a guard-removal audit of hier_load_checks and the refactored shared helpers
+   (does real-LOAD still refuse everything it did?); the three-way hand-off replication; the
+   meshed / meshedAtBuild reconciliation; the palette change and the instance-metric change
+   (neither may weaken a guard); name any survivor.
+4. Recount at least the horizon hier-LOAD sample of the new run.
+5. Survey/handoff/current-state overstatement, including the stated limits.
+6. Safety for normal play with every voxy.native.* flag unset, on GL and on Minecraft Vulkan; the GL
+   backend and shared source untouched in behaviour.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T175351-583841Z
+Do NOT run scripts/verify.py --only native or --only live; judge the committed evidence.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, hier_load_judgment,
+composite_judgment, lifetime_judgment, gate_refactor_judgment, occlusion_judgment,
+real_load_judgment, atlas_judgment, instance_mode_judgment, terrain_load_judgment,
+coexist_judgment, z_direction_judgment and ladder_judgment.
