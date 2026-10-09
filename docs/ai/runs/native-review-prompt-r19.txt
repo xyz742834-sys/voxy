@@ -1,0 +1,74 @@
+You are an INDEPENDENT reviewer, round 19. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (9a6ca051d6f15beee6141ac1ca98552253deda7b). Round 18 returned REDESIGN
+against a6e1c3a3 on the standing DELIVERY-BOUNDARY only: it closed R16-COEXIST-LAUNCH-SEMANTICS
+and R14-DOC-DRIFT and CONFIRMED the terrain-LOAD measurement. Non-blocking: R18-TEST-TERRAINLOAD
+(four terrain_load_checks guards without a failing test), R18-TERRAIN-METADATA (published view,
+matrix, extent, drawCount, referenceSet, near/far not reconciled: a zero matrix, a fictitious
+eye, 1x1, counters of 1 and near 999 replayed 0), R18-DOC-SEAM (handoff said the native path
+already produces sections), and an "all-zero" depth-copy wording the newest run contradicts.
+Report: docs/ai/runs/native-integration-review-r18.md, machine verdict
+docs/ai/runs/native-integration-review-r18.json.
+
+The HEAD does two things.
+
+(1) REPAIRS (commit bb55f53b). verify.terrain_load_checks pins eye/centre/fov/near/far/margin to
+the source's constants, recomputes the matrix with a Python port of McNativeTerrainLoad.mvp
+(terrain_load_expected_mvp) and compares all 16 entries, requires the scene extent to equal the
+last ladder sample's, drawCount == 10, and referenceSet == the non-background pixels of the last
+extent's reference crop. Tests were added for the geometry-zero guard, the no-geometry extremum
+guard and the off-branch orphan guard; the previous-crop size guard was removed as unreachable
+(coexist_checks enforces it first) with a comment. Handoff seam sentence and depth-copy wording
+corrected.
+
+(2) NEW, measured, experimental, all flagged and default off:
+ - Native instance mode (commit c2c78d8c): -Dvoxy.native.instance=true. On Minecraft's Vulkan
+   backend VoxyClient registers the instance factory only (BACKEND stays null);
+   MixinLevelRenderer creates the level's WorldEngine and returns without a VoxyRenderSystem.
+   McNativeInstanceProbe samples every 60 frames; gate native_instance_result (stage and replay,
+   required when the launch enables it in any Gradle form).
+ - Minecraft matrix capture (df4cbce5): in that mode the Sodium CUTOUT hook copies
+   ChunkRenderMatrices and the camera into McNativeCamera (no GL, no draw); the probe records
+   the capture count and the gate requires >= 1 by the last sample.
+ - Harness stage 'horizon' (bb55f53b): 14 lifecycle stages; after 'return', tp to spawn facing
+   +x (yaw -90, pitch 15) so the Voxy-only sections around x=768 lie in the ladder band.
+ Newest run docs/ai/runs/native-evidence/20261009T085529-037358Z (built from bb55f53b): 4860
+ captures, up to 92 active sections, no renderer; terrain-LOAD 21 samples, zero violations, 15
+ mixed. The real-section LOAD experiment itself is NOT in the tree; its design is in
+ docs/ai/handoff.md next-steps item 3.
+
+The boundary from rounds 4-18 still governs and the candidate accepts it. It claims (a) the
+round-18 non-blocking items are repaired, (b) native instance mode runs Voxy's world engine and
+ingest on Minecraft's Vulkan backend with no render path, and the matrix capture runs there,
+from retained, reconciled, required evidence — and nothing about drawing real sections, and
+(c) the survey and handoff claim no more than that. Judge all three.
+
+Judge, saying CONFIRMED or REFUTED with file/line or command:
+1. R18 repairs. Re-run your metadata attacks (zero matrix, fictitious eye, 1x1, counters of 1,
+   near 999) and your terrain_load_checks guard removals against the new run; name any that
+   replay 0 or leave the suites green.
+2. Native instance mode. Is it inert unflagged? Does it ever build a GL/interop renderer on MC
+   Vulkan? Do the world engine, storage and ingest touch GL? Is anything leaked or left running
+   at disconnect/reconnect (the instance's threads, the world engine, storage handles)? Attack
+   the instance gate (renderer, backend, no engine, no sections, no captures, aggregates, log).
+3. The matrix capture and the horizon stage: is the capture GL-free and inert unflagged; does
+   the stage renumbering preserve every other stage's behaviour (descend/ascend at the right
+   indices, Z direction still judged)?
+4. Tests: JUnit 343 (1 documented skip), Python 260. Guard removals for native_instance_result
+   and the new terrain_load_checks pins. Fixtures must not be shrunk.
+5. Survey/handoff overstatement, incl. the real-section design in next-steps item 3 (it must
+   read as a plan, not as done).
+6. Safety for normal play with every voxy.native.* flag unset, on GL and on Minecraft Vulkan.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T085529-037358Z
+Do NOT run scripts/verify.py --only native or --only live; judge the committed evidence.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round18_findings_closed (an
+object mapping R18-TEST-TERRAINLOAD, R18-TERRAIN-METADATA, R18-DOC-SEAM to true/false),
+instance_mode_judgment, terrain_load_judgment, coexist_judgment, z_direction_judgment and
+ladder_judgment.

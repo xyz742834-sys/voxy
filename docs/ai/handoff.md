@@ -1,8 +1,9 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-19 candidate = the docs commit on top of `ef1979f6` (the dispatch commit
-after it names the exact SHA). Round 18 judged `a6e1c3a3`: REDESIGN on DELIVERY-BOUNDARY only;
+`vulkan-macos`, round-19 candidate **9a6ca051** (`9a6ca051d6f15beee6141ac1ca98552253deda7b`,
+dispatched 2026-10-09 in Orca worktree `native-review-r19`, terminal
+`term_2da7d7f2-b183-40df-9d74-d26e675670bb`). Round 18 judged `a6e1c3a3`: REDESIGN on DELIVERY-BOUNDARY only;
 R16-COEXIST-LAUNCH-SEMANTICS and R14-DOC-DRIFT closed; terrain-LOAD measurement confirmed; four
 non-blocking items repaired in `bb55f53b`. (Round 17 judged `19b2444a`: coexistence CONFIRMED a third time,
 R16-COEXIST-LAUNCH-SEMANTICS left open on other Gradle CLI spellings and repaired here with the
@@ -190,8 +191,8 @@ gate, which is expected and tabled in the survey.
 
 ## Round 19
 
-Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r19.txt` (if not already
-done — check `git log` for a "docs: record the round-19 dispatch" commit). When its report
+Dispatched against `9a6ca051` with `docs/ai/runs/native-review-prompt-r19.txt` (worktree
+`native-review-r19`, terminal `term_2da7d7f2-b183-40df-9d74-d26e675670bb`). When its report
 lands: copy it to `docs/ai/runs/native-integration-review-r19.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
