@@ -1,0 +1,407 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "9cfd9c01c546e4a298e2777d104368e6254763f8",
+  "round": 27,
+  "initial_tree_clean": true,
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "message": "Normally enabled native LoD and complete normal-play delivery acceptance remain unmet.",
+      "evidence": [
+        "docs/ai/project-goal.md:9",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeRender.java:24"
+      ]
+    },
+    {
+      "id": "R27-EMPTY-REBUILD",
+      "judgment": "CONFIRMED",
+      "message": "An empty build permanently suppresses ordinary rebuilds in the same engine/camera section despite later ingestion, edits, resize or atlas replacement.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:319",
+        ".agent-run/r27/EmptyBuildProbe.java",
+        ".agent-run/r27/empty-build.json"
+      ]
+    },
+    {
+      "id": "R27-RENDER-DISABLE",
+      "judgment": "CONFIRMED",
+      "message": "With a live engine, the rendering-off configuration/menu action stops only the nullable GL renderer, while native switch-driven every-frame rendering continues.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:199",
+        "src/main/java/me/cortex/voxy/client/config/VoxyConfigMenu.java:84",
+        "src/main/java/me/cortex/voxy/client/mixin/minecraft/MixinLevelRenderer.java:80"
+      ]
+    },
+    {
+      "id": "R27-RENDER-GATE",
+      "judgment": "CONFIRMED",
+      "message": "Render gate/replay accepts contradictory diagnostic activity, diagnostic command flags, missing thumbnails, failed environment completion, incomplete checkpoint coverage, validation/application log errors and stage snapshots outside their harness stage.",
+      "evidence": [
+        "scripts/verify.py:2822",
+        "scripts/verify.py:2873",
+        "scripts/verify.py:4653",
+        "scripts/verify.py:4938",
+        ".agent-run/r27/replay-mutations.json",
+        ".agent-run/r27/render-probes.json"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R26-LADDER-GUARD-COVERAGE",
+      "judgment": "CONFIRMED",
+      "message": "20/22 named removals detected by the new class; both remaining guards are reachable within the finite-number/extent domain. Correct unchanged refusals remain, but blanket unreachable claims are false.",
+      "evidence": [
+        ".agent-run/r27/guard-summary.json",
+        ".agent-run/r27/unreachable-probes.json",
+        "scripts/verify.py:3191",
+        "scripts/verify.py:3302"
+      ]
+    },
+    {
+      "id": "R24-HIER-GUARD-COVERAGE",
+      "judgment": "CONFIRMED",
+      "message": "Fresh 37-predicate shared-helper audit: hierarchy-only tests detect 10, 27 survive; real-LOAD detects all 37.",
+      "evidence": [
+        ".agent-run/r27/r24-guard-summary.json"
+      ]
+    },
+    {
+      "id": "R27-CONTEXT-DRIFT",
+      "judgment": "CONFIRMED",
+      "message": "Older living context still says no native implementation/borrowing and only GL interop wired, while newer sections describe the experimental native product route. Delivery remains explicitly unaccepted.",
+      "evidence": [
+        "docs/ai/project-goal.md:56",
+        "docs/ai/current-state.md:140",
+        "docs/ai/architecture.md:203"
+      ]
+    }
+  ],
+  "safe_for_normal_play": true,
+  "safety_scope": "All voxy.native.* flags unset from startup: source/offline dormant safety and preserved supported GL route only. Minecraft Vulkan leaves Voxy rendering disabled. No fresh ordinary-play launch.",
+  "safe_for_normal_play_with_product_switch": false,
+  "round26_findings_closed": {
+    "DELIVERY-BOUNDARY": false,
+    "R26-PROJECTION-EQUIVALENCE": true,
+    "R26-COMPOSITE-DOC-SCOPE": true,
+    "R26-LADDER-GUARD-COVERAGE": false,
+    "R24-HIER-GUARD-COVERAGE": false
+  },
+  "product_switch_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Routes to native features/adoption/instance/every-frame hierarchy under actual Minecraft Vulkan; does not imply diagnostic flags.",
+    "on_mc_opengl": "Native adoption finds no Vulkan device; native instance mode and hierarchy remain off; established GL or Apple GL-hosted diagnostic path remains.",
+    "normal_play_soundness": "REFUTED",
+    "rebuild_budget": "Six-attempt ceiling only under ladder; outside ladder at most one build per 60 enabled render calls.",
+    "empty_recovery": "REFUTED; no same-section retry on ingestion/time/resize/atlas changes.",
+    "render_disable": "REFUTED for native rendering already running on a live engine.",
+    "lifetime": {
+      "inspected_successful_paths": "CONFIRMED queued retirement, owner-device idle shutdown, idempotence and dirty-callback ownership.",
+      "long_session_acceptance": "REFUTED; only six attempts/five nonempty scenes and three atlas reads retained."
+    },
+    "evidence": [
+      ".agent-run/r27/empty-build.json",
+      ".agent-run/r27/mc-lifetime.javap"
+    ]
+  },
+  "render_gate_judgment": {
+    "judgment": "REFUTED",
+    "committed_record_consistency": "CONFIRMED",
+    "frames_composited": 5235,
+    "render_calls": 5521,
+    "frame_skips": {
+      "atlas-pending": 6,
+      "nothing-meshed": 280
+    },
+    "build_attempts": 6,
+    "atlas_reads": 3,
+    "per_stage": {
+      "create": 0,
+      "warmup": 526,
+      "turn": 651,
+      "travel": 583,
+      "return": 590,
+      "horizon": 589,
+      "edit": 344,
+      "remove": 295,
+      "resize": 281,
+      "reload": 248,
+      "nether": 1,
+      "overworld": 282,
+      "descend": 295,
+      "ascend": 295,
+      "reconnect": 255
+    },
+    "guard_removals": {
+      "audited": 14,
+      "detected": 14,
+      "scope": "Whole direct-raise if removals under unchanged RenderGateTest; omitted guards remain unsound."
+    },
+    "full_replay_mutations": [
+      {
+        "case": "diagnostic-command",
+        "exit_code": 0,
+        "error": null,
+        "manifest_mismatches": [],
+        "source_mismatches": [],
+        "framesComposited": 5235
+      },
+      {
+        "case": "contradictory-off-report",
+        "exit_code": 0,
+        "error": null,
+        "manifest_mismatches": [],
+        "source_mismatches": [],
+        "framesComposited": 5235
+      },
+      {
+        "case": "missing-thumbnails",
+        "exit_code": 0,
+        "error": null,
+        "manifest_mismatches": [],
+        "source_mismatches": [],
+        "framesComposited": 5235
+      },
+      {
+        "case": "render-log-failure",
+        "exit_code": 0,
+        "error": null,
+        "manifest_mismatches": [],
+        "source_mismatches": [],
+        "framesComposited": 5235,
+        "stage_log_gate_success": false
+      },
+      {
+        "case": "failed-environment",
+        "exit_code": 0,
+        "error": null,
+        "manifest_mismatches": [],
+        "source_mismatches": [],
+        "framesComposited": 5235
+      },
+      {
+        "case": "incomplete-checkpoints",
+        "exit_code": 0,
+        "error": null,
+        "manifest_mismatches": [],
+        "source_mismatches": [],
+        "framesComposited": 5235
+      },
+      {
+        "case": "misbound-stage",
+        "exit_code": 0,
+        "error": null,
+        "manifest_mismatches": [],
+        "source_mismatches": [],
+        "framesComposited": 5235
+      }
+    ],
+    "off_report_exception": "REFUTED as an activity guarantee: false enabled/attempted ignores contradictory draws/results/problems and defaults omitted attempted to false.",
+    "per_stage_requirement": "REFUTED as event-bound proof: separate list ordering accepts a snapshot before its harness stage; skipped snapshots unbound.",
+    "retention": "Original has all 14 thumbnails; replay accepts deletion and ignores render environment completion/failure/coverage and launch log validation checks.",
+    "reproduction_command": "python3 .agent-run/r27/render_review.py",
+    "direct_gate_probes": [
+      {
+        "case": "baseline",
+        "success": true,
+        "failures": []
+      },
+      {
+        "case": "contradictory-off-report",
+        "success": true,
+        "failures": []
+      },
+      {
+        "case": "missing-attempted-off-report",
+        "success": true,
+        "failures": []
+      },
+      {
+        "case": "edit-render-stage-before-harness-edit",
+        "success": true,
+        "failures": []
+      },
+      {
+        "case": "impossible-stage-skip-snapshot",
+        "success": true,
+        "failures": []
+      },
+      {
+        "case": "off-report-shared-atlas-close-failure",
+        "atlasCloseFailures": 1,
+        "success": true,
+        "failures": []
+      }
+    ]
+  },
+  "projection_judgment": {
+    "judgment": "CONFIRMED",
+    "round26_specific_defect_closed": true,
+    "scope": "VoxyRenderSystem.computeProjectionMat equivalence for reverse-Z 0..1, extra transforms preserved, near 8/16/0.1; not arbitrary RenderProperties.",
+    "java_contract_cases": 24,
+    "maximum_matrix_error": 0.0,
+    "gate_contract": {
+      "GL_cases_accepted": 24,
+      "wrong_near_refused": 24,
+      "scope": "24 pure/rotated/translated projection and near-metadata contracts; zero-depth 1x1 files isolate recomputation; independent retained recount separately checks nonzero depth"
+    },
+    "retained_maximum_reprojection_relative_error": 4.117733487588704e-07,
+    "limits": [
+      "Runtime samples use only near 16 and ordinary raw/base projections.",
+      "No beyond-Minecraft-far hardware sample or full-frame GL parity.",
+      "1x1 zero-depth contract files isolate projection metadata; retained recount separately checks nonzero depth."
+    ],
+    "evidence": [
+      ".agent-run/r27/projection-contract.json",
+      ".agent-run/r27/projection-gate-contract.json",
+      ".agent-run/r27/recount.json"
+    ]
+  },
+  "default_on_readiness": {
+    "judgment": "REFUTED",
+    "ready": false,
+    "safe_to_flip_now": false,
+    "remaining": [
+      "Invalidate initially empty scene suppression on available world data and relevant lifecycle changes; prove stationary recovery.",
+      "Honor enabled/rendering configuration and supply a native kill switch with fail-closed feature/device handling before default-on.",
+      "Use configured scene radius/subdivision/budgets with sustainable streaming and bounded rebuild latency.",
+      "Integrate before Minecraft translucents and establish native vanilla section bounds/near cut and downstream depth-consumer behavior.",
+      "Provide real Minecraft lightmap, accepted fog/fade/SSAO and translucency behavior with visual references.",
+      "Demonstrate native resource pressure/reclaim/retry/recovery, sustained edits, fast travel, long-session allocation plateau and many retirements.",
+      "Validate repeated dimension/reconnect/resize/reload and app close without disconnect; exercise failed waits/submission/device changes.",
+      "Close render diagnostic/command/stage/replay/environment/thumbnail refusals and remaining hierarchy/ladder guard coverage.",
+      "Retain normally enabled candidate-bound native validation, visual and performance acceptance, including far-world and projection variant coverage."
+    ]
+  },
+  "hier_load_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Eight retained judged hierarchy bands using clear-only eligibility and same-renderer reference; no delivery or ordinary-frame correctness inference.",
+    "judged_samples": 8,
+    "totals": {
+      "geometry": 374505,
+      "noGeometry": 316951,
+      "expectVisible": 16665,
+      "expectHidden": 357840,
+      "undetermined": 0,
+      "visible": 16665,
+      "hidden": 357840,
+      "ambiguous": 0,
+      "other": 0,
+      "visibleWhereHidden": 0,
+      "hiddenWhereVisible": 0,
+      "changedWhereNoGeometry": 0
+    },
+    "horizon": {
+      "at": 2642,
+      "stage": "horizon",
+      "rect": [
+        342,
+        576,
+        1366,
+        653
+      ],
+      "size": [
+        1024,
+        77
+      ],
+      "geometry": 6567,
+      "noGeometry": 72281,
+      "expectVisible": 2605,
+      "expectHidden": 3962,
+      "undetermined": 0,
+      "visible": 2605,
+      "hidden": 3962,
+      "ambiguous": 0,
+      "other": 0,
+      "visibleWhereHidden": 0,
+      "hiddenWhereVisible": 0,
+      "changedWhereNoGeometry": 0,
+      "max_reprojection_relative_error": 3.633208206219328e-07,
+      "clamped": 0,
+      "anchor_blocks": 4845,
+      "positive_depth_range": [
+        3.1495386792812496e-05,
+        5.3890391427557915e-05
+      ]
+    },
+    "geometry": 374505,
+    "no_geometry": 316951,
+    "must_show_shown": 16665,
+    "must_hide_unchanged": 357840,
+    "violations": 0,
+    "visually_inspected_render_thumbnails": [
+      "horizon",
+      "travel",
+      "nether",
+      "reload",
+      "reconnect"
+    ],
+    "visual_limits": "Ocean horizon strips, gaps/floating pieces and nearly black Nether visible; no independent attribution or GL reference to diagnose them.",
+    "evidence": [
+      ".agent-run/r27/recount.py",
+      ".agent-run/r27/recount.json"
+    ]
+  },
+  "evidence_binding": {
+    "run": "docs/ai/runs/native-evidence/20261009T213621-341358Z",
+    "built_revision": "4518eabdadefe2bb5c361faabe977b402042640e",
+    "manifest_members": 399,
+    "selected_source_entries": 431,
+    "fingerprint_mismatches": 0,
+    "scope": "Exact selected-source byte/inventory match at review HEAD; editable-record consistency, not authenticated JAR/native-call provenance."
+  },
+  "verification": {
+    "gradle": {
+      "command": "./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true",
+      "exit_code": 0,
+      "tests": 352,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "passed": 351,
+      "log": ".agent-run/r27-gradle.log",
+      "diagnostics": "Intentional fill-buffer WAW control and deprecated validation-settings warning; descriptor-SSBO hazard test skipped."
+    },
+    "python": {
+      "command": "python3 -m unittest discover -s scripts/tests",
+      "interpreter": "Python 3.14.4 via PATH; system Python 3.9 run interrupted and log retained.",
+      "log": ".agent-run/r27-python-tests.log",
+      "exit_code": 0,
+      "tests": 313,
+      "passed": 313,
+      "failures": 0,
+      "errors": 0,
+      "elapsed_seconds": 824.044
+    },
+    "replay": {
+      "command": "python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T213621-341358Z",
+      "exit_code": 0,
+      "log": ".agent-run/r27-replay.log"
+    },
+    "named_ladder_mutation_audit": {
+      "audited": 22,
+      "detected": 20,
+      "uncovered": [
+        3191,
+        3302
+      ]
+    },
+    "r24_shared_mutation_audit": {
+      "audited": 37,
+      "hierarchy_detected": 10,
+      "real_load_detected": 37
+    }
+  },
+  "could_not_check": [
+    "No fresh Minecraft/native/live/normal-play launch permitted.",
+    "No long-session native pressure/allocation/retirement/failure-injection proof retained.",
+    "No live rendering-off toggle performed; source control-flow finding only.",
+    "No full-frame ordinary-frame pixel/depth or GL parity oracle.",
+    "No runtime near 8/0.1, bobbing/extra-transform or beyond-Minecraft-far sample in this run.",
+    "Native adopted logs say syncValidation=false; full native synchronization-validation coverage not independently certified.",
+    "Editable selected-source hashes and published pipeline state do not authenticate compiled-JAR/native-call arguments."
+  ],
+  "production_changed": false,
+  "prohibited_launch_performed": false
+}
