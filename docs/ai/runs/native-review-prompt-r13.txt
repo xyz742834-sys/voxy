@@ -1,0 +1,74 @@
+You are an INDEPENDENT reviewer, round 13. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (e1bf895dc02527c11fc716ce62a836b7a1ec5eeb). Round 12 returned REDESIGN against
+9b6a1816 with BOTH round-11 findings closed; its only blocking item was the standing delivery
+boundary (bounded diagnostics are not an accepted foundation and do not deliver native Voxy
+LoD), which the candidate has never contested. It named non-blocking limits (a creator that
+rewrites state for the Vulkan call and restores it; block-grain anchoring; consistent forgery)
+which the survey states as limits. Its report is docs/ai/runs/native-integration-review-r12.md
+and its machine verdict docs/ai/runs/native-integration-review-r12.json.
+
+This HEAD is the first GOAL step after that: it MEASURES THE Z DIRECTION. Two lifecycle stages
+were added to the harness: `descend` teleports the player 12 blocks above the highest block
+under (0, 0) (client heightmap, recorded as `groundY` in the checkpoint), pitch 90; `ascend`
+to 108 blocks above the same block, pitch 90. The depth ladder (own launch, as before) labels
+every sample with the harness stage and the main camera's position/rotation at readback
+request. The GATE — not the probe, which still asserts zConventionMeasuredHere:false — takes
+the last sample of each of the two stages whose camera is where the stage put it (y = ground +
+offset + 1.62 within one block, pitch 90 within one degree, x/z at the teleport), requires no
+pixel below the smallest rung in either, and compares bracket indices: every bracket of the
+nearer look strictly above the farther look's reads "larger depth value is nearer
+(reverse-Z)"; strictly below reads conventional; anything else fails the stage. Measured:
+ground y=67; descend camera 80.62 -> brackets 3-4; ascend camera 176.62 -> bracket 2; verdict
+reverse-Z. The survey section "The Z direction, measured" states this and its limits (one
+spot, fixed seed, this hook; the depth SCALE is not measured; coexistence not attempted).
+
+The boundary from rounds 4-12 still governs and the candidate accepts it: an independently
+accepted diagnostic foundation is still REDESIGN. The candidate does NOT claim an accepted
+layer. It claims (a) the Z direction of Minecraft's main depth attachment at this hook is
+measured as reverse-Z, by a gate reading of two retained looks whose geometry the harness
+set, (b) that reading rests only on retained, replayable evidence, and (c) the survey claims no
+more than that. Judge all three.
+
+Read docs/ai/project-goal.md and docs/ai/vulkan-native-integration-survey.md first; the
+survey's "The Z direction, measured" section and docs/ai/handoff.md state what changed.
+
+Judge, saying CONFIRMED or REFUTED with the file/line or command for each:
+
+1. THE DIRECTION MEASUREMENT. Is "which look is nearer" actually established by the
+   harness geometry (heightmap, teleports, pitch, eye height) plus the camera positions the
+   ladder publishes, independently of any depth value? Could the band from 13.6 blocks up and
+   the band from 109.6 blocks up be looking at different things such that the comparison does
+   not read the direction (trees, the band's forward offset, caves, water)? Inspect the two
+   retained frame thumbnails and crops. Is the gate's rule (strict separation of bracket
+   index sets, no 'low' pixels, last sample of each stage, camera tolerance) sound, and what
+   would make it pass wrongly? Try to construct a consistent retained package that passes with
+   the opposite direction, and say what it takes.
+2. THE GATE AND REPLAY. Run your mutation table against
+   docs/ai/runs/native-evidence/20261009T033539-494735Z/ladder/ (camera lies, stage relabelling,
+   swapped samples, groundY changes in the checkpoints, a near look with sky), naming any
+   mutation that replays as 0. Judge the stage/camera labelling (a system property set by the
+   harness; the camera read by the probe) as evidence.
+3. TESTS. JUnit 333 (1 documented skip, 0 failures) and 170 Python cases, including LadderDirectionTest. Name
+   any test that would pass against broken code. Fixtures must not be shrunk.
+4. WHETHER THE SURVEY OVERSTATES. The Z-direction section, the round-12 paragraph and the
+   replay table (fourteen runs; only the newest replays, by design). Judge what remains.
+5. SAFETY FOR NORMAL PLAY. With voxy.native.probe / .marker / .features / .adopt / .terrain /
+   .depth / .depthladder all unset, would you ship this to a player on the GL backend? On
+   Minecraft's Vulkan backend? Confirm the ladder cannot act unflagged and never writes
+   Minecraft's depth even when flagged, and that the harness changes live only in the
+   development-only harness source set.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T033539-494735Z
+Do NOT run scripts/verify.py --only native or --only live (it launches Minecraft and takes the
+GPU); judge the committed evidence instead.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, z_direction_judgment (with at
+least geometry_established, nearer_look_identified_independently_of_depth, rule_sound,
+direction_confirmed, scale_measured, opposite_direction_forgeable_without_joint_rewrite),
+terrain_experiment_judgment, depth_result_judgment, and ladder_judgment.

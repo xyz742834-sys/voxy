@@ -1,7 +1,7 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, HEAD **9b6a1816** (`9b6a18160b8111cf241787d4ca28c363af8b524b`, round-12 candidate; round 11 judged `867cd25d`, round 10 `6b2d6cc9`).
+`vulkan-macos`, HEAD **e1bf895d** (`e1bf895dc02527c11fc716ce62a836b7a1ec5eeb`, round-13 candidate; round 12 judged `9b6a1816` with no open evidence finding).
 
 > Read `docs/ai/project-goal.md` and `docs/ai/current-state.md` first, then this. This file is
 > task state, not source of truth; when the work moves on, update it or delete it.
@@ -25,8 +25,10 @@ Written 2026-10-07 for a **fresh session with no conversation context**. Branch
 ## The review discipline (this is the spine)
 
 `scripts/verify.py` is the verification spine. Native work is **"measured", never "verified"**
-until a fresh independent review of a frozen commit records a verdict. Eleven rounds have run,
-**all REDESIGN**. Reports are in `docs/ai/runs/native-integration-review-r1..r11.{md,json}`.
+until a fresh independent review of a frozen commit records a verdict. Twelve rounds have run,
+**all REDESIGN** — round 12's only blocking item is the standing delivery boundary (native LoD is
+not implemented); every evidence/gate finding is closed. Reports are in
+`docs/ai/runs/native-integration-review-r1..r12.{md,json}`.
 
 Dispatch procedure (works; GPT-6.1-Sol, not Astra):
 
@@ -38,22 +40,21 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9 … -12 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r12`. Start
+-9 … -13 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r13`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 11, and what this HEAD claims
+### Findings status after round 12, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
-| everything up to R8-LADDER-GATE, R9-DEPTH-FINITE, R9-SURVEY-OVERCLAIM, R10-LOG-DETAILS, R10-DEPTH-FIXTURE | closed |
-| **B1** evidence binding | open 11 rounds; r11 residual (partial/aliased fingerprint inventory) repaired — key set must equal the checkout's source inventory, **unreviewed** |
-| **R10-CREATE-TEST** | r11 residual (mutation inside the production creator) repaired — state read back after the creator returns, published as `pipelineStates`, pinned by the gate, JUnit-tested, **unreviewed**; the Vulkan call itself stays outside any test |
-| non-blocking R11-SURVEY-TABLE / R10-DOC-DRIFT / R11-DEPTH-SCOPE | addressed (table: only the newest run replays; this file; copy wording softened) |
-| non-blocking R10-ANCHOR-GRAIN / R10-CONSISTENT-FORGERY | **stated as limits** in the survey, not repaired |
+| every evidence/gate finding B1 … R10-CREATE-TEST | **closed (r12)** |
+| DELIVERY-BOUNDARY | standing: diagnostics are not an accepted foundation; native LoD is unimplemented |
+| non-blocking limits R12-NATIVE-CALL-LIMIT / R10-ANCHOR-GRAIN / R10-CONSISTENT-FORGERY | **stated as limits** in the survey |
+| **Z direction** (new, goal work) | measured in this HEAD by the gate from two straight-down looks: larger depth value = nearer (reverse-Z), **unreviewed** |
 
 B1 has one recurring shape: **the gate trusted something the thing under test controls.**
 Repairs have removed that progressively — raw pixels instead of aggregates, source constants
@@ -86,6 +87,13 @@ frame extent, every retained file a manifest member.
 - **MC clears its main depth to 0.0** at the start of `LevelRenderer.render` (frame-graph
   "clear" pass → `clearColorAndDepthTextures(…, 0.0)`, read from the 26.2 bytecode). That is
   the reverse-Z far value. Source evidence about the clear, not a measurement of the convention.
+- **The Z direction is measured: larger depth value = nearer (reverse-Z).** Two harness stages
+  look straight down at the ground under (0, 0) (y = 67, from the heightmap) from 12 and 108
+  blocks above it; the ladder labels samples with stage and camera; the gate takes the last
+  sample of each look (camera at ground + offset + 1.62 within a block, pitch 90) and requires
+  every bracket of the nearer look to lie strictly on one side of the farther look's. Measured:
+  near brackets 3–4, far bracket 2. Retained in `20261009T033539-494735Z/ladder/`. The depth *scale*
+  is not measured.
 
 ## What is NOT established — do not claim these
 
@@ -98,6 +106,8 @@ frame extent, every retained file a manifest member.
   same day** (`fcd5ce18`). The linear rungs 0.0625..0.9375 sat inside the first block in front
   of the camera. Round 8 refuted the same claim independently. **Why the buffer copy read 0.0
   everywhere** while the depth test sees non-zero values is not established.
+- The depth **scale** (near/far mapping) is not measured; the direction is. Coexistence (a
+  depth-tested Voxy draw against MC's LOADed depth) is not yet attempted.
 - No round has accepted the diagnostic layer as a foundation. Round 4's wording still governs:
   terrain investigation may be **experimental**, not "continuation from an accepted layer".
 
@@ -112,31 +122,32 @@ screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_ch
 (same function as the stage), saying explicitly "not replayed" for runs that retained none and
 refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 333 (1 documented skip, 0 failures); Python 161 cases;
-native stage green as `docs/ai/runs/native-evidence/20261007T031630-708042Z` (replay 0 **in this
+Gate/test counts at this HEAD: JUnit 333 (1 documented skip, 0 failures); Python 170 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T033539-494735Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
-inventory, so only a run built from HEAD's sources replays). Older retained runs do not replay
-under this gate, which is expected and tabled in the survey.
+inventory, so only a run built from HEAD's sources replays). The lifecycle now has thirteen
+checkpointed stages (`descend`, `ascend` added). Older retained runs do not replay under this
+gate, which is expected and tabled in the survey.
 
-## Round 12
+## Round 13
 
-Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r12.txt` (if not already
-done — check `git log` for a "docs: record the round-12 dispatch" commit). When its report
-lands: copy it to `docs/ai/runs/native-integration-review-r12.{md,json}`, commit the report
+Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r13.txt` (if not already
+done — check `git log` for a "docs: record the round-13 dispatch" commit). When its report
+lands: copy it to `docs/ai/runs/native-integration-review-r13.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
 
-1. Import the round-12 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 13.
-2. Then the goal work. The tail attachment holds real depth values (per-pixel ladder). What is
-   still unknown and must be measured, in this order: (a) the **Z direction** — a controlled
-   experiment, e.g. the same band sampled while the camera moves a known amount toward known
-   geometry, watching the bracket histogram shift; the source facts (clear to 0.0, near/far
-   swapped in `setPerspective`) say reverse-Z but are not a measurement; (b) **why the buffer
-   copy reads 0.0** — not needed for coexistence, record as open; (c) only then a depth-tested
-   Voxy draw against MC's LOADed depth at this hook, gated the same way (per-pixel, positive
-   control, retained crops).
+1. Import the round-13 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 14.
+2. Then the goal work, next step: a **depth-tested Voxy draw against MC's LOADed depth** at
+   this hook — the terrain probe today CLEARS MC's frame to compare against Voxy's own target;
+   the coexistence experiment must instead LOAD MC's colour and depth, draw Voxy's synthetic
+   terrain with depth test on (reverse-Z: GREATER-or-equal semantics, writes allowed for Voxy's
+   own geometry), and show per pixel, against the ladder's brackets taken in the same frame
+   band, that Voxy's pixels appear exactly where its depth is nearer than MC's. Gate it the
+   same way (per-pixel, retained crops anchored to thumbnails, both orientations, own launch).
+   Open and not needed for that: why the buffer copy reads 0.0; the depth scale.
 3. Nothing in the ladder may ever write MC's depth. If a future variant needs to, it is a
    different probe with a different flag.
 
@@ -145,7 +156,7 @@ alone, then repair blocking findings in a separate commit.
 ```
 ./gradlew test --offline --no-daemon -PvkLibname=/opt/homebrew/lib/libvulkan.dylib \
   -PvkValidation=true -PvkSyncEnv=true          # JUnit
-python3 -m unittest discover -s scripts/tests   # 158 cases, ~190s
+python3 -m unittest discover -s scripts/tests   # 170 cases, ~250s
 python3 scripts/verify.py --only native --seconds 8 --timeout 1500   # launches MC twice, ~5 min
 python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/<run>   # no launch
 ```
@@ -180,4 +191,4 @@ not fingerprinted.
   replays; the others are tabled).
 - `docs/ai/harness.md` — the review rule.
 - `docs/ai/testing.md` — the stages and what each proves.
-- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 13 runs.
+- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 14 runs.
