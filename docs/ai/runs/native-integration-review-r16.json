@@ -1,0 +1,274 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "a49b926f0f596f504099f735219c91df9f0b2f78",
+  "review_round": 16,
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "summary": "Standing rounds 4-15 boundary: diagnostic observations are not an independently accepted foundation or delivered native Voxy LoD. Candidate explicitly accepts this boundary.",
+      "locations": [
+        "docs/ai/project-goal.md:9",
+        "docs/ai/handoff.md:57",
+        "src/main/java/me/cortex/voxy/client/VoxyClient.java:96"
+      ]
+    },
+    {
+      "id": "R16-COEXIST-LAUNCH-SEMANTICS",
+      "judgment": "REFUTED complete required-evidence repair",
+      "summary": "Replay requires coexist only for the exact token -PharnessNativeCoexist=true. Gradle hasProperty enables it for =false or the bare property too. Both still-enabled launch forms replay as 0 with report off/empty, all 48 coexist images removed, all 24 coexist log lines removed, refreshed manifest; saved summary enabled report/results untouched. Original round-15 attack with exact true token is refused.",
+      "locations": [
+        "scripts/verify.py:2636",
+        "scripts/verify.py:2873",
+        "build.gradle:602",
+        "scripts/verify.py:1235"
+      ],
+      "reproduction": "python3 .agent-run/r16-attacks.py downgrade_silent_log_command_false downgrade_silent_log_command_bare",
+      "artifacts": [
+        ".agent-run/r16-attack-downgrade_silent_log_command_false.json",
+        ".agent-run/r16-attack-downgrade_silent_log_command_bare.json",
+        ".agent-run/r16/gradle-launch-false.log"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R15-TEST-COEXIST",
+      "judgment": "REFUTED full closure",
+      "summary": "Five guard removals leave all 15 unchanged coexist tests green: result-list type (1218), complete draw-key set (1249), crop filename (1264), thumbnail filename (1267), log count agreement (1314). Log-count mutant accepts an otherwise baseline-rejected report/log disagreement. Other guards may still reject malformed packages. JVM binding mutation passes all 333 tests, a correctly stated limit; draw-plan mutation fails the pinned assertion.",
+      "locations": [
+        "scripts/tests/test_ladder_gate.py:927",
+        "scripts/tests/test_ladder_gate.py:989",
+        "scripts/verify.py:1314",
+        "docs/ai/vulkan-native-integration-survey.md:1365"
+      ],
+      "artifacts": [
+        ".agent-run/r16-mutant-summary.json",
+        ".agent-run/r16-mutant-log-escape.json",
+        ".agent-run/r16-binding-mutant-junit.json"
+      ]
+    },
+    {
+      "id": "R14-DOC-DRIFT",
+      "judgment": "REFUTED full closure; CONFIRMED correction of named handoff passages",
+      "summary": "Handoff no longer says direction unmeasured, coexistence unattempted, or older 18 samples measured by this HEAD. Survey still calls round-15 run replay 0 in this checkout (1351), still calls round-14 run current (1277), and dates current replay table 2026-10-07 (448). Test-per-guard claim is false. Handoff launch description at 125 omits the enabled coexist property. Historical five mixed samples are accurate for the historical run; current run has four.",
+      "locations": [
+        "docs/ai/vulkan-native-integration-survey.md:448",
+        "docs/ai/vulkan-native-integration-survey.md:1277",
+        "docs/ai/vulkan-native-integration-survey.md:1351",
+        "docs/ai/vulkan-native-integration-survey.md:1365",
+        "docs/ai/handoff.md:61",
+        "docs/ai/handoff.md:125"
+      ]
+    },
+    {
+      "id": "STANDING-EVIDENCE-LIMITS",
+      "judgment": "CONFIRMED disclosed limits",
+      "summary": "Editable evidence/source inventories and post-return creator states do not authenticate GPU execution, runtime dependency/JVM/driver identity or native create/bind consumption. Position anchoring is complete 4x4 blocks only; partial blocks and within-block permutations remain outside it. No exact-equality native depth pixel is retained. Saved coexist summary outputs are not generally reconciled: removing launch property or command plus other experiment traces still passes; this alone is a coordinated-record rewrite, distinct from the still-enabling command semantic bug."
+    }
+  ],
+  "safe_for_normal_play": {
+    "gl_backend": true,
+    "minecraft_vulkan_backend_inert": true,
+    "would_ship_dormant_change_on_supported_gl_configuration": true,
+    "would_ship_as_functioning_native_voxy": false,
+    "all_native_flags_unset_required": true,
+    "flags": [
+      "voxy.native.probe",
+      "voxy.native.marker",
+      "voxy.native.features",
+      "voxy.native.adopt",
+      "voxy.native.terrain",
+      "voxy.native.depth",
+      "voxy.native.depthladder",
+      "voxy.native.coexist"
+    ],
+    "coexist_cannot_draw_unflagged": true,
+    "coexist_depth_writes_when_flagged": false,
+    "ladder_depth_writes_when_flagged": false,
+    "harness_changes_development_only": true,
+    "scope": "Source-inspected dormant-change safety and fresh offline tests; no player/package/native/live run."
+  },
+  "round15_findings_closed": {
+    "R15-COEXIST-PRESENCE": false,
+    "R15-COEXIST-RGB": true,
+    "R15-TEST-COEXIST": false,
+    "R15-COEXIST-DUPLICATE": true,
+    "R14-DOC-DRIFT": false
+  },
+  "coexist_judgment": {
+    "judgment": "CONFIRMED bounded measurement and exact-byte semantics; REFUTED complete launch-required replay gate",
+    "same_frame_same_pixels": true,
+    "compare_op_is_voxys": true,
+    "compare_op": "GREATER_OR_EQUAL (6), VkDepth.COMPARE_OP",
+    "no_depth_write": true,
+    "bracket_rule_sound": true,
+    "equality_rule": "d == z4 leaves rung 3 because ladder LESS is strict; z4 >= d passes the quad. Rungs 4-7 mean d > z4.",
+    "zero_violations_confirmed": true,
+    "samples": 24,
+    "original_pixels_compared": 2114816,
+    "mixed_samples": [
+      3842,
+      4082,
+      4802,
+      5042
+    ],
+    "anchored_complete_4x4_blocks": 388539,
+    "original_replay_exit": 0,
+    "original_round15_presence_attack_closed": true,
+    "full_launch_semantics_closed": false,
+    "gpu_origin_authenticated": false,
+    "passing_attacks": [
+      "downgrade_silent_log_command_bare",
+      "downgrade_silent_log_command_false",
+      "downgrade_silent_log_command_missing",
+      "downgrade_silent_log_command_off"
+    ]
+  },
+  "z_direction_judgment": {
+    "judgment": "CONFIRMED bounded reverse-Z at this hook, these two looks; REFUTED general depth scale or arbitrary geometry/device inference",
+    "direction": "larger depth value is nearer (reverse-Z)",
+    "near": {
+      "at": 5042,
+      "cameraY": 80.61999988555908,
+      "groundY": 67,
+      "aboveGround": 13.619999885559082,
+      "brackets": [
+        3,
+        4
+      ],
+      "rungs": [
+        0,
+        0,
+        0,
+        45734,
+        53338,
+        0,
+        0,
+        0
+      ]
+    },
+    "far": {
+      "at": 5282,
+      "cameraY": 176.61999988555908,
+      "groundY": 67,
+      "aboveGround": 109.61999988555908,
+      "brackets": [
+        2
+      ],
+      "rungs": [
+        0,
+        0,
+        99072,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "basis": "two looks straight down at the same ground from 12 and 108 blocks above it (harness teleports; camera positions published by the ladder; ground height from the checkpoints); every pixel bracket of the nearer look lies strictly on one side of every bracket of the farther look",
+    "per_ray_distance_bound_measured": false
+  },
+  "terrain_experiment_judgment": {
+    "judgment": "CONFIRMED all 27 retained synthetic pairs exact RGB equal; REFUTED real native LoD/coexistence acceptance",
+    "independently_equal_retained_pairs": 27,
+    "selected_draw": 5787,
+    "non_background_pixels": 26116,
+    "mismatches": 0,
+    "clears_minecraft_targets": true,
+    "real_world_lod": false
+  },
+  "depth_result_judgment": {
+    "judgment": "CONFIRMED retained quantized all-zero copy; REFUTED depth direction/scale/cause inference",
+    "width": 1708,
+    "height": 960,
+    "zero_quantized_samples": 1639680,
+    "raw_float_zero_independently_retained": false,
+    "cause_established": false
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED bounded brackets, repaired direction bindings and source-bound original recounts; REFUTED complete launch-required coexist evidence / native acceptance",
+    "samples": 24,
+    "source_entries": 408,
+    "manifest_members": 301,
+    "original_replay_named_checks": 10,
+    "source_bytes_match_checkout": true,
+    "source_revision_recorded": "e3a89ea1fb99c77d2f98702c365dd8327916ad51",
+    "changed_sources_during_run": [],
+    "retained_runs": 17,
+    "replaying_runs": 1,
+    "diagnostic_layer_accepted": false,
+    "native_lod_accepted": false
+  },
+  "verification": {
+    "junit": {
+      "tests": 333,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "python": {
+      "tests": 193,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 432.746
+    },
+    "coexist_guard_mutants": 23,
+    "original_guard_mapping": {
+      "1205": 1215,
+      "1208": 1218,
+      "1211": 1230,
+      "1214": 1236,
+      "1220": 1242,
+      "1224": 1249,
+      "1235": 1260,
+      "1239": 1264,
+      "1242": 1267,
+      "1246": 1271,
+      "1250": 1275,
+      "1254": 1278,
+      "1257": 1281,
+      "1283": 1307,
+      "1291": 1314,
+      "1294": 1317,
+      "1298": 1321,
+      "1304": 1317,
+      "1310": 1330
+    },
+    "coexist_guard_mutants_surviving_focused_suite": [
+      "coexist_if_1218",
+      "coexist_if_1249",
+      "coexist_if_1264",
+      "coexist_if_1267",
+      "coexist_if_1314"
+    ],
+    "coexist_focused_tests": 15,
+    "direction_mutants": 7,
+    "java_binding_mutant_junit": {
+      "tests": 333,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "java_plan_mutant_junit": {
+      "tests": 333,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 1
+    },
+    "native_or_live_launched": false,
+    "fixtures_shrunk": false,
+    "implementation_modified": false
+  },
+  "could_not_check": [
+    "Fresh Minecraft/native/live execution prohibited by request.",
+    "Player GL or packaged Vulkan runtime regression and sustained resource lifetime/update/pressure/reload proof.",
+    "GPU/native call consumption, dependency jars used in retained run, compiled JVM/driver origin; inspected local jar disassembly only.",
+    "Full original buffers/native depth at exactly z*, retained world/per-ray distances or general depth scale.",
+    "Full 193-case suite separately for each guard mutant; mutations run against the entire unchanged 15-case coexist suite (and 15-case direction suite for direction mutants)."
+  ],
+  "report": "docs/ai/runs/native-integration-review.md",
+  "artifacts_root": ".agent-run/r16*"
+}
