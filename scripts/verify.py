@@ -2796,7 +2796,16 @@ def native_render_result(output, log_text, expected_device=None):
               "scope": "the native path under the product switch alone; per-pixel correctness is"
                        " the ladder launch's"}
     try:
-        present = [name for name in RENDER_FORBIDDEN_FILES if (output / name).is_file()]
+        # a diagnostic that is off still writes its report at shutdown, saying so (measured: the
+        # real-LOAD probe's enabled=false, attempted=false); one that ran says enabled or attempted
+        present = []
+        for name in RENDER_FORBIDDEN_FILES:
+            path = output / name
+            if path.is_file():
+                body = json.loads(path.read_text())
+                if not isinstance(body, dict) or body.get("enabled") is not False \
+                        or body.get("attempted", False) is not False:
+                    present.append(name)
         if present:
             raise ValueError(f"the {L} launch ran diagnostics: {present}")
         report = json.loads((output / "native-hier-load.json").read_text())

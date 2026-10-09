@@ -55,8 +55,9 @@ class RenderGateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             (out / "native-hier-load.json").write_text(json.dumps(body))
-            for name in files:
-                (out / name).write_text("{}")
+            for name, body in (files.items() if isinstance(files, dict) else
+                               ((n, {"enabled": True}) for n in files)):
+                (out / name).write_text(json.dumps(body))
             return verify.native_render_result(out, text if log is None else log(text), device)
 
     def assertRefused(self, result, fragment):
@@ -74,6 +75,13 @@ class RenderGateTest(unittest.TestCase):
     def test_a_diagnostic_in_the_product_launch_is_refused(self):
         for name in verify.RENDER_FORBIDDEN_FILES:
             self.assertRefused(self.run_gate(files=[name]), "ran diagnostics")
+            self.assertRefused(self.run_gate(files={name: {"enabled": False, "attempted": True}}),
+                               "ran diagnostics")
+            self.assertRefused(self.run_gate(files={name: {}}), "ran diagnostics")
+            self.assertRefused(self.run_gate(files={name: []}), "ran diagnostics")
+            # an off diagnostic writes its report saying so at shutdown: not a run
+            self.assertTrue(self.run_gate(files={name: {"enabled": False, "attempted": False}})["success"])
+            self.assertTrue(self.run_gate(files={name: {"enabled": False}})["success"])
 
     def test_the_report_must_be_the_clean_product_path(self):
         for field, value in (("product", False), ("everyFrame", False), ("enabled", False),
