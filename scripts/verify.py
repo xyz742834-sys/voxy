@@ -1449,7 +1449,8 @@ def coexist_checks(output, report, recounts, log_text, required=False):
 
 INSTANCE_LOG = re.compile(r"native instance at frame (\d+) stage=(\S*) factory=(true|false)"
                           r" instance=(true|false) engine=(true|false) live=(true|false)"
-                          r" activeSections=(\d+) renderer=(true|false) ingest=(true|false)")
+                          r" activeSections=(\d+) renderer=(true|false) ingest=(true|false)"
+                          r" cameraCaptures=(\d+)")
 INSTANCE_SAMPLE_INTERVAL = 60
 
 
@@ -1516,7 +1517,8 @@ def native_instance_result(output, required=False, log_text=None):
             for field, kind in (("frame", int), ("stage", str), ("factorySet", bool),
                                 ("instancePresent", bool), ("enginePresent", bool),
                                 ("engineLive", bool), ("activeSections", int),
-                                ("rendererCreated", bool), ("ingestEnabled", bool)):
+                                ("rendererCreated", bool), ("ingestEnabled", bool),
+                                ("cameraCaptures", int)):
                 if field not in sample:
                     raise ValueError(f"instance sample {index} does not state {field}")
                 value = sample[field]
@@ -1537,6 +1539,10 @@ def native_instance_result(output, required=False, log_text=None):
             if sample["enginePresent"] and not (sample["factorySet"] and sample["instancePresent"]):
                 raise ValueError(f"instance sample at frame {sample['frame']} has an engine"
                                  f" without a factory or instance")
+            if sample["cameraCaptures"] < 0 or (index and sample["cameraCaptures"]
+                                                < samples[index - 1].get("cameraCaptures", 0)):
+                raise ValueError(f"instance sample at frame {sample['frame']} has"
+                                 f" cameraCaptures={sample['cameraCaptures']}, which decreased")
             last_frame = sample["frame"]
             max_active = max(max_active, sample["activeSections"])
             engine_ever |= sample["enginePresent"]
@@ -1560,6 +1566,9 @@ def native_instance_result(output, required=False, log_text=None):
                              f" {final['stage']!r}) has no live world engine")
         if not final["ingestEnabled"]:
             raise ValueError("ingest was disabled at the last sample")
+        if final["cameraCaptures"] < 1:
+            raise ValueError("Minecraft's matrices were never captured from the chunk renderer, so"
+                             " no native probe can draw with Minecraft's own camera")
         if log_text is not None:
             logged = {}
             for m in INSTANCE_LOG.findall(log_text):
@@ -1574,7 +1583,7 @@ def native_instance_result(output, required=False, log_text=None):
                         str(sample["instancePresent"]).lower(),
                         str(sample["enginePresent"]).lower(), str(sample["engineLive"]).lower(),
                         str(sample["activeSections"]), str(sample["rendererCreated"]).lower(),
-                        str(sample["ingestEnabled"]).lower())
+                        str(sample["ingestEnabled"]).lower(), str(sample["cameraCaptures"]))
                 if tuple(logged[sample["frame"]]) != want:
                     raise ValueError(f"the log's instance line for frame {sample['frame']} says"
                                      f" {logged[sample['frame']]} but the report says {want}")

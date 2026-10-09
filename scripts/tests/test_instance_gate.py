@@ -27,11 +27,11 @@ INSTANCE_COMMAND = ["gradlew", "runHarnessClient", "-PharnessNative=true",
 
 
 def sample(frame, stage="warmup", active=12, engine=True, renderer=False, live=None,
-           ingest=True):
+           ingest=True, captures=None):
     return {"frame": frame, "stage": stage, "factorySet": True, "instancePresent": True,
             "enginePresent": engine, "engineLive": engine if live is None else live,
             "activeSections": active if engine else 0, "rendererCreated": renderer,
-            "ingestEnabled": ingest}
+            "ingestEnabled": ingest, "cameraCaptures": frame if captures is None else captures}
 
 
 def report(samples=None, **overrides):
@@ -58,7 +58,8 @@ def log_for(samples):
         f" factory={flag(s, 'factorySet')} instance={flag(s, 'instancePresent')}"
         f" engine={flag(s, 'enginePresent')} live={flag(s, 'engineLive')}"
         f" activeSections={s.get('activeSections')} renderer={flag(s, 'rendererCreated')}"
-        f" ingest={flag(s, 'ingestEnabled')}\n" for s in samples if isinstance(s, dict))
+        f" ingest={flag(s, 'ingestEnabled')} cameraCaptures={s.get('cameraCaptures')}\n"
+        for s in samples if isinstance(s, dict))
 
 
 class InstanceGateTest(unittest.TestCase):
@@ -117,6 +118,10 @@ class InstanceGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(report(samples=dead)), "has no live world engine")
         no_ingest = [sample(1, active=0), sample(60, active=4, ingest=False)]
         self.assertRefused(self.run_gate(report(samples=no_ingest)), "ingest was disabled")
+        no_camera = [sample(1, active=0, captures=0), sample(60, active=4, captures=0)]
+        self.assertRefused(self.run_gate(report(samples=no_camera)), "never captured")
+        shrinking = [sample(1, active=0, captures=5), sample(60, active=4, captures=3)]
+        self.assertRefused(self.run_gate(report(samples=shrinking)), "which decreased")
 
     def test_aggregates_the_samples_contradict_fail(self):
         self.assertRefused(self.run_gate(report(maxActiveSections=99)), "maxActiveSections=99")
@@ -145,7 +150,8 @@ class InstanceGateTest(unittest.TestCase):
             body.pop(field)
             self.assertRefused(self.run_gate(body), field)
         for field in ("frame", "stage", "factorySet", "instancePresent", "enginePresent",
-                      "engineLive", "activeSections", "rendererCreated", "ingestEnabled"):
+                      "engineLive", "activeSections", "rendererCreated", "ingestEnabled",
+                      "cameraCaptures"):
             body = report()
             body["samples"][1].pop(field)
             self.assertRefused(self.run_gate(body), field)

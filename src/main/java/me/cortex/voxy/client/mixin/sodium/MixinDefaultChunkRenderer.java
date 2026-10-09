@@ -50,6 +50,15 @@ public abstract class MixinDefaultChunkRenderer extends ShaderChunkRenderer {
     private void doRender(ChunkRenderMatrices matrices, TerrainRenderPass renderPass, CameraTransform camera, FogParameters fogParameters) {
         if (renderPass == DefaultTerrainRenderPasses.CUTOUT) {
             var renderer = IVoxyRenderSystemHolder.getNullable();
+            if (renderer == null && VoxyClient.nativeInstanceMode()) {
+                // native instance mode (experimental, flagged): copy Minecraft's own matrices
+                // and camera for the native probes at the level-render tail. No GL, no draw.
+                var target = renderPass.getTarget();
+                me.cortex.voxy.client.core.vk.mcnative.McNativeCamera.capture(
+                    matrices.projection(), matrices.modelView(), camera.x, camera.y, camera.z,
+                    target.width, target.height);
+                return;
+            }
             if (renderer == null && VoxyClient.backend() == VoxyClient.Backend.VULKAN) {
                 // Phase 5c-1d: **Phase 4 の合成地形**を Vulkan で描いて合成する。
                 // ここで初めて Voxy 自身の深度を MC の深度バッファへ書くので、

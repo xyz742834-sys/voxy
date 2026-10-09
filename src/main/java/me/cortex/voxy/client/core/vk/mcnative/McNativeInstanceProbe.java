@@ -35,7 +35,7 @@ public final class McNativeInstanceProbe {
     /** 1 回の観測。 */
     public record Sample(long frame, String stage, boolean factorySet, boolean instancePresent,
                          boolean enginePresent, boolean engineLive, int activeSections,
-                         boolean rendererCreated, boolean ingestEnabled) {}
+                         boolean rendererCreated, boolean ingestEnabled, long cameraCaptures) {}
 
     private static final List<String> NOTES = new ArrayList<>();
     private static final List<Sample> SAMPLES = new ArrayList<>();
@@ -79,8 +79,13 @@ public final class McNativeInstanceProbe {
         boolean rendererCreated = IVoxyRenderSystemHolder.getNullable() != null;
         boolean ingestEnabled = instancePresent
             && VoxyCommon.getInstance().isIngestEnabled(null);
+        // Minecraft's own matrices, copied by the Sodium CUTOUT hook in this mode: the count of
+        // captures so far says the hook runs on Minecraft's Vulkan backend (the next
+        // experiment draws real sections with that matrix).
+        long cameraCaptures = McNativeCamera.frame();
         var s = new Sample(frames, System.getProperty("voxy.harness.stage", ""), factorySet,
-            instancePresent, enginePresent, engineLive, active, rendererCreated, ingestEnabled);
+            instancePresent, enginePresent, engineLive, active, rendererCreated, ingestEnabled,
+            cameraCaptures);
         synchronized (NOTES) {
             if (SAMPLES.size() < SAMPLE_LIMIT) SAMPLES.add(s);
             maxActiveSections = Math.max(maxActiveSections, active);
@@ -95,7 +100,7 @@ public final class McNativeInstanceProbe {
         Logger.info("[native-vk] native instance at frame " + frames + " stage=" + s.stage()
             + " factory=" + factorySet + " instance=" + instancePresent + " engine=" + enginePresent
             + " live=" + engineLive + " activeSections=" + active + " renderer=" + rendererCreated
-            + " ingest=" + ingestEnabled);
+            + " ingest=" + ingestEnabled + " cameraCaptures=" + cameraCaptures);
         writeEvidence();
     }
 
@@ -131,7 +136,8 @@ public final class McNativeInstanceProbe {
             sb.append(", \"engineLive\": ").append(s.engineLive());
             sb.append(", \"activeSections\": ").append(s.activeSections());
             sb.append(", \"rendererCreated\": ").append(s.rendererCreated());
-            sb.append(", \"ingestEnabled\": ").append(s.ingestEnabled()).append('}');
+            sb.append(", \"ingestEnabled\": ").append(s.ingestEnabled());
+            sb.append(", \"cameraCaptures\": ").append(s.cameraCaptures()).append('}');
         }
         sb.append(samples.isEmpty() ? "],\n" : "\n  ],\n");
         sb.append("  \"notes\": [");
