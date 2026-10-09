@@ -1,0 +1,104 @@
+You are an INDEPENDENT reviewer, round 18. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (a6e1c3a39fab2a4d00848a133387e7c009c3b06e). Round 17 returned REDESIGN against
+19b2444a: it CONFIRMED the coexistence measurement a third time (24 pairs, exact RGB, zero
+violations), CONFIRMED that all 23 coexist refusal guards have a failing test
+(R15-TEST-COEXIST closed), and kept R16-COEXIST-LAUNCH-SEMANTICS open: launch_enables() read
+only attached -P tokens while Gradle also sets a project property from "-P x",
+"--project-prop x", "--project-prop=x" and the system property org.gradle.project.x (-D...,
+--system-prop ...); three such commands replayed 0 behind an off report. Non-blocking:
+R14-DOC-DRIFT residuals (the handoff's manual ladder command omitted coexist; a stale run
+count). Its report is docs/ai/runs/native-integration-review-r17.md and its machine verdict
+docs/ai/runs/native-integration-review-r17.json.
+
+The HEAD (commit 9a1da7c3 and the docs commits after it) does two things.
+
+(1) REPAIR. launch_enables() reads every CLI form round 17 measured. And, because modelling
+Gradle's CLI is not the authority, replay now requires the retained ladder command to carry the
+STAGE'S LITERAL TOKENS (verify.LADDER_LAUNCH_FLAGS: -PharnessNativeDepthLadder=true,
+-PharnessNativeCoexist=true, -PharnessNativeTerrainLoad=true) and to enable no experiment that
+writes or clears Minecraft's depth (harnessNativeTerrain/Marker/Depth in any Gradle form); a
+command lacking them, or no command, is refused as "not the stage's ladder launch"
+(ladder_launch_requirements). Stated limit: a property set through the environment
+(ORG_GRADLE_PROJECT_*) is not in the command and not retained; gradle.properties is
+fingerprinted. The two handoff residuals are fixed.
+
+(2) NEW EXPERIMENT, measured: Voxy's REAL terrain pipeline in a LOADed pass. McNativeTerrainLoad
+(flag voxy.native.terrainload, -PharnessNativeTerrainLoad, in the ladder launch) is a SEPARATE
+probe from the ladder (which must never write MC's depth). On each frame the ladder samples,
+after the ladder's two readbacks were requested (McNativeDepthLadder.takeSampleThisFrame), it
+opens a pass that LOADs Minecraft's colour AND depth and records
+VkTerrainRenderer.recordDrawsInRenderPass for SyntheticTerrain.depthSweep() (five panels at
+32·{1,2,4,8,16} blocks along +Z, fitted into the ladder band by an NDC affine map that leaves
+depth untouched; depths on both sides of MC's terrain bracket (2^-12, 2^-10]) with Voxy's own
+depth state (GREATER_OR_EQUAL, test on, WRITES ON — declared, [6,1,1], not read back), then
+requests a third readback after the pass closes. Each band pixel is judged from two
+independent measurements of the same frame: the ladder's bracket (lo, hi] of MC's depth (first
+crop) and Voxy's own reference render of the same scene with the same matrix into its own
+target (colour + D32 depth, read back once per extent, McNativeTerrainScene): d_V >= hi -> the
+pixel must be exactly Voxy's reference colour; d_V <= lo -> byte-identical to the previous
+readback (the coexist quad's crop); between -> either, counted as undetermined; no geometry ->
+unchanged. Zero violations; at least one sample with both determinate kinds. Evidence per
+sample: native-terrain-load-<at>.ppm.gz, its thumbnail, the reference colour and depth crops
+(native-terrain-load-reference-/-depth-<WxH-rect>.ppm.gz/.f32.gz, VXF32 header + float32 LE),
+native-terrain-load.json, one log line per sample; the ladder publishes
+terrainLoadEnabled/terrainLoadDrawsRecorded and the gate requires one pass per sample. The
+gate (verify.terrain_load_checks) recounts every pixel from the retained files, reconciles the
+twelve counts with the report and the log, reconciles probe and ladder (pass count, device,
+formats 37/126), pins the scene and the declared state, and retains/replays the files. JUnit
+341 (8 new, one a GPU render of the reference scene on this machine), Python 219.
+
+The boundary from rounds 4-17 still governs and the candidate accepts it: an independently
+accepted diagnostic foundation is still REDESIGN. The candidate does NOT claim an accepted
+layer, real-world LoD, or more than bracket-grain depth agreement for a synthetic scene. It
+claims (a) R16-COEXIST-LAUNCH-SEMANTICS is repaired by the literal-token authority plus full
+CLI semantics and the non-blocking items addressed, (b) the terrain-LOAD measurement stands as
+a bounded per-pixel measurement from retained, reconciled, required evidence in the new run
+docs/ai/runs/native-evidence/20261009T073850-255416Z, with its limits stated, and (c) the survey claims no
+more than that. Judge all three.
+
+Read docs/ai/project-goal.md and docs/ai/vulkan-native-integration-survey.md first; the
+survey's "Coexistence, first measurement" section (with its round-15, -16 and -17 paragraphs)
+and the new section "Voxy's terrain pipeline in a LOADed pass, judged per pixel", plus
+docs/ai/handoff.md, state what changed.
+
+Judge, saying CONFIRMED or REFUTED with the file/line or command for each:
+
+1. R16-COEXIST-LAUNCH-SEMANTICS. Re-run your launch-form matrix and your downgrade attacks
+   (silent log; command edited to every Gradle form you measured; missing command; a command
+   that also enables terrain/marker/depth) against the new run and say which replay 0.
+2. THE TERRAIN-LOAD MEASUREMENT. Independently recount the retained crops (ladder crop,
+   coexist crop, terrain-load crop, reference colour, reference depth) for every sample; state
+   the per-pixel rule you applied and whether the counts and log agree; name any violation.
+   Judge the probe's source: is the pass recorded only after the ladder's readbacks of the
+   same frame, does it LOAD both attachments, is the depth state Voxy's with writes on, is
+   the reference rendered with the same pipeline/matrix/extent, is the copy requested outside
+   the pass, and is the ladder itself still free of depth writes. Judge the fit (depth
+   untouched), the two-sided depth split, and the stated limits (declared state, synthetic
+   scene, bracket grain). Attack the gate: mutate pixels, counts, log lines, the reference
+   depth, the declared state, the pass count; name any mutation that replays 0.
+3. TESTS. JUnit 341 (1 documented skip) and Python 219. Re-run your guard removals for the
+   coexist checks and do the same for terrain_load_checks and ladder_launch_requirements;
+   name any guard whose removal leaves the suites green. Fixtures must not be shrunk.
+4. WHETHER THE SURVEY OVERSTATES. Nineteen retained runs; only the newest replays, by design.
+   Judge the new terrain-LOAD section, the round-17 paragraph, the replay table, and the
+   handoff (including its next-steps item 3, the seam into real section data).
+5. SAFETY FOR NORMAL PLAY. With voxy.native.probe / .marker / .features / .adopt / .terrain /
+   .depth / .depthladder / .coexist / .terrainload all unset, would you ship this to a player
+   on the GL backend? On Minecraft's Vulkan backend? Confirm the terrain-LOAD probe cannot act
+   unflagged, acts only on frames the ladder sampled, and that the ladder still never writes
+   Minecraft's depth.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T073850-255416Z
+Do NOT run scripts/verify.py --only native or --only live (it launches Minecraft and takes the
+GPU); judge the committed evidence instead.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round17_findings_closed (an
+object mapping R16-COEXIST-LAUNCH-SEMANTICS and R14-DOC-DRIFT to true/false),
+terrain_load_judgment, coexist_judgment, z_direction_judgment, terrain_experiment_judgment,
+depth_result_judgment, and ladder_judgment.

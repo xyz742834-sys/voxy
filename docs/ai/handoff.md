@@ -1,8 +1,9 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-18 candidate = the docs commit on top of the terrain-LOAD commit (the dispatch
-commit after it names the exact SHA; round 17 judged `19b2444a`: coexistence CONFIRMED a third time,
+`vulkan-macos`, round-18 candidate **a6e1c3a3** (`a6e1c3a39fab2a4d00848a133387e7c009c3b06e`, dispatched
+2026-10-09 in Orca worktree `native-review-r18`, terminal `term_bf2731e6-fa41-4296-9fa9-ef05db2f53c6`;
+round 17 judged `19b2444a`: coexistence CONFIRMED a third time,
 R16-COEXIST-LAUNCH-SEMANTICS left open on other Gradle CLI spellings and repaired here with the
 stage's literal tokens as the authority; the terrain-LOAD experiment is now in the tree and measured).
 
@@ -178,8 +179,8 @@ gate, which is expected and tabled in the survey.
 
 ## Round 18
 
-Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r18.txt` (if not already
-done — check `git log` for a "docs: record the round-18 dispatch" commit). When its report
+Dispatched against `a6e1c3a3` with `docs/ai/runs/native-review-prompt-r18.txt` (worktree
+`native-review-r18`, terminal `term_bf2731e6-fa41-4296-9fa9-ef05db2f53c6`). When its report
 lands: copy it to `docs/ai/runs/native-integration-review-r18.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
