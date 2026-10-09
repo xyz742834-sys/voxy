@@ -84,7 +84,10 @@ MC geometry is untested; Voxy's model bakery now reads MC's block atlas through 
 in that mode). **Occlusion is measured too** (2026-10-09, run `20261009T120055-798091Z`): at the
 `horizon` look, with sections inside MC's render distance cut and a stone wall MC draws, 2 003
 pixels had to show Voxy and did and 3 306 had to be hidden behind the wall and were, zero
-violations. The probe itself still asserts no convention and the
+violations. **Voxy's hierarchical pipeline runs natively and is composited into MC's
+frame** (2026-10-10, flag `voxy.native.hierload`, run `20261009T175351-583841Z`: `VkHierarchicalScene` with MC's matrix,
+a native depth-tested composite, 6 judged samples, zero violations, 82 073 must-show shown,
+3 962 must-hide hidden). The probe itself still asserts no convention and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,
 tested behaviourally" and "Round-8 review repairs, and the per-pixel ladder".
 
