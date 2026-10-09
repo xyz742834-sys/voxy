@@ -12,8 +12,11 @@ Owner decision, 2026-10-04: Voxy must work with **Minecraft itself running Vulka
 Read [project-goal.md](project-goal.md) before planning further work. New integration
 must target that route; do not expand the GL-hosted probe into a finished Mac product.
 
-Native integration remains unimplemented. The working pipeline and live evidence
-below describe the existing GL-hosted diagnostic route. They are reusable baseline
+Native integration exists only as default-off experiments and the product switch
+`voxy.native.render` (Minecraft's device adopted, Voxy's instance and hierarchical
+scene composited every frame on Minecraft's own Vulkan backend — sections below);
+it is not delivered or accepted. The working pipeline and live evidence below
+describe the existing GL-hosted diagnostic route. They are reusable baseline
 evidence, not acceptance of the project goal. Next priority is a minimal connection
 to Minecraft's Vulkan device, color/depth targets and submission/resource lifetimes.
 
@@ -137,8 +140,10 @@ tested behaviourally" and "Round-8 review repairs, and the per-pixel ladder".
 
 ## What's incomplete
 
-- **No production Vulkan integration**: no native Minecraft Vulkan device borrowing,
-  no normal Vulkan `VoxyRenderSystem`, no configuration-driven default real scene.
+- **No accepted production Vulkan integration**: native Minecraft Vulkan device
+  adoption and an every-frame native composite exist behind default-off flags and the
+  product switch, but Voxy is not normally enabled on Minecraft Vulkan, there is no
+  normal Vulkan `VoxyRenderSystem`, and the scene radius is not configuration-driven.
   `VkInteropProbe` still defaults to synthetic `PAIR`; only an explicit development
   property such as `voxy.5c4` selects hierarchy (any property value selects it).
 - The diagnostic update path is synchronous, rebuilds the scene when leaving its

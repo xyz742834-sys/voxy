@@ -65,4 +65,37 @@ public class McNativeHierarchicalLoadTest {
         assertEquals(1, McNativeDepthLadder.samplesWantedIn("horizon"));
         assertEquals(1, McNativeDepthLadder.samplesWantedIn("edit"));
     }
+
+    /** round-27 R27-EMPTY-REBUILD: an empty build's suppression ends; a stationary player recovers. */
+    @Test
+    void anEmptyBuildIsRetriedInNormalPlayButNotUnderTheLadder() {
+        int retry = McNativeHierarchicalLoad.EMPTY_RETRY_FRAMES;
+        // normal play, same place: suppressed for a while, then a build is tried again
+        assertTrue(McNativeHierarchicalLoad.emptySuppressed(false, 0, true));
+        assertTrue(McNativeHierarchicalLoad.emptySuppressed(false, retry - 1, true));
+        assertFalse(McNativeHierarchicalLoad.emptySuppressed(false, retry, true));
+        assertFalse(McNativeHierarchicalLoad.emptySuppressed(false, 1_000_000, true));
+        // anything changed (engine, section, extent, atlas): build at once
+        assertFalse(McNativeHierarchicalLoad.emptySuppressed(false, 0, false));
+        assertFalse(McNativeHierarchicalLoad.emptySuppressed(true, 0, false));
+        // under the ladder each build spends budget: suppressed while the key holds
+        assertTrue(McNativeHierarchicalLoad.emptySuppressed(true, 1_000_000, true));
+        assertEquals("rendering-disabled", McNativeHierarchicalLoad.RENDERING_DISABLED);
+    }
+
+    /** The kill switch wins over the product switch. */
+    @Test
+    void theKillSwitchTurnsTheProductPathOff() {
+        String before = System.getProperty(McNativeRender.FLAG), kill = System.getProperty(McNativeRender.DISABLE_FLAG);
+        try {
+            System.setProperty(McNativeRender.FLAG, "true");
+            assertTrue(McNativeRender.on());
+            System.setProperty(McNativeRender.DISABLE_FLAG, "true");
+            assertFalse(McNativeRender.on());
+            assertEquals("voxy.native.disable", McNativeRender.DISABLE_FLAG);
+        } finally {
+            if (before == null) System.clearProperty(McNativeRender.FLAG); else System.setProperty(McNativeRender.FLAG, before);
+            if (kill == null) System.clearProperty(McNativeRender.DISABLE_FLAG); else System.setProperty(McNativeRender.DISABLE_FLAG, kill);
+        }
+    }
 }

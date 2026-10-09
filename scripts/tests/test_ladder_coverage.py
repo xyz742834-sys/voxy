@@ -110,11 +110,39 @@ class LadderGuardCoverageTest(unittest.TestCase):
 
     # ---- ladder_z_direction ----
 
-    # Not covered, by construction: recount_ladder_sample's "covers no whole thumbnail block"
-    # fires only for a band under one 4-pixel thumbnail block tall, which the pinned band and
-    # extents never produce; ladder_z_direction's "descend camera is not below the ascend" is
-    # unreachable once both looks share one ground (refused earlier) and each camera sits within
-    # 1 block of ground + 12 and ground + 108. Both stay as defence, not as tested guards.
+    # round-27: the two predicates round 26's tests left uncovered are reachable (a small frame
+    # extent; a ground so high that float precision makes the two cameras equal) — tested here.
+
+    def test_a_band_smaller_than_a_thumbnail_block_is_refused(self):
+        import tempfile
+        saved = (tlg.FULL_W, tlg.FULL_H)
+        try:
+            tlg.FULL_W, tlg.FULL_H = 64, 32
+            s, field = tlg.sample(stage="warmup", camera=[1.0, 70.0, 2.0, 10.0, 20.0])
+            body = report(samples=[s])
+            with tempfile.TemporaryDirectory() as tmp:
+                out = Path(tmp)
+                write_sample_files(out, s, field)
+                (out / "native-depth-ladder.json").write_text(json.dumps(body))
+                self.refused(verify.native_ladder_result(out, DEVICE, {(64, 32)}, log_for([s])),
+                             "covers no whole thumbnail block")
+        finally:
+            tlg.FULL_W, tlg.FULL_H = saved
+
+    def test_two_looks_whose_cameras_coincide_are_refused(self):
+        ground = 1e20   # +12 and +108 vanish in float precision: the cameras are equal
+        cases, samples = [], []
+        for stage, off, rung, at in (("descend", 12, 4, 2), ("ascend", 108, 2, 4)):
+            y = ground + off + verify.PLAYER_EYE_HEIGHT
+            cases.append({"stage": stage, "groundY": ground, "playerY": ground + off,
+                          "cameraY": y, "playerPitch": 90.0})
+            rungs = [0] * verify.LADDER_RUNGS
+            rungs[rung] = 1
+            samples.append({"stage": stage, "at": at, "camera": [0.5, y, 0.5, 90.0, 0.0],
+                            "low": 0, "clear": 0, "rungs": rungs})
+        with self.assertRaises(ValueError) as caught:
+            verify.ladder_z_direction(samples, cases)
+        self.assertIn("is not below the ascend", str(caught.exception))
 
     def test_the_direction_needs_both_checkpoints(self):
         pairs = direction_samples()

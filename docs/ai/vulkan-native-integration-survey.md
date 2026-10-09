@@ -1869,11 +1869,12 @@ where it already reads its flag (device features are requested while Minecraft c
 The ladder, judged samples, the instance probe's sampling and the other experiments stay off;
 evidence files are written only under the harness. Outside the ladder the build budget does not
 apply: a scene is rebuilt whenever it no longer covers the camera, at most once per 60 frames
-(`rebuild-wait`).
+(`rebuild-wait`); after a build that meshed nothing the same place is not rebuilt for 600 frames
+(since `round-27 repairs`; before them, never — R27-EMPTY-REBUILD).
 
 **Gated** by a third launch of `--only native` with the switch alone (`native_render_result`): no
-diagnostic ran (an off probe's own shutdown report saying `enabled=false, attempted=false` is not a
-run — measured in the first product launch, whose gate refused it until that was distinguished); the
+diagnostic report other than an off probe's own shutdown report (which round 27 showed could still
+claim activity; since the round-27 repairs every counter in it must be inert); the
 probe report is the clean product path (`product`, `everyFrame`, no budget, no results, no problems
 or leaks); every probe call is composited or skipped for a stated reason; builds and atlas reads
 reconcile with the log; one "hier frames entering stage" line per stage in the harness's order, with
@@ -1905,10 +1906,10 @@ repaired in `4518eabd`:
   what it writes; whether Minecraft's later passes read depth is not inventoried; gate/replay/test
   prose describes the clear-only rule.
 - **R26-LADDER-GUARD-COVERAGE.** `scripts/tests/test_ladder_coverage.py`: a case per named
-  predicate, 20 of 22 confirmed to fail with their predicate disabled. Two are unreachable by
-  construction and stay as defence: the thumbnail-anchor refusal (needs a band under one 4-pixel
-  block) and descend-below-ascend (both looks must share one ground, and the cameras sit at
-  ground + 12 and ground + 108). The native resolve also no longer names the interop format enum.
+  predicate, 20 of 22 confirmed to fail with their predicate disabled. The other two were called
+  unreachable; round 27 reached both (a 64x32 frame; a ground of 1e20, where float precision makes
+  the cameras equal) and they are tested since its repairs. The native resolve also no longer names
+  the interop format enum.
 - R24-HIER-GUARD-COVERAGE stays partly closed (shared-helper predicates detected by real-LOAD only).
 
 **Measured** (run [20261009T213621-341358Z](runs/native-evidence/20261009T213621-341358Z/MANIFEST.json), replay 0 in this checkout): every

@@ -18,8 +18,10 @@ package me.cortex.voxy.client.core.vk.mcnative;
  */
 public final class McNativeRender {
     public static final String FLAG = "voxy.native.render";
+    /** The kill switch: set, the product path is off whatever {@link #FLAG} says. */
+    public static final String DISABLE_FLAG = "voxy.native.disable";
 
     private McNativeRender() {}
 
-    public static boolean on() { return Boolean.getBoolean(FLAG); }
+    public static boolean on() { return Boolean.getBoolean(FLAG) && !Boolean.getBoolean(DISABLE_FLAG); }
 }

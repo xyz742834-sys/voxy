@@ -53,8 +53,12 @@ investigation, not implemented or accepted integration. Recheck its API and
 submission assumptions against the actual Minecraft/Sodium candidate. Its line
 estimates are not a verified migration effort or completion percentage.
 
-This document records direction. Native integration remains unimplemented;
-the minimal connection and its acceptance evidence are future implementation work.
+This document records direction. Native integration is implemented as default-off
+experiments and one product switch (`voxy.native.render`: device adoption, Voxy's
+instance and every-frame composite on Minecraft's own Vulkan backend; see
+[current-state.md](current-state.md) and the survey); it is **not delivered or
+accepted** — Voxy is not normally enabled on Minecraft Vulkan, and normal-play,
+pressure and lifecycle acceptance are future work.
 
 ## Required evidence
 
@@ -72,7 +76,8 @@ the minimal connection and its acceptance evidence are future implementation wor
 The runner's usual live stage writes `preferredGraphicsBackend:"default"` and checks
 Voxy's diagnostic probe. Its `--only native` stage instead observes Minecraft's actual
 Vulkan device and native image/view handles through an isolated world lifecycle,
-while Voxy remains disabled. These are environment observations, not native LoD
-integration acceptance. `--only required` retains an explicit `INCOMPLETE` verdict
+while Voxy remains disabled; its second launch (the depth ladder) judges the native
+experiments per pixel and its third runs the product switch alone. These are
+measurements of default-off paths, not native LoD integration acceptance. `--only required` retains an explicit `INCOMPLETE` verdict
 for the missing native rendering, reference pixels/depth and pressure/lifetime
 requirements. See [testing.md](testing.md) and [harness.md](harness.md).

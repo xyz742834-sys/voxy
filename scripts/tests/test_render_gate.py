@@ -12,7 +12,24 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import verify
+
+COMMAND = ["gradlew", "runHarnessClient", "-PharnessNative=true", "-PharnessGraphicsBackend=vulkan",
+           *verify.RENDER_LAUNCH_FLAGS]
+LOADER = "[loader] Insert instance layer VK_LAYER_KHRONOS_validation (libVkLayer_khronos_validation.dylib)\n"
+
+
+def environment():
+    """The launch's own scenario record, as the harness writes it (test_native_gate's shape)."""
+    renderer = dict(mcUsesVulkan=True, backendClass="com.mojang.blaze3d.vulkan.VulkanDevice",
+                    notes=[], vkDevice=12, vkInstance=13, vmaAllocator=14,
+                    graphicsQueueFamily=0, computeQueueFamily=3, transferQueueFamily=3)
+    for role in ("colour", "depth"):
+        renderer[role] = dict(vkImage=15, vkImageView=16, width=960, height=540)
+    return {"complete": True, "success": True, "failures": [],
+            "checkpoints": [dict(stage=st, renderer=json.loads(json.dumps(renderer)))
+                            for st in verify.LIFECYCLE_STAGES]}
 
 DEVICE = 0x7a42970018
 
@@ -31,7 +48,7 @@ def report(**overrides):
 
 
 def log_for(stages=verify.LIFECYCLE_STAGES, per_stage=100, start=0):
-    lines = ["[native-vk] requested the block atlas (2048x2048) through Blaze3D\n",
+    lines = [LOADER, "[native-vk] requested the block atlas (2048x2048) through Blaze3D\n",
              "[native-vk] block atlas read through Blaze3D: 2048x2048\n",
              "[native-vk] hier-LOAD scene #1: 35 sections meshed, top radius 1, depth 2\n"]
     composited = start
@@ -47,7 +64,7 @@ def log_for(stages=verify.LIFECYCLE_STAGES, per_stage=100, start=0):
 
 class RenderGateTest(unittest.TestCase):
 
-    def run_gate(self, mutate=None, log=None, files=(), device=DEVICE):
+    def run_gate(self, mutate=None, log=None, files=(), device=DEVICE, command=None, env=None):
         text, total = log_for()
         body = report(framesComposited=total, renderCalls=total + 6)
         if mutate:
@@ -55,10 +72,15 @@ class RenderGateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             (out / "native-hier-load.json").write_text(json.dumps(body))
+            e = environment()
+            if env:
+                env(e)
+            (out / "native-result.json").write_text(json.dumps(e))
             for name, body in (files.items() if isinstance(files, dict) else
                                ((n, {"enabled": True}) for n in files)):
                 (out / name).write_text(json.dumps(body))
-            return verify.native_render_result(out, text if log is None else log(text), device)
+            return verify.native_render_result(out, text if log is None else log(text), device,
+                                               COMMAND if command is None else command)
 
     def assertRefused(self, result, fragment):
         self.assertFalse(result["success"], "passed although: " + fragment)
@@ -81,7 +103,19 @@ class RenderGateTest(unittest.TestCase):
             self.assertRefused(self.run_gate(files={name: []}), "ran diagnostics")
             # an off diagnostic writes its report saying so at shutdown: not a run
             self.assertTrue(self.run_gate(files={name: {"enabled": False, "attempted": False}})["success"])
-            self.assertTrue(self.run_gate(files={name: {"enabled": False}})["success"])
+            # round-27: "attempted" must be stated, and every counter inert
+            self.assertRefused(self.run_gate(files={name: {"enabled": False}}), "ran diagnostics")
+            for field, value in (("drawsRecorded", 999), ("results", [{}]), ("problems", 1),
+                                 ("atlasCloseFailures", 1), ("notes", ["x"]), ("device", "0x1")):
+                self.assertRefused(self.run_gate(files={name: {"enabled": False, "attempted": False,
+                                                               field: value}}),
+                                   f"states {field}=")
+        off = {"enabled": False, "attempted": False, "buildBudget": 10, "level": 3, "radius": 4,
+               "declaredDepthState": [6, 1, 1], "instanceMode": True, "atlasReads": 1,
+               "closeFailures": 0, "results": [], "device": None, "deviceDiverged": False}
+        self.assertTrue(self.run_gate(files={"native-real-load.json": off})["success"])
+        self.assertRefused(self.run_gate(files={"native-real-load.json": dict(off, atlasReads=2)}),
+                           "atlas read(s), the shared atlas")
 
     def test_the_report_must_be_the_clean_product_path(self):
         for field, value in (("product", False), ("everyFrame", False), ("enabled", False),
@@ -109,6 +143,24 @@ class RenderGateTest(unittest.TestCase):
             frameSkips={"atlas-pending": 6, "rebuild-wait": 4},
             renderCalls=b["renderCalls"] + 4))["success"])
 
+    def test_the_launch_is_the_switch_alone_and_its_own_scenario_complete(self):
+        self.assertRefused(self.run_gate(command=[c for c in COMMAND if "Render" not in c]),
+                           "lacks the product switch")
+        self.assertRefused(self.run_gate(command=None) if False else self.run_gate(command="x"),
+                           "lacks the product switch")
+        for prop in verify.RENDER_FORBIDDEN_LAUNCH:
+            self.assertRefused(self.run_gate(command=COMMAND + [f"-P{prop}=true"]), "enables diagnostics")
+        self.assertRefused(self.run_gate(env=lambda e: e.update(complete=False)), "environment")
+        self.assertRefused(self.run_gate(env=lambda e: e.update(checkpoints=e["checkpoints"][:1])),
+                           "environment")
+
+    def test_the_log_is_clean(self):
+        self.assertRefused(self.run_gate(log=lambda t: t + "VUID-vkCmdDraw-None-08600 bad\n"),
+                           "validation output")
+        self.assertRefused(self.run_gate(log=lambda t: t.replace(LOADER, "")), "no validation-layer loader")
+        self.assertRefused(self.run_gate(log=lambda t: t + "[12:00:00] [Render thread/ERROR] (Voxy) boom\n"),
+                           "unexpected Voxy errors")
+
     def test_identity_builds_and_atlas_reads_are_reconciled(self):
         self.assertRefused(self.run_gate(device=0xdead), "not the checkpoints' device")
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(builds=3)), "build attempts [1, 2]")
@@ -124,13 +176,25 @@ class RenderGateTest(unittest.TestCase):
                            if "entering stage resize" not in l)
         self.assertRefused(self.run_gate(log=drop), "['resize']")
         def twice(text):
-            return text + "[native-vk] hier frames entering stage warmup: composited=1400 skipped=6 builds=2\n"
+            return text + "[voxy-harness] stage=warmup\n[native-vk] hier frames entering stage warmup: composited=1400 skipped=6 builds=2\n"
         self.assertRefused(self.run_gate(log=twice), "enters a stage twice")
+        # round-27: a snapshot belongs to the harness stage current when it was written
+        def early(text):
+            line = "[native-vk] hier frames entering stage edit: composited=500 skipped=6 builds=1\n"
+            return text.replace(line, "").replace("[voxy-harness] stage=edit\n", line + "[voxy-harness] stage=edit\n")
+        self.assertRefused(self.run_gate(log=early), "was written during harness stage 'horizon'")
+        def skipped(text):
+            return text.replace("entering stage warmup: composited=0 skipped=6", "entering stage warmup: composited=0 skipped=999999999")
+        self.assertRefused(self.run_gate(log=skipped), "exceed the final report")
+        def built(text):
+            return text.replace("entering stage reconnect: composited=1300 skipped=6 builds=2",
+                                "entering stage reconnect: composited=1300 skipped=6 builds=9")
+        self.assertRefused(self.run_gate(log=built), "exceed the final report")
         def order(text):
             a = "[native-vk] hier frames entering stage turn: composited=100 skipped=6 builds=1\n"
             b = "[native-vk] hier frames entering stage travel: composited=200 skipped=6 builds=1\n"
             return text.replace(a, "@@").replace(b, a).replace("@@", b)
-        self.assertRefused(self.run_gate(log=order), "not in the harness's stage order")
+        self.assertRefused(self.run_gate(log=order), "was written during harness stage")
         def fall(text):
             return text.replace("entering stage edit: composited=500", "entering stage edit: composited=350")
         self.assertRefused(self.run_gate(log=fall), "running totals fall")

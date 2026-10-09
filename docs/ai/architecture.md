@@ -200,8 +200,11 @@ face-major indirect-draw tables (`merged_prefix.comp` / `translucent_prefix.comp
 `GlScratchFramebuffer` do the GL-side compositing with state preservation;
 `GlVkSync`/`VkGpuTimer` handle cross-API fencing and GPU timing. `VkInteropProbe` is the
 top-level controller tying scene selection, the frame sequence above, and the composite
-step together — and is currently the *only* wired path from Minecraft into Vulkan
-rendering (see Entry point, above).
+step together — the wired path from Minecraft-on-GL into Vulkan rendering (see Entry
+point, above). On Minecraft's own Vulkan backend a separate, default-off native path
+exists (`client/core/vk/mcnative/`: device adoption, `McNativeHierarchicalLoad` and
+`McNativeComposite`, the product switch `McNativeRender`); it uses no GL context and is
+documented in the survey, not here.
 
 ## Shader organization
 

@@ -279,8 +279,9 @@ DESCEND_ABOVE_GROUND, ASCEND_ABOVE_GROUND = 12, 108   # LiveWorldHarness.*_ABOVE
 PLAYER_EYE_HEIGHT = 1.62                              # Minecraft's standing eye height
 
 
-def native_environment_result(output):
-    """Independently reject preferences, fallback, partial observations and missing images."""
+def native_environment_result(output, require_screenshots=True):
+    """Independently reject preferences, fallback, partial observations and missing images.
+    `require_screenshots=False` is for retained evidence, which keeps thumbnails, not the frames."""
     result = {"success": False, "failures": [], "scope": "Minecraft Vulkan environment; no Voxy LoD acceptance"}
     expected = set(LIFECYCLE_STAGES)
     try:
@@ -304,8 +305,9 @@ def native_environment_result(output):
                 attachment = renderer.get(role)
                 if not attachment or not attachment.get("vkImage") or not attachment.get("vkImageView") or min(attachment.get("width", 0), attachment.get("height", 0)) <= 0:
                     raise ValueError(f"{case['stage']}: invalid native {role} attachment")
-            read_rgb(output / (case["stage"] + ".png"),
-                expected_size=(renderer["colour"]["width"], renderer["colour"]["height"]), validate_only=True)
+            if require_screenshots:
+                read_rgb(output / (case["stage"] + ".png"),
+                    expected_size=(renderer["colour"]["width"], renderer["colour"]["height"]), validate_only=True)
         if len(devices) != 1:
             raise ValueError("Minecraft device changed within the lifecycle run")
         result.update(success=True, checkpoints=cases, voxy_integration_status=evidence.get("voxyIntegrationStatus"))
@@ -2796,7 +2798,20 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
 RENDER_LAUNCH_FLAGS = ("-PharnessNativeRender=true",)
 RENDER_STAGE_LOG = re.compile(r"hier frames entering stage (\w+): composited=(\d+) skipped=(\d+)"
                               r" builds=(\d+)")
-RENDER_SKIPS = tuple(r for r in REAL_LOAD_SKIPS if r != "build-budget-spent") + ("rebuild-wait",)
+RENDER_SKIPS = tuple(r for r in REAL_LOAD_SKIPS if r != "build-budget-spent") + ("rebuild-wait",
+                                                                                 "rendering-disabled")
+# Launch properties that turn on a diagnostic (or a part of the native path on its own); the
+# product launch passes none of them (round-27 R27-RENDER-GATE).
+RENDER_FORBIDDEN_LAUNCH = ("harnessNativeDepthLadder", "harnessNativeCoexist",
+                           "harnessNativeTerrainLoad", "harnessNativeRealLoad",
+                           "harnessNativeHierLoad", "harnessNativeHierFrames",
+                           "harnessNativeInstance", "harnessNativeMarker", "harnessNativeTerrain",
+                           "harnessNativeDepth", "harnessNativeProbe", "harnessNativeFeatures",
+                           "harnessNativeAdopt")
+# An off diagnostic's shutdown report may state these descriptors; every other field must be
+# false, zero, empty or null.
+RENDER_OFF_DESCRIPTORS = {"buildBudget", "level", "radius", "declaredDepthState", "instanceMode",
+                          "atlasReads"}
 # Lifecycle stages in which normal play must composite Voxy's scene. Not the nether: its build
 # meshes nothing until ingest has stored sections there, which the harness does not wait for.
 RENDER_REQUIRED_STAGES = tuple(s for s in LIFECYCLE_STAGES if s != "nether")
@@ -2807,7 +2822,28 @@ RENDER_FORBIDDEN_FILES = ("native-depth-ladder.json", "native-real-load.json",
                           "native-depth-probe.json")
 
 
-def native_render_result(output, log_text, expected_device=None):
+def render_off_report_problems(name, body, product):
+    """Why a diagnostic's report in the product launch is not an inert off-report."""
+    if not isinstance(body, dict):
+        return [f"{name} is not an object"]
+    problems = []
+    for field in ("enabled", "attempted"):
+        if body.get(field) is not False:
+            problems.append(f"{name} says {field}={body.get(field)!r}")
+    for field, value in body.items():
+        if field in ("enabled", "attempted") or field in RENDER_OFF_DESCRIPTORS:
+            continue
+        inert = (value is False or value is None or (finite_int(value) and value == 0)
+                 or (isinstance(value, (list, dict)) and not value))
+        if not inert:
+            problems.append(f"{name} states {field}={value!r}")
+    if "atlasReads" in body and body["atlasReads"] != product.get("atlasReads"):
+        problems.append(f"{name} counts {body['atlasReads']!r} atlas read(s), the shared atlas"
+                        f" {product.get('atlasReads')!r}")
+    return problems
+
+
+def native_render_result(output, log_text, expected_device=None, command=None):
     """The product launch: Voxy on Minecraft's Vulkan backend with only voxy.native.render — its
     device features, adoption, instance and every-frame hierarchical composite (Voxy's GL rule),
     no ladder, no judged samples. Not judged per pixel (the ladder launch judges the same path);
@@ -2819,19 +2855,27 @@ def native_render_result(output, log_text, expected_device=None):
               "scope": "the native path under the product switch alone; per-pixel correctness is"
                        " the ladder launch's"}
     try:
-        # a diagnostic that is off still writes its report at shutdown, saying so (measured: the
-        # real-LOAD probe's enabled=false, attempted=false); one that ran says enabled or attempted
+        # round-27 R27-RENDER-GATE: the launch is the product switch alone
+        if not isinstance(command, list) or any(f not in command for f in RENDER_LAUNCH_FLAGS):
+            raise ValueError(f"the {L} launch command {command!r} lacks the product switch")
+        enabling = [prop for prop in RENDER_FORBIDDEN_LAUNCH if launch_enables(command, prop)]
+        if enabling:
+            raise ValueError(f"the {L} launch command enables diagnostics: {enabling}")
+        # its own scenario: complete, every lifecycle checkpoint, one device (the screenshots are
+        # checked by the stage; retained evidence keeps thumbnails)
+        environment = native_environment_result(output, require_screenshots=False)
+        if not environment["success"]:
+            raise ValueError(f"the {L} launch's environment: {environment['failures']}")
+        report = json.loads((output / "native-hier-load.json").read_text())
+        # a diagnostic that is off still writes its report at shutdown (measured: real-LOAD's);
+        # it must be inert in every counter, not merely say enabled=false
         present = []
         for name in RENDER_FORBIDDEN_FILES:
             path = output / name
             if path.is_file():
-                body = json.loads(path.read_text())
-                if not isinstance(body, dict) or body.get("enabled") is not False \
-                        or body.get("attempted", False) is not False:
-                    present.append(name)
+                present += render_off_report_problems(name, json.loads(path.read_text()), report)
         if present:
             raise ValueError(f"the {L} launch ran diagnostics: {present}")
-        report = json.loads((output / "native-hier-load.json").read_text())
         want = {"enabled": True, "attempted": True, "everyFrame": True, "product": True,
                 "buildBudgetApplies": False, "instanceMode": True, "drawsRecorded": 0,
                 "results": [], "problems": 0, "firstProblem": None, "notes": [],
@@ -2861,6 +2905,9 @@ def native_render_result(output, log_text, expected_device=None):
                              f" checkpoints' device")
         if log_text is None:
             raise ValueError(f"the {L} launch's log is not available")
+        log_problems = native_log_problems(log_text)
+        if log_problems:
+            raise ValueError(f"the {L} launch's log: {log_problems}")
         attempts = hier_load_build_attempts(log_text)
         if not attempts or attempts != list(range(1, len(attempts) + 1)) \
                 or report.get("builds") != len(attempts):
@@ -2870,20 +2917,26 @@ def native_render_result(output, log_text, expected_device=None):
         if report.get("atlasReads") != reads or reads < 1:
             raise ValueError(f"the {L} probe reports {report.get('atlasReads')!r} atlas read(s)"
                              f" but the log shows {reads}")
-        lines = [(m[0], int(m[1]), int(m[2]), int(m[3])) for m in RENDER_STAGE_LOG.findall(log_text)]
+        lines, current = [], None
+        for m in re.finditer(r"\[voxy-harness\] stage=(\w+)|" + RENDER_STAGE_LOG.pattern, log_text):
+            if m.group(1):
+                current = m.group(1)
+                continue
+            line = (m.group(2), int(m.group(3)), int(m.group(4)), int(m.group(5)))
+            # round-27: a snapshot belongs to the harness stage current when it was written
+            if line[0] != current:
+                raise ValueError(f"the {L} log's snapshot for stage {line[0]!r} was written during"
+                                 f" harness stage {current!r}")
+            lines.append(line)
         stages = [line[0] for line in lines]
         if len(stages) != len(set(stages)):
             raise ValueError(f"the {L} log enters a stage twice: {stages}")
-        harness = []
-        for m in HARNESS_STAGE_LOG.findall(log_text):
-            if not harness or harness[-1] != m:
-                harness.append(m)
-        if [st for st in harness if st in stages] != stages:
-            raise ValueError(f"the {L} log's stage lines {stages} are not in the harness's stage"
-                             f" order {harness}")
+        # (each snapshot lies inside its own harness stage, so they follow the harness's order)
         totals = [line[1] for line in lines] + [composited]
-        if totals != sorted(totals) or [l[3] for l in lines] != sorted(l[3] for l in lines):
-            raise ValueError(f"the {L} log's running totals fall: {lines}")
+        skipped = [line[2] for line in lines] + [sum(skips.values())]
+        built = [line[3] for line in lines] + [report["builds"]]
+        if totals != sorted(totals) or skipped != sorted(skipped) or built != sorted(built):
+            raise ValueError(f"the {L} log's running totals fall or exceed the final report: {lines}")
         growth = {stage: totals[i + 1] - totals[i] for i, stage in enumerate(stages)}
         missing = [st for st in RENDER_REQUIRED_STAGES if growth.get(st, 0) < 1]
         if missing:
@@ -4005,6 +4058,27 @@ def native_proof_files_result(output, checkpoints):
     return result
 
 
+NATIVE_EXPECTED_ERRORS = ("Minecraft is not using the OpenGL backend; Voxy's Vulkan path still ",
+                          "Voxy is unsupported on your system.")
+
+
+def native_log_problems(text):
+    """What native_log_checks refuses in a launch log, as text (empty: none)."""
+    problems = []
+    diagnostics = [line.strip() for line in text.splitlines()
+                   if re.search(r"\[vk-validation\]|Validation (Error|Warning)|SYNC-HAZARD-|VUID-", line)]
+    if diagnostics:
+        problems.append(f"validation output: {diagnostics[:3]}")
+    if not any("VK_LAYER_KHRONOS_validation" in line and "Insert" in line for line in text.splitlines()):
+        problems.append("no validation-layer loader evidence")
+    unexpected = [line.strip() for line in text.splitlines()
+                  if "/ERROR]" in line and "(Voxy)" in line
+                  and not any(message in line for message in NATIVE_EXPECTED_ERRORS)]
+    if unexpected:
+        problems.append(f"unexpected Voxy errors: {unexpected[:3]}")
+    return problems
+
+
 def native_log_checks(result, logfile):
     """Judge a native launch's log: validation output, loader evidence, application errors."""
     text = logfile.read_text(errors="replace")
@@ -4208,6 +4282,10 @@ def retain_native_evidence(output, native_output, timestamp, summary):
                 raise ValueError("the product launch wrote no native-hier-load.json, so it cannot"
                                  " be retained")
             thumbs = retain_render_thumbnails(render_output, render_target)
+            missing = [st for st in LIFECYCLE_STAGES if f"render/frame-{st}.png" not in thumbs]
+            if missing:
+                raise ValueError(f"the product launch's checkpoint thumbnails for {missing} could"
+                                 f" not be retained")
             render_kept.update(thumbs)
             kept["files"].update(render_kept)
             kept["render"] = {"path": "render", "files": sorted(render_kept),
@@ -4671,13 +4749,16 @@ def replay_evidence(directory):
             if not render_log.is_file():
                 raise ValueError("the product launch's log is not retained")
             render_result = native_render_result(render_dir, render_log.read_text(errors="replace"),
-                                                 single_checkpoint_device(render_checkpoints))
+                                                 single_checkpoint_device(render_checkpoints),
+                                                 command)
             if not render_result["success"]:
                 raise ValueError(f"product render gate: {render_result['failures']}")
             outcome["render"] = {"framesComposited": render_result["framesComposited"],
                                  "perStage": render_result["perStage"]}
+            # round-27: every lifecycle checkpoint's thumbnail is part of the claim
             ladder_refs += ["render/native-hier-load.json", "render/native-result.json",
-                            "render/native-render.log"]
+                            "render/native-render.log"] + [f"render/frame-{stage_}.png"
+                                                           for stage_ in LIFECYCLE_STAGES]
             outcome["replayed"].append("product launch acceptance checks (voxy.native.render"
                                        " alone; its own checkpoints)")
         else:
@@ -4933,7 +5014,7 @@ def main():
             render_log = output / "native-render.log"
             render_run["render"] = native_render_result(
                 render_output, render_log.read_text(errors="replace") if render_log.is_file()
-                else None, render_device)
+                else None, render_device, render_run["command"])
             render_run["success"] &= render_run["render"]["success"]
             native_log_checks(render_run, render_log)
             render_run["scope"] = ("a third Minecraft launch with only the product switch"
