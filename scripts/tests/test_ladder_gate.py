@@ -477,8 +477,16 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
             before = quad if coexist else crops(f, s["flipped"])[0]
             status = (real_status or {}).get(i, "judged")
             if status != "judged":
-                real_entries.append({"at": s["at"], "status": status, "stage": s["stage"],
-                                     "cameraCapture": 5})
+                skip = {"at": s["at"], "status": status, "stage": s["stage"],
+                        "cameraCapture": s["at"], "previousCapture": s["at"] - 1,
+                        "buildsSoFar": 1, "atlasState": -1}
+                if status == "atlas-pending":
+                    skip["atlasState"] = verify.REAL_LOAD_ATLAS_PENDING_STATE
+                elif status == "no-camera-this-frame":
+                    skip["previousCapture"] = s["at"]
+                elif status == "build-budget-spent":
+                    skip["buildsSoFar"] = verify.REAL_LOAD_BUILD_BUDGET
+                real_entries.append(skip)
                 continue
             depth = terrain_depth(len(f[0]), len(f), depth_kind)
             after = terrain_after(f, before, depth, real_violate if not real_entries else None)
@@ -523,13 +531,17 @@ def real_entry(sample, field, before, depth, after):
     terrain-LOAD (derived independently from the crops) plus the scene and projection facts."""
     entry = terrain_entry(sample, field, before, depth, after)
     at = sample["at"]
-    entry.update(status="judged", stage=sample["stage"], cameraCapture=5,
+    projection = verify._mat_perspective(math.radians(70), 16 / 9, 0.05, 2048.0)
+    entry.update(status="judged", stage=sample["stage"], cameraCapture=sample["at"],
+                 engineId=12345, sceneBuild=1, atlasGeneration=1,
+                 mcProjection=list(projection), projection=list(projection),
                  file=f"native-real-load-{at}.ppm.gz",
                  frameFile=f"native-real-load-frame-{at}.ppm.gz",
                  referenceFile=f"native-real-load-reference-{at}.ppm.gz",
                  referenceDepthFile=f"native-real-load-depth-{at}.f32.gz",
                  referenceSet=sum(1 for row in depth for d in row if d > 0.0),
-                 projectionAdjusted=False, farPlane=2048.0, sceneLevel=verify.REAL_LOAD_LEVEL,
+                 projectionAdjusted=False, farPlane=abs(projection[14] / projection[10]),
+                 sceneLevel=verify.REAL_LOAD_LEVEL,
                  sceneCentre=[3, 0, 0], sceneSections=40, sceneQuads=90000, sceneDraws=180)
     return entry
 
@@ -546,6 +558,7 @@ def write_real_files(out, sample, field, after, depth, entry):
 def real_report(entries, **overrides):
     judged = [e for e in entries if e["status"] == "judged"]
     body = {"enabled": True, "attempted": True, "drawsRecorded": len(judged), "builds": 1,
+            "atlasReads": 1, "atlasCloseFailures": 0,
             "buildBudget": verify.REAL_LOAD_BUILD_BUDGET, "level": verify.REAL_LOAD_LEVEL,
             "radius": verify.REAL_LOAD_RADIUS, "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True,
@@ -557,8 +570,13 @@ def real_report(entries, **overrides):
 
 
 def real_log_for(entries):
-    lines = []
+    # the atlas is requested before the first handed sample and arrives before the first judged one
+    lines = ["[native-vk] requested the block atlas (2048x2048) through Blaze3D\n"]
+    ready = False
     for e in entries:
+        if e["status"] == "judged" and not ready:
+            lines.append("[native-vk] block atlas read through Blaze3D: 2048x2048\n")
+            ready = True
         if e["status"] == "judged":
             lines.append("[native-vk] real load at draw " + str(e["at"]) + " status=judged "
                          + " ".join(f"{k}={e[k]}" for k in verify.TERRAIN_LOAD_COUNTS)

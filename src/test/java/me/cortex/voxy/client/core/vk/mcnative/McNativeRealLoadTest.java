@@ -46,6 +46,18 @@ public class McNativeRealLoadTest {
     }
 
     @Test
+    void theAtlasStartsUnreadAndItsPendingOrdinalIsTheGatesConstant() {
+        assertEquals(McNativeAtlas.State.NOT_REQUESTED, McNativeAtlas.state());
+        assertEquals(0, McNativeAtlas.reads());
+        assertEquals(0, McNativeAtlas.generation());
+        // scripts/verify.py REAL_LOAD_ATLAS_PENDING_STATE
+        assertEquals(1, McNativeAtlas.State.PENDING.ordinal());
+        assertDoesNotThrow(McNativeAtlas::reset);
+        assertEquals(McNativeAtlas.State.NOT_REQUESTED, McNativeAtlas.state());
+        assertEquals(10, McNativeRealLoad.BUILD_BUDGET);   // REAL_LOAD_BUILD_BUDGET
+    }
+
+    @Test
     void theSkipReasonsAreTheFixedSet() {
         assertEquals("judged", McNativeRealLoad.JUDGED);
         assertEquals(java.util.List.of("no-world-engine", "no-camera-this-frame",

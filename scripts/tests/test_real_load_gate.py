@@ -76,7 +76,7 @@ class RealLoadGateTest(unittest.TestCase):
         self.assertEqual(result["real_load"]["judged"], 1)
         self.assertRefused(self.run_gate(terrain=False, real_status={0: "felt-like-it"}),
                            "not 'judged' nor a reason")
-        self.assertRefused(self.run_gate(real_status={1: "nothing-meshed"}),
+        self.assertRefused(self.run_gate(real_status={1: "no-camera-this-frame"}),
                            "decided nothing")
 
     def test_a_handed_sample_without_a_result_or_a_result_for_another_sample_fails(self):
@@ -188,6 +188,142 @@ class RealLoadGateTest(unittest.TestCase):
                            "enabled the real-LOAD experiment but the ladder says")
         self.assertRefused(self.run_gate(mutate_files=lambda o: (o / "native-real-load.json").unlink()),
                            "native-real-load.json is not retained")
+
+    def test_skip_reasons_are_corroborated(self):
+        """Round-20 R20-REAL-SKIP-PROVENANCE: a judged sample relabelled as a skip, or a skip
+        relabelled with another reason, replayed 0 — only the vocabulary was checked."""
+        T = dict(terrain=False)
+        # atlas-pending after the atlas arrived: the log has no outstanding request
+        def late(text):
+            return text.replace("[native-vk] requested the block atlas (2048x2048) through Blaze3D\n", "")
+        self.assertRefused(self.run_gate(real_status={0: "atlas-pending"}, log=late, **T),
+                           "no outstanding atlas request")
+        self.assertTrue(self.run_gate(real_status={0: "atlas-pending"}, **T)["success"])
+        def not_pending(r):
+            r["results"][0]["atlasState"] = 2
+        self.assertRefused(self.run_gate(real_status={0: "atlas-pending"}, mutate_real=not_pending, **T),
+                           "the atlas state was 2")
+        # no camera while the capture count moved
+        def moved(r):
+            r["results"][0]["previousCapture"] = r["results"][0]["cameraCapture"] - 1
+        self.assertRefused(self.run_gate(real_status={0: "no-camera-this-frame"}, mutate_real=moved, **T),
+                           "the capture count moved")
+        # no world engine while the instance log shows a live engine
+        def live(text):
+            return ("[native-vk] native instance at frame 1 stage=warmup factory=true instance=true"
+                    " engine=true live=true activeSections=1 renderer=false ingest=true cameraCaptures=1\n"
+                    + text)
+        self.assertRefused(self.run_gate(real_status={0: "no-world-engine"}, log=live, **T),
+                           "shows a live engine")
+        def dead(text):
+            return ("[native-vk] native instance at frame 1 stage=warmup factory=true instance=true"
+                    " engine=false live=false activeSections=0 renderer=false ingest=true cameraCaptures=1\n"
+                    + text)
+        self.assertTrue(self.run_gate(real_status={0: "no-world-engine"}, log=dead, **T)["success"])
+        # nothing meshed without a logged empty build
+        self.assertRefused(self.run_gate(real_status={0: "nothing-meshed"}, **T),
+                           "no build that meshed nothing is logged")
+        def meshed_nothing(text):
+            return text.replace("[native-vk] real load at draw 3000 status=nothing-meshed",
+                                "[native-vk] real-LOAD: nothing meshed at level 3 around [0, 0, 0]\n"
+                                "[native-vk] real load at draw 3000 status=nothing-meshed")
+        self.assertTrue(self.run_gate(real_status={0: "nothing-meshed"}, log=meshed_nothing, **T)["success"])
+        # budget spent before it was
+        def early(r):
+            r["results"][0]["buildsSoFar"] = 2
+        self.assertRefused(self.run_gate(real_status={0: "build-budget-spent"}, mutate_real=early, **T),
+                           "after 2 of")
+        # extent mismatch the ladder sample contradicts
+        def same(r):
+            r["results"][0].update(cameraExtent=[960, 540], frameExtent=[960, 540])
+        self.assertRefused(self.run_gate(real_status={0: "camera-extent-mismatch"}, mutate_real=same, **T),
+                           "does not support")
+        # a skip carrying a judged sample's keys, or a skip log line with counts
+        def keys(r):
+            r["results"][0]["referenceDepthFile"] = "native-real-load-depth-3000.f32.gz"
+        self.assertRefused(self.run_gate(real_status={0: "no-camera-this-frame"}, mutate_real=keys, **T),
+                           "which a skip never has")
+        def counts(text):
+            return text.replace("status=no-camera-this-frame", "status=no-camera-this-frame geometry=5")
+        self.assertRefused(self.run_gate(real_status={0: "no-camera-this-frame"}, log=counts, **T),
+                           "carries more than its status")
+
+    def test_published_scene_and_projection_facts_are_reconciled(self):
+        """Round-20 R20-REAL-METADATA: NaN/fabricated depth, far plane, captures, centre, quads,
+        a flipped projectionAdjusted, builds=0 and device=null all replayed 0."""
+        cases = [
+            (lambda e: e.update(minDepth=0.9), "reports minDepth=0.9"),
+            (lambda e: e.update(maxDepth=None), "reports maxDepth=None"),
+            (lambda e: e.update(farPlane=10.0), "reports farPlane=10.0"),
+            (lambda e: e.update(cameraCapture=0), "cameraCapture=0"),
+            (lambda e: e.update(sceneCentre=[]), "names scene centre []"),
+            (lambda e: e.update(sceneQuads=-1), "-1 quads"),
+            (lambda e: e.update(sceneSections=10_000), "10000 sections"),
+            (lambda e: e.update(projectionAdjusted=True), "says projectionAdjusted=True"),
+            (lambda e: e.update(projection=[0.0] * 16), "neither"),
+            (lambda e: e.update(mcProjection=[1.0] * 15), "both 16-entry projections"),
+            (lambda e: e.update(stage="nether"), "says stage 'nether'"),
+            (lambda e: e.update(sceneBuild=2), "name scene builds"),
+            (lambda e: e.update(atlasGeneration=2), "atlas generation 2 of 1"),
+            (lambda e: e.pop("engineId"), "does not state engineId"),
+        ]
+        for mutate, fragment in cases:
+            self.assertRefused(self.run_gate(mutate_real=lambda r, m=mutate: m(r["results"][0])), fragment)
+        self.assertRefused(self.run_gate(mutate_real=lambda r: r.update(builds=0)), "built 0")
+        self.assertRefused(self.run_gate(mutate_real=lambda r: r.update(device=None)), "names no device")
+        self.assertRefused(self.run_gate(mutate_real=lambda r: r.update(atlasReads=0)), "never read the block atlas")
+        self.assertRefused(self.run_gate(mutate_real=lambda r: r.update(atlasCloseFailures=1)),
+                           "failed to close 1 time(s)")
+        # an adjusted projection is accepted only as exactly the halved range
+        def halved(r):
+            e = r["results"][0]
+            e["projection"] = verify.halve_depth_range(e["mcProjection"])
+            e["projectionAdjusted"] = True
+            e["farPlane"] = abs(e["projection"][14] / e["projection"][10])
+        self.assertTrue(self.run_gate(mutate_real=halved)["success"])
+
+    def test_scene_reuse_across_engines_or_atlases_fails(self):
+        """Round-20 R20-REAL-ENGINE-IDENTITY / R20-ATLAS-RELOAD."""
+        def two_engines(r):
+            a, b = r["results"]
+            b["engineId"] = a["engineId"] + 1
+        self.assertRefused(self.run_gate(terrain=False, mutate_real=two_engines),
+                           "engineId changed but the same scene")
+        def two_atlases(r):
+            a, b = r["results"]
+            b["atlasGeneration"] = 2
+            r["atlasReads"] = 2
+        self.assertRefused(self.run_gate(terrain=False, mutate_real=two_atlases),
+                           "atlasGeneration changed but the same scene")
+        def rebuilt(r):
+            a, b = r["results"]
+            b["engineId"] = a["engineId"] + 1
+            b["sceneBuild"] = 2
+            r["builds"] = 2
+        self.assertTrue(self.run_gate(terrain=False, mutate_real=rebuilt)["success"])
+        def older(r):
+            a, b = r["results"]
+            a["sceneBuild"] = 2
+            r["builds"] = 2
+        self.assertRefused(self.run_gate(terrain=False, mutate_real=older), "older than the previous")
+        def stale_capture(r):
+            a, b = r["results"]
+            b["cameraCapture"] = a["cameraCapture"]
+        self.assertRefused(self.run_gate(terrain=False, mutate_real=stale_capture),
+                           "not after the previous judged sample")
+
+    def test_each_explicit_type_guard_is_live(self):
+        """Round-20 R20-TEST-REALLOAD: these guards' removals left the class green."""
+        self.assertRefused(self.run_gate(mutate_real=lambda r: r["results"].append({"at": "x", "status": "judged"})),
+                           "a real-LOAD result is malformed")
+        self.assertRefused(self.run_gate(mutate_real=lambda r: r["results"].append({"at": 1, "status": 7})),
+                           "a real-LOAD result is malformed")
+        self.assertRefused(self.run_gate(mutate_real=lambda r: r.update(enabled="true")),
+                           "realLoad.enabled is 'true', not a bool")
+        self.assertRefused(self.run_gate(mutate_real=lambda r: r.update(builds=1.5)),
+                           "realLoad.builds is 1.5, not an int")
+        self.assertRefused(self.run_gate(mutate_real=lambda r: r.update(results={})),
+                           "realLoad.results is {}, not a")
 
     def test_the_hand_off_rule_itself(self):
         c = verify.ladder_expected_consumer

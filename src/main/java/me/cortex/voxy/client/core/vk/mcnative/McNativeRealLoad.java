@@ -52,7 +52,7 @@ public final class McNativeRealLoad implements Destroyable {
     /** メッシュ化するレベルと半径: レベル 3 のセクションは 256 ブロック、半径 4 で ±1024 ブロック。 */
     static final int LEVEL = 3, RADIUS = 4;
     static final int MAX_QUADS = 2_000_000;
-    static final int BUILD_BUDGET = 6;
+    static final int BUILD_BUDGET = 10;
     static final float[] CLEAR = {0.05f, 0.05f, 0.10f, 1.0f};
     static final int[] DECLARED_DEPTH_STATE = McNativeTerrainLoad.DECLARED_DEPTH_STATE;
     /** 判定しなかった理由 (gate はこの集合だけを受け付ける)。 */
@@ -86,7 +86,14 @@ public final class McNativeRealLoad implements Destroyable {
                          float maxDepth, String file, String frameFile, String referenceFile,
                          String referenceDepthFile, Boolean projectionAdjusted, double farPlane,
                          int sceneLevel, int[] sceneCentre, int sceneSections, int sceneQuads,
-                         int sceneDraws, long referenceSet, long cameraCapture) {}
+                         int sceneDraws, long referenceSet, long cameraCapture,
+                         // round-20 review R20-REAL-METADATA / -ENGINE-IDENTITY / -SKIP-PROVENANCE:
+                         int engineId, int sceneBuild, int atlasGeneration, float[] mcProjection,
+                         float[] projection, Skip skip) {}
+
+    /** What a skipped sample saw, so the gate can corroborate the reason. */
+    public record Skip(long previousCapture, int[] cameraExtent, int[] frameExtent, int buildsSoFar,
+                       int atlasState) {}
 
     /** 記録時に切り出しておく参照の帯 (両方の向き)。測定のコールバックが向きを選ぶ。 */
     private record Pending(int[][] rects, int[][] colour, float[][] depth, Result partial) {}
@@ -95,15 +102,21 @@ public final class McNativeRealLoad implements Destroyable {
     private final long ownerDevice;
     private final int colourFormat, depthFormat;
     private final McNativeRealScene scene;
+    /** The engine the scene was meshed from (round-20 R20-REAL-ENGINE-IDENTITY) and the atlas it was baked with. */
+    private final java.lang.ref.WeakReference<me.cortex.voxy.common.world.WorldEngine> engine;
+    private final int atlasGeneration;
     private boolean destroyed;
 
     private McNativeRealLoad(VulkanDevice device, long ownerDevice, int colourFormat, int depthFormat,
-                             McNativeRealScene scene) {
+                             McNativeRealScene scene, me.cortex.voxy.common.world.WorldEngine engine,
+                             int atlasGeneration) {
         this.device = device;
         this.ownerDevice = ownerDevice;
         this.colourFormat = colourFormat;
         this.depthFormat = depthFormat;
         this.scene = scene;
+        this.engine = new java.lang.ref.WeakReference<>(engine);
+        this.atlasGeneration = atlasGeneration;
     }
 
     public static boolean enabled() { return Boolean.getBoolean(FLAG); }
@@ -120,16 +133,17 @@ public final class McNativeRealLoad implements Destroyable {
         if (!enabled()) return;
         // the capture count must have advanced since the previous tail: the matrix is this frame's
         long capture = McNativeCamera.frame();
-        boolean fresh = capture != lastCaptureSeen;
+        long previousCapture = lastCaptureSeen;
+        boolean fresh = capture != previousCapture;
         lastCaptureSeen = capture;
         try {
-            render(fresh, capture);
+            render(fresh, capture, previousCapture);
         } catch (Throwable t) {
             fail("the real-LOAD experiment failed: " + t);
         }
     }
 
-    private static void render(boolean freshCamera, long capture) {
+    private static void render(boolean freshCamera, long capture, long previousCapture) {
         long at = McNativeDepthLadder.takeSampleThisFrame(McNativeDepthLadder.EXPERIMENT_REAL_LOAD);
         if (at < 0) return;
         attempted = true;
@@ -175,18 +189,34 @@ public final class McNativeRealLoad implements Destroyable {
         }
         // ---- the reasons a sample is not judged (published, from a fixed set) ----
         var view = McNativeCamera.latest();
-        if (view == null || !freshCamera) { skip(at, stage, NO_CAMERA, capture); return; }
-        if (view.width() != width || view.height() != height) { skip(at, stage, EXTENT, capture); return; }
+        if (view == null || !freshCamera) {
+            skip(at, stage, NO_CAMERA, capture, new Skip(previousCapture, null, null, builds, -1));
+            return;
+        }
+        if (view.width() != width || view.height() != height) {
+            skip(at, stage, EXTENT, capture, new Skip(previousCapture, new int[] {view.width(), view.height()},
+                new int[] {width, height}, builds, -1));
+            return;
+        }
         var world = mc.level == null ? null : WorldIdentifier.ofEngineNullable(mc.level);
-        if (world == null || !world.isLive()) { skip(at, stage, NO_ENGINE, capture); return; }
+        if (world == null || !world.isLive()) {
+            skip(at, stage, NO_ENGINE, capture, new Skip(previousCapture, null, null, builds, -1));
+            return;
+        }
         // the model bakery samples Minecraft's block atlas; on Vulkan it is read through Blaze3D
-        // (McNativeAtlas) and arrives in a later frame
+        // (McNativeAtlas) and arrives in a later frame. Round-20 R20-ATLAS-RELOAD: if Minecraft
+        // replaced the atlas texture (resource reload), read it again and rebake.
+        McNativeAtlas.refreshIfReplaced();
         McNativeAtlas.requestOnce();
         if (McNativeAtlas.state() == McNativeAtlas.State.FAILED) {
             fail(McNativeAtlas.failure());
             return;
         }
-        if (McNativeAtlas.state() != McNativeAtlas.State.READY) { skip(at, stage, ATLAS_PENDING, capture); return; }
+        if (McNativeAtlas.state() != McNativeAtlas.State.READY) {
+            skip(at, stage, ATLAS_PENDING, capture, new Skip(previousCapture, null, null, builds,
+                McNativeAtlas.state().ordinal()));
+            return;
+        }
 
         int[] anchor = {VkHostViewport.sectionOf(view.x()), VkHostViewport.sectionOf(view.y()),
             VkHostViewport.sectionOf(view.z())};
@@ -194,20 +224,26 @@ public final class McNativeRealLoad implements Destroyable {
         var probe = instance;
         if (probe != null && (probe.destroyed || probe.scene.poisoned
                 || !java.util.Arrays.equals(probe.scene.centre, centre)
-                || probe.scene.width != width || probe.scene.height != height)) {
+                || probe.scene.width != width || probe.scene.height != height
+                || probe.engine.get() != world
+                || probe.atlasGeneration != McNativeAtlas.generation())) {
             retire(probe);
             probe = null;
         }
         if (probe == null) {
             if (builds >= BUILD_BUDGET || leakedScenes >= LEAK_BUDGET) {
-                skip(at, stage, BUILD_BUDGET_SPENT, capture);
+                skip(at, stage, BUILD_BUDGET_SPENT, capture, new Skip(previousCapture, null, null, builds, -1));
                 return;
             }
             builds++;
             var scene = McNativeRealScene.build(world, LEVEL, centre, RADIUS, MAX_QUADS, width, height,
-                McNativeRealLoad::logOnly);
-            if (scene == null) { skip(at, stage, NOTHING_MESHED, capture); return; }
-            probe = new McNativeRealLoad(device, mcDevice, format, depthVk, scene);
+                builds, McNativeRealLoad::logOnly, () -> closeFailures++);
+            if (scene == null) {
+                skip(at, stage, NOTHING_MESHED, capture, new Skip(previousCapture, null, null, builds, -1));
+                return;
+            }
+            probe = new McNativeRealLoad(device, mcDevice, format, depthVk, scene, world,
+                McNativeAtlas.generation());
             instance = probe;
         }
 
@@ -263,18 +299,22 @@ public final class McNativeRealLoad implements Destroyable {
             }
         }
         var s = probe.scene;
+        float[] mcProjection = new float[16], usedProjection = new float[16];
+        view.projection().get(mcProjection);
+        vkProjection.get(usedProjection);
         var partial = new Result(at, JUDGED, stage, null, Float.NaN, Float.NaN, null, null, null, null,
             adjusted, farPlane, s.level, s.centre.clone(), s.sectionCount, s.totalQuads, s.drawCount,
-            0, capture);
+            0, capture, s.engineId, s.buildOrdinal, probe.atlasGeneration, mcProjection,
+            usedProjection, null);
         synchronized (NOTES) {
             PENDING.put(at, new Pending(rects, colours, depths, partial));
         }
         requestReadback(colour, width, height, at);
     }
 
-    private static void skip(long at, String stage, String reason, long capture) {
+    private static void skip(long at, String stage, String reason, long capture, Skip why) {
         var r = new Result(at, reason, stage, null, Float.NaN, Float.NaN, null, null, null, null,
-            null, Double.NaN, LEVEL, null, 0, 0, 0, 0, capture);
+            null, Double.NaN, LEVEL, null, 0, 0, 0, 0, capture, 0, 0, 0, null, null, why);
         synchronized (NOTES) {
             RESULTS.put(at, r);
         }
@@ -363,7 +403,8 @@ public final class McNativeRealLoad implements Destroyable {
             var result = new Result(at, JUDGED, p.stage(), counts, minDepth, maxDepth, file, frameFile,
                 refWritten ? refName : null, refWritten ? depthName : null, p.projectionAdjusted(),
                 p.farPlane(), p.sceneLevel(), p.sceneCentre(), p.sceneSections(), p.sceneQuads(),
-                p.sceneDraws(), refSet, p.cameraCapture());
+                p.sceneDraws(), refSet, p.cameraCapture(), p.engineId(), p.sceneBuild(),
+                p.atlasGeneration(), p.mcProjection(), p.projection(), null);
             synchronized (NOTES) {
                 RESULTS.put(at, result);
             }
@@ -450,7 +491,8 @@ public final class McNativeRealLoad implements Destroyable {
     public void destroy() {
         if (this.destroyed) return;
         this.destroyed = true;
-        this.scene.free();
+        // round-20 R20-DESTROY-ACCOUNTING: a child that could not be freed is a leak; count it
+        closeFailures += this.scene.free();
     }
 
     public static void shutdownImmediate(org.lwjgl.vulkan.VkDevice waitedDevice) {
@@ -470,8 +512,9 @@ public final class McNativeRealLoad implements Destroyable {
 
     public static void shutdown() {
         var probe = instance;
-        if (probe == null) return;
-        retire(probe);
+        if (probe != null) retire(probe);
+        // round-20 R20-ATLAS-RELOAD: the 16 MiB atlas copy is not kept past the level
+        McNativeAtlas.reset();
         writeEvidence();
     }
 
@@ -527,6 +570,23 @@ public final class McNativeRealLoad implements Destroyable {
                 sb.append(", \"sceneSections\": ").append(r.sceneSections());
                 sb.append(", \"sceneQuads\": ").append(r.sceneQuads());
                 sb.append(", \"sceneDraws\": ").append(r.sceneDraws());
+                sb.append(", \"engineId\": ").append(r.engineId());
+                sb.append(", \"sceneBuild\": ").append(r.sceneBuild());
+                sb.append(", \"atlasGeneration\": ").append(r.atlasGeneration());
+                sb.append(", \"mcProjection\": ").append(floats(r.mcProjection()));
+                sb.append(", \"projection\": ").append(floats(r.projection()));
+            }
+            if (r.skip() != null) {
+                var k = r.skip();
+                sb.append(", \"previousCapture\": ").append(k.previousCapture());
+                sb.append(", \"buildsSoFar\": ").append(k.buildsSoFar());
+                sb.append(", \"atlasState\": ").append(k.atlasState());
+                if (k.cameraExtent() != null) {
+                    sb.append(", \"cameraExtent\": [").append(k.cameraExtent()[0]).append(", ")
+                      .append(k.cameraExtent()[1]).append("]");
+                    sb.append(", \"frameExtent\": [").append(k.frameExtent()[0]).append(", ")
+                      .append(k.frameExtent()[1]).append("]");
+                }
             }
             sb.append('}');
         }
@@ -537,6 +597,8 @@ public final class McNativeRealLoad implements Destroyable {
         sb.append("  \"leakedScenes\": ").append(leakedScenes).append(",\n");
         sb.append("  \"deviceDiverged\": ").append(deviceDiverged).append(",\n");
         sb.append("  \"readbacksInFlight\": ").append(readbacksInFlight).append(",\n");
+        sb.append("  \"atlasReads\": ").append(McNativeAtlas.reads()).append(",\n");
+        sb.append("  \"atlasCloseFailures\": ").append(McNativeAtlas.closeFailures()).append(",\n");
         sb.append("  \"device\": ").append(McNativeVulkanProbe.quote(
             ownerDeviceSeen == 0 ? null : "0x" + Long.toHexString(ownerDeviceSeen))).append(",\n");
         sb.append("  \"notes\": [");
@@ -546,6 +608,16 @@ public final class McNativeRealLoad implements Destroyable {
         }
         sb.append("]\n}\n");
         return sb.toString();
+    }
+
+    private static String floats(float[] values) {
+        if (values == null) return "null";
+        var sb = new StringBuilder("[");
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(values[i]);
+        }
+        return sb.append(']').toString();
     }
 
     private static void fail(String why) {

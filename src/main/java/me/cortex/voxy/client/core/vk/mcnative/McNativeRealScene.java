@@ -45,6 +45,8 @@ final class McNativeRealScene {
     /** メッシュ化した中心 (レベル {@link #level} のセクション座標)。 */
     final int[] centre;
     final int sectionCount, totalQuads, drawCount, meshed;
+    /** The world engine this scene was meshed from ({@code System.identityHashCode}) and its build ordinal. */
+    final int engineId, buildOrdinal;
     private boolean freed;
     /** 参照の提出を観測できなかった (= 資源が使用中かもしれない) なら以後使わない。 */
     boolean poisoned;
@@ -53,7 +55,8 @@ final class McNativeRealScene {
                               VkRealModelBakery bakery, VkRealMesher mesher,
                               VkTerrainRenderer renderer, VkRenderTarget target, int width,
                               int height, int level, int radius, int[] centre, int sectionCount,
-                              int totalQuads, int drawCount, int meshed) {
+                              int totalQuads, int drawCount, int meshed, int engineId,
+                              int buildOrdinal) {
         this.res = res;
         this.modelTarget = modelTarget;
         this.bakery = bakery;
@@ -69,6 +72,8 @@ final class McNativeRealScene {
         this.totalQuads = totalQuads;
         this.drawCount = drawCount;
         this.meshed = meshed;
+        this.engineId = engineId;
+        this.buildOrdinal = buildOrdinal;
     }
 
     /**
@@ -77,7 +82,8 @@ final class McNativeRealScene {
      * GPU には何も提出しない (提出は {@link #reference})。
      */
     static McNativeRealScene build(WorldEngine world, int level, int[] centre, int radius,
-                                   int maxQuads, int width, int height, Consumer<String> note) {
+                                   int maxQuads, int width, int height, int buildOrdinal,
+                                   Consumer<String> note, Runnable onFreeFailure) {
         int side = 2 * radius + 1;
         int maxSections = side * side * side;
         VkTerrainResources res = null;
@@ -110,7 +116,8 @@ final class McNativeRealScene {
                 + level + " around " + java.util.Arrays.toString(centre) + " r=" + radius);
             var scene = new McNativeRealScene(res, modelTarget, bakery, mesher, renderer, target,
                 width, height, level, radius, centre.clone(), uploaded.sectionCount(),
-                uploaded.totalQuads(), uploaded.drawCount(), meshed);
+                uploaded.totalQuads(), uploaded.drawCount(), meshed,
+                System.identityHashCode(world), buildOrdinal);
             res = null; modelTarget = null; bakery = null; mesher = null; renderer = null; target = null;
             return scene;
         } catch (Throwable t) {
@@ -119,11 +126,13 @@ final class McNativeRealScene {
         } finally {
             if (built != null) {
                 for (var b : built) {
-                    try { b.free(); } catch (Throwable ignored) { }
+                    try { b.free(); } catch (Throwable t) { onFreeFailure.run(); }
                 }
             }
             // nothing was submitted on any of these yet, so they can be freed directly
-            freeAll(target, renderer, mesher, bakery, modelTarget, res);
+            for (int i = freeAll(target, renderer, mesher, bakery, modelTarget, res); i > 0; i--) {
+                onFreeFailure.run();
+            }
         }
     }
 
@@ -194,21 +203,32 @@ final class McNativeRealScene {
         }
     }
 
-    /** 解放。<b>Minecraft の提出の完了を観測した後に</b>呼ぶこと (呼び出し側の責務)。 */
-    void free() {
-        if (this.freed || this.poisoned) return;
+    /**
+     * 解放。<b>Minecraft の提出の完了を観測した後に</b>呼ぶこと (呼び出し側の責務)。
+     *
+     * @return 解放に失敗した子の数 (round-20 review R20-DESTROY-ACCOUNTING: 握り潰さずに数える)
+     */
+    int free() {
+        if (this.freed || this.poisoned) return 0;
         this.freed = true;
-        freeAll(this.target, this.renderer, this.mesher, this.bakery, this.modelTarget, this.res);
+        return freeAll(this.target, this.renderer, this.mesher, this.bakery, this.modelTarget, this.res);
     }
 
-    private static void freeAll(VkRenderTarget target, VkTerrainRenderer renderer, VkRealMesher mesher,
-                                VkRealModelBakery bakery, VkModelUploadTarget modelTarget,
-                                VkTerrainResources res) {
-        if (target != null) try { target.free(); } catch (Throwable ignored) { }
-        if (renderer != null) try { renderer.free(); } catch (Throwable ignored) { }
-        if (mesher != null) try { mesher.free(); } catch (Throwable ignored) { }
-        if (bakery != null) try { bakery.free(); } catch (Throwable ignored) { }
-        if (modelTarget != null) try { modelTarget.free(); } catch (Throwable ignored) { }
-        if (res != null) try { res.free(); } catch (Throwable ignored) { }
+    /** Frees each non-null child; returns how many threw (each is a leak that must be counted). */
+    private static int freeAll(VkRenderTarget target, VkTerrainRenderer renderer, VkRealMesher mesher,
+                               VkRealModelBakery bakery, VkModelUploadTarget modelTarget,
+                               VkTerrainResources res) {
+        int failures = 0;
+        if (target != null) try { target.free(); } catch (Throwable t) { failures++; log(t); }
+        if (renderer != null) try { renderer.free(); } catch (Throwable t) { failures++; log(t); }
+        if (mesher != null) try { mesher.free(); } catch (Throwable t) { failures++; log(t); }
+        if (bakery != null) try { bakery.free(); } catch (Throwable t) { failures++; log(t); }
+        if (modelTarget != null) try { modelTarget.free(); } catch (Throwable t) { failures++; log(t); }
+        if (res != null) try { res.free(); } catch (Throwable t) { failures++; log(t); }
+        return failures;
+    }
+
+    private static void log(Throwable t) {
+        Logger.warn("[native-vk] could not free a real-LOAD scene resource: " + t);
     }
 }

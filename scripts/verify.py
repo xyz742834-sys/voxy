@@ -2085,7 +2085,75 @@ def terrain_load_checks(output, ladder_report, recounts, coexist_enabled, log_te
             "declaredDepthState": TERRAIN_LOAD_DEPTH_STATE, "scene": TERRAIN_LOAD_SCENE}
 
 
-REAL_LOAD_LEVEL, REAL_LOAD_RADIUS, REAL_LOAD_BUILD_BUDGET = 3, 4, 6
+REAL_LOAD_LEVEL, REAL_LOAD_RADIUS, REAL_LOAD_BUILD_BUDGET = 3, 4, 10
+REAL_LOAD_ATLAS_PENDING_STATE = 1     # McNativeAtlas.State.PENDING.ordinal()
+REAL_LOAD_SKIP_KEYS = {"at", "status", "stage", "cameraCapture", "previousCapture", "buildsSoFar",
+                       "atlasState", "cameraExtent", "frameExtent"}
+REAL_LOAD_LOG_LINE = re.compile(r"real load at draw (\d+) status=(\S+)(.*)$", re.M)
+ATLAS_REQUEST_LOG = re.compile(r"requested the block atlas \(")
+ATLAS_READY_LOG = re.compile(r"block atlas read through Blaze3D: ")
+NOTHING_MESHED_LOG = re.compile(r"real-LOAD: nothing meshed at level")
+
+
+def halve_depth_range(m):
+    """VkHostViewport.halveDepthRange on a column-major 16-float matrix (m[c*4+r])."""
+    out = list(m)
+    for c in range(4):
+        out[c * 4 + 2] = (m[c * 4 + 2] + m[c * 4 + 3]) * 0.5
+    return out
+
+
+def real_load_skip_provenance(entry, recount, log_text, ladder_sample):
+    """Round-20 review R20-REAL-SKIP-PROVENANCE: the reason a sample was not judged must be
+    corroborated by what the probe and the log saw, not only taken from a fixed vocabulary."""
+    at, status = entry["at"], entry["status"]
+    extra = sorted(set(entry) - REAL_LOAD_SKIP_KEYS)
+    if extra:
+        raise ValueError(f"real-LOAD skip at draw {at} carries {extra}, which a skip never has")
+    if log_text is None:
+        raise ValueError(f"real-LOAD skip at draw {at} cannot be corroborated without the log")
+    line = next((m for m in REAL_LOAD_LOG_LINE.finditer(log_text) if int(m.group(1)) == at), None)
+    if line is None or line.group(3).strip():
+        raise ValueError(f"the real-load log line for skipped draw {at} is missing or carries"
+                         f" more than its status")
+    before = log_text[:line.start()]
+    for field in ("previousCapture", "buildsSoFar", "atlasState", "cameraCapture"):
+        if not finite_int(entry.get(field)):
+            raise ValueError(f"real-LOAD skip at draw {at} does not state {field}")
+    if status == "atlas-pending":
+        if entry["atlasState"] != REAL_LOAD_ATLAS_PENDING_STATE:
+            raise ValueError(f"real-LOAD skip at draw {at} says atlas-pending but the atlas state was"
+                             f" {entry['atlasState']}")
+        if len(ATLAS_REQUEST_LOG.findall(before)) <= len(ATLAS_READY_LOG.findall(before)):
+            raise ValueError(f"real-LOAD skip at draw {at} says atlas-pending but the log has no"
+                             f" outstanding atlas request at that point")
+    elif status == "no-camera-this-frame":
+        if entry["previousCapture"] != entry["cameraCapture"]:
+            raise ValueError(f"real-LOAD skip at draw {at} says no camera this frame but the capture"
+                             f" count moved from {entry['previousCapture']} to {entry['cameraCapture']}")
+    elif status == "camera-extent-mismatch":
+        cam, frame = entry.get("cameraExtent"), entry.get("frameExtent")
+        if not (isinstance(cam, list) and isinstance(frame, list)) or cam == frame or \
+                frame != [ladder_sample.get("targetWidth"), ladder_sample.get("targetHeight")]:
+            raise ValueError(f"real-LOAD skip at draw {at} says the camera extent {cam!r} differs from"
+                             f" the frame {frame!r}, which the ladder sample does not support")
+    elif status == "no-world-engine":
+        lines = INSTANCE_LOG.findall(before)
+        # INSTANCE_LOG groups: frame, stage, factory, instance, engine, live, ...
+        if not lines or (lines[-1][4] == "true" and lines[-1][5] == "true"):
+            raise ValueError(f"real-LOAD skip at draw {at} says no world engine but the last instance"
+                             f" line before it shows a live engine")
+    elif status == "nothing-meshed":
+        previous = [m for m in REAL_LOAD_LOG_LINE.finditer(before)]
+        since = before[previous[-1].end():] if previous else before
+        if not NOTHING_MESHED_LOG.search(since) or entry["buildsSoFar"] < 1:
+            raise ValueError(f"real-LOAD skip at draw {at} says nothing meshed but no build that meshed"
+                             f" nothing is logged before it")
+    elif status == "build-budget-spent":
+        if entry["buildsSoFar"] != REAL_LOAD_BUILD_BUDGET:
+            raise ValueError(f"real-LOAD skip at draw {at} says the build budget was spent after"
+                             f" {entry['buildsSoFar']} of {REAL_LOAD_BUILD_BUDGET} builds")
+
 REAL_LOAD_SKIPS = ("no-world-engine", "no-camera-this-frame", "camera-extent-mismatch",
                    "nothing-meshed", "build-budget-spent", "atlas-pending")
 REAL_LOAD_LOG = re.compile(r"real load at draw (\d+) status=(\S+)(?: "
@@ -2132,6 +2200,7 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
                         ("instanceMode", bool), ("results", list), ("problems", int),
                         ("firstProblem", (str, type(None))), ("closeFailures", int),
                         ("leakedScenes", int), ("deviceDiverged", bool), ("readbacksInFlight", int),
+                        ("atlasReads", int), ("atlasCloseFailures", int),
                         ("device", (str, type(None))), ("notes", list)):
         if field not in report:
             raise ValueError(f"the real-LOAD report does not state {field}")
@@ -2165,6 +2234,9 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
                          f" readbacksInFlight={report['readbacksInFlight']}")
     if not (0 <= report["builds"] <= REAL_LOAD_BUILD_BUDGET):
         raise ValueError(f"the real-LOAD probe built {report['builds']} scene(s)")
+    if report["atlasCloseFailures"]:
+        raise ValueError(f"the block-atlas readback buffer failed to close"
+                         f" {report['atlasCloseFailures']} time(s)")
     entries = report["results"]
     ats = []
     for entry in entries:
@@ -2183,6 +2255,17 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         raise ValueError(f"the ladder log holds real-load lines for draws {sorted(logged)} but the"
                          f" ladder handed it draws {sorted(sample_ats)}")
     judged = [e for e in entries if e["status"] == "judged"]
+    if judged:
+        # round-20 R20-REAL-METADATA: facts every judged sample rests on
+        if report["device"] is None:
+            raise ValueError("the real-LOAD probe judged samples but names no device")
+        if report["atlasReads"] < 1:
+            raise ValueError("the real-LOAD probe judged samples but never read the block atlas")
+        builds_used = [e.get("sceneBuild") for e in judged]
+        if not all(finite_int(b) and 1 <= b <= report["builds"] for b in builds_used) or \
+                max(builds_used) != report["builds"]:
+            raise ValueError(f"the judged samples name scene builds {builds_used} but the probe"
+                             f" built {report['builds']}")
     if report["drawsRecorded"] != len(judged):
         raise ValueError(f"the real-LOAD probe recorded {report['drawsRecorded']} pass(es) but"
                          f" judged {len(judged)} sample(s); one pass per judged sample")
@@ -2196,6 +2279,8 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
                          f" {ladder_report['device']}")
     referenced = {"native-real-load.json"}
     out, visible_samples, total = [], 0, {name: 0 for name in TERRAIN_LOAD_COUNTS}
+    ladder_samples_by_at = {s.get("at"): s for s in ladder_report.get("samples") or [] if isinstance(s, dict)}
+    previous_judged = None
     for recount in recounts:
         at = recount["at"]
         entry = by_at[at]
@@ -2209,6 +2294,7 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
                                  f" reason from {REAL_LOAD_SKIPS}")
             if any(k in entry for k in ("file", "frameFile", "referenceFile")):
                 raise ValueError(f"real-LOAD at draw {at} was not judged but names files")
+            real_load_skip_provenance(entry, recount, log_text, ladder_samples_by_at.get(at, {}))
             out.append({"at": at, "status": status})
             continue
         for field in TERRAIN_LOAD_COUNTS:
@@ -2223,6 +2309,56 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         if not isinstance(entry.get("projectionAdjusted"), bool):
             raise ValueError(f"real-LOAD at draw {at} does not say whether Minecraft's projection was"
                              f" adjusted to 0..1 depth")
+        # round-20 R20-REAL-METADATA: reconcile the published scene and projection facts
+        published = ladder_samples_by_at.get(at, {})
+        if entry.get("stage") != published.get("stage"):
+            raise ValueError(f"real-LOAD at draw {at} says stage {entry.get('stage')!r} but the ladder"
+                             f" sample says {published.get('stage')!r}")
+        centre = entry.get("sceneCentre")
+        if not (isinstance(centre, list) and len(centre) == 3 and all(finite_int(c) for c in centre)):
+            raise ValueError(f"real-LOAD at draw {at} names scene centre {centre!r}")
+        side = 2 * REAL_LOAD_RADIUS + 1
+        if not (1 <= entry["sceneSections"] <= side ** 3) or not finite_int(entry.get("sceneQuads")) \
+                or entry["sceneQuads"] < 1 or entry["sceneDraws"] > 7 * entry["sceneSections"]:
+            raise ValueError(f"real-LOAD at draw {at} names {entry['sceneSections']} sections,"
+                             f" {entry.get('sceneQuads')!r} quads, {entry['sceneDraws']} draws")
+        mc_p, used_p = entry.get("mcProjection"), entry.get("projection")
+        if not (isinstance(mc_p, list) and isinstance(used_p, list) and len(mc_p) == 16
+                and len(used_p) == 16 and all(finite_number(v) for v in mc_p + used_p)):
+            raise ValueError(f"real-LOAD at draw {at} does not publish both 16-entry projections")
+        same = all(abs(a - b) <= 1e-6 * max(1.0, abs(b)) for a, b in zip(used_p, mc_p))
+        halved = all(abs(a - b) <= 1e-6 * max(1.0, abs(b))
+                     for a, b in zip(used_p, halve_depth_range(mc_p)))
+        if entry["projectionAdjusted"] != (not same) or not (same or halved):
+            raise ValueError(f"real-LOAD at draw {at} says projectionAdjusted="
+                             f"{entry['projectionAdjusted']} but its projection is"
+                             f" {'Minecraft’s' if same else ('the halved range' if halved else 'neither')}")
+        far = entry.get("farPlane")
+        want_far = abs(used_p[14] / used_p[10]) if abs(used_p[10]) > 1e-12 else None
+        if want_far is None or not finite_number(far) or abs(far - want_far) > 1e-3 * max(1.0, want_far):
+            raise ValueError(f"real-LOAD at draw {at} reports farPlane={far!r} but its projection"
+                             f" gives {want_far!r}")
+        if not finite_int(entry.get("cameraCapture")) or entry["cameraCapture"] < 1:
+            raise ValueError(f"real-LOAD at draw {at} has cameraCapture={entry.get('cameraCapture')!r}")
+        for field in ("engineId", "sceneBuild", "atlasGeneration"):
+            if not finite_int(entry.get(field)):
+                raise ValueError(f"real-LOAD at draw {at} does not state {field}")
+        if entry["atlasGeneration"] < 1 or entry["atlasGeneration"] > report["atlasReads"]:
+            raise ValueError(f"real-LOAD at draw {at} names atlas generation {entry['atlasGeneration']}"
+                             f" of {report['atlasReads']} read(s)")
+        if previous_judged is not None:
+            if entry["cameraCapture"] <= previous_judged["cameraCapture"]:
+                raise ValueError(f"real-LOAD at draw {at} has camera capture {entry['cameraCapture']},"
+                                 f" not after the previous judged sample's")
+            if entry["sceneBuild"] < previous_judged["sceneBuild"]:
+                raise ValueError(f"real-LOAD at draw {at} uses scene build {entry['sceneBuild']}, older"
+                                 f" than the previous sample's")
+            for field in ("engineId", "atlasGeneration"):
+                if entry[field] != previous_judged[field] and \
+                        entry["sceneBuild"] == previous_judged["sceneBuild"]:
+                    raise ValueError(f"real-LOAD at draw {at}: {field} changed but the same scene"
+                                     f" (build {entry['sceneBuild']}) was reused")
+        previous_judged = entry
         wanted = {"file": f"native-real-load-{at}.ppm.gz",
                   "frameFile": f"native-real-load-frame-{at}.ppm.gz",
                   "referenceFile": f"native-real-load-reference-{at}.ppm.gz",
@@ -2258,6 +2394,16 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         if log_text is not None and logged[at][1] != [counts[k] for k in TERRAIN_LOAD_COUNTS]:
             raise ValueError(f"the ladder log's real-load line for draw {at} says {logged[at][1]}"
                              f" but the crops say {[counts[k] for k in TERRAIN_LOAD_COUNTS]}")
+        geometry_depths = [d for row in depth for d in row if d > 0.0]
+        for field, want in (("minDepth", min(geometry_depths, default=None)),
+                            ("maxDepth", max(geometry_depths, default=None))):
+            got = entry.get(field)
+            if want is None:
+                if got is not None:
+                    raise ValueError(f"real-LOAD at draw {at} reports {field}={got!r} with no geometry")
+            elif not finite_number(got) or abs(got - want) > 1e-6 * max(abs(want), 1e-30):
+                raise ValueError(f"real-LOAD at draw {at} reports {field}={got!r} but the reference"
+                                 f" depth crop says {want!r}")
         ref_set = sum(1 for row in reference for px in row if tuple(px[:3]) != TERRAIN_LOAD_CLEAR_RGB)
         if entry.get("referenceSet") != ref_set:
             raise ValueError(f"real-LOAD at draw {at} reports referenceSet={entry.get('referenceSet')!r}"
@@ -2277,6 +2423,16 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     stray = sorted(set(retained) - referenced)
     if stray:
         raise ValueError(f"{len(stray)} retained real-LOAD file(s) belong to no judged result: {stray[:6]}")
+    # round-20 R20-REAL-ENGINE-IDENTITY: a scene meshed before the disconnect must not be drawn after
+    # the reconnect (a new instance, a new engine)
+    stages = list(LIFECYCLE_STAGES)
+    if "reconnect" in stages:
+        cut = stages.index("reconnect")
+        before_builds = [e["sceneBuild"] for e in judged if e.get("stage") in stages[:cut]]
+        after_builds = [e["sceneBuild"] for e in judged if e.get("stage") == "reconnect"]
+        if before_builds and after_builds and min(after_builds) <= max(before_builds):
+            raise ValueError(f"real-LOAD after reconnect drew scene build {min(after_builds)}, which"
+                             f" was meshed before the disconnect")
     if not visible_samples:
         raise ValueError("no judged real-LOAD sample holds a pixel where Voxy's real terrain must"
                          " appear, so the experiment decided nothing")
