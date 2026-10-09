@@ -944,6 +944,90 @@ class LadderCoexistTest(unittest.TestCase):
             self.assertFalse(result["success"], fragment)
             self.assertIn(fragment, " ".join(result["failures"]))
 
+    def test_the_launch_token_is_read_with_gradles_property_semantics(self):
+        """Round-16 R16-COEXIST-LAUNCH-SEMANTICS: hasProperty, not the value."""
+        enables = verify.launch_enables
+        for token in ("-PharnessNativeCoexist=true", "-PharnessNativeCoexist=false",
+                      "-PharnessNativeCoexist=", "-PharnessNativeCoexist"):
+            self.assertTrue(enables(["gradlew", token], "harnessNativeCoexist"), token)
+        for command in ([], None, ["gradlew", "-PharnessNativeCoexistence=true"],
+                        ["-DharnessNativeCoexist=true"], ["harnessNativeCoexist=true"], [7]):
+            self.assertFalse(enables(command, "harnessNativeCoexist"), command)
+
+    def test_a_result_list_that_is_not_a_list_is_refused_as_such(self):
+        """Round-16: the type guard's removal survived because the fragment asserted was
+        also in the downstream 'malformed' refusal."""
+        # no second crops on disk, so the inventory has no orphan to refuse first
+        result = self.run_coexist(mutate_report=lambda b: b.update(coexist={"at": 1}),
+                                  skip_file=True, skip_frame=True)
+        self.assertFalse(result["success"])
+        self.assertIn("does not list its coexist results", " ".join(result["failures"]))
+
+    def test_a_result_set_that_is_not_the_sample_set_is_refused_without_orphans(self):
+        """Round-16: dropping a result together with its files leaves no orphaned crop for
+        the inventory to refuse; the key-set guard itself must fire."""
+        pairs = direction_samples()
+        afters = [coexist_after(f, s["flipped"]) for s, f in pairs]
+        entries = [coexist_entry(s, f, a) for (s, f), a in zip(pairs, afters)]
+        body = report(samples=[s for s, _ in pairs], coexistEnabled=True,
+                      coexist=[dict(e) for e in entries[1:]])
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            for (s, f), a in zip(pairs, afters):
+                write_sample_files(out, s, f)
+            for (s, f), a in list(zip(pairs, afters))[1:]:
+                write_gz_ppm(out / f"native-depth-ladder-coexist-{s['at']}.ppm.gz", a)
+                _, rej = crops(f, s["flipped"])
+                write_gz_ppm(out / f"native-depth-ladder-coexist-frame-{s['at']}.ppm.gz",
+                             thumbnail(a, s["rect"], rej, s["rejectedRect"]))
+            (out / "native-depth-ladder.json").write_text(json.dumps(body))
+            result = native_ladder_result(out, DEVICE, EXTENTS,
+                                          log_for(body["samples"]) + coexist_log_for(entries[1:]),
+                                          direction_checkpoints(), require_coexist=True)
+        self.assertFalse(result["success"])
+        self.assertIn("every sample must carry one", " ".join(result["failures"]))
+
+    def test_a_crop_or_thumbnail_named_for_another_draw_is_refused_even_when_it_exists(self):
+        """Round-16: renaming the field alone left the real crop orphaned (inventory); with
+        the file renamed too, the name guards themselves must fire."""
+        for field, prefix, fragment in (
+                ("file", "native-depth-ladder-coexist-", "not its crop"),
+                ("frameFile", "native-depth-ladder-coexist-frame-", "not its frame thumbnail")):
+            pairs = direction_samples()
+            afters = [coexist_after(f, s["flipped"]) for s, f in pairs]
+            entries = [coexist_entry(s, f, a) for (s, f), a in zip(pairs, afters)]
+            wrong = f"{prefix}{pairs[0][0]['at'] + 1}.ppm.gz"
+            entries[0][field] = wrong
+            body = report(samples=[s for s, _ in pairs], coexistEnabled=True,
+                          coexist=[dict(e) for e in entries])
+            with tempfile.TemporaryDirectory() as tmp:
+                out = Path(tmp)
+                for (s, f), a, e in zip(pairs, afters, entries):
+                    write_sample_files(out, s, f)
+                    write_gz_ppm(out / e["file"], a)
+                    _, rej = crops(f, s["flipped"])
+                    write_gz_ppm(out / e["frameFile"],
+                                 thumbnail(a, s["rect"], rej, s["rejectedRect"]))
+                (out / "native-depth-ladder.json").write_text(json.dumps(body))
+                result = native_ladder_result(out, DEVICE, EXTENTS,
+                                              log_for(body["samples"]) + coexist_log_for(entries),
+                                              direction_checkpoints(), require_coexist=True)
+            self.assertFalse(result["success"], field)
+            self.assertIn(fragment, " ".join(result["failures"]))
+
+    def test_a_log_count_that_disagrees_with_correct_crops_and_report_fails(self):
+        """Round-16: with the report and crops agreeing, only the per-draw log comparison
+        catches a log line whose counts differ."""
+        pairs = direction_samples()
+        afters = [coexist_after(f, s["flipped"]) for s, f in pairs]
+        entries = [coexist_entry(s, f, a) for (s, f), a in zip(pairs, afters)]
+        lied = [dict(e) for e in entries]
+        lied[0]["present"] += 1
+        text = log_for([s for s, _ in pairs]) + coexist_log_for(lied)
+        result = self.run_coexist(log=text)
+        self.assertFalse(result["success"])
+        self.assertIn("coexist line for draw", " ".join(result["failures"]))
+
     def test_a_missing_or_wrong_sized_frame_or_crop_fails(self):
         result = self.run_coexist(skip_frame=True)
         self.assertFalse(result["success"])
@@ -1262,6 +1346,34 @@ class LadderRetentionTest(unittest.TestCase):
         code, out = self.replay(target)
         self.assertEqual(code, 1)
         self.assertIn("enabled the coexistence experiment", out["error"])
+
+    def test_every_gradle_form_of_the_coexist_token_requires_its_evidence(self):
+        """Round-16 R16-COEXIST-LAUNCH-SEMANTICS: build.gradle switches on hasProperty, so
+        `=false`, `=` and the bare property all launch the experiment; replay read only
+        `=true` and accepted an off report behind those commands."""
+        for token in ("-PharnessNativeCoexist=false", "-PharnessNativeCoexist",
+                      "-PharnessNativeCoexist="):
+            target, _ = self.build()
+            summary_path = target / "summary.json"
+            summary = json.loads(summary_path.read_text())
+            summary["stages"]["native_environment"]["ladder_run"]["command"] = [
+                "gradlew", "runHarnessClient", "-PharnessNativeDepthLadder=true", token]
+            summary_path.write_text(json.dumps(summary))
+            self.rehash(target, "summary.json")
+            code, out = self.replay(target)
+            self.assertEqual(code, 1, token)
+            self.assertIn("enabled the coexistence experiment", out["error"])
+        # a command that names no such property did not enable it: an off report is that launch's
+        target, _ = self.build()
+        summary_path = target / "summary.json"
+        summary = json.loads(summary_path.read_text())
+        summary["stages"]["native_environment"]["ladder_run"]["command"] = [
+            "gradlew", "runHarnessClient", "-PharnessNativeDepthLadder=true",
+            "-PharnessNativeCoexistence=true"]
+        summary_path.write_text(json.dumps(summary))
+        self.rehash(target, "summary.json")
+        code, out = self.replay(target)
+        self.assertEqual(code, 0, out)
 
     def test_a_saved_direction_that_disagrees_with_the_evidence_is_rejected(self):
         """Round-13 R13-Z-BINDING: the summary's saved direction was never reconciled."""

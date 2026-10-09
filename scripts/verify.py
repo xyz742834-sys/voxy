@@ -1195,6 +1195,23 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
 COEXIST_RGB_EXACT = (128, 255, 128)   # what the GPU writes for COEXIST_RGB, measured exact
 
 
+def launch_enables(command, prop):
+    """Whether a retained launch command enabled the Gradle property `prop`.
+
+    ⚠ Round-16 review R16-COEXIST-LAUNCH-SEMANTICS: replay tested membership of the exact
+    `-P<prop>=true` token, but build.gradle switches every harness flag on
+    `project.hasProperty(...)`, so `-P<prop>=false`, `-P<prop>=` and bare `-P<prop>` all
+    launch the experiment. The command's meaning is Gradle's: any token naming the property
+    enables it. Nothing else does (a different property with this prefix is another property).
+    """
+    for token in command or []:
+        if not isinstance(token, str):
+            continue
+        if token == f"-P{prop}" or token.startswith(f"-P{prop}="):
+            return True
+    return False
+
+
 def coexist_checks(output, report, recounts, log_text, required=False):
     """The coexistence quad, per pixel, against the same frame's ladder brackets.
 
@@ -2633,7 +2650,7 @@ def replay_evidence(directory):
                                  " inventory cannot be reconciled")
             # ⚠ Round-15 review R15-COEXIST-PRESENCE: the retained launch command says whether
             # the experiment was on; a report that says otherwise is not that launch's.
-            launched = "-PharnessNativeCoexist=true" in (ladder_stage.get("command") or [])
+            launched = launch_enables(ladder_stage.get("command"), "harnessNativeCoexist")
             ladder_result = native_ladder_result(ladder_dir, ladder_device, ladder_extents,
                                                  ladder_log.read_text(errors="replace"),
                                                  ladder_checkpoints, require_coexist=launched)
@@ -2870,7 +2887,7 @@ def main():
                 ladder_output, ladder_device, ladder_extents,
                 (output / "native-ladder.log").read_text(errors="replace"),
                 ladder_run["environment"].get("checkpoints") or [],
-                require_coexist="-PharnessNativeCoexist=true" in ladder_run["command"])
+                require_coexist=launch_enables(ladder_run["command"], "harnessNativeCoexist"))
             ladder_run["success"] &= ladder_run["ladder"]["success"]
             native_log_checks(ladder_run, output / "native-ladder.log")
             ladder_run["scope"] = ("a second Minecraft launch, terrain and marker OFF, so the"
