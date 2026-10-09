@@ -579,6 +579,7 @@ def hier_entry(sample, field, before, depth, after):
                  referenceFile=f"native-hier-load-reference-{at}.ppm.gz",
                  referenceDepthFile=f"native-hier-load-depth-{at}.f32.gz",
                  meshed=156, meshedAtBuild=35, iterationsRun=verify.HIER_LOAD_ITERATIONS,
+                 visibility=verify.HIER_LOAD_VISIBILITY,
                  previousCapture=at - 1, buildsSoFar=1)
     return entry
 

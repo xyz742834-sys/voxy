@@ -59,6 +59,13 @@ import java.util.OptionalDouble;
  * grain). The device-idle wait per hand-off is safe but blocking.
  */
 public final class McNativeHierarchicalLoad implements Destroyable {
+    /**
+     * round-24 R24-RETIRED-CONTEXT: scenes queued on Minecraft's destroy queue and not destroyed
+     * yet. Minecraft may drain that queue after Voxy's context is released; the immediate shutdown
+     * (after its device-idle wait) destroys these itself, so Minecraft's later destroy() is a no-op.
+     */
+    private static final java.util.List<McNativeHierarchicalLoad> QUEUED = new java.util.ArrayList<>();
+
     public static final String FLAG = "voxy.native.hierload";
     /**
      * With {@link #FLAG}: also render and composite on <b>every</b> frame, not only on the frames
@@ -74,6 +81,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     static final int MAX_QUADS = 4_000_000;
     static final int BUILD_BUDGET = 6;
     static final float[] CLEAR = {0.05f, 0.05f, 0.10f, 1.0f};
+    static final VkHierarchicalScene.Visibility VISIBILITY = VkHierarchicalScene.Visibility.CULL;
     static final int[] DECLARED_DEPTH_STATE = McNativeTerrainLoad.DECLARED_DEPTH_STATE;
     static final String JUDGED = "judged", NO_ENGINE = "no-world-engine",
         NO_CAMERA = "no-camera-this-frame", EXTENT = "camera-extent-mismatch",
@@ -117,7 +125,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                          long referenceSet, long cameraCapture, int engineId, int sceneBuild,
                          int atlasGeneration, float[] mcProjection, float[] projection,
                          int meshed, int iterations, long previousCapture, int buildsSoFar,
-                         int atlasState, int meshedAtBuild) {}
+                         int atlasState, int meshedAtBuild, String visibility) {}
 
     private record Pending(int[][] rects, int[][] colour, float[][] depth, Result partial) {}
 
@@ -387,7 +395,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         var partial = new Result(at, JUDGED, stage, null, Float.NaN, Float.NaN, null, null, null, null,
             adjusted, farPlane, 0, capture, System.identityHashCode(world), probe.buildOrdinal,
             probe.atlasGeneration, mcProjection, usedProjection, probe.scene.meshedSections(),
-            ITERATIONS, previousCapture, builds, -1, probe.meshedAtBuild);
+            ITERATIONS, previousCapture, builds, -1, probe.meshedAtBuild,
+            probe.scene.visibility().name());
         synchronized (NOTES) {
             PENDING.put(at, new Pending(rects, bandColour, bandDepth, partial));
         }
@@ -451,6 +460,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             target = new VkRenderTarget(width, height);
             scene = new VkHierarchicalScene(world, target, width, height, SECTIONS, MAX_QUADS,
                 VkRenderTarget.FORMAT_COLOR);
+            // round-24 R24-HIER-CULL: Voxy's production mode — the raster cull writes visibility,
+            // so the temporal pass draws the newly visible subset (the default is a test mode)
+            scene.setVisibility(VISIBILITY);
             scene.populate(view.x(), view.y(), view.z(), TOP_RADIUS, DEPTH);
             int meshed = scene.meshedSections();
             if (meshed == 0) {
@@ -483,7 +495,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             return;
         }
         var r = new Result(at, reason, stage, null, Float.NaN, Float.NaN, null, null, null, null, null,
-            Double.NaN, 0, capture, 0, 0, 0, null, null, 0, 0, previousCapture, builds, atlasState, 0);
+            Double.NaN, 0, capture, 0, 0, 0, null, null, 0, 0, previousCapture, builds, atlasState, 0, null);
         synchronized (NOTES) {
             RESULTS.put(at, r);
         }
@@ -580,7 +592,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 refWritten ? refName : null, refWritten ? depthName : null, p.projectionAdjusted(),
                 p.farPlane(), refSet, p.cameraCapture(), p.engineId(), p.sceneBuild(),
                 p.atlasGeneration(), p.mcProjection(), p.projection(), p.meshed(), p.iterations(),
-                p.previousCapture(), p.buildsSoFar(), -1, p.meshedAtBuild());
+                p.previousCapture(), p.buildsSoFar(), -1, p.meshedAtBuild(), p.visibility());
             synchronized (NOTES) {
                 RESULTS.put(at, result);
             }
@@ -637,6 +649,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         if (probe == null || probe.destroyed) return;
         try {
             McNativeVulkan.encoder(probe.device).queueForDestroy(probe);
+            QUEUED.add(probe);
         } catch (Throwable t) {
             probe.destroyed = true;
             leakedScenes++;
@@ -646,6 +659,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
 
     @Override
     public void destroy() {
+        QUEUED.remove(this);
         if (this.destroyed) return;
         this.destroyed = true;
         try { this.composite.free(); } catch (Throwable t) { closeFailures++; }
@@ -654,15 +668,20 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     }
 
     public static void shutdownImmediate(org.lwjgl.vulkan.VkDevice waitedDevice) {
-        var probe = instance;
+        var owned = new java.util.ArrayList<McNativeHierarchicalLoad>(QUEUED);
+        QUEUED.clear();
+        if (instance != null) owned.add(instance);
         instance = null;
-        if (probe != null) {
+        for (var probe : owned) {
+            if (probe.destroyed) continue;
             if (waitedDevice == null || waitedDevice.address() != probe.ownerDevice) {
+                probe.destroyed = true;
                 leakedScenes++;
-                note("not destroying the hierarchical scene: the idle wait was on another device");
-            } else {
-                probe.destroy();
+                note("not destroying the hierarchical scene: the idle wait was observed on another device;"
+                    + " leaking on purpose");
+                continue;
             }
+            probe.destroy();
         }
         stopTracker();
         writeEvidence();
@@ -745,6 +764,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 sb.append(", \"projection\": ").append(floats(r.projection()));
                 sb.append(", \"meshed\": ").append(r.meshed());
                 sb.append(", \"meshedAtBuild\": ").append(r.meshedAtBuild());
+                sb.append(", \"visibility\": ").append(McNativeVulkanProbe.quote(r.visibility()));
                 sb.append(", \"iterationsRun\": ").append(r.iterations());
             } else {
                 sb.append(", \"atlasState\": ").append(r.atlasState());

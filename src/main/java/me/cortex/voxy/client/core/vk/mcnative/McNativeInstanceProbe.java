@@ -46,7 +46,15 @@ public final class McNativeInstanceProbe {
     /** Level-0 sections (32 blocks) around the camera, x/z within one, y from two below to the camera's. */
     static final int STORED_PROBE_RADIUS = 1, STORED_PROBE_BELOW = 2;
 
-    /** How many level-0 sections near the camera the engine can load from storage. */
+    /**
+     * How many level-0 sections near the camera hold a non-air block.
+     *
+     * <p>round-24 R24-INSTANCE-STORED: a non-null {@code acquireIfExists} does not mean stored —
+     * the section tracker caches a missing section as an all-air placeholder and returns it on the
+     * next acquire. Only content distinguishes ingested terrain from that placeholder, so a section
+     * counts only if one of its blocks is not air (the camera's column always reaches the ground
+     * within two sections below it in the harness's stages).
+     */
     private static int storedNear(me.cortex.voxy.common.world.WorldEngine engine, double x, double y,
                                   double z) {
         int cx = (int) Math.floor(x) >> 5, cy = (int) Math.floor(y) >> 5, cz = (int) Math.floor(z) >> 5;
@@ -56,13 +64,23 @@ public final class McNativeInstanceProbe {
                 for (int dy = -STORED_PROBE_BELOW; dy <= 0; dy++) {
                     var section = engine.acquireIfExists(0, cx + dx, cy + dy, cz + dz);
                     if (section != null) {
-                        count++;
-                        section.release();
+                        try {
+                            if (holdsABlock(section)) count++;
+                        } finally {
+                            section.release();
+                        }
                     }
                 }
             }
         }
         return count;
+    }
+
+    static boolean holdsABlock(me.cortex.voxy.common.world.WorldSection section) {
+        for (long id : section._unsafeGetRawDataArray()) {
+            if (!me.cortex.voxy.common.world.other.Mapper.isAir(id)) return true;
+        }
+        return false;
     }
     private static boolean rendererEverCreated;
     private static boolean engineEverPresent;

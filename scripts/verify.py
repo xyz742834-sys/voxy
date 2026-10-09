@@ -1641,10 +1641,13 @@ def native_instance_result(output, required=False, log_text=None):
                              " Voxy's instance for the level")
         # ⚠ 2026-10-10: the active-section count is cache occupancy and read 0 at all 80 samples
         # of a run whose engine had ingested; what the engine holds is what it can load. The
-        # probe counts stored level-0 sections around the camera (acquired and released).
+        # probe counts level-0 sections around the camera that hold a non-air block (acquired and
+        # released). round-24 R24-INSTANCE-STORED: a non-null acquire alone is not storage — the
+        # tracker returns a cached all-air placeholder for a missing section — so only content
+        # counts.
         if max_stored < 1:
-            raise ValueError("no stored section near the camera at any sample: the world engine"
-                             " holds nothing ingested")
+            raise ValueError("no section near the camera holds a block at any sample: the world"
+                             " engine holds nothing ingested")
         final = samples[-1]
         if not final["enginePresent"] or not final["engineLive"]:
             raise ValueError(f"the last sample (frame {final['frame']}, stage"
@@ -1676,7 +1679,7 @@ def native_instance_result(output, required=False, log_text=None):
         result.update(success=True, enabled=True, samples=len(samples),
                       max_active_sections=max_active, max_stored_near_camera=max_stored,
                       answer=f"a Voxy world engine ran without a render path on Minecraft's"
-                             f" Vulkan backend and held up to {max_stored} stored sections near the"
+                             f" Vulkan backend and held up to {max_stored} sections with blocks near the"
                              f" camera (active cache up to {max_active}) across"
                              f" {len(samples)} samples")
     except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -2376,6 +2379,7 @@ HIER_SCENE_LOG = re.compile(r"hier-LOAD scene #(\d+): (\d+) sections meshed, top
                             r" depth (\d+)")
 HIER_NOTHING_LOG = re.compile(r"hier-LOAD: nothing meshed \(scene #(\d+)\)")
 HIER_LOAD_BUILD_BUDGET, HIER_LOAD_ITERATIONS, HIER_LOAD_TOP_RADIUS, HIER_LOAD_DEPTH = 6, 3, 1, 2
+HIER_LOAD_VISIBILITY = "CULL"
 HIER_LOAD_SKIP_KEYS = {"at", "status", "stage", "cameraCapture", "previousCapture", "buildsSoFar",
                        "atlasState"}
 
@@ -2592,6 +2596,11 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
                 raise ValueError(f"{L} at draw {at}: {field} is {entry.get(field)!r}")
         head = load_judged_entry_checks(entry, at, report, log_text, ladder_samples_by_at,
                                         previous_judged, HIER_LOAD_SPEC)
+        # round-24 R24-HIER-CULL: the scene must run Voxy's production visibility mode (the raster
+        # cull writes visibility, so the temporal pass draws the newly visible subset)
+        if entry.get("visibility") != HIER_LOAD_VISIBILITY:
+            raise ValueError(f"{L} at draw {at} ran visibility mode {entry.get('visibility')!r}, not"
+                             f" {HIER_LOAD_VISIBILITY!r}: the raster cull and temporal pass did not run")
         if entry.get("iterationsRun") != HIER_LOAD_ITERATIONS:
             raise ValueError(f"{L} at draw {at} ran {entry.get('iterationsRun')!r} iteration(s), not"
                              f" {HIER_LOAD_ITERATIONS}")

@@ -31,8 +31,20 @@ public final class WorldEngine {
     private ISectionSaveCallback saveCallback;
     volatile boolean isLive = true;
 
-    public void setDirtyCallback(ISectionChangeCallback callback) {
+    public synchronized void setDirtyCallback(ISectionChangeCallback callback) {
         this.dirtyCallback = callback;
+    }
+
+    /**
+     * Clear the dirty callback only if it is still {@code expected}: an owner that installed it
+     * and is being torn down must not detach a newer owner's callback.
+     *
+     * @return whether it was cleared
+     */
+    public synchronized boolean clearDirtyCallbackIf(ISectionChangeCallback expected) {
+        if (this.dirtyCallback != expected) return false;
+        this.dirtyCallback = null;
+        return true;
     }
 
     public void setSaveCallback(ISectionSaveCallback callback) {

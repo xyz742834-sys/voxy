@@ -48,6 +48,13 @@ import java.util.OptionalDouble;
  * LoD の切り替え、トラバーサル、カリング、半透明は扱わない。
  */
 public final class McNativeRealLoad implements Destroyable {
+    /**
+     * round-24 R24-RETIRED-CONTEXT: scenes queued on Minecraft's destroy queue and not destroyed
+     * yet. Minecraft may drain that queue after Voxy's context is released; the immediate shutdown
+     * (after its device-idle wait) destroys these itself, so Minecraft's later destroy() is a no-op.
+     */
+    private static final java.util.List<McNativeRealLoad> QUEUED = new java.util.ArrayList<>();
+
     public static final String FLAG = "voxy.native.realload";
     /** メッシュ化するレベルと半径: レベル 3 のセクションは 256 ブロック、半径 4 で ±1024 ブロック。 */
     static final int LEVEL = 3, RADIUS = 4;
@@ -488,6 +495,7 @@ public final class McNativeRealLoad implements Destroyable {
         }
         try {
             McNativeVulkan.encoder(probe.device).queueForDestroy(probe);
+            QUEUED.add(probe);
         } catch (Throwable t) {
             probe.destroyed = true;
             leakedScenes++;
@@ -497,6 +505,7 @@ public final class McNativeRealLoad implements Destroyable {
 
     @Override
     public void destroy() {
+        QUEUED.remove(this);
         if (this.destroyed) return;
         this.destroyed = true;
         // round-20 R20-DESTROY-ACCOUNTING: a child that could not be freed is a leak; count it
@@ -505,18 +514,22 @@ public final class McNativeRealLoad implements Destroyable {
 
     public static void shutdownImmediate(org.lwjgl.vulkan.VkDevice waitedDevice) {
         McNativeAtlas.reset();
-        var probe = instance;
-        if (probe == null) return;
+        var owned = new java.util.ArrayList<McNativeRealLoad>(QUEUED);
+        QUEUED.clear();
+        if (instance != null) owned.add(instance);
         instance = null;
-        if (waitedDevice == null || waitedDevice.address() != probe.ownerDevice) {
-            leakedScenes++;
-            note("not destroying the real-LOAD scene: the idle wait was observed on another device;"
-                + " leaking on purpose");
-            writeEvidence();
-            return;
+        for (var probe : owned) {
+            if (probe.destroyed) continue;
+            if (waitedDevice == null || waitedDevice.address() != probe.ownerDevice) {
+                probe.destroyed = true;
+                leakedScenes++;
+                note("not destroying the real-LOAD scene: the idle wait was observed on another device;"
+                    + " leaking on purpose");
+                continue;
+            }
+            probe.destroy();
         }
-        probe.destroy();
-        writeEvidence();
+        if (!owned.isEmpty()) writeEvidence();   // as before: nothing owned, nothing to report
     }
 
     public static void shutdown() {

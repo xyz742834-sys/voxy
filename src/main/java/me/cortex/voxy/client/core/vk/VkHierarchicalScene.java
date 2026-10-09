@@ -340,6 +340,8 @@ public final class VkHierarchicalScene {
     }
 
     private Visibility visibility = Visibility.ALL_VISIBLE;
+    /** The callback this scene installed on its world; {@link #free} clears only this one. */
+    private final WorldEngine.ISectionChangeCallback dirtyCallback;
 
     public final VkTerrainResources res;
     private final Watcher watcher = new Watcher();
@@ -506,7 +508,8 @@ public final class VkHierarchicalScene {
             VkTerrainRenderer.Pass.TRANSLUCENT, colourFormat);
         // Ingestion threads only enqueue keys. Nodes, meshing and GPU uploads remain
         // confined to serviceRequests, after the previous GPU frame has completed.
-        world.setDirtyCallback((section, flags, neighbors) -> {
+        // round-24 R24-DIRTY-CALLBACK: keep our own callback so free() clears only that one
+        this.dirtyCallback = (section, flags, neighbors) -> {
             this.watcher.router.forwardEvent(section, flags);
             for (int i = 0; i < NEIGHBOR_OFFSETS.length; i++) {
                 if ((neighbors & (1 << i)) != 0) {
@@ -515,7 +518,8 @@ public final class VkHierarchicalScene {
                         section.x + d[0], section.y + d[1], section.z + d[2]));
                 }
             }
-        });
+        };
+        world.setDirtyCallback(this.dirtyCallback);
     }
 
     /**
@@ -1304,7 +1308,7 @@ public final class VkHierarchicalScene {
     public void free() {
         if (this.freed) return;
         this.freed = true;
-        this.world.setDirtyCallback(null);
+        this.world.clearDirtyCallbackIf(this.dirtyCallback);
         this.timer.free();
         this.cull.free();
         this.uniformEcho.free();

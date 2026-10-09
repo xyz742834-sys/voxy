@@ -53,6 +53,13 @@ import java.util.OptionalDouble;
  * 同じ側に落ちる」以上は言わない。GPU が比較を実行したことの認証はしない (他の証跡と同じ)。
  */
 public final class McNativeTerrainLoad implements Destroyable {
+    /**
+     * round-24 R24-RETIRED-CONTEXT: scenes queued on Minecraft's destroy queue and not destroyed
+     * yet. Minecraft may drain that queue after Voxy's context is released; the immediate shutdown
+     * (after its device-idle wait) destroys these itself, so Minecraft's later destroy() is a no-op.
+     */
+    private static final java.util.List<McNativeTerrainLoad> QUEUED = new java.util.ArrayList<>();
+
     public static final String FLAG = "voxy.native.terrainload";
     /** シーンの名前 (gate が固定する)。 */
     public static final String SCENE = "depthSweep";
@@ -699,6 +706,7 @@ public final class McNativeTerrainLoad implements Destroyable {
         }
         try {
             McNativeVulkan.encoder(probe.device).queueForDestroy(probe);
+            QUEUED.add(probe);
         } catch (Throwable t) {
             probe.destroyed = true;
             leakedScenes++;
@@ -710,27 +718,29 @@ public final class McNativeTerrainLoad implements Destroyable {
     /** MC の破棄待ち行列から呼ばれる。<b>ここで初めて</b>資源を解放する。 */
     @Override
     public void destroy() {
+        QUEUED.remove(this);
         if (this.destroyed) return;
         this.destroyed = true;
         this.scene.free();
     }
 
     public static void shutdownImmediate(org.lwjgl.vulkan.VkDevice waitedDevice) {
-        var probe = instance;
-        if (probe == null) return;
+        var owned = new java.util.ArrayList<McNativeTerrainLoad>(QUEUED);
+        QUEUED.clear();
+        if (instance != null) owned.add(instance);
         instance = null;
-        if (waitedDevice == null || waitedDevice.address() != probe.ownerDevice) {
-            note("not destroying the terrain-LOAD scene: its device is 0x"
-                + Long.toHexString(probe.ownerDevice) + " but the idle wait was observed on "
-                + (waitedDevice == null ? "no device"
-                    : "0x" + Long.toHexString(waitedDevice.address()))
-                + "; leaking on purpose");
-            leakedScenes++;
-            writeEvidence();
-            return;
+        for (var probe : owned) {
+            if (probe.destroyed) continue;
+            if (waitedDevice == null || waitedDevice.address() != probe.ownerDevice) {
+                probe.destroyed = true;
+                leakedScenes++;
+                note("not destroying the terrain-LOAD scene: the idle wait was observed on another device;"
+                    + " leaking on purpose");
+                continue;
+            }
+            probe.destroy();
         }
-        probe.destroy();
-        writeEvidence();
+        if (!owned.isEmpty()) writeEvidence();   // as before: nothing owned, nothing to report
     }
 
     /** MC のレベル描画が閉じるとき。提出の完了を観測していないので<b>ここでは壊さない</b>。 */

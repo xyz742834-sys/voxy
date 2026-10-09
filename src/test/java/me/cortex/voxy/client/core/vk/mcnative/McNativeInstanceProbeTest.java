@@ -34,4 +34,19 @@ public class McNativeInstanceProbeTest {
         assertTrue(json.contains("\"notes\": []"), json);
         assertEquals(60, McNativeInstanceProbe.SAMPLE_INTERVAL);
     }
+
+    /**
+     * round-24 R24-INSTANCE-STORED: the section tracker hands back a missing section as an all-air
+     * placeholder (sky light 15, block 0), so only content separates it from ingested terrain.
+     */
+    @Test
+    void anAllAirPlaceholderIsNotCountedAndOneBlockIs() {
+        var section = me.cortex.voxy.common.world.WorldSection._createRawUntrackedUnsafeSection(0, 0, 0, 0);
+        long air = me.cortex.voxy.common.world.other.Mapper.composeMappingId((byte) 15, 0, 0);
+        java.util.Arrays.fill(section._unsafeGetRawDataArray(), air);
+        assertFalse(McNativeInstanceProbe.holdsABlock(section), "the tracker's missing-section placeholder");
+        long stone = me.cortex.voxy.common.world.other.Mapper.composeMappingId((byte) 0, 1, 0);
+        section._unsafeGetRawDataArray()[12345] = stone;
+        assertTrue(McNativeInstanceProbe.holdsABlock(section), "one non-air block");
+    }
 }

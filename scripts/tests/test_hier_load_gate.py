@@ -214,6 +214,37 @@ class HierLoadGateTest(unittest.TestCase):
             return text + "[native-vk] hier frames before draw 3240: composited=200\n"
         self.assertRefused(self.run_gate(frames=True, log=twice), "two hier-frames lines")
 
+    def test_the_scene_must_run_voxys_raster_cull(self):
+        # round-24 R24-HIER-CULL
+        for mode in ("ALL_VISIBLE", None, "cull"):
+            self.assertRefused(self.run_gate(mutate_hier=lambda r, m=mode: r["results"][0].update(visibility=m)),
+                               "the raster cull and temporal pass did not run")
+        self.assertEqual(verify.HIER_LOAD_VISIBILITY, "CULL")
+
+    def test_each_hierarchical_guard_round_24_found_undetected(self):
+        # round-24 R24-HIER-GUARD-COVERAGE: one case per predicate no hierarchy test detected
+        def twice(text):
+            line = next(l for l in text.splitlines(keepends=True) if "hier load at draw 3240" in l)
+            return text + line
+        self.assertRefused(self.run_gate(log=twice), "two hier-load lines for draw 3240")
+        self.assertRefused(self.run_gate(mutate_files=lambda o: (o / "native-hier-load.json").unlink()),
+                           "native-hier-load.json is not retained")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(results={})),
+                           "hierLoad.results is {}")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(firstProblem=3)),
+                           "hierLoad.firstProblem is 3")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(atlasReads=0), log=lambda t: None),
+                           "never read the block atlas")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(sceneBuild=2)),
+                           "but the probe built 1")
+        def status(text):
+            return text.replace("hier load at draw 3240 status=judged", "hier load at draw 3240 status=atlas-pending")
+        self.assertRefused(self.run_gate(log=status), "says status 'atlas-pending' but the report says 'judged'")
+        # a frame extent is a real-LOAD skip key, never a hierarchical one
+        self.assertRefused(self.run_gate(hier_status={0: "no-camera-this-frame"},
+                                         mutate_hier=lambda r: r["results"][0].update(frameExtent=[1, 1])),
+                           "carries ['frameExtent']")
+
 
 if __name__ == "__main__":
     unittest.main()
