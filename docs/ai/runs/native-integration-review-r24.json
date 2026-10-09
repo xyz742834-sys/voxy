@@ -1,0 +1,389 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "03461cead0826525768d53c631276ffae0a6d8b9",
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "message": "Normal Minecraft-native Voxy rendering and full normal-play/lifecycle/pressure acceptance remain undelivered.",
+      "evidence": [
+        "docs/ai/project-goal.md:9",
+        "src/main/java/me/cortex/voxy/client/VoxyClient.java:146"
+      ]
+    },
+    {
+      "id": "R24-HIER-CULL",
+      "judgment": "CONFIRMED",
+      "message": "Native hierarchical scene retains ALL_VISIBLE: raster cull does not run and temporal newly-visible subset is empty.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/VkHierarchicalScene.java:342",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkHierarchicalScene.java:763",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:358",
+        ".agent-run/r24/source-contracts.json"
+      ]
+    },
+    {
+      "id": "R24-DIRTY-CALLBACK",
+      "judgment": "CONFIRMED",
+      "message": "Deferred old-scene destruction clears the replacement scene callback on the same engine.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:233",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkHierarchicalScene.java:509",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkHierarchicalScene.java:1307",
+        ".agent-run/r24/source-contracts.json"
+      ]
+    },
+    {
+      "id": "R24-RETIRED-CONTEXT",
+      "judgment": "CONFIRMED",
+      "message": "Immediate release does not own already-retired queued scenes; late frees use a cleared VkContext and leak GPU objects.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:528",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:549",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeVkContext.java:337",
+        ".agent-run/r24/source-contracts.json"
+      ]
+    },
+    {
+      "id": "R24-INSTANCE-STORED",
+      "judgment": "CONFIRMED",
+      "message": "Empty-loader placeholder cache makes storedNearCamera 0 then 27; new gate passes a no-ingestion engine record rejected by round 23.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeInstanceProbe.java:57",
+        "src/main/java/me/cortex/voxy/common/world/ActiveSectionTracker.java:116",
+        "scripts/verify.py:1643",
+        ".agent-run/r24/instance-cache.json"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R24-HIER-GUARD-COVERAGE",
+      "judgment": "CONFIRMED",
+      "message": "Seven hierarchy-specific and 27 shared-helper removals survive hierarchy-only tests; all shared predicates are detected by real-LOAD tests.",
+      "evidence": [
+        ".agent-run/r24/guard-summary.json",
+        ".agent-run/r24/guards.json"
+      ]
+    },
+    {
+      "id": "R24-EMPTY-BUILD",
+      "judgment": "CONFIRMED",
+      "message": "Zero-mesh build frees target before returning and again in finally, incrementing closeFailures on double-free guard.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:365",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:382"
+      ]
+    }
+  ],
+  "safe_for_normal_play": true,
+  "safety_scope": "All voxy.native.* flags unset from startup; source/offline dormancy and unchanged GL/shared behaviour; no new normal-play launch.",
+  "hier_load_judgment": {
+    "judgment": "REFUTED",
+    "scope": "Advertised full hierarchy/raster-cull/temporal and safe replacement/release milestone; bounded hierarchy traversal/composite pixels confirmed.",
+    "evidence": [
+      ".agent-run/r24/source-contracts.json",
+      ".agent-run/r24/recount.json"
+    ]
+  },
+  "composite_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Declared GEQUAL/test/write, clear-depth discard, same target reference and bounded six-sample colour result; final Minecraft depth not independently captured.",
+    "evidence": [
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeComposite.java:57",
+      "src/main/resources/assets/voxy/shaders/lod/vk/native_composite.frag:18",
+      ".agent-run/r24/recount.json"
+    ]
+  },
+  "lifetime_judgment": {
+    "judgment": "REFUTED",
+    "scope": "Steady-state checked idle/fence/barrier chain confirmed; callback replacement and already-retired context-release cleanup fail.",
+    "evidence": [
+      ".agent-run/r24/source-contracts.json",
+      ".agent-run/r24/mc-encoder.javap"
+    ]
+  },
+  "gate_refactor_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "All 77 old real-LOAD refusal predicates preserved; all 78 current real/shared removals detected. Hierarchy coverage has seven full survivors plus 27 shared hierarchy-only survivors. Instance metric separately refuted.",
+    "evidence": [
+      ".agent-run/r24/refactor-predicates.json",
+      ".agent-run/r24/guard-summary.json"
+    ]
+  },
+  "occlusion_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Horizon hierarchy draw 2162: 2605 must-show shown, 3962 must-hide hidden, no violations; one view/wall only.",
+    "evidence": [
+      ".agent-run/r24/recount.json"
+    ]
+  },
+  "real_load_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Five retained judged samples: 2003 must-show, 88618 must-hide, 4644 undetermined, zero violations; two atlas-pending skips.",
+    "evidence": [
+      ".agent-run/r24/recount.json",
+      ".agent-run/r24/replay.log"
+    ]
+  },
+  "atlas_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Unchanged acquisition/reset source; three logged reads/generations reconciled; no raw atlas-content or full callback/submission attestation.",
+    "evidence": [
+      ".agent-run/r24/replay.log",
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeAtlas.java:61"
+    ]
+  },
+  "instance_mode_judgment": {
+    "judgment": "REFUTED",
+    "scope": "Strengthened storage/ingestion proof: cached missing sections produce nonzero storedNearCamera and satisfy the candidate gate; retained inventory/log consistency alone confirmed.",
+    "evidence": [
+      ".agent-run/r24/instance-cache.json",
+      ".agent-run/r24/evidence-audit.json"
+    ]
+  },
+  "terrain_load_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Six synthetic terrain-LOAD samples pass full retained-evidence replay; bounded experiment only.",
+    "evidence": [
+      ".agent-run/r24/replay.log"
+    ]
+  },
+  "coexist_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Twenty retained coexist samples replay; three mixed samples; bounded loaded-depth comparison only.",
+    "evidence": [
+      ".agent-run/r24/replay.log"
+    ]
+  },
+  "z_direction_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Retained near brackets 3/4 versus far bracket 2 at same checkpointed ground establish bounded larger-is-nearer observation.",
+    "evidence": [
+      ".agent-run/r24/replay.log"
+    ]
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Twenty retained samples, both orientations, purple palette checks and three-way hand-off; 384 source/gate selector cases agree.",
+    "evidence": [
+      ".agent-run/r24/handoff.json",
+      ".agent-run/r24/replay.log"
+    ]
+  },
+  "checks": {
+    "gradle": {
+      "exit_code": 0,
+      "tests": 349,
+      "passed": 348,
+      "known_skips": 1
+    },
+    "python_unittest": {
+      "exit_code": 0,
+      "tests": 292,
+      "python": "3.9.6"
+    },
+    "committed_evidence_replay": {
+      "exit_code": 0,
+      "checks": 14,
+      "manifest_members": 330,
+      "matching_source_fingerprints": 428
+    },
+    "guard_audit": {
+      "inventory": 112,
+      "detected_by_any_class": 105,
+      "full_survivors": [
+        {
+          "function": "hier_load_checks",
+          "line": 2406,
+          "predicate": "int(m[0]) in logged"
+        },
+        {
+          "function": "hier_load_checks",
+          "line": 2418,
+          "predicate": "not report_path.is_file()"
+        },
+        {
+          "function": "hier_load_checks",
+          "line": 2439,
+          "predicate": "not isinstance(value, kind)"
+        },
+        {
+          "function": "hier_load_checks",
+          "line": 2500,
+          "predicate": "report['atlasReads'] < 1"
+        },
+        {
+          "function": "hier_load_checks",
+          "line": 2503,
+          "predicate": "not all((finite_int(b) and 1 <= b <= report['builds'] for b in builds_used))"
+        },
+        {
+          "function": "hier_load_checks",
+          "line": 2514,
+          "predicate": "log_text is not None and logged[at][0] != status"
+        },
+        {
+          "function": "hier_load_checks",
+          "line": 2522,
+          "predicate": "extra"
+        }
+      ],
+      "by_class": {
+        "RealLoadGateTest": {
+          "audited": 78,
+          "detected": 78,
+          "survivors": []
+        },
+        "HierLoadGateTest": {
+          "audited": 71,
+          "detected": 37,
+          "survivors": [
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2169
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2171
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2174
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2179
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2183
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2187
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2194
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2202
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2208
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2216
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2227
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2248
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2253
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2257
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2269
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2272
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2275
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2287
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2295
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2299
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2323
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2330
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2333
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2336
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2340
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2351
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2357
+            },
+            {
+              "function": "hier_load_checks",
+              "line": 2406
+            },
+            {
+              "function": "hier_load_checks",
+              "line": 2418
+            },
+            {
+              "function": "hier_load_checks",
+              "line": 2439
+            },
+            {
+              "function": "hier_load_checks",
+              "line": 2500
+            },
+            {
+              "function": "hier_load_checks",
+              "line": 2503
+            },
+            {
+              "function": "hier_load_checks",
+              "line": 2514
+            },
+            {
+              "function": "hier_load_checks",
+              "line": 2522
+            }
+          ]
+        }
+      }
+    }
+  },
+  "limitations": [
+    "No live/native or normal-play launches.",
+    "CPU contracts use dependency stubs and are not driver-timing/fault-injection evidence.",
+    "No final Minecraft depth readback, raw atlas content, selected-section inventory or compiled-JAR attestation.",
+    "Retained consistency does not authenticate coordinated evidence rewrites or actual native-call arguments."
+  ]
+}
