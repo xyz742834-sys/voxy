@@ -461,7 +461,8 @@ of the point — and the replay status of each is:
 | [20261007T025423-410921Z](runs/native-evidence/20261007T025423-410921Z/MANIFEST.json) | no — predates the published pipeline states; its fingerprint is of the tree before the round-11 repairs (round 11 confirmed its 18 samples) |
 | [20261007T031630-708042Z](runs/native-evidence/20261007T031630-708042Z/MANIFEST.json) | no — its fingerprint is of the tree before the Z-direction stages (round 12 confirmed its 19 samples) |
 | [20261009T033539-494735Z](runs/native-evidence/20261009T033539-494735Z/MANIFEST.json) | no — its log lines predate the stage/camera reconciliation and its fingerprint is of the tree before the round-13 repairs (round 13 confirmed its direction) |
-| [20261009T041151-205062Z](runs/native-evidence/20261009T041151-205062Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; 20 samples, Z direction judged and reconciled |
+| [20261009T041151-205062Z](runs/native-evidence/20261009T041151-205062Z/MANIFEST.json) | no — predates the coexistence experiment and the fourth pipeline state (round 14 confirmed its direction) |
+| [20261009T045515-905630Z](runs/native-evidence/20261009T045515-905630Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction and coexistence judged |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1243,7 +1244,8 @@ after this change **only the newest run replays**, by design; every older cell s
 **What the per-pixel ladder does and does not say.** It gives, per sample and per pixel of one
 band, the bracket of rungs the depth attachment's value falls in, by Minecraft's own depth
 test, with the depth path positively controlled. It does not say which direction is nearer
-(unmeasured, and the gate forbids claiming it), nor why the buffer copy read 0.0 where the test
+(a single band without the two-look checkpoints cannot read it, and the probe never claims it;
+the gate reads it from the two straight-down looks in the next section), nor why the buffer copy read 0.0 where the test
 sees non-zero values, nor anything about other regions of the screen.
 
 ## The Z direction, measured (2026-10-09)
@@ -1316,6 +1318,45 @@ the x/z eligibility, the relabelling, the split ground, the order and the saved 
 Still true, as disclosed: a jointly rewritten package (images, counts, log, summary, manifest)
 can pass; these are consistency checks over editable records.
 
+**Round-14 review (2026-10-09).** Round 14
+([native-integration-review-r14.md](runs/native-integration-review-r14.md)) **closed
+R13-Z-BINDING and R13-TEST-XZ**; the only blocking item is again the standing delivery
+boundary. Non-blocking: two of the new reconciliation guards (the sample log line's stage
+against the report; the sample's camera against the checkpoint's) had no test that fails
+without them — both now have one; and the documentation drift it listed (a sentence still
+calling the direction unmeasured, the date, the handoff, two source comments overstating what
+the post-return read-back proves) is corrected in place.
+
+## Coexistence, first measurement: a known-depth draw against Minecraft's loaded depth (2026-10-09)
+
+With the direction known, the first coexistence question can be asked per pixel: does a draw
+with **Voxy's own depth compare** (`VkDepth.COMPARE_OP`, `GREATER_OR_EQUAL`, reverse-Z) against
+Minecraft's **loaded** depth appear exactly where Minecraft's depth says it should?
+
+**Method** (flag `voxy.native.coexist`, default off, enabled only in the ladder launch). On
+every frame the ladder samples, after the ladder's readback is requested, a second `LOAD` pass
+draws one quad over the same band at **z\* = the depth of rung 4 (2⁻⁸)** with the
+`GREATER_OR_EQUAL` pipeline, **no depth write**, in a colour outside the ladder palette; then a
+second readback. The first crop gives every pixel's bracket of Minecraft's depth; because z\* is
+a rung value, no bracket straddles it: pixels below the smallest rung or in rungs 0–3 have
+d ≤ z\* and the quad **must** be there; pixels in rungs 4–7 have d > z\* and it **must not**,
+and those pixels must still hold their ladder colour. The gate recounts both retained crops
+pixel by pixel, requires zero violations and zero pixels outside both palettes, requires the
+published counts and the log's coexist line to equal the recount, and requires at least one
+sample with pixels on both sides of z\* (the `descend` look straddles rungs 3 and 4), or the
+experiment decided nothing. The quad's pipeline is the fourth entry of the pinned
+`pipelineStates`.
+
+**Measured** (run 20261009T045515-905630Z, replay 0 in this checkout): 24 samples, every one with a coexist result, **zero violations in all 24** — no pixel whose bracket says d ≤ z\* lacked the quad, no pixel whose bracket says d > z\* showed it, and every uncovered pixel kept its ladder colour. Five samples hold pixels on both sides of z\*: draw 2 (clouds, 77 092 shown / 1 756 hidden), the two nether looks (82 768 / 16 304 each) and the two  looks (45 734 shown / 53 338 hidden each) — the per-pixel composition is exact where it matters. The other 19 samples are entirely below z\* and entirely covered, as predicted. Replay returns 0 with eleven checks; the quad's pipeline state is the fourth pinned entry .
+
+**What this does and does not say.** A draw with Voxy's compare op against Minecraft's loaded
+depth composes per pixel, at this hook, for a quad at one known depth — the first
+coexistence measurement, with zero tolerance. It is not Voxy's terrain pipeline (next: the
+synthetic terrain through `VkTerrainRenderer` into a `LOAD`ed pass, gated the same way), it
+writes no depth, and it says nothing about the depth *scale* beyond "a depth value of 2⁻⁸ in
+Voxy's convention lands where Minecraft's 2⁻⁸ does" — which is the one scale fact coexistence
+needs, and is exactly what this measures.
+
 ## What is NOT answered yet, and must be measured on hardware
 
 1. **Image-state ownership** — partly answered. Opening the pass through Minecraft's
@@ -1336,7 +1377,10 @@ can pass; these are consistency checks over editable records.
    version rather than the API, so the backend's identity must come from the device
    class (as the probe does), never from that string.
 6. ~~Which direction of Minecraft's depth value is nearer~~ — measured above: larger is
-   nearer (reverse-Z), from two straight-down looks. The depth *scale* is still unmeasured.
+   nearer (reverse-Z), from two straight-down looks.
+7. ~~Whether a draw with Voxy's compare op composes against Minecraft's loaded depth~~ —
+   measured above for a known-depth quad, per pixel. Voxy's real terrain pipeline in a
+   `LOAD`ed pass is next.
 
 ## Proposed first step (bounded, evidence-first)
 

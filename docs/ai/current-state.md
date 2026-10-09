@@ -59,9 +59,10 @@ retained thumbnail of the whole readback, sampled through the session. Measured 
 run `20261007T020025-032770Z` and later): sky pixels below 2⁻¹⁶, overworld terrain pixels in
 (2⁻¹², 2⁻¹⁰], nether pixels in (2⁻¹⁰, 2⁻⁶] — the tail attachment holds scene depth that changes
 with the scene; why the buffer copy read 0.0 there is not established. **The Z direction is
-measured (2026-10-07): larger depth value = nearer, reverse-Z**, from two straight-down looks at
+measured (2026-10-09): larger depth value = nearer, reverse-Z**, from two straight-down looks at
 the same ground from 12 and 108 blocks up, judged by the gate from retained per-pixel counts;
-the depth scale is not. The ladder runs in
+and **a known-depth quad drawn with Voxy's compare op composes per pixel against MC's loaded
+depth** (2026-10-09, zero violations). The ladder runs in
 its own launch inside `--only native` (terrain and marker off, the report says so, the gate
 requires it) and that launch is retained and replays. The probe itself still asserts no convention and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,

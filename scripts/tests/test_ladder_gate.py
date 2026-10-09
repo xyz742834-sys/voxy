@@ -62,8 +62,8 @@ def depth_field(width, height, kind="gradient"):
                 d = 0.0
             elif kind == "clouds":
                 d = 3e-5 if (x // 40 + y // 7) % 2 else 0.0
-            elif kind == "near":      # ground ~8-12 blocks away: bracket 4, (2^-8, 2^-6]
-                d = 0.0045 + 0.004 * ((x + y) % 7) / 7
+            elif kind == "near":      # ground ~6-20 blocks away: brackets 3 and 4, straddling
+                d = 0.0025 + 0.006 * ((x + y) % 7) / 7   # z* = 2^-8 like the real descend look
             elif kind == "far":       # the same ground ~105-125 blocks away: bracket 2
                 d = 0.00042 + 0.00005 * ((x + y) % 7) / 7
             else:
@@ -187,7 +187,8 @@ def report(samples=None, **overrides):
             "rungDepths": list(D), "band": list(verify.EXPECTED_LADDER_BAND),
             "palette": [list(c) for c in verify.EXPECTED_LADDER_PALETTE],
             "readbackInterval": 240, "sampleLimit": 24, "frameScale": 4,
-            "pipelineStates": [[1, 1, 0], [7, 1, 0], [4, 1, 0]],
+            "pipelineStates": [[1, 1, 0], [7, 1, 0], [4, 1, 0], [6, 1, 0]],
+            "coexistEnabled": False, "coexistRung": 4, "coexistRgb": [0.5, 1.0, 0.5], "coexist": [],
             "samples": samples if samples is not None else [sample()[0]],
             "problems": 0, "firstProblem": None, "closeFailures": 0, "leakedPipelines": 0,
             "deviceDiverged": False, "terrainProbeEnabled": False, "terrainDrawsRecorded": 0,
@@ -211,6 +212,60 @@ def write_sample_files(out, body, field, selected=None, rejected=None, frame_fro
         rect, rrect = frame_from or (body.get("rect"), body.get("rejectedRect"))
         if rect and rrect:
             write_gz_ppm(out / body["frameFile"], thumbnail(sel, rect, rej, rrect))
+
+
+COEXIST_RGB = (128, 255, 128)
+
+
+def coexist_after(field, flipped=False, violate=None):
+    """The band after the coexistence quad: the quad's colour where the field's depth is at
+    or below z* = D[COEXIST_RUNG], the ladder colour elsewhere. `violate` paints one wrong
+    pixel: "present", "absent" or "changed"."""
+    z = verify.EXPECTED_LADDER_DEPTHS[verify.COEXIST_RUNG]
+    sel, _ = crops(field, flipped)
+    after = [[COEXIST_RGB if d <= z else sel[y][x] for x, d in enumerate(row)]
+             for y, row in enumerate(field)]
+    if violate == "present":
+        y, x = next((y, x) for y, row in enumerate(field) for x, d in enumerate(row) if d > z)
+        after[y][x] = COEXIST_RGB
+    elif violate == "absent":
+        y, x = next((y, x) for y, row in enumerate(field) for x, d in enumerate(row) if d <= z)
+        after[y][x] = sel[y][x]
+    elif violate == "changed":
+        y, x = next((y, x) for y, row in enumerate(field) for x, d in enumerate(row) if d > z)
+        after[y][x] = PALETTE[RUNG0 + 7] if sel[y][x] != PALETTE[RUNG0 + 7] else PALETTE[RUNG0 + 6]
+    return after
+
+
+def coexist_entry(sample, field, after):
+    """The counts the implementation publishes, derived from the two crops."""
+    z = verify.EXPECTED_LADDER_DEPTHS[verify.COEXIST_RUNG]
+    sel, _ = crops(field, sample["flipped"])
+    c = dict(at=sample["at"], present=0, absent=0, other=0, expectedPass=0, expectedFail=0,
+             absentWherePass=0, presentWhereFail=0, unchangedElsewhere=0,
+             file=f"native-depth-ladder-coexist-{sample['at']}.ppm.gz",
+             frameFile=f"native-depth-ladder-coexist-frame-{sample['at']}.ppm.gz")
+    for y, row in enumerate(field):
+        for x, d in enumerate(row):
+            expect_pass, expect_fail = d <= z, d > z
+            c["expectedPass"] += expect_pass
+            c["expectedFail"] += expect_fail
+            if after[y][x] == COEXIST_RGB:
+                c["present"] += 1
+                c["presentWhereFail"] += expect_fail
+            else:
+                c["absent"] += 1
+                c["unchangedElsewhere"] += after[y][x] == sel[y][x]
+                c["absentWherePass"] += expect_pass
+    return c
+
+
+def coexist_log_for(entries):
+    return "".join(f"[native-vk] depth ladder coexist at draw {c['at']} present={c['present']}"
+                   f" absent={c['absent']} other={c['other']} expectedPass={c['expectedPass']}"
+                   f" expectedFail={c['expectedFail']} absentWherePass={c['absentWherePass']}"
+                   f" presentWhereFail={c['presentWhereFail']} unchanged={c['unchangedElsewhere']}\n"
+                   for c in entries)
 
 
 def log_for(samples, stage_lines=True):
@@ -506,8 +561,11 @@ class LadderGateTest(unittest.TestCase):
 
     def test_pipeline_states_other_than_the_ladders_fail(self):
         """Round-11 R10-CREATE-TEST: the state read back after creation is published and pinned."""
-        for states in ([[7, 1, 0], [7, 1, 0], [4, 1, 0]], [[1, 1, 1], [7, 1, 0], [4, 1, 0]],
-                       [[1, 0, 0], [7, 1, 0], [4, 1, 0]], [], None, [[1, 1, 0], [7, 1, 0]]):
+        for states in ([[7, 1, 0], [7, 1, 0], [4, 1, 0], [6, 1, 0]],
+                       [[1, 1, 1], [7, 1, 0], [4, 1, 0], [6, 1, 0]],
+                       [[1, 0, 0], [7, 1, 0], [4, 1, 0], [6, 1, 0]],
+                       [[1, 1, 0], [7, 1, 0], [4, 1, 0], [4, 1, 0]],
+                       [[1, 1, 0], [7, 1, 0], [4, 1, 0]], [], None):
             body, fields = self.one()
             body["pipelineStates"] = states
             self.assertFails(self.run_gate(body, fields), "depth states")
@@ -608,7 +666,7 @@ class LadderDirectionTest(unittest.TestCase):
         result = self.run_direction()
         self.assertTrue(result["success"], result["failures"])
         self.assertIn("larger depth value is nearer", result["z_direction"]["direction"])
-        self.assertEqual(result["z_direction"]["near"]["brackets"], [4])
+        self.assertEqual(result["z_direction"]["near"]["brackets"], [3, 4])
         self.assertEqual(result["z_direction"]["far"]["brackets"], [2])
         self.assertAlmostEqual(result["z_direction"]["near"]["aboveGround"], 13.62)
         self.assertFalse(result["z_convention_measured"])
@@ -663,6 +721,33 @@ class LadderDirectionTest(unittest.TestCase):
                                log=text, checkpoints=direction_checkpoints())
         self.assertFalse(result["success"])
         self.assertIn("had stage 'overworld' current", " ".join(result["failures"]))
+
+    def test_a_sample_log_stage_that_contradicts_the_report_fails(self):
+        """Round-14 R14-TEST-BINDINGS: only the sample line's stage differs (harness line and
+        report truthful); the sample-line/report reconciliation alone must catch it."""
+        pairs = direction_samples()
+        text = log_for([s for s, _ in pairs])
+        text = text.replace("stage=descend camera=", "stage=overworld camera=", 1)
+        gate = LadderGateTest()
+        result = gate.run_gate(report(samples=[s for s, _ in pairs]), [f for _, f in pairs],
+                               log=text, checkpoints=direction_checkpoints())
+        self.assertFalse(result["success"])
+        self.assertIn("says stage 'overworld' but the report says 'descend'",
+                      " ".join(result["failures"]))
+
+    def test_a_sample_camera_that_disagrees_with_its_checkpoint_fails(self):
+        """Round-14 R14-TEST-BINDINGS: sample 0.75 above the expected height, checkpoint 0.75
+        below — each within the one-block tolerance, 1.5 apart from each other."""
+        pairs = direction_samples()
+        pairs[0][0]["camera"][1] += 0.75
+        checkpoints = direction_checkpoints()
+        for case in checkpoints:
+            if case["stage"] == "descend":
+                case["cameraY"] = case["cameraY"] - 0.75
+                case["playerY"] = case["playerY"] - 0.75
+        result = self.run_direction(pairs=pairs, checkpoints=checkpoints)
+        self.assertFalse(result["success"])
+        self.assertIn("no ladder sample was taken during descend", " ".join(result["failures"]))
 
     def test_split_grounds_or_a_checkpoint_that_contradicts_its_teleport_fail(self):
         """Round-13: ground 163 for descend and -29 for ascend made the far camera 'near'."""
@@ -723,6 +808,86 @@ class LadderDirectionTest(unittest.TestCase):
         self.assertTrue(result["success"], result["failures"])
         self.assertNotIn("z_direction", result)
         self.assertIn("not judged here", result["answer"])
+
+
+class LadderCoexistTest(unittest.TestCase):
+    """The coexistence quad must compose per pixel against the same frame's brackets."""
+
+    def run_coexist(self, violate=None, mutate_entry=None, log=None, skip_file=False,
+                    pairs=None):
+        pairs = direction_samples() if pairs is None else pairs
+        afters = [coexist_after(f, s["flipped"], violate if i == 0 else None)
+                  for i, (s, f) in enumerate(pairs)]
+        entries = [coexist_entry(s, f, a) for (s, f), a in zip(pairs, afters)]
+        if mutate_entry:
+            mutate_entry(entries[0])
+        body = report(samples=[s for s, _ in pairs], coexistEnabled=True, coexist=entries)
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            for (s, f), a in zip(pairs, afters):
+                write_sample_files(out, s, f)
+                if not skip_file:
+                    write_gz_ppm(out / f"native-depth-ladder-coexist-{s['at']}.ppm.gz", a)
+                _, rej = crops(f, s["flipped"])
+                write_gz_ppm(out / f"native-depth-ladder-coexist-frame-{s['at']}.ppm.gz",
+                             thumbnail(a, s["rect"], rej, s["rejectedRect"]))
+            (out / "native-depth-ladder.json").write_text(json.dumps(body))
+            text = (log_for(body["samples"]) + coexist_log_for(entries)) if log is None else log
+            return native_ladder_result(out, DEVICE, EXTENTS, text, direction_checkpoints())
+
+    def test_a_quad_that_composes_per_pixel_passes(self):
+        result = self.run_coexist()
+        self.assertTrue(result["success"], result["failures"])
+        self.assertTrue(result["coexist"]["enabled"])
+        self.assertEqual(result["coexist"]["mixedSamples"], 1)   # the near look straddles z*
+        self.assertIn("zero violations", result["answer"])
+
+    def test_the_quad_present_where_the_depth_is_farther_fails(self):
+        result = self.run_coexist(violate="present")
+        self.assertFalse(result["success"])
+        self.assertIn("present at 1 pixel(s) whose depth is > z*", " ".join(result["failures"]))
+
+    def test_the_quad_absent_where_the_depth_is_nearer_fails(self):
+        result = self.run_coexist(violate="absent")
+        self.assertFalse(result["success"])
+        self.assertIn("missing at 1 pixel(s) whose depth is <= z*", " ".join(result["failures"]))
+
+    def test_a_pixel_the_quad_did_not_cover_changing_colour_fails(self):
+        result = self.run_coexist(violate="changed")
+        self.assertFalse(result["success"])
+        self.assertIn("did not cover changed colour", " ".join(result["failures"]))
+
+    def test_published_counts_the_crops_contradict_fail(self):
+        def lie(entry):
+            entry["present"] += 1
+            entry["absent"] -= 1
+        result = self.run_coexist(mutate_entry=lie)
+        self.assertFalse(result["success"])
+        self.assertIn("but the retained crops say", " ".join(result["failures"]))
+
+    def test_a_missing_coexist_crop_or_log_line_fails(self):
+        result = self.run_coexist(skip_file=True)
+        self.assertFalse(result["success"])
+        self.assertIn("coexist crop", " ".join(result["failures"]))
+        pairs = direction_samples()
+        body_log = log_for([s for s, _ in pairs])
+        result = self.run_coexist(log=body_log, pairs=pairs)
+        self.assertFalse(result["success"])
+        self.assertIn("coexist line", " ".join(result["failures"]))
+
+    def test_an_experiment_without_a_mixed_sample_decides_nothing(self):
+        pairs = direction_samples(near_kind="far")   # both looks entirely below z*
+        result = self.run_coexist(pairs=pairs)
+        self.assertFalse(result["success"])
+        self.assertIn("decided nothing", " ".join(result["failures"]))
+
+    def test_coexist_results_listed_while_the_experiment_is_off_fail(self):
+        pairs = direction_samples()
+        gate = LadderGateTest()
+        body = report(samples=[s for s, _ in pairs], coexist=[{"at": 3000}])
+        result = gate.run_gate(body, [f for _, f in pairs], checkpoints=direction_checkpoints())
+        self.assertFalse(result["success"])
+        self.assertIn("experiment was off", " ".join(result["failures"]))
 
 
 class LadderRetentionTest(unittest.TestCase):

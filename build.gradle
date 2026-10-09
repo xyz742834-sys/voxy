@@ -596,6 +596,12 @@ loom {
             if (project.hasProperty('harnessNativeDepthLadder')) {
                 vmArg '-Dvoxy.native.depthladder=true'
             }
+            // Coexistence experiment inside the ladder launch: a known-depth quad drawn with
+            // Voxy's depth compare against Minecraft's LOADed depth, no depth write, checked
+            // per pixel against the ladder's own brackets in the same frame. Off by default.
+            if (project.hasProperty('harnessNativeCoexist')) {
+                vmArg '-Dvoxy.native.coexist=true'
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')

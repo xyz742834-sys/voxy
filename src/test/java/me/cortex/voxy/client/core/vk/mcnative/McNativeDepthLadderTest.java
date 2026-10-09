@@ -59,7 +59,10 @@ public class McNativeDepthLadderTest {
         assertEquals(VK_COMPARE_OP_ALWAYS, ops[McNativeDepthLadder.OP_ALWAYS], "the base must be ALWAYS");
         assertEquals(VK_COMPARE_OP_GREATER, ops[McNativeDepthLadder.OP_GREATER],
             "the complementary control must be GREATER");
-        assertEquals(3, ops.length);
+        assertEquals(me.cortex.voxy.client.core.vk.VkDepth.COMPARE_OP, ops[McNativeDepthLadder.OP_COEXIST],
+            "the coexistence quad must use Voxy's own compare op");
+        assertEquals(VK_COMPARE_OP_GREATER_OR_EQUAL, ops[McNativeDepthLadder.OP_COEXIST]);
+        assertEquals(4, ops.length);
         try (MemoryStack stack = MemoryStack.stackPush()) {
             for (int op : ops) {
                 var state = McNativeDepthLadder.depthStencilState(stack, op);
@@ -96,11 +99,12 @@ public class McNativeDepthLadderTest {
                             .depthAttachmentFormat(), "the depth attachment format must be passed");
                     return 1000 + seen.size();
                 });
-            assertEquals(3, seen.size(), "exactly three pipelines are built");
-            assertArrayEquals(new long[] {1001, 1002, 1003}, handles);
+            assertEquals(4, seen.size(), "exactly four pipelines are built");
+            assertArrayEquals(new long[] {1001, 1002, 1003, 1004}, handles);
             assertEquals(VK_COMPARE_OP_LESS, seen.get(McNativeDepthLadder.OP_LESS)[0]);
             assertEquals(VK_COMPARE_OP_ALWAYS, seen.get(McNativeDepthLadder.OP_ALWAYS)[0]);
             assertEquals(VK_COMPARE_OP_GREATER, seen.get(McNativeDepthLadder.OP_GREATER)[0]);
+            assertEquals(VK_COMPARE_OP_GREATER_OR_EQUAL, seen.get(McNativeDepthLadder.OP_COEXIST)[0]);
             for (int[] state : seen) {
                 assertEquals(1, state[1], "depth test on");
                 assertEquals(0, state[2], "depth writes OFF in the create-info the creator receives");
@@ -125,7 +129,7 @@ public class McNativeDepthLadderTest {
                     if (ds.depthCompareOp() == VK_COMPARE_OP_LESS) ds.depthCompareOp(VK_COMPARE_OP_ALWAYS);
                     return 7;
                 });
-            assertArrayEquals(new long[] {0, 0, 0}, handles, "a rewritten state must yield no pipelines");
+            assertArrayEquals(new long[] {0, 0, 0, 0}, handles, "a rewritten state must yield no pipelines");
             int[][] states = McNativeDepthLadder.pipelineStates();
             assertEquals(VK_COMPARE_OP_ALWAYS, states[McNativeDepthLadder.OP_LESS][0],
                 "the observed state is what the creator handed on");
@@ -138,23 +142,23 @@ public class McNativeDepthLadderTest {
                     info.get(0).pDepthStencilState().depthWriteEnable(true);
                     return 7;
                 });
-            assertArrayEquals(new long[] {0, 0, 0}, handles);
+            assertArrayEquals(new long[] {0, 0, 0, 0}, handles);
             assertTrue(McNativeDepthLadder.json().contains("\"depthWritesEnabled\": true"),
                 "the evidence must say writes were enabled: " + McNativeDepthLadder.json());
         }
         // and the honest creator restores the observed states to the intended ones
         try (MemoryStack stack = MemoryStack.stackPush()) {
             long[] handles = McNativeDepthLadder.buildPipelines(stack, 0L, 0L, 0L, 37, 126, info -> 9);
-            assertArrayEquals(new long[] {9, 9, 9}, handles);
+            assertArrayEquals(new long[] {9, 9, 9, 9}, handles);
             int[][] states = McNativeDepthLadder.pipelineStates();
-            assertEquals(3, states.length);
-            for (int i = 0; i < 3; i++) {
+            assertEquals(4, states.length);
+            for (int i = 0; i < 4; i++) {
                 assertEquals(McNativeDepthLadder.PIPELINE_COMPARE_OPS[i], states[i][0]);
                 assertEquals(1, states[i][1]);
                 assertEquals(0, states[i][2]);
             }
             assertTrue(McNativeDepthLadder.json().contains("\"depthWritesEnabled\": false"));
-            assertTrue(McNativeDepthLadder.json().contains("\"pipelineStates\": [[1, 1, 0], [7, 1, 0], [4, 1, 0]]"),
+            assertTrue(McNativeDepthLadder.json().contains("\"pipelineStates\": [[1, 1, 0], [7, 1, 0], [4, 1, 0], [6, 1, 0]]"),
                 McNativeDepthLadder.json());
         }
     }
@@ -235,5 +239,13 @@ public class McNativeDepthLadderTest {
             "a band-wide bound is not a thing this ladder measures: " + json);
         assertTrue(json.contains("\"frameScale\": 4"), json);
         assertEquals(4, McNativeDepthLadder.FRAME_SCALE);
+        // the coexistence experiment is off, lists nothing, and its constants are the pinned ones
+        assertFalse(Boolean.getBoolean(McNativeDepthLadder.COEXIST_FLAG));
+        assertTrue(json.contains("\"coexistEnabled\": false"), json);
+        assertTrue(json.contains("\"coexist\": []"), json);
+        assertTrue(json.contains("\"coexistRung\": 4"), json);
+        assertTrue(json.contains("\"coexistRgb\": [0.5, 1.0, 0.5]"), json);
+        assertEquals(McNativeDepthLadder.PALETTE.length, McNativeDepthLadder.classify(128, 255, 128),
+            "the coexist colour must be outside the ladder palette");
     }
 }

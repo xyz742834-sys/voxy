@@ -80,6 +80,18 @@ import static org.lwjgl.vulkan.VK10.*;
  */
 public final class McNativeDepthLadder implements Destroyable {
     public static final String FLAG = "voxy.native.depthladder";
+    /**
+     * 共存実験 (既定で無効): 梯子の標本と<b>同じフレーム・同じ画素</b>で、既知の深度 z* の
+     * クアッドを Voxy の深度比較 ({@link VkDepth#COMPARE_OP}、GREATER_OR_EQUAL) で描き、
+     * 2 回目の読み戻しで「MC の深度が z* 以下の画素にだけ現れた」ことを画素ごとに確かめる。
+     * 梯子の 1 回目の読み戻しが各画素の MC 深度の区間を与えるので、z* を段の値そのものに
+     * 置けば区間が z* を跨ぐ画素は無く、全画素で期待が決まる。深度は書かない。
+     */
+    public static final String COEXIST_FLAG = "voxy.native.coexist";
+    /** z* = 段 {@link #COEXIST_RUNG} の深度。descend の帯は段 3/4 に跨るので混在する。 */
+    public static final int COEXIST_RUNG = 4;
+    /** 共存クアッドの色 (三値 1,2,1)。パレットの 10 色と重ならない。 */
+    public static final float[] COEXIST_RGB = {0.5f, 1.0f, 0.5f};
 
     /** 段の数。 */
     public static final int RUNGS = 8;
@@ -114,8 +126,8 @@ public final class McNativeDepthLadder implements Destroyable {
      * 見逃す)。
      */
     static final int[] PIPELINE_COMPARE_OPS = {VK_COMPARE_OP_LESS, VK_COMPARE_OP_ALWAYS,
-        VK_COMPARE_OP_GREATER};
-    static final int OP_LESS = 0, OP_ALWAYS = 1, OP_GREATER = 2;
+        VK_COMPARE_OP_GREATER, me.cortex.voxy.client.core.vk.VkDepth.COMPARE_OP};
+    static final int OP_LESS = 0, OP_ALWAYS = 1, OP_GREATER = 2, OP_COEXIST = 3;
 
     /** 全フレームのサムネイルの縮尺。4x4 ブロックの整数平均。 */
     public static final int FRAME_SCALE = 4;
@@ -124,7 +136,8 @@ public final class McNativeDepthLadder implements Destroyable {
      * 作成後に create-info から読み戻した深度状態、パイプラインごと {compareOp, testEnable,
      * writeEnable}。{@link #buildPipelines} が creator の<b>戻った後</b>に構造体から読む。
      * creator の中で構造体を書き換える変異 (round-11 review R10-CREATE-TEST) は作成関数には
-     * 届くが、ここに写り、buildPipelines は失敗を返し、証跡は書き込み有効を公開する。
+     * 届き、戻った後も残っていればここに写り、buildPipelines は失敗を返し、証跡は書き込み有効を
+     * 公開する。呼び出しの間だけ書き換えて戻す変異は写らない (明示した限界)。
      */
     private static int[][] pipelineStates = new int[0][];
 
@@ -136,6 +149,10 @@ public final class McNativeDepthLadder implements Destroyable {
 
     private static final List<String> NOTES = new ArrayList<>();
     private static final List<Sample> SAMPLES = new ArrayList<>();
+    /** 共存実験の結果、標本の draw 本数 → 結果。 */
+    private static final java.util.Map<Long, Coexist> COEXIST = new java.util.LinkedHashMap<>();
+    /** 1 回目の読み戻しの帯の分類 (画素ごとのパレット添字)、2 回目が照合するまで保持。 */
+    private static final java.util.Map<Long, byte[]> BAND_CLASSES = new java.util.HashMap<>();
     private static McNativeDepthLadder instance;
     private static long drawsRecorded;
     private static long nextReadbackAt = 2;
@@ -175,6 +192,22 @@ public final class McNativeDepthLadder implements Destroyable {
                          long rejectedOther, String file, String rejectedFile,
                          String frameFile, String stage, double[] camera) {}
 
+    /**
+     * 共存実験の 1 標本。1 回目の読み戻し (梯子) の画素ごとの区間から期待を決め、2 回目の
+     * 読み戻し (クアッドの後) で現れた/現れなかったを数える。
+     *
+     * @param present        共存色だった画素数、{@code absent} それ以外でパレット内、
+     *                       {@code other} どちらでもない (測定無効)
+     * @param expectedPass   梯子の区間が z* 以下 (low または段 < COEXIST_RUNG) の画素数
+     * @param expectedFail   段 >= COEXIST_RUNG の画素数
+     * @param absentWherePass 期待は現れるのに現れなかった画素数 (違反)
+     * @param presentWhereFail 期待は現れないのに現れた画素数 (違反)
+     * @param unchangedElsewhere 現れなかった画素のうち梯子の色のままだった数 (違反は absent − これ)
+     */
+    public record Coexist(long at, long present, long absent, long other, long expectedPass,
+                          long expectedFail, long absentWherePass, long presentWhereFail,
+                          long unchangedElsewhere, String file, String frameFile) {}
+
     // ---------------- 保持するもの ----------------
 
     private final VulkanDevice device;
@@ -183,6 +216,12 @@ public final class McNativeDepthLadder implements Destroyable {
     private final long vertexModule, fragmentModule, layout;
     /** {@link #PIPELINE_COMPARE_OPS} と同じ添字。すべて深度書き込み無効。 */
     private final long[] pipelines;
+
+    public static java.util.List<Coexist> coexist() {
+        synchronized (NOTES) {
+            return List.copyOf(COEXIST.values());
+        }
+    }
     private boolean destroyed;
 
     private McNativeDepthLadder(VulkanDevice device, long ownerDevice, int colourFormat,
@@ -305,7 +344,28 @@ public final class McNativeDepthLadder implements Destroyable {
         if (drawsRecorded >= nextReadbackAt && !readbackInFlight && problems < FAILURE_BUDGET
                 && SAMPLES.size() < SAMPLE_LIMIT) {
             nextReadbackAt = drawsRecorded + READBACK_INTERVAL;
+            long at = drawsRecorded;
             requestReadback(colour, width, height);
+            if (Boolean.getBoolean(COEXIST_FLAG) && readbackInFlight) {
+                // ⚠ Same frame, same pixels: a second LOAD pass draws the coexistence quad over
+                // the band with Voxy's compare op and NO depth write, then a second readback.
+                boolean drawn = false;
+                try (var pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(
+                        () -> "voxy native coexist", colour, Optional.empty(),
+                        depth, OptionalDouble.empty())) {
+                    VkCommandBuffer cmd = McNativeVulkan.commandBufferOf(pass, notes);
+                    if (cmd != null) {
+                        ladder.recordCoexist(cmd, width, height);
+                        drawn = true;
+                    } else {
+                        notes.forEach(McNativeDepthLadder::note);
+                    }
+                }
+                // ⚠ The copy must be recorded OUTSIDE the render pass instance (measured: inside
+                // it, validation flagged VUID-vkCmdCopyImageToBuffer-renderpass and the second
+                // readback held garbage). Request it only after the pass has closed.
+                if (drawn) requestCoexistReadback(colour, width, height, at);
+            }
         }
         if (drawsRecorded == 1 || drawsRecorded % 600 == 0) writeEvidence();
     }
@@ -335,6 +395,22 @@ public final class McNativeDepthLadder implements Destroyable {
                 push(cmd, stack, PALETTE[RUNG0 + i], z[i]);
                 vkCmdDraw(cmd, 6, 1, 0, 0);
             }
+        }
+    }
+
+    /** 共存クアッド: 帯全体、深度 z* = depths()[COEXIST_RUNG]、比較 GREATER_OR_EQUAL、書き込み無効。 */
+    private void recordCoexist(VkCommandBuffer cmd, int width, int height) {
+        try (MemoryStack stack = stackPush()) {
+            var viewport = org.lwjgl.vulkan.VkViewport.calloc(1, stack)
+                .x(0).y(0).width(width).height(height).minDepth(0).maxDepth(1);
+            var scissor = org.lwjgl.vulkan.VkRect2D.calloc(1, stack);
+            scissor.offset().set(0, 0);
+            scissor.extent().set(width, height);
+            vkCmdSetViewport(cmd, 0, viewport);
+            vkCmdSetScissor(cmd, 0, scissor);
+            vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, this.pipelines[OP_COEXIST]);
+            push(cmd, stack, COEXIST_RGB, depths()[COEXIST_RUNG]);
+            vkCmdDraw(cmd, 6, 1, 0, 0);
         }
     }
 
@@ -389,6 +465,117 @@ public final class McNativeDepthLadder implements Destroyable {
      * <p>⚠ 向きは仮定しない (round 6 B4)。両向きの計数と crop を残し、採用した向きでは
      * "other" が 0、棄却した向きでは "other" が多数であることを gate が要求する。
      */
+    private static void requestCoexistReadback(GpuTextureView colour, int width, int height,
+                                               long at) {
+        long bytes = (long) width * height * 4;
+        GpuBuffer buffer = null;
+        try {
+            var gpu = RenderSystem.getDevice();
+            buffer = gpu.createBuffer(() -> "voxy native coexist readback",
+                GpuBuffer.USAGE_MAP_READ | GpuBuffer.USAGE_COPY_DST, bytes);
+            final GpuBuffer readback = buffer;
+            gpu.createCommandEncoder().copyTextureToBuffer(colour.texture(), readback, 0,
+                () -> measureCoexist(readback, width, height, at), 0);
+            buffer = null;
+        } catch (Throwable t) {
+            fail("the coexist readback could not be requested: " + t);
+        } finally {
+            if (buffer != null) {
+                try {
+                    buffer.close();
+                } catch (Throwable t) {
+                    closeFailures++;
+                    note("could not close the unregistered coexist buffer: " + t);
+                }
+            }
+        }
+    }
+
+    /**
+     * 2 回目の読み戻し: 1 回目の分類 (画素ごとの区間) から期待を決め、画素ごとに照合する。
+     * 期待: low または段 < COEXIST_RUNG → 現れる (d ≤ z*)、段 ≥ COEXIST_RUNG → 現れない。
+     * 現れなかった画素は 1 回目と同じ色のままでなければならない。
+     */
+    private static void measureCoexist(GpuBuffer buffer, int width, int height, long at) {
+        try (var view = new GpuBufferSlice(buffer, 0, buffer.size()).map(true, false)) {
+            var data = view.data();
+            Sample sample = null;
+            byte[] classes;
+            synchronized (NOTES) {
+                for (var s : SAMPLES) if (s.at() == at) sample = s;
+                classes = BAND_CLASSES.remove(at);
+            }
+            if (sample == null || classes == null) {
+                fail("coexist readback at draw " + at + " has no ladder sample to compare with"
+                    + " (readback order)");
+                return;
+            }
+            int[] q = sample.rect();
+            int w = q[2] - q[0], h = q[3] - q[1];
+            long present = 0, absent = 0, other = 0, expectedPass = 0, expectedFail = 0;
+            long absentWherePass = 0, presentWhereFail = 0, unchanged = 0;
+            int i = 0;
+            for (int y = q[1]; y < q[3]; y++) {
+                long rowBase = (long) y * width * 4;
+                for (int x = q[0]; x < q[2]; x++, i++) {
+                    long p = rowBase + (long) x * 4;
+                    int r = data.get((int) p) & 0xFF, g = data.get((int) p + 1) & 0xFF,
+                        b = data.get((int) p + 2) & 0xFF;
+                    boolean coexist = level(r) == 1 && level(g) == 2 && level(b) == 1;
+                    int before = classes[i];
+                    boolean expectPass = before == LOW || (before >= RUNG0
+                        && before - RUNG0 < COEXIST_RUNG);
+                    boolean expectFail = before >= RUNG0 && before - RUNG0 >= COEXIST_RUNG;
+                    if (expectPass) expectedPass++;
+                    if (expectFail) expectedFail++;
+                    if (coexist) {
+                        present++;
+                        if (expectFail) presentWhereFail++;
+                    } else {
+                        int cls = classify(r, g, b);
+                        if (cls == PALETTE.length) other++;
+                        else {
+                            absent++;
+                            if (cls == before) unchanged++;
+                        }
+                        if (expectPass) absentWherePass++;
+                    }
+                }
+            }
+            String file = writeCrop(data, width, q, "native-depth-ladder-coexist-" + at + ".ppm.gz");
+            // the whole frame the second readback saw, anchoring its crop like the first one's
+            String frameFile = writeFrame(data, width, height,
+                "native-depth-ladder-coexist-frame-" + at + ".ppm.gz");
+            var result = new Coexist(at, present, absent, other, expectedPass, expectedFail,
+                absentWherePass, presentWhereFail, unchanged, file, frameFile);
+            synchronized (NOTES) {
+                COEXIST.put(at, result);
+            }
+            if (other != 0 || absentWherePass != 0 || presentWhereFail != 0 || unchanged != absent) {
+                problems++;
+                String why = "coexist at draw " + at + ": present=" + present + " absent=" + absent
+                    + " other=" + other + " absentWherePass=" + absentWherePass
+                    + " presentWhereFail=" + presentWhereFail + " unchanged=" + unchanged;
+                if (firstProblem == null) firstProblem = why;
+                note(why);
+            }
+            Logger.info("[native-vk] depth ladder coexist at draw " + at + " present=" + present
+                + " absent=" + absent + " other=" + other + " expectedPass=" + expectedPass
+                + " expectedFail=" + expectedFail + " absentWherePass=" + absentWherePass
+                + " presentWhereFail=" + presentWhereFail + " unchanged=" + unchanged);
+            writeEvidence();
+        } catch (Throwable t) {
+            fail("the coexist measurement failed: " + t);
+        } finally {
+            try {
+                buffer.close();
+            } catch (Throwable t) {
+                closeFailures++;
+                note("could not close the coexist readback buffer: " + t);
+            }
+        }
+    }
+
     /** {x, y, z, pitch, yaw} of Minecraft's main camera right now, or NaNs if unreachable. */
     private static double[] cameraNow() {
         try {
@@ -435,6 +622,22 @@ public final class McNativeDepthLadder implements Destroyable {
             }
             synchronized (SAMPLES) {
                 SAMPLES.add(sample);
+            }
+            if (Boolean.getBoolean(COEXIST_FLAG)) {
+                int[] q = rects[chosen];
+                byte[] cls = new byte[(q[2] - q[0]) * (q[3] - q[1])];
+                int i = 0;
+                for (int y = q[1]; y < q[3]; y++) {
+                    long rowBase = (long) y * width * 4;
+                    for (int x = q[0]; x < q[2]; x++, i++) {
+                        long p = rowBase + (long) x * 4;
+                        cls[i] = (byte) classify(data.get((int) p) & 0xFF,
+                            data.get((int) p + 1) & 0xFF, data.get((int) p + 2) & 0xFF);
+                    }
+                }
+                synchronized (NOTES) {
+                    BAND_CLASSES.put(at, cls);
+                }
             }
             if (why != null) {
                 problems++;
@@ -730,7 +933,9 @@ public final class McNativeDepthLadder implements Destroyable {
             handles[i] = creator.create(info);
             // ⚠ round-11 review R10-CREATE-TEST: the creator is the seam the test cannot
             // cross. Read the state back from the struct the creator was handed, AFTER it
-            // returns: whatever it changed before calling Vulkan is what Vulkan received.
+            // returns: whatever it left in the struct is observed and published. (A creator that
+            // rewrites the state for the call and restores it afterwards is not caught here —
+            // a stated limit; nothing beyond this read-back is claimed.)
             var ds = info.get(0).pDepthStencilState();
             observed[i] = ds == null ? new int[] {-1, 0, 1}
                 : new int[] {ds.depthCompareOp(), ds.depthTestEnable() ? 1 : 0,
@@ -761,7 +966,7 @@ public final class McNativeDepthLadder implements Destroyable {
         }
     }
 
-    /** 本番の creator: Vulkan を呼ぶだけ。これより先はテストでは検査できず、測定で検査する。 */
+    /** 本番の creator: Vulkan を呼ぶだけ。これより先はテストでも読み戻しでも検査できない (明示した限界)。 */
     static PipelineCreator vulkanCreator(org.lwjgl.vulkan.VkDevice vk) {
         return info -> {
             long[] out = new long[1];
@@ -929,6 +1134,25 @@ public final class McNativeDepthLadder implements Destroyable {
         }
         sb.append("],\n");
         sb.append("  \"readbackInterval\": ").append(READBACK_INTERVAL).append(",\n");
+        sb.append("  \"coexistEnabled\": ").append(Boolean.getBoolean(COEXIST_FLAG)).append(",\n");
+        sb.append("  \"coexistRung\": ").append(COEXIST_RUNG).append(",\n");
+        sb.append("  \"coexistRgb\": ").append(floats(COEXIST_RGB)).append(",\n");
+        sb.append("  \"coexist\": [");
+        var coexist = coexist();
+        for (int i = 0; i < coexist.size(); i++) {
+            var c = coexist.get(i);
+            sb.append(i > 0 ? ",\n    {" : "\n    {");
+            sb.append("\"at\": ").append(c.at()).append(", \"present\": ").append(c.present())
+              .append(", \"absent\": ").append(c.absent()).append(", \"other\": ").append(c.other())
+              .append(", \"expectedPass\": ").append(c.expectedPass())
+              .append(", \"expectedFail\": ").append(c.expectedFail())
+              .append(", \"absentWherePass\": ").append(c.absentWherePass())
+              .append(", \"presentWhereFail\": ").append(c.presentWhereFail())
+              .append(", \"unchangedElsewhere\": ").append(c.unchangedElsewhere())
+              .append(", \"file\": ").append(McNativeVulkanProbe.quote(c.file()))
+              .append(", \"frameFile\": ").append(McNativeVulkanProbe.quote(c.frameFile())).append('}');
+        }
+        sb.append(coexist.isEmpty() ? "],\n" : "\n  ],\n");
         sb.append("  \"frameScale\": ").append(FRAME_SCALE).append(",\n");
         sb.append("  \"sampleLimit\": ").append(SAMPLE_LIMIT).append(",\n");
         sb.append("  \"samples\": [");
