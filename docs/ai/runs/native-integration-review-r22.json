@@ -1,0 +1,210 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "8ba67fc562d2090422ecf1e8ba75a9d4dea9a2d2",
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "message": "Standing experimental foundation/native LoD delivery boundary remains.",
+      "evidence": [
+        "docs/ai/project-goal.md:9",
+        "docs/ai/handoff.md:73"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R20-TEST-REALLOAD",
+      "judgment": "CONFIRMED",
+      "message": "1 of 76 guard removals survive; full closure refuted.",
+      "surviving_guards": [
+        {
+          "function": "real_load_skip_provenance",
+          "line": 2180,
+          "condition": "entry[\"buildsSoFar\"] != REAL_LOAD_BUILD_BUDGET",
+          "exit": 0,
+          "seconds": 157.87
+        }
+      ],
+      "evidence": [
+        ".agent-run/r22/guards.json",
+        ".agent-run/r22/budget-guard.json",
+        "scripts/tests/test_real_load_gate.py:263"
+      ]
+    },
+    {
+      "id": "R21-REPAIR-HANDOFF",
+      "judgment": "CONFIRMED",
+      "message": "Test-per-guard and unconditional stage-sampling wording overstate enforcement; old-run replay and not-yet-drawn real-world geometry wording remain stale.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:1591",
+        "docs/ai/vulkan-native-integration-survey.md:1608",
+        "docs/ai/handoff.md:174",
+        ".agent-run/r22/old-replay.log"
+      ]
+    },
+    {
+      "id": "R22-NEAR-CUT-REUSE",
+      "judgment": "CONFIRMED",
+      "message": "Cut uses build camera; cached scenes can retain sections inside 128 blocks after sub-section movement. This does not refute the retained fixed horizon measurement.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeRealLoad.java:225",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeRealScene.java:133",
+        ".agent-run/r22/source-contracts.log"
+      ]
+    }
+  ],
+  "safe_for_normal_play": true,
+  "safety_scope": "All voxy.native.* flags unset at startup; source/offline supported GL and disabled-Voxy Minecraft Vulkan; no fresh normal-play run.",
+  "round21_findings_closed": {
+    "R20-REAL-METADATA": true,
+    "R20-REAL-SKIP-PROVENANCE": true,
+    "R20-TEST-REALLOAD": false,
+    "R21-ATLAS-PROVENANCE": true,
+    "R21-ATLAS-RESET": true,
+    "R21-REPAIR-HANDOFF": false
+  },
+  "occlusion_judgment": {
+    "judgment": "CONFIRMED",
+    "sample": 2162,
+    "stage": "horizon",
+    "expectVisible": 2003,
+    "visible": 2003,
+    "expectHidden": 3306,
+    "hidden": 3306,
+    "violations": 0,
+    "undetermined": 0,
+    "scope": "One look, one wall, bracket grain, Minecraft captured matrix; approximate build-time 128-block section cut; no delivered LoD acceptance.",
+    "hidden_requirement_attack_exit": 1,
+    "cut_pin_attack_exit": 1
+  },
+  "real_load_judgment": {
+    "judgment": "CONFIRMED",
+    "judged_samples": 7,
+    "skips": 3,
+    "counts": {
+      "geometry": 5309,
+      "noGeometry": 587075,
+      "expectVisible": 2003,
+      "expectHidden": 3306,
+      "undetermined": 0,
+      "visible": 2003,
+      "hidden": 3306,
+      "ambiguous": 0,
+      "other": 0,
+      "visibleWhereHidden": 0,
+      "hiddenWhereVisible": 0,
+      "changedWhereNoGeometry": 0
+    },
+    "scope": "Both determinate composition halves at horizon only; six other judged samples have no geometry; no post-reconnect real draw."
+  },
+  "atlas_judgment": {
+    "judgment": "CONFIRMED",
+    "reads": 2,
+    "generation_chronology_bound": true,
+    "pending_reset_callback_discarded": true,
+    "newer_pending_request_preserved": true,
+    "scope": "Logged refresh/rebake and exact-source callback tests; no retained raw atlas/content replacement or GPU fault injection."
+  },
+  "instance_mode_judgment": {
+    "judgment": "CONFIRMED",
+    "main_samples": 94,
+    "main_report_frames": 5580,
+    "main_max_sections": 15,
+    "ladder_samples": 81,
+    "ladder_report_frames": 4800,
+    "ladder_max_sections": 36,
+    "scope": "Engine/ingest/occupancy/no-renderer and report/log inventory; not persistent section-content acceptance."
+  },
+  "terrain_load_judgment": {
+    "judgment": "CONFIRMED",
+    "samples": 11,
+    "mixed_samples": 7,
+    "counts": {
+      "geometry": 269660,
+      "noGeometry": 678564,
+      "expectVisible": 216396,
+      "expectHidden": 23497,
+      "undetermined": 29767,
+      "visible": 228642,
+      "hidden": 41018,
+      "ambiguous": 0,
+      "other": 0,
+      "visibleWhereHidden": 0,
+      "hiddenWhereVisible": 0,
+      "changedWhereNoGeometry": 0
+    },
+    "scope": "Synthetic terrain pipeline, declared depth state, bracket grain; no real LoD delivery acceptance."
+  },
+  "coexist_judgment": {
+    "judgment": "CONFIRMED",
+    "samples": 21,
+    "counts": {
+      "present": 1725710,
+      "absent": 71666,
+      "other": 0,
+      "expectedPass": 1725710,
+      "expectedFail": 71666,
+      "absentWherePass": 0,
+      "presentWhereFail": 0,
+      "unchangedElsewhere": 71666
+    },
+    "scope": "Known-depth quad, exact RGB, zero violations; bounded retained crops."
+  },
+  "z_direction_judgment": {
+    "judgment": "CONFIRMED",
+    "direction": "reverse-Z",
+    "near_draw": 4322,
+    "far_draw": 4562,
+    "near_camera_y": 80.61999988555908,
+    "far_camera_y": 176.61999988555908,
+    "ground_y": 67,
+    "scope": "Two straight-down looks over the same reported/logged ground; bracket grain; no general metric calibration."
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED",
+    "samples": 21,
+    "sample_limit": 40,
+    "interval": 240,
+    "anchors": {
+      "ladder": 110166,
+      "rejected": 110166,
+      "coexist": 110166,
+      "real": 36321,
+      "terrain": 58107
+    },
+    "scope": "Own launch, terrain CLEAR/marker off, per-pixel retained recounts and thumbnail anchors. Wait is request-based, conditional and timeout-bounded; gate predicates unchanged by a0fab3f1."
+  },
+  "checks": {
+    "junit": {
+      "tests": 347,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "python": {
+      "tests": 282,
+      "passed": 282,
+      "version": "3.14",
+      "fixtures_shrunk": false
+    },
+    "replay_exit": 0,
+    "source_fingerprints": 422,
+    "manifest_members": 341,
+    "guard_removals": 76,
+    "guard_survivors": 1,
+    "original_attacks": 31,
+    "original_attacks_replay_zero": [
+      "reuse-engine-label-hidden",
+      "log-scene-free-failure",
+      "log-voxy-error"
+    ]
+  },
+  "limitations": [
+    "No live/native/GL launches authorized",
+    "No post-reconnect real-LOAD sample",
+    "No full screenshots/raw atlas/scene-section inventory/per-frame uniforms/JAR attestation retained",
+    "API stubs and pure-method extraction do not prove GPU submission lifetimes",
+    "Cached near-cut limitation and unauthenticated coordinated records remain"
+  ]
+}
