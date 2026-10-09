@@ -263,6 +263,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         try {
             render(fresh, capture, previousCapture);
         } catch (Throwable t) {
+            // the stack too: a message alone did not say where (the streamed biome NPE)
+            Logger.error("[native-vk] the hierarchical-LOAD experiment failed", t);
             fail("the hierarchical-LOAD experiment failed: " + t);
         }
     }

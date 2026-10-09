@@ -1311,6 +1311,11 @@ public final class VkHierarchicalScene {
      */
     public void startStreaming(int minSec, int maxSec, int renderDistance) {
         if (this.distanceTracker != null) throw new IllegalStateException("already streaming");
+        // the biomes the world already registered, before any model is baked — as
+        // VoxyRenderSystem feeds getBiomeEntries() to the model service at creation. populate()
+        // did this; without it the biome list keeps null gaps and ModelFactory's per-model colour
+        // pass dereferences them (measured: NPE in Biome.getFoliageColor on the first streamed run)
+        this.bakery.replayBiomes();
         this.distanceTracker = new me.cortex.voxy.client.core.rendering.RenderDistanceTracker(
             STREAM_RATE, minSec, maxSec,
             pos -> { this.nodes.insertTopLevelNode(pos); this.topLevelRequested++; this.topLevelStreamed++; },
