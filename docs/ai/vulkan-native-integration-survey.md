@@ -472,7 +472,8 @@ of the point — and the replay status of each is:
 | [20261009T105825-290625Z](runs/native-evidence/20261009T105825-290625Z/MANIFEST.json) | no — predates occlusion and the round-21 reconciliation (round 21 judged it) |
 | [20261009T120055-798091Z](runs/native-evidence/20261009T120055-798091Z/MANIFEST.json) | no — predates the draw-time near cut (round 22 confirmed its occlusion sample) |
 | [20261009T125419-994300Z](runs/native-evidence/20261009T125419-994300Z/MANIFEST.json) | no — predates hierarchical-LOAD, the purple LOW colour and the stored-section instance check (round 23 judged it) |
-| [20261009T175351-583841Z](runs/native-evidence/20261009T175351-583841Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction, coexistence, terrain-LOAD, instance mode, real-LOAD and hierarchical-LOAD judged |
+| [20261009T175351-583841Z](runs/native-evidence/20261009T175351-583841Z/MANIFEST.json) | no — predates the every-frame path (round 24 judged it) |
+| [20261009T182330-214639Z](runs/native-evidence/20261009T182330-214639Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; as above plus hierarchical-LOAD every frame |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1708,7 +1709,7 @@ probe acquires and releases. A third failure was the new gate's own: it compared
 growing meshed count with the build-time log line. It now reconciles the build-time count and
 requires the current count to be at least that.
 
-**Measured** (run [20261009T175351-583841Z](runs/native-evidence/20261009T175351-583841Z/MANIFEST.json), replay 0 in this checkout):
+**Measured** (run [20261009T175351-583841Z](runs/native-evidence/20261009T175351-583841Z/MANIFEST.json), which replayed 0 in the checkout it was built from):
 hierarchical-LOAD, **6 judged samples, zero violations; 82 073 pixels had to show Voxy and did;
 at `horizon` 3 962 had to be hidden behind Minecraft's wall and were.** In the same run real-LOAD
 had 5 judged samples with zero violations: 2 003 must-show shown, and 88 618 must-hide hidden
@@ -1721,6 +1722,43 @@ LoD beyond Minecraft's far plane is clipped. There is no native near cut (Voxy's
 mechanism); near terrain coincides with Minecraft's and is undetermined at bracket grain. A
 device-idle wait per hand-off is safe but blocking, and the scene is rendered only on hand-off
 frames. None of this is a delivered renderer.
+
+### Every frame (2026-10-10)
+
+**What changed.** With `voxy.native.hierframes` (`-PharnessNativeHierFrames`, needs the hierarchical
+flag) the scene is rendered and composited on **every** frame, not only on handed samples. A
+non-handed frame runs one round: wait for Voxy's own previous submission (its frame tracker keeps
+one in flight), service that submission's requests, uniform + `prepare`, `record`,
+`prepareSources`, submit; then the composite in a Minecraft pass. No device-idle wait. Why that is
+enough: after Voxy's fence every Voxy buffer is free for the host; the only Voxy resources
+Minecraft's command buffers touch are the target's two images; Voxy submits on Minecraft's own
+graphics queue after Minecraft submitted the previous frame, and the target's next
+`beginRendering` barrier has ALL_COMMANDS as source, so it orders after the earlier composite's
+reads. Handed samples still run the judged path unchanged (device idle, three rounds, readback).
+Each submission's request buffer is serviced exactly once, whichever path submits next.
+
+**Gated** by `hier_frames_checks`: the report states `everyFrame`, `framesComposited` and
+`frameSkips` (reasons from the skip set); the flag must match the launch; one "hier frames before
+draw N" line per handed sample, counts never falling and never above the report's; frames
+composited between every two consecutive judged samples. Those frames are counted, not judged per
+pixel.
+
+**Found on the way.** The first every-frame run failed the gate on `closeFailures=3`: a build that
+meshed nothing freed its scene and target, then the `finally` block freed them again (the tracked
+object refused the second free before any Vulkan destroy). Never exercised before because handed
+samples rarely met an empty build. The same run spent the build budget on three consecutive nether
+frames; the every-frame path no longer rebuilds where the last build meshed nothing (same engine,
+same camera section), handed samples still may.
+
+**Measured** (run [20261009T182330-214639Z](runs/native-evidence/20261009T182330-214639Z/MANIFEST.json), replay 0 in this checkout):
+**5 145 frames composited** outside the handed samples; hierarchical-LOAD **8 judged samples, zero
+violations**, from `warmup` through `reconnect`; 21 204 pixels had to show Voxy and did, 3 962 had
+to be hidden at `horizon` and were. Real-LOAD in the same launch: 6 judged, zero violations.
+
+**Limits.** As above (Minecraft's projection, no native near cut), plus: one Voxy submission in
+flight (the CPU waits on it each frame), composited at the level-render tail (after Minecraft's
+translucents), and the every-frame frames are not judged per pixel. Still an experiment, off by
+default, inside the ladder launch; not a delivered renderer.
 
 ## What is NOT answered yet, and must be measured on hardware
 

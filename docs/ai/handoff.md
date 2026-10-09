@@ -83,7 +83,8 @@ report separately from any repair.
 | **Terrain-LOAD experiment** (Voxy's real terrain pipeline, depth writes on, into a pass that LOADs MC colour+depth) | **confirmed by r18** as a bounded measurement |
 | **Native instance mode** + MC matrix capture + `horizon` stage | confirmed by r19 (bounded); R19-INSTANCE-INVENTORY / R19-TEST-INSTANCE / R19-DOC-DRIFT repaired in `9caf152d`; **unreviewed** |
 | **Real-section LOAD** + Blaze3D atlas read | **confirmed by r20** (bounded: visible half only); R20 items addressed in `da91d70e`; r21 closed two and found four incomplete, those and two new r21 items addressed in `d0a08faf`; **unreviewed** |
-| **Hierarchical-LOAD** (`McNativeHierarchicalLoad` + `McNativeComposite`, three-way hand-off) | in this HEAD, measured (6 judged, zero violations, 82 073 shown / 3 962 hidden); **unreviewed** |
+| **Hierarchical-LOAD** (`McNativeHierarchicalLoad` + `McNativeComposite`, three-way hand-off) | measured (6 judged, zero violations, 82 073 shown / 3 962 hidden); **round 24 reviews `03461cea`** |
+| **Hierarchical-LOAD every frame** (`voxy.native.hierframes`) | in this HEAD, measured (5 145 frames composited, 8 judged, zero violations); **unreviewed** |
 | **Occlusion** (render-distance cut, `horizon` wall, hidden pixels required) | **confirmed by r22** (one look, bracket grain); R22 residuals (budget-guard test, draw-time cut, wording) addressed after it; **unreviewed** |
 | non-blocking limits (anchor grain, consistent forgery, creator restore, geometry scope, depth-copy scope, recorder binding untested in JUnit) | **stated as limits** |
 
@@ -149,6 +150,10 @@ frame extent, every retained file a manifest member.
   native analogue. 6 judged samples, zero violations, 82 073 must-show shown, 3 962 must-hide
   hidden at `horizon`. Limits: MC's projection (far 2048, no reprojection), no native near cut,
   a device-idle wait per hand-off. Survey section "Voxy's hierarchical pipeline natively".
+- **Every frame** (flag `voxy.native.hierframes`; run `20261009T182330-214639Z`): the same scene rendered and
+  composited on every frame, waiting only for Voxy's own previous submission; 5 145 frames
+  composited, the 8 handed samples judged with zero violations through `reconnect`. Survey
+  section "Every frame".
 - **Occlusion: MC's nearer geometry hides Voxy's real terrain** (run `20261009T120055-798091Z`): at `horizon`, with
   sections inside MC's 128-block render distance cut and a stone wall 20 blocks ahead, 2 003
   pixels had to show Voxy over MC's sky and did, 3 306 had to be hidden behind the wall and
@@ -210,8 +215,8 @@ refusing when the summary says a ladder ran but none is retained.
 Gate/test counts at this HEAD: JUnit 349 (1 documented skip, 0 failures; 8 for the
 terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode,
 4 for real-LOAD);
-Python 292 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T175351-583841Z` (replay 0 **in this
+Python 293 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T182330-214639Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
 round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
@@ -248,10 +253,11 @@ alone, then repair blocking findings in a separate commit.
    boundary, and after round 23 no open code or gate finding remains (its residuals were wording,
    fixed in `32de53c2`). Round 24 is NOT dispatched for wording alone; it goes with the next
    implementation milestone below (owner directive: no evidence-only loops).
-   **Done 2026-10-10 (measured, unreviewed): `McNativeHierarchicalLoad`** — see "What is
-   measured". Next after it: Voxy's own projection with the depth reprojection in the composite
-   (LoD beyond MC's far plane), the native near cut, and per-frame rendering with lifetime tied
-   to MC's submissions instead of a device-idle wait. The original design notes follow.
+   **Done 2026-10-10 (measured, unreviewed): `McNativeHierarchicalLoad`** and its every-frame
+   path (`voxy.native.hierframes`) — see "What is measured". Next: Voxy's own projection (near 16,
+   far 48 000, as `VoxyRenderSystem.computeProjectionMat`) with the depth reprojection of
+   `blit_texture_depth_cutout.frag` in the composite, a larger top radius, and the native near
+   cut. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
    whole hierarchical pipeline natively, the step from "real sections at one level" to Voxy's LoD:
    `VkHierarchicalScene` (real world mapper/bakery, `NodeManager`, HiZ, traversal, prep/cull,
