@@ -469,7 +469,8 @@ of the point — and the replay status of each is:
 | [20261009T080812-119439Z](runs/native-evidence/20261009T080812-119439Z/MANIFEST.json) | no — predates the pinned terrain-LOAD view, the camera capture and the `horizon` stage |
 | [20261009T085529-037358Z](runs/native-evidence/20261009T085529-037358Z/MANIFEST.json) | no — predates real-LOAD and the complete instance inventory (round 19 judged it) |
 | [20261009T100957-766731Z](runs/native-evidence/20261009T100957-766731Z/MANIFEST.json) | no — predates the round-20 real-LOAD reconciliation (round 20 confirmed its 10 judged samples) |
-| [20261009T105825-290625Z](runs/native-evidence/20261009T105825-290625Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction, coexistence, terrain-LOAD, instance mode and real-LOAD judged |
+| [20261009T105825-290625Z](runs/native-evidence/20261009T105825-290625Z/MANIFEST.json) | no — predates occlusion and the round-21 reconciliation (round 21 judged it) |
+| [20261009T120055-798091Z](runs/native-evidence/20261009T120055-798091Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction, coexistence, terrain-LOAD, instance mode and real-LOAD with occlusion judged |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1580,7 +1581,8 @@ experimental and flagged. The depth state is declared, not read back.
 
 **Round-20 review (2026-10-09).** Round 20 ([native-integration-review-r20.md](runs/native-integration-review-r20.md))
 **confirmed the real-section measurement** (10 judged samples recounted, zero violations) and the
-Blaze3D atlas read, and raised six non-blocking findings, repaired in `da91d70e`: skip reasons are
+Blaze3D atlas read, and raised six non-blocking findings; `da91d70e` addressed them, and round 21
+found four of those repairs incomplete (see below): skip reasons are
 now corroborated (log order, probe state, the instance log, the ladder sample); the published
 depth extrema, both projections, far plane, captures, scene facts and stage are reconciled; the
 scene is bound to its world engine and atlas generation and rebuilt when either changes (the gate
@@ -1591,6 +1593,59 @@ re-read when Minecraft replaces it and dropped at shutdown; a test per surviving
 hidden; the atlas was read twice — the resource-reload stage replaced it, the next scene was
 rebuilt with the new generation; no free failures. Occlusion by nearer Minecraft geometry is
 still untested.
+
+**Round-21 review (2026-10-09).** Round 21 ([native-integration-review-r21.md](runs/native-integration-review-r21.md))
+closed R20-REAL-ENGINE-IDENTITY and R20-DESTROY-ACCOUNTING and found the other four repairs
+incomplete: invented scene quads/centre replayed 0; a judged sample could still be concealed as
+a skip whose counters agreed only with themselves; the atlas generation and read count were
+checked against the report's own numbers, not the log; a copy in flight could refill the atlas
+cache after a reset; four guards still had no test of their own; and the handoff claimed more
+than the gate enforced. Repaired in `d0a08faf`: scene facts are capped and equal their numbered
+build log line; skips are corroborated by the build attempts logged before them, by the instance
+lines' capture chronology (no-camera), by the `resize` stage (extent) and by the empty build's
+ordinal (nothing-meshed); the report's builds and atlas reads equal the log, and each sample's
+atlas generation equals the reads logged before it; a copy requested before a reset is discarded
+on arrival, and the cache is also dropped at session end and device release; a test per
+remaining guard. What the gate cannot do — authenticate a coordinated rewrite of report and
+log together — is unchanged and stated, as for every other retained record.
+
+## Occlusion: Minecraft's nearer geometry hides Voxy's real terrain (2026-10-09)
+
+**The gap.** Every earlier real-LOAD sample had zero pixels that had to be hidden: Voxy's real
+meshes either appeared over Minecraft's sky or coincided with Minecraft's own terrain inside one
+bracket (undetermined). Whether Minecraft's nearer geometry hides Voxy's terrain was untested.
+
+**The setup.** Two changes make the hidden half measurable. (1) The real-section scene no
+longer draws sections whose box comes nearer than Minecraft's render distance (128 blocks in the
+harness) — an approximation, at level-3 granularity (256-block sections), of Voxy not drawing
+where vanilla terrain draws; Voxy's own mechanism (the vanilla visible-section stream feeding its
+depth bound) is not implemented natively. (2) The `horizon` look moves to y 160, pitch 18, facing
++x: the ladder band's rays run 4–10° below the horizon, clear the hills Minecraft draws, and meet
+the ground only at x 530+, where only Voxy has terrain (ingested around x 768 during `travel`).
+A stone wall 20 blocks ahead covers the +z half of that terrain; `edit` removes it and returns
+the player to where `edit` always ran. The gate now **requires** a judged sample with pixels
+that must be hidden; without them occlusion is untested and the run fails. The cut is pinned to
+the harness's render distance.
+
+**Getting there.** Two manual (unretained) launches showed why the first geometry decided
+nothing visible: from y 121.6 the Voxy-only terrain lay behind a Minecraft hill at ~100 blocks as
+well as the wall. A first gated run measured occlusion but failed the ladder gate, because the
+frame rate had fallen (real-LOAD's scene builds and device-idle waits run on the render thread)
+and `descend` received no ladder sample. The harness now does not leave a stage the ladder has
+not sampled after it became ready, and the ladder's sample limit is 40 (16 stages).
+
+**Measured** (run [20261009T120055-798091Z](runs/native-evidence/20261009T120055-798091Z/MANIFEST.json), replay 0 in this checkout):
+at `horizon`, **2 003 pixels had to show Voxy's terrain over Minecraft's sky and did, 3 306 had
+to be hidden behind the wall Minecraft draws and were, zero violations, nothing undetermined.**
+Seven judged real-LOAD samples in all, zero violations; the other judged samples hold no Voxy
+geometry in the band now that near sections are cut. The Z direction, coexistence and
+terrain-LOAD are judged in the same run.
+
+**What it does and does not say.** Both halves of per-pixel composition — Voxy's real terrain
+appearing where Minecraft's depth is farther, and hidden where Minecraft's geometry is nearer —
+hold for one look, at bracket grain, with Minecraft's own matrix. It is one look and one wall;
+the near cut is an approximation of Voxy's real mechanism; LoD selection, traversal, culling,
+translucency, lighting and a delivered renderer remain out of scope.
 
 ## What is NOT answered yet, and must be measured on hardware
 

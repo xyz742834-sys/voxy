@@ -81,7 +81,10 @@ sections natively). **Real sections drawn with MC's own matrix into MC's LOADed 
 compose per pixel** (2026-10-09, flag `voxy.native.realload`, run `20261009T100957-766731Z`: 10 judged samples, zero
 violations, 143 425 pixels that had to show Voxy did, none had to be hidden — occlusion by nearer
 MC geometry is untested; Voxy's model bakery now reads MC's block atlas through Blaze3D, not GL,
-in that mode). The probe itself still asserts no convention and the
+in that mode). **Occlusion is measured too** (2026-10-09, run `20261009T120055-798091Z`): at the
+`horizon` look, with sections inside MC's render distance cut and a stone wall MC draws, 2 003
+pixels had to show Voxy and did and 3 306 had to be hidden behind the wall and were, zero
+violations. The probe itself still asserts no convention and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,
 tested behaviourally" and "Round-8 review repairs, and the per-pixel ladder".
 
