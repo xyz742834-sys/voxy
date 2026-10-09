@@ -473,7 +473,8 @@ of the point — and the replay status of each is:
 | [20261009T120055-798091Z](runs/native-evidence/20261009T120055-798091Z/MANIFEST.json) | no — predates the draw-time near cut (round 22 confirmed its occlusion sample) |
 | [20261009T125419-994300Z](runs/native-evidence/20261009T125419-994300Z/MANIFEST.json) | no — predates hierarchical-LOAD, the purple LOW colour and the stored-section instance check (round 23 judged it) |
 | [20261009T175351-583841Z](runs/native-evidence/20261009T175351-583841Z/MANIFEST.json) | no — predates the every-frame path (round 24 judged it) |
-| [20261009T182330-214639Z](runs/native-evidence/20261009T182330-214639Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; as above plus hierarchical-LOAD every frame |
+| [20261009T182330-214639Z](runs/native-evidence/20261009T182330-214639Z/MANIFEST.json) | no — predates the round-24 repairs |
+| [20261009T183706-779208Z](runs/native-evidence/20261009T183706-779208Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; as above with the round-24 repairs (CULL mode) |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1676,7 +1677,9 @@ statements (this paragraph's predecessors) were narrowed.
 **The milestone.** The step from "real sections at one fixed level" to Voxy's own LoD pipeline.
 `McNativeHierarchicalLoad` (flag `voxy.native.hierload`, `-PharnessNativeHierLoad`, needs native
 instance mode) drives `VkHierarchicalScene` — the real world mapper and bakery, `NodeManager`,
-HiZ, traversal, prep/cull, table generation, opaque/temporal/translucent draws, unchanged — with
+HiZ, traversal, prep/cull, table generation, opaque/temporal/translucent draws, unchanged (since
+the round-24 repair in Voxy's production CULL visibility mode; before it the scene ran its
+ALL_VISIBLE test mode, so the raster cull never ran and the temporal pass drew nothing) — with
 **Minecraft's own matrix** on the frames the ladder hands it, into Voxy's own `VkRenderTarget`;
 then **`McNativeComposite`** writes Voxy's colour and depth into a pass that LOADs Minecraft's
 colour and depth, with Voxy's `GREATER_OR_EQUAL` and depth writes on. That is the native
@@ -1699,13 +1702,15 @@ sample to one of three experiments: terrain, real and hierarchical rotate outsid
 and hierarchical rotate inside it. The gate replicates the rule, and the harness waits for one
 sample per eligible experiment.
 
-**Found on the way (both fixed without weakening a guard).** (1) The ladder's LOW colour was
+**Found on the way.** (1) The ladder's LOW colour was
 grey (0.5, 0.5, 0.5). Minecraft's distance-fogged terrain quantises to the same grey ((106, 131,
 128) at `return`), so a rejected-orientation crop looked half drawn and the orientation guard
 refused a real sample. LOW is now dark purple (0.5, 0, 0.5). (2) The instance gate required a
 non-zero *active* section count, which is cache occupancy and read 0 at all 80 samples of a run
-whose engine had ingested. It now requires stored level-0 sections around the camera, which the
-probe acquires and releases. A third failure was the new gate's own: it compared the scene's
+whose engine had ingested. It then required stored level-0 sections around the camera, which the
+probe acquires and releases — and round 24 (R24-INSTANCE-STORED) showed that weakened it: the
+section tracker returns a missing section as a cached all-air placeholder, so the probe's own
+acquires manufactured the count. Since `b6e24c24` a section counts only if it holds a non-air block. A third failure was the new gate's own: it compared the scene's
 growing meshed count with the build-time log line. It now reconciles the build-time count and
 requires the current count to be at least that.
 
@@ -1750,7 +1755,7 @@ samples rarely met an empty build. The same run spent the build budget on three 
 frames; the every-frame path no longer rebuilds where the last build meshed nothing (same engine,
 same camera section), handed samples still may.
 
-**Measured** (run [20261009T182330-214639Z](runs/native-evidence/20261009T182330-214639Z/MANIFEST.json), replay 0 in this checkout):
+**Measured** (run [20261009T182330-214639Z](runs/native-evidence/20261009T182330-214639Z/MANIFEST.json), which replayed 0 in the checkout it was built from):
 **5 145 frames composited** outside the handed samples; hierarchical-LOAD **8 judged samples, zero
 violations**, from `warmup` through `reconnect`; 21 204 pixels had to show Voxy and did, 3 962 had
 to be hidden at `horizon` and were. Real-LOAD in the same launch: 6 judged, zero violations.
@@ -1759,6 +1764,30 @@ to be hidden at `horizon` and were. Real-LOAD in the same launch: 6 judged, zero
 flight (the CPU waits on it each frame), composited at the level-render tail (after Minecraft's
 translucents), and the every-frame frames are not judged per pixel. Still an experiment, off by
 default, inside the ladder launch; not a delivered renderer.
+
+### Round-24 repairs (2026-10-10)
+
+Round 24 judged `03461cea` REDESIGN: DELIVERY-BOUNDARY plus four blocking defects, repaired in
+`b6e24c24`:
+
+- **R24-HIER-CULL.** `VkHierarchicalScene` defaults to its ALL_VISIBLE test mode; the native
+  controller never selected CULL, so the raster cull never ran and the temporal pass was empty. The
+  controller now sets CULL at build and every judged result publishes `visibility`; the gate
+  requires "CULL".
+- **R24-DIRTY-CALLBACK.** A retired scene's queued `free()` set the engine's dirty callback to null,
+  detaching a same-engine replacement's callback. The scene keeps its callback and frees through
+  `WorldEngine.clearDirtyCallbackIf` (owner-checked; the GL renderer's own clear is unchanged).
+- **R24-RETIRED-CONTEXT.** Scenes queued on Minecraft's destroy queue could be destroyed after
+  Voxy's context was released. The three LOAD probes now remember queued scenes; the immediate
+  shutdown (after its device-idle wait) destroys them, and Minecraft's later `destroy()` is a no-op.
+- **R24-INSTANCE-STORED.** See "Found on the way" above: only sections holding a block count.
+- Non-blocking: R24-EMPTY-BUILD was already repaired in `65f26ff1`; R24-HIER-GUARD-COVERAGE has a
+  test per named predicate, each confirmed to fail with its predicate disabled.
+
+**Measured** (run [20261009T183706-779208Z](runs/native-evidence/20261009T183706-779208Z/MANIFEST.json), replay 0 in this checkout): 8
+judged hierarchical samples, all in CULL mode, zero violations (17 878 must-show shown, 3 989
+must-hide hidden), 5 083 frames composited every frame; instance mode up to 27 sections with
+blocks near the camera.
 
 ## What is NOT answered yet, and must be measured on hardware
 
