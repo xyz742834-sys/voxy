@@ -1,0 +1,49 @@
+You are an INDEPENDENT reviewer, round 25. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (043aa11f93ac7791eae9f36c00eaeec9272b8501). Round 24 returned REDESIGN against 03461cea:
+DELIVERY-BOUNDARY plus blocking R24-HIER-CULL, R24-DIRTY-CALLBACK, R24-RETIRED-CONTEXT,
+R24-INSTANCE-STORED; non-blocking R24-HIER-GUARD-COVERAGE, R24-EMPTY-BUILD. Report:
+docs/ai/runs/native-integration-review-r24.md, machine verdict ...-r24.json.
+
+Since 03461cea:
+- 2fd2a14a / 65f26ff1: every-frame path (flag voxy.native.hierframes, -PharnessNativeHierFrames):
+  on frames the ladder does not hand over, McNativeHierarchicalLoad.drawEveryFrame renders one
+  round and composites into Minecraft's frame, waiting only for Voxy's own previous submission
+  (frame tracker, one in flight) instead of a device-idle wait; handed samples keep the judged path.
+  Requests serviced once per submission (requestsUnread). Gate: hier_frames_checks. 65f26ff1 fixed
+  the empty-build double free (R24-EMPTY-BUILD) and stopped the every-frame path rebuilding where
+  the last build meshed nothing.
+- b6e24c24: R24-HIER-CULL (scene set to Visibility.CULL at build; judged results publish
+  visibility; gate requires CULL); R24-DIRTY-CALLBACK (scene keeps its callback,
+  WorldEngine.clearDirtyCallbackIf); R24-RETIRED-CONTEXT (QUEUED list in the hierarchical, real and
+  terrain LOAD probes, destroyed by shutdownImmediate); R24-INSTANCE-STORED (only sections holding a
+  non-air block count, McNativeInstanceProbe.holdsABlock); R24-HIER-GUARD-COVERAGE (a test per named
+  predicate).
+Run docs/ai/runs/native-evidence/20261009T183706-779208Z (built from b6e24c24): 8 judged hierarchical samples in CULL
+mode, zero violations, 5083 frames composited every frame.
+
+The boundary from rounds 4-24 still governs and the candidate accepts it. Judge, CONFIRMED or
+REFUTED with file/line or command:
+1. Each R24 finding: re-run your reproduction (source contracts, guard removals, instance-cache
+   contract) against this HEAD; name any survivor.
+2. The every-frame path's submission and resource lifetime: the claim that waiting for Voxy's own
+   fence plus same-queue order and the target's ALL_COMMANDS barrier is sufficient (uniform/host
+   writes, the composite's reads of the target, request servicing, retirement while a Voxy
+   submission or a Minecraft frame is in flight, shutdown). Also the empty-rebuild suppression.
+3. Gate soundness of hier_frames_checks and the CULL requirement (guard removals).
+4. Recount at least one hierarchical sample of the new run, preferably horizon and descend.
+5. Survey/handoff/current-state overstatement, including the corrected round-24 claims.
+6. Safety for normal play with every voxy.native.* flag unset, on GL and Minecraft Vulkan; the
+   WorldEngine and VkHierarchicalScene changes leave the GL renderer's behaviour unchanged.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T183706-779208Z
+Do NOT run scripts/verify.py --only native or --only live; judge the committed evidence.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round24_findings_closed (mapping
+each R24 id to true/false), every_frame_judgment, hier_load_judgment, composite_judgment,
+lifetime_judgment, instance_mode_judgment, real_load_judgment, ladder_judgment.

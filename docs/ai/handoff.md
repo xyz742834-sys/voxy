@@ -1,7 +1,7 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-25 candidate = the docs commit after `b6e24c24` (the dispatch commit names it): every-frame
+`vulkan-macos`, round-25 candidate **043aa11f** (dispatched 2026-10-10, worktree `native-review-r25`): every-frame
 hierarchical-LOAD and the round-24 repairs. Round 24 judged `03461cea`: REDESIGN (DELIVERY-BOUNDARY + four defects, repaired). Round 23 judged `14743bf4`: REDESIGN on DELIVERY-BOUNDARY
 only; no open code or gate finding; its wording residuals fixed in `32de53c2`. Round 22 judged `8ba67fc5`: REDESIGN on DELIVERY-BOUNDARY only; occlusion CONFIRMED;
 four R21 items closed; three non-blocking residuals addressed in `5476545d`. Round 21 judged `03ee3485`: REDESIGN on DELIVERY-BOUNDARY only; two R20 items closed;
@@ -231,9 +231,9 @@ gate, which is expected and tabled in the survey.
 
 Round 24 (`03461cea`) returned REDESIGN: DELIVERY-BOUNDARY plus R24-HIER-CULL, R24-DIRTY-CALLBACK,
 R24-RETIRED-CONTEXT, R24-INSTANCE-STORED (report `docs/ai/runs/native-integration-review-r24.md`);
-all repaired in `b6e24c24` (survey "Round-24 repairs"). Round 25 is dispatched on the docs commit
-after it with `docs/ai/runs/native-review-prompt-r25.txt` (check `git log` for "record the round-25
-dispatch"). When its report lands: copy it to `docs/ai/runs/native-integration-review-r25.{md,json}`,
+all repaired in `b6e24c24` (survey "Round-24 repairs"). Round 25 was dispatched 2026-10-10 against
+`043aa11f` (`043aa11f93ac7791eae9f36c00eaeec9272b8501`) with `docs/ai/runs/native-review-prompt-r25.txt`
+(worktree `native-review-r25`, terminal `term_fd52ecc9-f364-413b-abfb-02304e8899a4`). When its report lands: copy it to `docs/ai/runs/native-integration-review-r25.{md,json}`,
 commit the report alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
