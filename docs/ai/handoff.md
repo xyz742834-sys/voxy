@@ -88,7 +88,8 @@ report separately from any repair.
 | **Hierarchical-LOAD every frame** (`voxy.native.hierframes`) | **confirmed by r25** within source/specification and retained-run scope (own fence + same queue + target barriers); ordinary-frame pixels not judged; R25-FRAME-ACCOUNTING (totals unbounded) addressed after it — the gate reconciles composited + skipped + handed with the ladder's frames; **unreviewed** |
 | **Product switch `voxy.native.render`** + third gated launch (`345ebde7`, `c4ddb119`) | measured (5 235 frames composited with the switch alone, every required stage, clean); **unreviewed** |
 | **R26 findings** | PROJECTION-EQUIVALENCE, COMPOSITE-DOC-SCOPE closed by r27; LADDER-GUARD-COVERAGE completed after r27 |
-| **R27 findings** (EMPTY-REBUILD, RENDER-DISABLE, RENDER-GATE, CONTEXT-DRIFT) | repaired in `8d241b40`; **unreviewed** |
+| **R27 findings** (EMPTY-REBUILD, RENDER-DISABLE, RENDER-GATE, CONTEXT-DRIFT) | repaired in `8d241b40`; **round 28 reviews `10856154`** |
+| **Streaming like GL** (`155673fb`, `6a15b446`) | measured (1 802 top-level nodes, 5 609 product frames incl. nether, 8 judged zero violations); **unreviewed** |
 | **Voxy's GL composition rule + ladder CLEAR class** (`6dffc1b4`) | measured (8 judged, every Voxy pixel decided: 23 359 shown, 350 597 kept Minecraft's, zero violations); **unreviewed** |
 | **Voxy's own projection + reprojecting resolve** (`429ce46a`) | measured (8 judged, zero violations, every reference depth re-derived); **unreviewed** (after the round-25 candidate) |
 | **R24 findings** | HIER-CULL, DIRTY-CALLBACK, RETIRED-CONTEXT, INSTANCE-STORED, EMPTY-BUILD **closed by r25**; HIER-GUARD-COVERAGE **partly**: the seven hierarchy-specific predicates are detected, the 27 shared-helper predicates are detected only by the real-LOAD tests (stated, not repaired) |
@@ -222,8 +223,8 @@ refusing when the summary says a ladder ran but none is retained.
 Gate/test counts at this HEAD: JUnit 354 (1 documented skip, 0 failures; 8 for the
 terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode,
 4 for real-LOAD);
-Python 317 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T224733-249406Z` (replay 0 **in this
+Python 318 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T232453-026460Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
 round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
@@ -265,9 +266,9 @@ commit the report alone, then repair.
    **Done 2026-10-10 (measured, unreviewed): `McNativeHierarchicalLoad`** and its every-frame
    path (`voxy.native.hierframes`), and Voxy's own projection with the reprojecting resolve
    (`429ce46a`), Voxy's GL composition rule (`6dffc1b4`) and the product switch (`345ebde7`) — see
-   the survey. Next, in round 27's readiness order: the scene streamed at Voxy's configured radius
-   (port `RenderDistanceTracker`), then the composite before Minecraft's translucents with a native
-   near cut, then lighting/fog, pressure and long sessions. Default-on (the kill switch
+   the survey. Done in round 27's readiness order: the scene streamed at Voxy's configured radius
+   (`155673fb`). Next: the composite before Minecraft's translucents with a native near cut, then
+   lighting/fog, pressure and long sessions. Default-on (the kill switch
    `voxy.native.disable` exists) waits for those. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
    whole hierarchical pipeline natively, the step from "real sections at one level" to Voxy's LoD:

@@ -479,7 +479,8 @@ of the point — and the replay status of each is:
 | [20261009T200758-879288Z](runs/native-evidence/20261009T200758-879288Z/MANIFEST.json) | no — predates the product switch and its launch (round 26 judges it) |
 | [20261009T203836-462316Z](runs/native-evidence/20261009T203836-462316Z/MANIFEST.json) | no — predates the round-26 repairs |
 | [20261009T213621-341358Z](runs/native-evidence/20261009T213621-341358Z/MANIFEST.json) | no — predates the round-27 repairs |
-| [20261009T224733-249406Z](runs/native-evidence/20261009T224733-249406Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, with the round-27 repairs |
+| [20261009T224733-249406Z](runs/native-evidence/20261009T224733-249406Z/MANIFEST.json) | no — predates streaming (round 28 judges its repairs) |
+| [20261009T232453-026460Z](runs/native-evidence/20261009T232453-026460Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, the scene streaming like Voxy's GL renderer |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1941,10 +1942,38 @@ lifecycle transitions, gate coverage, far-world evidence). Repaired in `8d241b40
 - **R27-CONTEXT-DRIFT.** project-goal, current-state and architecture no longer say no native path
   exists; they distinguish default-off experiments from accepted delivery.
 
-**Measured** (run [20261009T224733-249406Z](runs/native-evidence/20261009T224733-249406Z/MANIFEST.json), replay 0 in this checkout): the
+**Measured** (run [20261009T224733-249406Z](runs/native-evidence/20261009T224733-249406Z/MANIFEST.json), which replayed 0 in the checkout it was built from): the
 product switch alone composited 5 301 frames in every required stage under the strengthened gate;
 the ladder judged 8 hierarchical samples, zero violations, none undetermined. The nether stage is
 shorter than the 600-call retry, so its empty build is not retried there.
+
+### Streaming like Voxy's GL renderer (2026-10-10)
+
+**What changed** (`155673fb`, `6a15b446`). The first item of round 27's default-on list. The
+hierarchical scene no longer meshes a fixed region around the camera at build and rebuilds when the
+camera leaves it; it streams the way `VoxyRenderSystem` does: GL's own `RenderDistanceTracker` on the
+scene's `NodeManager` (`VkHierarchicalScene.startStreaming`/`stream`), a ring of top-level (level-4,
+512-block) columns at `ceil(sectionRenderDistance + 1)` around the camera, over the level's section
+range (`getMinSectionY() >> 5 .. (getMaxSectionY() - 1) >> 5`), up to 40 columns added or removed per
+call; their geometry arrives through `serviceRequests` like every request. The stream advances only
+after the fence wait (removing a column frees geometry a submission may read), in the judged path's
+iterations and on every frame. A scene is rebuilt only when the engine, extent or atlas changes. Both
+gates require streaming at the configured distance with at least one top-level node held
+(`hier_stream_problem`; the build line now states the streamed distance and section range).
+
+**Found on the way.** The first streamed run threw in Voxy's `ModelFactory`
+(`Biome.getFoliageColor` on a null biome): `populate()` had replayed the world's registered biomes
+into the bakery, streaming did not, so the biome list kept null gaps that the per-model colour pass
+dereferences. `startStreaming` now replays them first, as `VoxyRenderSystem` feeds
+`getBiomeEntries()` to its model service at creation. The probe also logs the stack of a caught
+failure. (After that exception a frame was left mid-recording and validation reported a descriptor
+layout mismatch in the next composite; that only follows a failed experiment, which fails the gate.)
+
+**Measured** (run [20261009T232453-026460Z](runs/native-evidence/20261009T232453-026460Z/MANIFEST.json), replay 0 in this checkout): up to
+**1 802 top-level nodes** held at the default distance (17 columns), up to 7 291 sections meshed by a
+judged sample; the product switch alone composited **5 609 frames, the nether included (288)**, with
+no skip but the atlas wait; the ladder judged 8 samples by Voxy's GL rule, zero violations, nothing
+undetermined, 32 244 must-show pixels shown (21 204 with the fixed region).
 
 ## What is NOT answered yet, and must be measured on hardware
 
