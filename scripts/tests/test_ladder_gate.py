@@ -293,6 +293,8 @@ def terrain_depth(width, height, kind="sweep"):
             t = x / max(1, width)
             if kind == "near-only":
                 d = 0.5
+            elif kind == "none":
+                d = 0.0
             elif t < 1 / 3:
                 d = 0.0
             elif t < 0.55:
@@ -413,13 +415,22 @@ def terrain_log_for(entries):
                    + f" depth=[{e['minDepth']} {e['maxDepth']}]\n" for e in entries)
 
 
-def terrain_report(entries, **overrides):
-    body = {"enabled": True, "attempted": True, "built": True, "drawsRecorded": len(entries),
+def terrain_report(entries, reference_set=None, **overrides):
+    """The probe's report, consistent with the fixtures: the view the source lays out, the
+    matrix recomputed from it, the frame extent, the sweep's ten draws and the reference pixel
+    count (geometry pixels of the last sample's depth field, which the fixture writes as the
+    reference crop)."""
+    body = {"enabled": True, "attempted": True, "built": True, "live": False,
+            "drawsRecorded": len(entries),
             "width": FULL_W, "height": FULL_H, "colourFormat": 37, "depthFormat": 126,
-            "scene": "depthSweep", "eye": [80.0, 8.0, 0.0], "centre": [80.0, 2.0, 300.0],
-            "fovDegrees": 60.0, "near": 0.1, "far": 2000.0, "fitMargin": 0.05,
-            "mvp": [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
-            "drawCount": 10, "referenceSet": 1234, "declaredDepthState": [6, 1, 1],
+            "scene": "depthSweep", "eye": list(verify.TERRAIN_LOAD_EYE),
+            "centre": list(verify.TERRAIN_LOAD_CENTRE),
+            "fovDegrees": verify.TERRAIN_LOAD_FOV_DEGREES, "near": verify.TERRAIN_LOAD_NEAR,
+            "far": verify.TERRAIN_LOAD_FAR, "fitMargin": verify.TERRAIN_LOAD_FIT_MARGIN,
+            "mvp": verify.terrain_load_expected_mvp(FULL_W, FULL_H),
+            "drawCount": verify.TERRAIN_LOAD_DRAW_COUNT,
+            "referenceSet": reference_set if reference_set is not None else 1234,
+            "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "ladderEnabled": True,
             "results": [dict(e) for e in entries], "problems": 0, "firstProblem": None,
             "closeFailures": 0, "leakedScenes": 0, "leakBudget": 3, "deviceDiverged": False,
@@ -466,7 +477,11 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
                   coexist=[dict(e) for e in coexist_entries] if coexist else [],
                   terrainLoadEnabled=terrain,
                   terrainLoadDrawsRecorded=len(terrain_entries) if terrain else 0)
-    tl = terrain_report(terrain_entries) if terrain else None
+    reference_set = None
+    if terrain:
+        last_depth = terrain_depth(len(pairs[-1][1][0]), len(pairs[-1][1]), depth_kind)
+        reference_set = sum(1 for row in last_depth for d in row if d > 0.0)
+    tl = terrain_report(terrain_entries, reference_set=reference_set) if terrain else None
     if tl is not None:
         (out / "native-terrain-load.json").write_text(json.dumps(tl))
     text = log_for(body["samples"])

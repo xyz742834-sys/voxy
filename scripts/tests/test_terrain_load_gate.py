@@ -163,8 +163,8 @@ class TerrainLoadGateTest(unittest.TestCase):
             (lambda t: t.update(depthFormat=130), "depth format is 130"),
             (lambda t: t.update(mvp=[1.0] * 15), "not 16 finite numbers"),
             (lambda t: t.update(mvp=[float("nan")] + [1.0] * 15), "not 16 finite numbers"),
-            (lambda t: t.update(drawCount=0), "nothing was drawn"),
-            (lambda t: t.update(referenceSet=0), "nothing was drawn"),
+            (lambda t: t.update(drawCount=0), "not the 10 the depth sweep issues"),
+            (lambda t: t.update(referenceSet=0), "drew nothing"),
             (lambda t: t.update(notes=["FAILED"]), "reported notes"),
             (lambda t: t.update(problems=1), "problems=1"),
             (lambda t: t.update(closeFailures=1), "closeFailures=1"),
@@ -263,6 +263,55 @@ class TerrainLoadGateTest(unittest.TestCase):
             write_gz_f32(out / entry["referenceDepthFile"], [[0.0] * len(rows[0]) for _ in rows])
         result = self.run_gate(mutate_files=empty)
         self.assertFalse(result["success"])
+        # Round-18 R18-TEST-TERRAINLOAD: with every count, extremum and log line honestly
+        # saying "no geometry" (and a reference set that claims one pixel, so the earlier
+        # referenceSet=0 refusal does not fire first), only the geometry guard itself refuses
+        self.assertRefused(self.run_gate(depth_kind="none",
+                                         mutate_terrain=lambda t: t.update(referenceSet=1)),
+                           "holds no geometry in the band")
+        # an honest empty reference is refused earlier, by the reference-set guard
+        self.assertRefused(self.run_gate(depth_kind="none"), "drew nothing")
+        # ... and an extremum published where there is no geometry is refused by its own guard
+        def claim(tl):
+            tl["referenceSet"] = 1
+            tl["results"][0]["minDepth"] = 0.5
+        self.assertRefused(self.run_gate(depth_kind="none", mutate_terrain=claim),
+                           "with no geometry in the band")
+
+    def test_terrain_load_files_retained_while_off_fail(self):
+        """Round-18 R18-TEST-TERRAINLOAD: the orphan guard on the off branch had no test."""
+        def stray(out, tl):
+            write_gz_ppm(out / "native-terrain-load-77.ppm.gz", [[TERRAIN_REF]])
+        result = self.run_gate(terrain=False, require=False, mutate_files=stray)
+        self.assertRefused(result, "retained although the experiment was off")
+
+    def test_the_published_view_and_scene_facts_are_pinned(self):
+        """Round-18 R18-TERRAIN-METADATA: a zero matrix, a fictitious eye, a 1x1 extent, a
+        draw count and reference set of 1 and near 999 all passed."""
+        cases = [
+            (lambda t: t.update(mvp=[0.0] * 16), "mvp[0]"),
+            (lambda t: t.update(eye=[1.0, 2.0, 3.0]), "eye is"),
+            (lambda t: t.update(centre=[0.0, 0.0, 0.0]), "centre is"),
+            (lambda t: t.update(width=1, height=1), "scene is 1x1"),
+            (lambda t: t.update(drawCount=1), "drawCount=1"),
+            (lambda t: t.update(referenceSet=1), "referenceSet=1 but"),
+            (lambda t: t.update(near=999.0), "near is 999.0"),
+            (lambda t: t.update(far=10.0), "far is 10.0"),
+            (lambda t: t.update(fovDegrees=90), "fovDegrees is 90"),
+            (lambda t: t.update(fitMargin=0.5), "fitMargin is 0.5"),
+            (lambda t: t.pop("near"), "does not state near"),
+        ]
+        for mutate, fragment in cases:
+            self.assertRefused(self.run_gate(mutate_terrain=mutate), fragment)
+        # the recomputed matrix matches the retained run's published one
+        import json as _json
+        run = Path(__file__).resolve().parents[2] / "docs" / "ai" / "runs" / "native-evidence"
+        newest = sorted(p for p in run.iterdir() if (p / "ladder" / "native-terrain-load.json").is_file())
+        if newest:
+            report_body = _json.loads((newest[-1] / "ladder" / "native-terrain-load.json").read_text())
+            want = verify.terrain_load_expected_mvp(report_body["width"], report_body["height"])
+            for got, exp in zip(report_body["mvp"], want):
+                self.assertLess(abs(got - exp), 1e-4 * max(1.0, abs(exp)))
 
     def test_the_expectation_rule_matches_the_java_rule(self):
         z = verify.EXPECTED_LADDER_DEPTHS

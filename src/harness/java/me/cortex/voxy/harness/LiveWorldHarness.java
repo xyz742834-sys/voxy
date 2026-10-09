@@ -50,8 +50,16 @@ public final class LiveWorldHarness implements ClientModInitializer {
     private long editVersion;
     private static final String WORLD = "voxy-harness";
     private static final String[] STAGES = {"create", "warmup", "turn", "travel", "return",
-        "edit", "remove", "resize", "reload", "nether", "overworld", "descend", "ascend",
-        "disconnect", "reconnect"};
+        "horizon", "edit", "remove", "resize", "reload", "nether", "overworld", "descend",
+        "ascend", "disconnect", "reconnect"};
+    /**
+     * The `horizon` look: back at spawn after the travel to x = 768, facing +x (yaw -90) with
+     * the camera 15° down. Minecraft renders terrain to 8 chunks; the sections ingested around
+     * x = 768 (±128 blocks) are Voxy-only, 640–896 blocks away, 3.5–4.9° below horizontal, inside
+     * the native depth ladder's band (rays 1–9° below) where Minecraft shows sky. The real-section
+     * LOAD experiment's expected-visible pixels come from this look.
+     */
+    static final int HORIZON_YAW = -90, HORIZON_PITCH = 15;
     /**
      * The Z-direction experiment: the same ground, looked at straight down from two heights.
      * The depth ladder (its own launch) samples both; the gate compares the brackets. The
@@ -112,7 +120,7 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 advance();
                 return;
             }
-            if (stage == 13) {
+            if (stage == 14) {
                 if (mc.level != null || mc.hasSingleplayerServer()) return;
                 advance();
                 return;
@@ -124,9 +132,12 @@ public final class LiveWorldHarness implements ClientModInitializer {
             if (stage == 2 && elapsed < dwell) {
                 mc.player.setYRot((float) (elapsed * 180));
                 mc.player.setXRot(30);
-            } else if (stage == 11 || stage == 12) {
+            } else if (stage == 12 || stage == 13) {
                 mc.player.setYRot(0);
                 mc.player.setXRot(90);
+            } else if (stage == 5) {
+                mc.player.setYRot(HORIZON_YAW);
+                mc.player.setXRot(HORIZON_PITCH);
             } else {
                 mc.player.setYRot(0);
                 mc.player.setXRot(30);
@@ -185,47 +196,49 @@ public final class LiveWorldHarness implements ClientModInitializer {
             }
             case 3 -> command(mc, "tp @s 768 120 0 0 30");
             case 4 -> command(mc, "tp @s 0 120 0 0 30");
-            case 5 -> {
+            case 5 -> command(mc, "tp @s 0 120 0 " + HORIZON_YAW + " " + HORIZON_PITCH);
+            case 6 -> {
                 if (!nativeMode) editVersion = VkInteropProbe.meshVersionAt(0, 104, 24);
                 command(mc, "fill -8 100 20 8 108 28 minecraft:glass");
             }
-            case 6 -> {
+            case 7 -> {
                 if (!nativeMode) editVersion = VkInteropProbe.meshVersionAt(0, 104, 24);
                 command(mc, "fill -8 100 20 8 108 28 minecraft:air");
             }
-            case 7 -> mc.getWindow().setWindowed(960, 540);
-            case 8 -> reload = mc.reloadResourcePacks();
-            case 9 -> command(mc, "execute in minecraft:the_nether run tp @s 0 100 0 0 30");
-            case 10 -> command(mc, "execute in minecraft:overworld run tp @s 0 120 0 0 30");
-            case 11 -> {
+            case 8 -> mc.getWindow().setWindowed(960, 540);
+            case 9 -> reload = mc.reloadResourcePacks();
+            case 10 -> command(mc, "execute in minecraft:the_nether run tp @s 0 100 0 0 30");
+            case 11 -> command(mc, "execute in minecraft:overworld run tp @s 0 120 0 0 30");
+            case 12 -> {
                 // the highest motion-blocking block under (0, 0) in the loaded chunk: the
                 // ground the two looks straight down compare against
                 groundY = mc.level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING, 0, 0);
                 command(mc, "tp @s 0 " + (groundY + DESCEND_ABOVE_GROUND) + " 0 0 90");
             }
-            case 12 -> command(mc, "tp @s 0 " + (groundY + ASCEND_ABOVE_GROUND) + " 0 0 90");
-            case 13 -> mc.disconnect(new TitleScreen(), false);
-            case 14 -> mc.createWorldOpenFlows().openWorld(WORLD, () -> {});
+            case 13 -> command(mc, "tp @s 0 " + (groundY + ASCEND_ABOVE_GROUND) + " 0 0 90");
+            case 14 -> mc.disconnect(new TitleScreen(), false);
+            case 15 -> mc.createWorldOpenFlows().openWorld(WORLD, () -> {});
             default -> { }
         }
     }
 
     private boolean ready(Minecraft mc) {
         return switch (stage) {
-            case 1, 4, 10 -> mc.level.dimension() == Level.OVERWORLD && near(mc, 0, 120, 0);
+            case 1, 4, 11 -> mc.level.dimension() == Level.OVERWORLD && near(mc, 0, 120, 0);
             case 3 -> near(mc, 768, 120, 0);
-            case 5 -> mc.level.getBlockState(new BlockPos(0, 104, 24)).is(Blocks.GLASS)
+            case 5 -> near(mc, 0, 120, 0);
+            case 6 -> mc.level.getBlockState(new BlockPos(0, 104, 24)).is(Blocks.GLASS)
                 && (nativeMode || VkInteropProbe.meshVersionAt(0, 104, 24) > editVersion);
-            case 6 -> mc.level.getBlockState(new BlockPos(0, 104, 24)).isAir()
+            case 7 -> mc.level.getBlockState(new BlockPos(0, 104, 24)).isAir()
                 && (nativeMode || VkInteropProbe.meshVersionAt(0, 104, 24) > editVersion);
-            case 7 -> mc.getWindow().getScreenWidth() == 960 && mc.getWindow().getScreenHeight() == 540;
-            case 8 -> {
+            case 8 -> mc.getWindow().getScreenWidth() == 960 && mc.getWindow().getScreenHeight() == 540;
+            case 9 -> {
                 if (reload.isCompletedExceptionally()) reload.join();
                 yield reload.isDone();
             }
-            case 9 -> mc.level.dimension() == Level.NETHER && near(mc, 0, 100, 0);
-            case 11 -> groundY != Integer.MIN_VALUE && near(mc, 0, groundY + DESCEND_ABOVE_GROUND, 0);
-            case 12 -> groundY != Integer.MIN_VALUE && near(mc, 0, groundY + ASCEND_ABOVE_GROUND, 0);
+            case 10 -> mc.level.dimension() == Level.NETHER && near(mc, 0, 100, 0);
+            case 12 -> groundY != Integer.MIN_VALUE && near(mc, 0, groundY + DESCEND_ABOVE_GROUND, 0);
+            case 13 -> groundY != Integer.MIN_VALUE && near(mc, 0, groundY + ASCEND_ABOVE_GROUND, 0);
             default -> true;
         };
     }

@@ -950,7 +950,9 @@ was suspect. A run with the depth flag alone gave the same result, but **that ru
 never committed**, so a reader cannot check it from this repository; round 7 recorded it as
 `isolated_run_independently_confirmed: false` and was right to. What is retained and checkable is
 the all-zero depth of the normal native stage. The isolated observation happened and is reported
-here as an observation, not as retained proof.
+here as an observation, not as retained proof. (Round 18 refined "all-zero": the newest run's
+16-bit copy holds 55 841 code-1 samples among 1 639 680 — near-zero and in the lowest histogram
+bin, not uniformly zero; raw floats are not retained, so this says no more about the cause.)
 
 **A completed transfer is not an observation.** The conclusion is negative and bounded: this
 path does not observe Minecraft's scene depth. The Z convention is **unmeasured**, and the probe

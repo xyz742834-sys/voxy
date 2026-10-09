@@ -42,8 +42,10 @@ is synthetic and the probe clears Minecraft's frame to make the comparison meani
 
 Measured and negative, so it does not become a hidden assumption: **Minecraft's scene depth is
 not observable through `copyTextureToBuffer`** at the level-render tail. The copy completes and
-every pixel of the 1708x960 D32_SFLOAT image is 0.0 (its cause is not established; the direction
-was later measured by the ladder, below).
+every pixel of the 1708x960 D32_SFLOAT image fell in the lowest histogram bin — the first run
+read 0.0 everywhere; round 18 found the newest run's 16-bit copy holds 55 841 code-1 samples among
+1 639 680, i.e. near-zero, not uniformly zero (raw floats are not retained). Its cause is not
+established; the direction was later measured by the ladder, below.
 See the survey section of the same name.
 
 Measured behaviourally (2026-10-07), behind a sixth default-off flag (`voxy.native.depthladder`):

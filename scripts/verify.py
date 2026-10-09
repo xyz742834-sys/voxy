@@ -273,8 +273,8 @@ def run_stage(name, arguments, output, timeout):
 # The harness's checkpointed lifecycle stages (LiveWorldHarness.STAGES minus "create" and
 # "disconnect", which checkpoint nothing). "descend" and "ascend" are the Z-direction
 # experiment: the same ground looked at straight down from two heights above it.
-LIFECYCLE_STAGES = ("warmup", "turn", "travel", "return", "edit", "remove", "resize", "reload",
-                    "nether", "overworld", "descend", "ascend", "reconnect")
+LIFECYCLE_STAGES = ("warmup", "turn", "travel", "return", "horizon", "edit", "remove", "resize",
+                    "reload", "nether", "overworld", "descend", "ascend", "reconnect")
 DESCEND_ABOVE_GROUND, ASCEND_ABOVE_GROUND = 12, 108   # LiveWorldHarness.*_ABOVE_GROUND
 PLAYER_EYE_HEIGHT = 1.62                              # Minecraft's standing eye height
 
@@ -1610,6 +1610,93 @@ TERRAIN_LOAD_LOG = re.compile(r"terrain load at draw (\d+) "
                               + " ".join(f"{name}=(\\d+)" for name in TERRAIN_LOAD_COUNTS)
                               + r" depth=\[")
 TERRAIN_LOAD_COLOUR_FORMAT, TERRAIN_LOAD_DEPTH_FORMAT = 37, 126   # R8G8B8A8_UNORM, D32_SFLOAT
+# The view McNativeTerrainLoad lays out, pinned (round-18 review R18-TERRAIN-METADATA: the
+# published eye/matrix/extent/counters were not reconciled with anything).
+TERRAIN_LOAD_EYE, TERRAIN_LOAD_CENTRE, TERRAIN_LOAD_UP = [80.0, 8.0, 0.0], [80.0, 2.0, 300.0], [0.0, 1.0, 0.0]
+TERRAIN_LOAD_FOV_DEGREES, TERRAIN_LOAD_NEAR, TERRAIN_LOAD_FAR, TERRAIN_LOAD_FIT_MARGIN = 60.0, 0.1, 2000.0, 0.05
+TERRAIN_LOAD_DRAW_COUNT = 10            # five depthSweep sections, UP and NORTH faces each
+TERRAIN_LOAD_CLEAR_RGB = (13, 13, 26)   # McNativeTerrainLoad.CLEAR as RGBA8 bytes
+
+
+def terrain_load_cells():
+    """SyntheticTerrain.depthSweep().opaqueQuadCells(): five sections (2, 0, k), k in
+    {1, 2, 4, 8, 16}, 32 UP quads then 64 NORTH quads, quad k at (k & 31, k >> 5 & 31, k >> 10 & 31)
+    in blocks from the section origin (section coordinate times 32), unit cells."""
+    cells = []
+    for k in (1, 2, 4, 8, 16):
+        ox, oy, oz = 2 * 32, 0, k * 32
+        for q in range(96):
+            px, py, pz = q & 31, (q >> 5) & 31, (q >> 10) & 31
+            cells.append((ox + px, oy + py, oz + pz, ox + px + 1, oy + py + 1, oz + pz + 1))
+    return cells
+
+
+def _mat_perspective(fovy_rad, aspect, near, far):
+    f = 1.0 / math.tan(fovy_rad * 0.5)
+    m = [0.0] * 16
+    m[0], m[5], m[10], m[11], m[14] = f / aspect, f, near / (far - near), -1.0, far * near / (far - near)
+    return m
+
+
+def _mat_look_at(eye, centre, up):
+    def norm(v):
+        l = math.sqrt(sum(c * c for c in v))
+        return [c / l for c in v]
+
+    def cross(a, b):
+        return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
+
+    fwd = norm([c - e for c, e in zip(centre, eye)])
+    side = norm(cross(fwd, up))
+    u = cross(side, fwd)
+    dot = lambda a, b: sum(x * y for x, y in zip(a, b))
+    m = [0.0] * 16
+    m[0], m[4], m[8], m[12] = side[0], side[1], side[2], -dot(side, eye)
+    m[1], m[5], m[9], m[13] = u[0], u[1], u[2], -dot(u, eye)
+    m[2], m[6], m[10], m[14] = -fwd[0], -fwd[1], -fwd[2], dot(fwd, eye)
+    m[15] = 1.0
+    return m
+
+
+def _mat_mul(a, b):
+    return [sum(a[k * 4 + row] * b[c * 4 + k] for k in range(4)) for c in range(4) for row in range(4)]
+
+
+def _mat_project(m, x, y, z):
+    cx = m[0] * x + m[4] * y + m[8] * z + m[12]
+    cy = m[1] * x + m[5] * y + m[9] * z + m[13]
+    cz = m[2] * x + m[6] * y + m[10] * z + m[14]
+    cw = m[3] * x + m[7] * y + m[11] * z + m[15]
+    return cx / cw, cy / cw, cz / cw
+
+
+def terrain_load_footprint(m, cells):
+    xs, ys, zs = [], [], []
+    for c in cells:
+        for i in range(8):
+            x, y, z = _mat_project(m, c[3 if i & 1 else 0], c[4 if i & 2 else 1], c[5 if i & 4 else 2])
+            xs.append(x); ys.append(y); zs.append(z)
+    return min(xs), min(ys), max(xs), max(ys), min(zs), max(zs)
+
+
+def terrain_load_expected_mvp(width, height):
+    """McNativeTerrainLoad.mvp(width, height), recomputed: Voxy's perspective (reverse-Z, GL y)
+    and lookAt, then the NDC affine map that fits the sweep's footprint inside the ladder band
+    with the margin, leaving depth untouched."""
+    pv = _mat_mul(_mat_perspective(math.radians(TERRAIN_LOAD_FOV_DEGREES), width / height,
+                                   TERRAIN_LOAD_NEAR, TERRAIN_LOAD_FAR),
+                  _mat_look_at(TERRAIN_LOAD_EYE, TERRAIN_LOAD_CENTRE, TERRAIN_LOAD_UP))
+    x0, y0, x1, y1, _, _ = terrain_load_footprint(pv, terrain_load_cells())
+    band = EXPECTED_LADDER_BAND
+    bx0, bx1 = min(band[0], band[2]), max(band[0], band[2])
+    by0, by1 = min(band[1], band[3]), max(band[1], band[3])
+    mx, my = (bx1 - bx0) * TERRAIN_LOAD_FIT_MARGIN, (by1 - by0) * TERRAIN_LOAD_FIT_MARGIN
+    sx = (bx1 - bx0 - 2 * mx) / (x1 - x0)
+    sy = (by1 - by0 - 2 * my) / (y1 - y0)
+    fit = [0.0] * 16
+    fit[0], fit[5], fit[10], fit[15] = sx, sy, 1.0, 1.0
+    fit[12], fit[13] = (bx0 + mx) - sx * x0, (by0 + my) - sy * y0
+    return _mat_mul(fit, pv)
 
 
 def read_f32_gz(path):
@@ -1736,7 +1823,9 @@ def terrain_load_checks(output, ladder_report, recounts, coexist_enabled, log_te
     for field, kind in (("enabled", bool), ("attempted", bool), ("built", bool),
                         ("drawsRecorded", int), ("width", int), ("height", int),
                         ("colourFormat", int), ("depthFormat", int), ("scene", str),
-                        ("eye", list), ("centre", list), ("mvp", list), ("drawCount", int),
+                        ("eye", list), ("centre", list), ("fovDegrees", (int, float)),
+                        ("near", (int, float)), ("far", (int, float)),
+                        ("fitMargin", (int, float)), ("mvp", list), ("drawCount", int),
                         ("referenceSet", int), ("declaredDepthState", list),
                         ("depthStateReadBack", bool), ("ladderEnabled", bool),
                         ("results", list), ("problems", int), ("firstProblem", (str, type(None))),
@@ -1776,9 +1865,37 @@ def terrain_load_checks(output, ladder_report, recounts, coexist_enabled, log_te
                          f" D32_SFLOAT ({TERRAIN_LOAD_DEPTH_FORMAT}) the pipeline declares")
     if len(report["mvp"]) != 16 or not all(finite_number(v) for v in report["mvp"]):
         raise ValueError(f"the terrain-LOAD mvp is not 16 finite numbers: {report['mvp']!r}")
-    if report["drawCount"] < 1 or report["referenceSet"] < 1:
-        raise ValueError(f"the terrain-LOAD scene has drawCount={report['drawCount']},"
-                         f" referenceSet={report['referenceSet']}; nothing was drawn")
+    # ⚠ Round-18 review R18-TERRAIN-METADATA: the published view and scene facts were only
+    # type-checked, so a zero matrix, a fictitious eye, a 1x1 extent and counters of 1 passed.
+    # The view is pinned to the source's constants, the matrix is recomputed from them, the
+    # extent is the last sample's, the draw count is the sweep's, and the reference pixel
+    # count is recounted from the last extent's reference crop below.
+    for field, want in (("eye", TERRAIN_LOAD_EYE), ("centre", TERRAIN_LOAD_CENTRE)):
+        got = report[field]
+        if len(got) != 3 or any(not finite_number(a) or abs(a - b) > 1e-6 for a, b in zip(got, want)):
+            raise ValueError(f"the terrain-LOAD {field} is {got!r}, not the {want} its source lays out")
+    for field, want in (("fovDegrees", TERRAIN_LOAD_FOV_DEGREES), ("near", TERRAIN_LOAD_NEAR),
+                        ("far", TERRAIN_LOAD_FAR), ("fitMargin", TERRAIN_LOAD_FIT_MARGIN)):
+        got = report[field]
+        if not finite_number(got) or abs(got - want) > 1e-6 * max(1.0, abs(want)):
+            raise ValueError(f"the terrain-LOAD {field} is {got!r}, not the {want} its source lays out")
+    if report["drawCount"] != TERRAIN_LOAD_DRAW_COUNT:
+        raise ValueError(f"the terrain-LOAD scene has drawCount={report['drawCount']}, not the"
+                         f" {TERRAIN_LOAD_DRAW_COUNT} the depth sweep issues")
+    if report["referenceSet"] < 1:
+        raise ValueError("the terrain-LOAD reference drew nothing (referenceSet=0)")
+    published_samples = [s for s in ladder_report.get("samples") or [] if isinstance(s, dict)]
+    if published_samples:
+        last = published_samples[-1]
+        if (report["width"], report["height"]) != (last.get("targetWidth"), last.get("targetHeight")):
+            raise ValueError(f"the terrain-LOAD scene is {report['width']}x{report['height']} but"
+                             f" the last ladder sample is {last.get('targetWidth')}x"
+                             f"{last.get('targetHeight')}; the scene follows the frame extent")
+    expected_mvp = terrain_load_expected_mvp(report["width"], report["height"])
+    for index, (got, want) in enumerate(zip(report["mvp"], expected_mvp)):
+        if abs(got - want) > 1e-4 * max(1.0, abs(want)):
+            raise ValueError(f"the terrain-LOAD mvp[{index}] is {got!r} but the view its source lays"
+                             f" out gives {want!r}")
     if report["notes"]:
         raise ValueError(f"the terrain-LOAD probe reported notes: {report['notes']}")
     if (report["problems"] or report["closeFailures"] or report["leakedScenes"]
@@ -1851,10 +1968,10 @@ def terrain_load_checks(output, ladder_report, recounts, coexist_enabled, log_te
                              f" {lw}x{lh}")
         before_name = (f"native-depth-ladder-coexist-{at}.ppm.gz" if coexist_enabled
                        else recount["sample"])
-        before, (bw, bh) = read_ppm_gz(output / before_name)
-        if (bw, bh) != (aw, ah):
-            raise ValueError(f"the previous readback's crop {before_name} is {bw}x{bh}, not"
-                             f" {aw}x{ah}")
+        # (its size against the ladder crop is already required by coexist_checks, which runs
+        # first, or it IS the ladder crop; round 18 found a second check here that no test
+        # could reach)
+        before, _ = read_ppm_gz(output / before_name)
         reference, (rw, rh) = read_ppm_gz(output / wanted["referenceFile"])
         depth, (dw, dh) = read_f32_gz(output / wanted["referenceDepthFile"])
         if (rw, rh) != (aw, ah) or (dw, dh) != (aw, ah):
@@ -1909,6 +2026,14 @@ def terrain_load_checks(output, ladder_report, recounts, coexist_enabled, log_te
     if stray:
         raise ValueError(f"{len(stray)} retained terrain-LOAD file(s) belong to no listed result:"
                          f" {stray[:6]}")
+    # the whole footprint lies inside the band (the scene's JUnit GPU test pins that), so the
+    # reference pixel count the probe published must equal the non-background pixels of the
+    # last extent's reference crop
+    last_reference, _ = read_ppm_gz(output / out[-1]["referenceFile"])
+    set_count = sum(1 for row in last_reference for px in row if tuple(px[:3]) != TERRAIN_LOAD_CLEAR_RGB)
+    if report["referenceSet"] != set_count:
+        raise ValueError(f"the terrain-LOAD scene publishes referenceSet={report['referenceSet']} but"
+                         f" its last reference crop holds {set_count} non-background pixel(s)")
     if not mixed:
         raise ValueError("no terrain-LOAD sample holds both pixels that must appear and pixels"
                          " that must not, so the experiment decided nothing per pixel")

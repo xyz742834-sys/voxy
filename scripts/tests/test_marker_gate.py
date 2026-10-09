@@ -32,7 +32,7 @@ from verify import (native_marker_result, native_proof_files_result,
 WIDTH, HEIGHT = 960, 540
 NEAR, FAR, REJECTED = (255, 0, 255), (0, 255, 255), (255, 255, 0)
 BACKGROUND = (100, 100, 100)
-STAGES = ("warmup", "turn", "travel", "return", "edit", "remove",
+STAGES = ("warmup", "turn", "travel", "return", "horizon", "edit", "remove",
           "resize", "reload", "nether", "overworld", "descend", "ascend", "reconnect")
 GEOMETRY = {"box": [-0.98, 0.98, -0.78, 0.78], "nearSplitX": -0.86,
             "controlStrip": [-0.98, 0.76, -0.78, 0.72],

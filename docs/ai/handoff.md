@@ -181,8 +181,10 @@ Python 258 cases;
 native stage green as `docs/ai/runs/native-evidence/20261009T073850-255416Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
-round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has thirteen
-checkpointed stages (`descend`, `ascend` added). Older retained runs do not replay under this
+round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
+checkpointed stages (`descend`, `ascend` added 2026-10-07; `horizon` — facing the Voxy-only
+terrain at x ≈ 768 from spawn, yaw -90, pitch 15 — added 2026-10-09 for the real-section
+experiment). Older retained runs do not replay under this
 gate, which is expected and tabled in the survey.
 
 ## Round 18
@@ -206,11 +208,14 @@ alone, then repair blocking findings in a separate commit.
    at bracket grain, for a synthetic scene. Survey section "Voxy's terrain pipeline in a LOADed
    pass, judged per pixel".
 3. **Next seam into real data:** real section meshes into `VkTerrainResources` in place of
-   `SyntheticTerrain` — the native path has Voxy's `WorldEngine`/meshing/`NodeManager` producing
-   sections, and the Vulkan traversal/`VkTerrainRenderer` consuming `VkTerrainResources`; the
-   missing piece is the upload of real section geometry/metadata/positions/models and MC's
-   actual camera matrix (`viewport.MVP`, GL convention, which Voxy's matrices already follow)
-   into the uniform. Approach it as another bounded, gated experiment: a LOAD pass of real
+   `SyntheticTerrain`. Round 18 (R18-DOC-SEAM) corrected an earlier sentence here: on MC's
+   Vulkan backend nothing produced sections until native instance mode (this HEAD) — Voxy's
+   `WorldEngine`/meshing/`NodeManager` and the Vulkan traversal/`VkTerrainRenderer` are
+   **reusable components**, not an already-running native producer. What exists now: the
+   instance (world engine, ingest) runs natively and holds sections; MC's matrices are copied
+   each frame (`McNativeCamera`). What is missing: meshing those sections, uploading them, and
+   drawing them with that matrix in a LOAD pass, with the lifetime of those resources tied to
+   MC's submissions. Approach it as another bounded, gated experiment: a LOAD pass of real
    sections around the harness camera, judged against the ladder's brackets the same way
    (reference depth from Voxy's own render of the same sections). Not a general framework.
    Existing seams to reuse, not recreate (coordinator's cross-check, 2026-10-09):
