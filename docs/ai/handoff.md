@@ -205,6 +205,13 @@ alone, then repair blocking findings in a separate commit.
    into the uniform. Approach it as another bounded, gated experiment: a LOAD pass of real
    sections around the harness camera, judged against the ladder's brackets the same way
    (reference depth from Voxy's own render of the same sections). Not a general framework.
+   Existing seams to reuse, not recreate (coordinator's cross-check, 2026-10-09):
+   `VkRealMesher:73` already constructs the shared `RenderDataFactory`;
+   `VkHierarchicalScene:453-477` wires the real world mapper/bakery, the shared
+   `BasicAsyncGeometryManager`/`NodeManager`, HiZ and traversal; `VkHierarchicalScene.record`
+   (`:737-784`) owns the opaque/HiZ/traversal/cull/table/temporal/translucent sequence over a
+   Voxy target — its projection/depth relationship to MC's pass and its upload retirement are
+   the concrete integration questions, not missing terrain algorithms.
    Open and not needed for that: why the buffer copy reads 0.0.
 4. Nothing in the ladder may ever write MC's depth. A variant that writes is a different probe
    with a different flag (which is what `McNativeTerrainLoad` is).
