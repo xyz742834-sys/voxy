@@ -72,7 +72,10 @@ pipeline, with depth writes on, composes per pixel against MC's LOADed depth** (
 `voxy.native.terrainload`, a separate probe: a synthetic depth sweep fitted into the ladder band,
 judged from the ladder's bracket and Voxy's own reference depth; 495 376 pixels, zero
 violations, 14 of 20 samples with both determinate kinds; limits: declared depth state,
-synthetic scene, bracket-grain verdicts). The probe itself still asserts no convention and the
+synthetic scene, bracket-grain verdicts). **Voxy's instance (world engine, storage, ingest)
+runs on MC's Vulkan backend without any render path** (2026-10-09, flag `voxy.native.instance`;
+engine present, up to 16 sections held, no `VoxyRenderSystem`; the precondition for drawing real
+sections natively). The probe itself still asserts no convention and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,
 tested behaviourally" and "Round-8 review repairs, and the per-pixel ladder".
 

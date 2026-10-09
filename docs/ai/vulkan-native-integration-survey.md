@@ -465,7 +465,8 @@ of the point — and the replay status of each is:
 | [20261009T045515-905630Z](runs/native-evidence/20261009T045515-905630Z/MANIFEST.json) | no — predates the exact-RGB coexist rule and the required-evidence gate (round 15 confirmed its 24 samples) |
 | [20261009T060453-272917Z](runs/native-evidence/20261009T060453-272917Z/MANIFEST.json) | no — predates the launch-token semantics repair (round 16 confirmed its 24 pairs) |
 | [20261009T063708-667962Z](runs/native-evidence/20261009T063708-667962Z/MANIFEST.json) | no — predates the terrain-LOAD experiment, the literal-token requirement and the request-time log line (round 17 confirmed its 24 pairs) |
-| [20261009T073850-255416Z](runs/native-evidence/20261009T073850-255416Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction, coexistence and terrain-LOAD judged |
+| [20261009T073850-255416Z](runs/native-evidence/20261009T073850-255416Z/MANIFEST.json) | no — predates native instance mode (round 18 judged it) |
+| [20261009T080812-119439Z](runs/native-evidence/20261009T080812-119439Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction, coexistence, terrain-LOAD and instance mode judged |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1521,8 +1522,16 @@ carries marker, terrain, depth copy), not the ladder launch.
 
 **What it does and does not say.** It says Voxy's instance can run on Minecraft's Vulkan backend
 without a render path and ingests sections there. It does not say the sections' content is
-right, that anything is drawn, or anything about LoD. Measured figures are in the retained run
-named in `handoff.md`.
+right, that anything is drawn, or anything about LoD.
+
+**Measured** (run
+[20261009T080812-119439Z](runs/native-evidence/20261009T080812-119439Z/MANIFEST.json), replay 0
+in this checkout): 73 samples over 4 320 frames; the factory, instance and a live world engine
+present at every sample from the first; `VoxyRenderSystem` never created; ingest enabled; the
+engine held up to 16 active sections (the count rises as chunks arrive and falls as sections
+are saved and idled, which is the engine's normal behaviour, so the gate requires a maximum of
+at least one and a live engine at the end, not a monotone count). The same run's terrain-LOAD
+experiment: 24 samples, zero violations, 17 with both determinate kinds.
 
 ## What is NOT answered yet, and must be measured on hardware
 

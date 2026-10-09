@@ -126,6 +126,12 @@ frame extent, every retained file a manifest member.
   declared (`[6, 1, 1]`), not read back; synthetic scene; bracket-grain verdicts. The first run
   failed on a log-chronology race (sample line logged after the next stage began), repaired by
   a request-time log line the gate now anchors to; see the survey.
+- **Native instance mode: Voxy's world engine, storage and ingest run on MC's Vulkan backend
+  without any render path** (flag `voxy.native.instance`, `-PharnessNativeInstance`, in the
+  first native launch; `McNativeInstanceProbe`, gate `native_instance_result`). Measured (run
+  `20261009T080812-119439Z`): a world engine for the level, no `VoxyRenderSystem` ever, up to
+  16 active sections across 73 samples, ingest enabled, log reconciled. Says
+  nothing about the sections' content or drawing. Survey section "Native instance mode".
 - **The Z direction is measured: larger depth value = nearer (reverse-Z).** Two harness stages
   look straight down at the ground under (0, 0) (y = 67, from the heightmap) from 12 and 108
   blocks above it; the ladder labels samples with stage and camera; the gate takes the last
@@ -158,7 +164,8 @@ frame extent, every retained file a manifest member.
 ## Exact state of the tree
 
 Clean at HEAD. The native stage (`--only native`) launches Minecraft **twice**: launch 1 as
-before (marker, features, adopt, probe, terrain, depth copy), launch 2 with
+before (marker, features, adopt, probe, terrain, depth copy, and since this HEAD native
+instance mode `-PharnessNativeInstance=true`), launch 2 with
 `-PharnessNativeDepthLadder=true -PharnessNativeCoexist=true -PharnessNativeTerrainLoad=true`
 (+ native/adopt/features/probe; `verify.LADDER_LAUNCH_FLAGS`) and nothing that writes or clears
 MC's depth before the ladder's readbacks. Both are gated; the second's
@@ -168,8 +175,9 @@ screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_ch
 (same function as the stage), saying explicitly "not replayed" for runs that retained none and
 refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 341 (1 documented skip, 0 failures; 8 new for the
-terrain-LOAD probe, one of them a GPU render of the reference scene); Python 220 cases;
+Gate/test counts at this HEAD: JUnit 343 (1 documented skip, 0 failures; 8 for the
+terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode);
+Python 258 cases;
 native stage green as `docs/ai/runs/native-evidence/20261009T073850-255416Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
@@ -212,18 +220,16 @@ alone, then repair blocking findings in a separate commit.
    (`:737-784`) owns the opaque/HiZ/traversal/cull/table/temporal/translucent sequence over a
    Voxy target — its projection/depth relationship to MC's pass and its upload retirement are
    the concrete integration questions, not missing terrain algorithms.
-   **Measured obstacle (2026-10-09, source reading, no run):** on MC's Vulkan backend
-   `VoxyClient` sets `BACKEND = null`, so `VoxyCommon.setInstanceFactory` is never called, no
-   `VoxyClientInstance`/`WorldEngine` exists, and `WorldIdentifier.ofEngineNullable(level)` is
-   null (the interop probe's `ensureRealScene` logs "no Voxy world engine for this level").
-   `MixinLevelRenderer` creates `VoxyRenderSystem` (the GL/interop renderer) when an instance
-   exists. So the first step of the real-section experiment is a **native instance mode**: set
-   the instance factory when MC is on Vulkan and a native flag is on (world engine, storage,
-   ingest — none of it GL), and skip `VoxyRenderSystem` creation in that mode; then
-   `VkRealMesher.meshAround` + `VkRealSectionUpload.upload` into `VkTerrainResources(REAL)`
-   (the interop probe's template at `VkInteropProbe.ensureRealScene`) and
-   `VkTerrainRenderer.recordDrawsInRenderPass` in a LOAD pass with MC's own matrix, gated like
-   terrain-LOAD. Keep it flagged and experimental; no acceptance claim.
+   **Obstacle, measured and removed (2026-10-09):** on MC's Vulkan backend `VoxyClient` set
+   `BACKEND = null` and never registered the instance factory, so no `WorldEngine` existed.
+   **Native instance mode** (`voxy.native.instance`, in this HEAD) registers the factory only;
+   `MixinLevelRenderer` creates the level's engine and skips `VoxyRenderSystem` (the GL/interop
+   renderer). Measured: engine present, sections ingested, no renderer (see "What is measured").
+   **Next:** `VkRealMesher.meshAround` + `VkRealSectionUpload.upload` into
+   `VkTerrainResources(REAL)` (the interop probe's template, `VkInteropProbe.ensureRealScene`)
+   and `VkTerrainRenderer.recordDrawsInRenderPass` in a LOAD pass with MC's own matrix
+   (GL convention, as Voxy's), gated like terrain-LOAD: the ladder's brackets against Voxy's own
+   reference depth of the same sections. Keep it flagged and experimental; no acceptance claim.
    Open and not needed for that: why the buffer copy reads 0.0.
 4. Nothing in the ladder may ever write MC's depth. A variant that writes is a different probe
    with a different flag (which is what `McNativeTerrainLoad` is).
