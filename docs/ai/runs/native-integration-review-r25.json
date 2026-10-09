@@ -1,0 +1,505 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "043aa11f93ac7791eae9f36c00eaeec9272b8501",
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "message": "Default-off measured diagnostics do not deliver a normally enabled Minecraft-native renderer or full normal-play/lifecycle/pressure acceptance.",
+      "evidence": [
+        "docs/ai/project-goal.md:9",
+        "src/main/java/me/cortex/voxy/client/VoxyClient.java:106",
+        "src/main/java/me/cortex/voxy/client/VoxyClient.java:146"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R24-HIER-GUARD-COVERAGE",
+      "judgment": "CONFIRMED",
+      "message": "Partly closed: seven hierarchy-specific survivors are detected, but 27 shared-helper removals still survive hierarchy-only tests. Real-LOAD detects every shared predicate.",
+      "evidence": [
+        ".agent-run/r25/guard-summary.json",
+        ".agent-run/r25/guards.json",
+        "scripts/tests/test_hier_load_gate.py:224"
+      ]
+    },
+    {
+      "id": "R25-FRAME-ACCOUNTING",
+      "judgment": "CONFIRMED",
+      "message": "Full ladder gate accepts impossible final composite/skip totals of 1000000000000. Committed totals independently reconcile, but the gate establishes only cumulative snapshot consistency/progress.",
+      "evidence": [
+        "scripts/verify.py:2411",
+        "scripts/verify.py:2438",
+        ".agent-run/r25/frame-gate-mutations.json",
+        ".agent-run/r25/frame-accounting.json"
+      ]
+    },
+    {
+      "id": "R25-DOC-SCOPE",
+      "judgment": "CONFIRMED",
+      "message": "Full R24 coverage repair is overstated; composite comment still says fence-wait before Minecraft-pass recording, which is false for ordinary every-frame submissions.",
+      "evidence": [
+        "docs/ai/handoff.md:88",
+        "docs/ai/current-state.md:92",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeComposite.java:68"
+      ]
+    }
+  ],
+  "safe_for_normal_play": true,
+  "safety_scope": "Every voxy.native.* flag unset from startup; source/offline dormancy and preserved GL callback semantics. Minecraft Vulkan still disables Voxy. No fresh GL or Vulkan normal-play launch.",
+  "round24_findings_closed": {
+    "R24-HIER-CULL": true,
+    "R24-DIRTY-CALLBACK": true,
+    "R24-RETIRED-CONTEXT": true,
+    "R24-INSTANCE-STORED": true,
+    "R24-HIER-GUARD-COVERAGE": false,
+    "R24-EMPTY-BUILD": true
+  },
+  "every_frame_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Eligible ordinary-frame source protocol: own-fence waits precede host writes/request servicing; same-queue target dependencies protect previous composite reads and publish current writes. Retained 5083 ordinary composites + 289 skips + 8 judged handoffs = 5380 ladder frames. Ordinary pixels and exact intervening-frame coverage are unjudged; final-total gate has R25-FRAME-ACCOUNTING.",
+    "evidence": [
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:426",
+      "src/main/java/me/cortex/voxy/client/core/vk/VkRenderTarget.java:107",
+      ".agent-run/r25/frame-contract.json",
+      ".agent-run/r25/frame-accounting.json"
+    ]
+  },
+  "hier_load_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Bounded hierarchy/CULL source selection and eight retained native composite samples confirmed: 17878 must-show, 3989 must-hide, zero violations. No independent native-call authentication or raster-cull/temporal effectiveness measurement; no delivery acceptance.",
+    "evidence": [
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:465",
+      ".agent-run/r25/extra-contracts.json",
+      ".agent-run/r25/recount.json"
+    ]
+  },
+  "composite_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Declared GEQUAL depth test/write, clear-depth discard, same target colour/depth reference, and captured band colour results. Final Minecraft depth not independently retained.",
+    "evidence": [
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeComposite.java:57",
+      "src/main/resources/assets/voxy/shaders/lod/vk/native_composite.frag:18",
+      ".agent-run/r25/recount.json"
+    ]
+  },
+  "lifetime_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Inspected successful submitted-work protocol and reproduced old-scene callback/queued-context-release sequences confirmed. Minecraft queue retirement orders both earlier Voxy and Minecraft submissions; checked matching-device idle covers immediate shutdown. Unsubmitted Minecraft batches, fault-injected driver failures and full lifecycle/pressure remain unverified.",
+    "evidence": [
+      ".agent-run/r25/source-contracts.json",
+      ".agent-run/r25/extra-contracts.json",
+      ".agent-run/r25/mc-encoder-dependency.javap",
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeVkContext.java:293"
+    ]
+  },
+  "instance_mode_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Empty-loader repeated scans stay 0 then 0 despite 27 cached placeholders and fail the full instance gate. Main/ladder 95/90 samples reconcile; maximum 27 sections holding non-air blocks. No whole content or storage-persistence acceptance.",
+    "evidence": [
+      ".agent-run/r25/instance-cache.json",
+      ".agent-run/r25/evidence-audit.json"
+    ]
+  },
+  "real_load_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Six retained judged samples independently recount 2003 must-show, 3306 must-hide, no undetermined pixels and zero violations; bounded real-section experiment.",
+    "evidence": [
+      ".agent-run/r25/recount.json",
+      ".agent-run/r25/replay.log"
+    ]
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "23 retained samples replay with both orientations, coexist/direction and three-way handoff. Unchanged extracted selector agrees with Python on 384 cases; independent counters agree on all 23 assignments.",
+    "evidence": [
+      ".agent-run/r25/handoff.json",
+      ".agent-run/r25/replay.log"
+    ]
+  },
+  "gate_judgment": {
+    "implemented_guard_removals": {
+      "judgment": "CONFIRMED",
+      "scope": "124/124 detected by combined tests; hierarchy-only 56/83, with 27 shared survivors. All 11 every-frame predicates and CULL guard detected.",
+      "evidence": [
+        ".agent-run/r25/guard-summary.json"
+      ]
+    },
+    "complete_frame_accounting": {
+      "judgment": "REFUTED",
+      "scope": "Gate does not independently reconcile final composite/skip totals or prove each intervening frame. Committed total independently reconciles.",
+      "evidence": [
+        ".agent-run/r25/frame-gate-mutations.json"
+      ]
+    }
+  },
+  "checks": {
+    "gradle": {
+      "exit_code": 0,
+      "tests": 350,
+      "passed": 349,
+      "known_skips": 1,
+      "strict_junit_success": true
+    },
+    "python_unittest": {
+      "exit_code": 0,
+      "tests": 295,
+      "seconds": 1089.91,
+      "python": "3.9.6"
+    },
+    "committed_evidence_replay": {
+      "exit_code": 0,
+      "checks": 14,
+      "manifest_members": 373,
+      "matching_source_fingerprints": 428,
+      "source_keyset_equal": true,
+      "built_and_final_run_revision": "b6e24c2400b298241451117b9c72afe043ee10c2"
+    },
+    "guard_audit": {
+      "inventory": 124,
+      "detected_by_any_class": 124,
+      "full_survivors": [],
+      "by_class": {
+        "RealLoadGateTest": {
+          "audited": 78,
+          "detected": 78,
+          "survivors": []
+        },
+        "HierLoadGateTest": {
+          "audited": 83,
+          "detected": 56,
+          "survivors": [
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2174,
+              "predicate": "extra"
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2176,
+              "predicate": "log_text is None"
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2179,
+              "predicate": "line is None or line.group(3).strip()"
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2184,
+              "predicate": "not finite_int(entry.get(field))"
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2188,
+              "predicate": "entry['buildsSoFar'] != len(attempts)"
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2192,
+              "predicate": "entry['atlasState'] != REAL_LOAD_ATLAS_PENDING_STATE"
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2199,
+              "predicate": "entry['previousCapture'] != entry['cameraCapture']"
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2207,
+              "predicate": "not earlier or not later or int(later[0][9]) - int(earlier[-1][9]) >= int(later[0][0]) - int(earlier[-1][0])"
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2213,
+              "predicate": "not (isinstance(cam, list) and isinstance(frame, list)) or cam == frame or frame != [ladder_sample.get('targetWidth'), ladder_sample.get('targetHeight')] or (ladder_sample.get('stage') != 'resize')"
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2221,
+              "predicate": "not lines or (lines[-1][4] == 'true' and lines[-1][5] == 'true')"
+            },
+            {
+              "function": "real_load_skip_provenance",
+              "line": 2232,
+              "predicate": "entry['buildsSoFar'] != spec['budget']"
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2253,
+              "predicate": "not isinstance(entry.get('projectionAdjusted'), bool)"
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2258,
+              "predicate": "entry.get('stage') != published.get('stage')"
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2262,
+              "predicate": "not (isinstance(mc_p, list) and isinstance(used_p, list) and (len(mc_p) == 16) and (len(used_p) == 16) and all((finite_number(v) for v in mc_p + used_p)))"
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2274,
+              "predicate": "want_far is None or not finite_number(far) or abs(far - want_far) > 0.001 * max(1.0, want_far)"
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2277,
+              "predicate": "not finite_int(entry.get('cameraCapture')) or entry['cameraCapture'] < 1"
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2280,
+              "predicate": "not finite_int(entry.get(field))"
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2292,
+              "predicate": "entry['atlasGeneration'] != reads_before"
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2300,
+              "predicate": "entry['sceneBuild'] < previous_judged['sceneBuild']"
+            },
+            {
+              "function": "load_judged_entry_checks",
+              "line": 2304,
+              "predicate": "entry[field] != previous_judged[field] and entry['sceneBuild'] == previous_judged['sceneBuild']"
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2328,
+              "predicate": "(aw, ah) != (lw, lh)"
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2335,
+              "predicate": "(rw, rh) != (aw, ah) or (dw, dh) != (aw, ah)"
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2338,
+              "predicate": "any((not 0.0 <= d <= 1.0 or math.isnan(d) for row in depth for d in row))"
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2341,
+              "predicate": "ladder_anchor_blocks(after, recount['rect'], thumb) == 0"
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2345,
+              "predicate": "entry[field] != value"
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2356,
+              "predicate": "got is not None"
+            },
+            {
+              "function": "judge_load_sample",
+              "line": 2362,
+              "predicate": "entry.get('referenceSet') != ref_set"
+            }
+          ]
+        }
+      },
+      "frames_predicates": [
+        {
+          "function": "hier_frames_checks",
+          "line": 2403,
+          "predicate": "field not in report",
+          "outcomes": [
+            {
+              "class": "HierLoadGateTest",
+              "tests_run": 1,
+              "failures": 1,
+              "errors": 0,
+              "survived": false,
+              "detecting_test": "test_hier_load_gate.HierLoadGateTest.test_every_frame_rendering_is_reconciled_with_the_log"
+            }
+          ]
+        },
+        {
+          "function": "hier_frames_checks",
+          "line": 2406,
+          "predicate": "kind is bool and (not isinstance(value, bool)) or (kind is int and (not finite_int(value))) or (kind is dict and (not isinstance(value, dict)))",
+          "outcomes": [
+            {
+              "class": "HierLoadGateTest",
+              "tests_run": 1,
+              "failures": 1,
+              "errors": 0,
+              "survived": false,
+              "detecting_test": "test_hier_load_gate.HierLoadGateTest.test_every_frame_rendering_is_reconciled_with_the_log"
+            }
+          ]
+        },
+        {
+          "function": "hier_frames_checks",
+          "line": 2411,
+          "predicate": "reason not in REAL_LOAD_SKIPS or not finite_int(n) or n < 1",
+          "outcomes": [
+            {
+              "class": "HierLoadGateTest",
+              "tests_run": 1,
+              "failures": 1,
+              "errors": 0,
+              "survived": false,
+              "detecting_test": "test_hier_load_gate.HierLoadGateTest.test_every_frame_rendering_is_reconciled_with_the_log"
+            }
+          ]
+        },
+        {
+          "function": "hier_frames_checks",
+          "line": 2415,
+          "predicate": "required and (not every)",
+          "outcomes": [
+            {
+              "class": "HierLoadGateTest",
+              "tests_run": 1,
+              "failures": 1,
+              "errors": 0,
+              "survived": false,
+              "detecting_test": "test_hier_load_gate.HierLoadGateTest.test_every_frame_rendering_is_reconciled_with_the_log"
+            }
+          ]
+        },
+        {
+          "function": "hier_frames_checks",
+          "line": 2418,
+          "predicate": "every and (not required)",
+          "outcomes": [
+            {
+              "class": "HierLoadGateTest",
+              "tests_run": 1,
+              "failures": 1,
+              "errors": 0,
+              "survived": false,
+              "detecting_test": "test_hier_load_gate.HierLoadGateTest.test_every_frame_rendering_is_reconciled_with_the_log"
+            }
+          ]
+        },
+        {
+          "function": "hier_frames_checks",
+          "line": 2421,
+          "predicate": "composited or skips or logged",
+          "outcomes": [
+            {
+              "class": "HierLoadGateTest",
+              "tests_run": 1,
+              "failures": 1,
+              "errors": 0,
+              "survived": false,
+              "detecting_test": "test_hier_load_gate.HierLoadGateTest.test_every_frame_rendering_is_reconciled_with_the_log"
+            }
+          ]
+        },
+        {
+          "function": "hier_frames_checks",
+          "line": 2425,
+          "predicate": "composited <= 0",
+          "outcomes": [
+            {
+              "class": "HierLoadGateTest",
+              "tests_run": 1,
+              "failures": 1,
+              "errors": 0,
+              "survived": false,
+              "detecting_test": "test_hier_load_gate.HierLoadGateTest.test_every_frame_rendering_is_reconciled_with_the_log"
+            }
+          ]
+        },
+        {
+          "function": "hier_frames_checks",
+          "line": 2430,
+          "predicate": "at in before",
+          "outcomes": [
+            {
+              "class": "HierLoadGateTest",
+              "tests_run": 1,
+              "failures": 1,
+              "errors": 0,
+              "survived": false,
+              "detecting_test": "test_hier_load_gate.HierLoadGateTest.test_every_frame_rendering_is_reconciled_with_the_log"
+            }
+          ]
+        },
+        {
+          "function": "hier_frames_checks",
+          "line": 2434,
+          "predicate": "sorted(before) != handed",
+          "outcomes": [
+            {
+              "class": "HierLoadGateTest",
+              "tests_run": 1,
+              "failures": 1,
+              "errors": 0,
+              "survived": false,
+              "detecting_test": "test_hier_load_gate.HierLoadGateTest.test_every_frame_rendering_is_reconciled_with_the_log"
+            }
+          ]
+        },
+        {
+          "function": "hier_frames_checks",
+          "line": 2438,
+          "predicate": "counts != sorted(counts) or (counts and counts[-1] > composited)",
+          "outcomes": [
+            {
+              "class": "HierLoadGateTest",
+              "tests_run": 1,
+              "failures": 1,
+              "errors": 0,
+              "survived": false,
+              "detecting_test": "test_hier_load_gate.HierLoadGateTest.test_every_frame_rendering_is_reconciled_with_the_log"
+            }
+          ]
+        },
+        {
+          "function": "hier_frames_checks",
+          "line": 2443,
+          "predicate": "before[b] <= before[a]",
+          "outcomes": [
+            {
+              "class": "HierLoadGateTest",
+              "tests_run": 1,
+              "failures": 1,
+              "errors": 0,
+              "survived": false,
+              "detecting_test": "test_hier_load_gate.HierLoadGateTest.test_every_frame_rendering_is_reconciled_with_the_log"
+            }
+          ]
+        }
+      ],
+      "cull_predicate": [
+        {
+          "function": "hier_load_checks",
+          "line": 2601,
+          "predicate": "entry.get('visibility') != HIER_LOAD_VISIBILITY",
+          "outcomes": [
+            {
+              "class": "HierLoadGateTest",
+              "tests_run": 12,
+              "failures": 1,
+              "errors": 0,
+              "survived": false,
+              "detecting_test": "test_hier_load_gate.HierLoadGateTest.test_the_scene_must_run_voxys_raster_cull"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "No live/native or normal-play launches.",
+    "CPU source contracts substitute dependencies and do not establish actual GPU completion/timing or all asynchronous interleavings.",
+    "No unsubmitted-Minecraft-batch shutdown or driver fault-injection test.",
+    "No final Minecraft depth, raw atlas content, complete selected-section inventory, per-frame matrices/uniform bytes, ordinary-frame pixel proof or compiled-JAR authentication.",
+    "Retained consistency does not authenticate coordinated evidence rewrites or restore-after-native-call arguments.",
+    "Native adopted-context log says syncValidation=false; validation-layer insertion is observed, but native synchronization validation coverage is not independently certified."
+  ]
+}
