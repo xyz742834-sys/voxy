@@ -187,7 +187,7 @@ public class McNativeDepthLadderTest {
         assertTrue(json.contains(expected.append(']').toString()), json);
         assertTrue(json.contains("\"band\": [-0.6, 0.36, 0.6, 0.2]"), json);
         assertEquals(10, McNativeDepthLadder.PALETTE.length, "base + low + eight rungs");
-        assertTrue(json.contains("\"palette\": [[1.0, 1.0, 1.0], [0.5, 0.5, 0.5], [1.0, 0.0, 1.0],"
+        assertTrue(json.contains("\"palette\": [[1.0, 1.0, 1.0], [0.5, 0.0, 0.5], [1.0, 0.0, 1.0],"
             + " [0.0, 1.0, 1.0], [1.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0],"
             + " [0.0, 0.0, 1.0], [1.0, 0.5, 0.0], [0.5, 0.0, 1.0]]"), json);
         // The band rect formula is the one the gate re-derives.
@@ -207,8 +207,10 @@ public class McNativeDepthLadderTest {
         int other = McNativeDepthLadder.PALETTE.length;
         assertEquals(McNativeDepthLadder.BASE, McNativeDepthLadder.classify(255, 255, 255));
         assertEquals(McNativeDepthLadder.BASE, McNativeDepthLadder.classify(200, 240, 192));
-        assertEquals(McNativeDepthLadder.LOW, McNativeDepthLadder.classify(128, 127, 128));
-        assertEquals(McNativeDepthLadder.LOW, McNativeDepthLadder.classify(96, 160, 120));
+        assertEquals(McNativeDepthLadder.LOW, McNativeDepthLadder.classify(128, 0, 128));
+        assertEquals(McNativeDepthLadder.LOW, McNativeDepthLadder.classify(96, 40, 160));
+        // the fogged terrain grey that made a rejected crop look drawn is no longer palette
+        assertEquals(McNativeDepthLadder.PALETTE.length, McNativeDepthLadder.classify(106, 131, 128));
         assertEquals(McNativeDepthLadder.RUNG0, McNativeDepthLadder.classify(255, 0, 255));
         assertEquals(McNativeDepthLadder.RUNG0 + 1, McNativeDepthLadder.classify(0, 255, 255));
         assertEquals(McNativeDepthLadder.RUNG0 + 6, McNativeDepthLadder.classify(255, 128, 0));

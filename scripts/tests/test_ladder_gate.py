@@ -617,7 +617,7 @@ def hier_log_for(entries, atlas_logged=False):
             if e["status"] == "no-camera-this-frame":
                 inst = ("[native-vk] native instance at frame {f} stage={st} factory=true instance=true"
                         " engine=true live=true activeSections=1 renderer=false ingest=true"
-                        " cameraCaptures={c}\n")
+                        " cameraCaptures={c} storedNearCamera=1\n")
                 line = (inst.format(f=600, st=e["stage"], c=600) + line
                         + inst.format(f=660, st=e["stage"], c=659))
             lines.append(line)
@@ -691,7 +691,7 @@ def real_log_for(entries):
                 # the probe's instance lines around a frame without a capture: one frame missed
                 inst = ("[native-vk] native instance at frame {f} stage={st} factory=true instance=true"
                         " engine=true live=true activeSections=1 renderer=false ingest=true"
-                        " cameraCaptures={c}\n")
+                        " cameraCaptures={c} storedNearCamera=1\n")
                 line = (inst.format(f=600, st=e["stage"], c=600) + line
                         + inst.format(f=660, st=e["stage"], c=659))
             lines.append(line)
@@ -917,7 +917,7 @@ class LadderGateTest(unittest.TestCase):
                           0.00390625, 0.015625, 0.0625, 0.25])
         self.assertEqual(verify.EXPECTED_LADDER_BAND, [-0.6, 0.36, 0.6, 0.2])
         self.assertEqual(verify.EXPECTED_LADDER_PALETTE,
-                         [[1.0, 1.0, 1.0], [0.5, 0.5, 0.5], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0],
+                         [[1.0, 1.0, 1.0], [0.5, 0.0, 0.5], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0],
                           [1.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0],
                           [1.0, 0.5, 0.0], [0.5, 0.0, 1.0]])
         self.assertEqual(verify.LADDER_FRAME_SCALE, 4)

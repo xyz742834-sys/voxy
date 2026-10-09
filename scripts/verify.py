@@ -807,7 +807,9 @@ EXPECTED_LADDER_DEPTHS = [2.0 ** -(16 - 2 * i) for i in range(LADDER_RUNGS)]
 EXPECTED_LADDER_BAND = [-0.6, 0.36, 0.6, 0.2]
 # Palette levels per channel: 0, 0.5, 1. Index 0 = BASE (ALWAYS), 1 = LOW (GREATER at z_0),
 # 2.. = rung 0..7 (LESS at z_i, drawn ascending so the surviving colour is max{i: z_i < d}).
-EXPECTED_LADDER_PALETTE = [[1.0, 1.0, 1.0], [0.5, 0.5, 0.5], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0],
+# LOW (index 1) was grey (0.5, 0.5, 0.5) until 2026-10-10: Minecraft's fogged terrain quantises
+# to the same grey and made a rejected-orientation crop look drawn. Now dark purple.
+EXPECTED_LADDER_PALETTE = [[1.0, 1.0, 1.0], [0.5, 0.0, 0.5], [1.0, 0.0, 1.0], [0.0, 1.0, 1.0],
                            [1.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0],
                            [1.0, 0.5, 0.0], [0.5, 0.0, 1.0]]
 LADDER_BASE, LADDER_LOW, LADDER_RUNG0 = 0, 1, 2
@@ -1510,7 +1512,7 @@ def coexist_checks(output, report, recounts, log_text, required=False):
 INSTANCE_LOG = re.compile(r"native instance at frame (\d+) stage=(\S*) factory=(true|false)"
                           r" instance=(true|false) engine=(true|false) live=(true|false)"
                           r" activeSections=(\d+) renderer=(true|false) ingest=(true|false)"
-                          r" cameraCaptures=(\d+)")
+                          r" cameraCaptures=(\d+) storedNearCamera=(\d+)")
 INSTANCE_SAMPLE_INTERVAL = 60
 INSTANCE_SAMPLE_LIMIT = 256   # McNativeInstanceProbe.SAMPLE_LIMIT
 
@@ -1537,7 +1539,8 @@ def native_instance_result(output, required=False, log_text=None):
         report = json.loads(path.read_text())
         for field, kind in (("enabled", bool), ("backend", (str, type(None))), ("frames", int),
                             ("engineEverPresent", bool), ("rendererEverCreated", bool),
-                            ("maxActiveSections", int), ("sampleInterval", int),
+                            ("maxActiveSections", int), ("maxStoredNearCamera", int),
+                            ("sampleInterval", int),
                             ("samples", list), ("notes", list)):
             if field not in report:
                 raise ValueError(f"the instance report does not state {field}")
@@ -1571,7 +1574,7 @@ def native_instance_result(output, required=False, log_text=None):
         samples = report["samples"]
         if not samples:
             raise ValueError("the instance probe retained no sample")
-        last_frame, max_active, engine_ever, renderer_ever = 0, 0, False, False
+        last_frame, max_active, max_stored, engine_ever, renderer_ever = 0, 0, 0, False, False
         for index, sample in enumerate(samples):
             if not isinstance(sample, dict):
                 raise ValueError(f"instance sample {index} is {sample!r}, not an object")
@@ -1579,7 +1582,7 @@ def native_instance_result(output, required=False, log_text=None):
                                 ("instancePresent", bool), ("enginePresent", bool),
                                 ("engineLive", bool), ("activeSections", int),
                                 ("rendererCreated", bool), ("ingestEnabled", bool),
-                                ("cameraCaptures", int)):
+                                ("cameraCaptures", int), ("storedNearCamera", int)):
                 if field not in sample:
                     raise ValueError(f"instance sample {index} does not state {field}")
                 value = sample[field]
@@ -1604,8 +1607,12 @@ def native_instance_result(output, required=False, log_text=None):
                                                 < samples[index - 1].get("cameraCaptures", 0)):
                 raise ValueError(f"instance sample at frame {sample['frame']} has"
                                  f" cameraCaptures={sample['cameraCaptures']}, which decreased")
+            if sample["storedNearCamera"] < 0:
+                raise ValueError(f"instance sample at frame {sample['frame']} has"
+                                 f" storedNearCamera={sample['storedNearCamera']}")
             last_frame = sample["frame"]
             max_active = max(max_active, sample["activeSections"])
+            max_stored = max(max_stored, sample["storedNearCamera"])
             engine_ever |= sample["enginePresent"]
             renderer_ever |= sample["rendererCreated"]
         if last_frame > report["frames"]:
@@ -1622,16 +1629,20 @@ def native_instance_result(output, required=False, log_text=None):
             raise ValueError(f"the instance probe counted {report['frames']} frames, so it sampled"
                              f" {len(want)} frame(s), but {len(got)} are retained (missing"
                              f" {missing[:6]}); the inventory is not complete")
-        for field, want in (("maxActiveSections", max_active), ("engineEverPresent", engine_ever),
-                            ("rendererEverCreated", renderer_ever)):
+        for field, want in (("maxActiveSections", max_active), ("maxStoredNearCamera", max_stored),
+                            ("engineEverPresent", engine_ever), ("rendererEverCreated", renderer_ever)):
             if report[field] != want:
                 raise ValueError(f"the instance report says {field}={report[field]!r} but its"
                                  f" samples say {want!r}")
         if not engine_ever:
             raise ValueError("no sample saw a world engine: native instance mode did not start"
                              " Voxy's instance for the level")
-        if max_active < 1:
-            raise ValueError("the world engine never held a section: nothing was ingested")
+        # ⚠ 2026-10-10: the active-section count is cache occupancy and read 0 at all 80 samples
+        # of a run whose engine had ingested; what the engine holds is what it can load. The
+        # probe counts stored level-0 sections around the camera (acquired and released).
+        if max_stored < 1:
+            raise ValueError("no stored section near the camera at any sample: the world engine"
+                             " holds nothing ingested")
         final = samples[-1]
         if not final["enginePresent"] or not final["engineLive"]:
             raise ValueError(f"the last sample (frame {final['frame']}, stage"
@@ -1655,14 +1666,16 @@ def native_instance_result(output, required=False, log_text=None):
                         str(sample["instancePresent"]).lower(),
                         str(sample["enginePresent"]).lower(), str(sample["engineLive"]).lower(),
                         str(sample["activeSections"]), str(sample["rendererCreated"]).lower(),
-                        str(sample["ingestEnabled"]).lower(), str(sample["cameraCaptures"]))
+                        str(sample["ingestEnabled"]).lower(), str(sample["cameraCaptures"]),
+                        str(sample["storedNearCamera"]))
                 if tuple(logged[sample["frame"]]) != want:
                     raise ValueError(f"the log's instance line for frame {sample['frame']} says"
                                      f" {logged[sample['frame']]} but the report says {want}")
         result.update(success=True, enabled=True, samples=len(samples),
-                      max_active_sections=max_active,
+                      max_active_sections=max_active, max_stored_near_camera=max_stored,
                       answer=f"a Voxy world engine ran without a render path on Minecraft's"
-                             f" Vulkan backend and held up to {max_active} sections across"
+                             f" Vulkan backend and held up to {max_stored} stored sections near the"
+                             f" camera (active cache up to {max_active}) across"
                              f" {len(samples)} samples")
     except (OSError, ValueError, KeyError, TypeError) as exc:
         result["failures"].append(f"{type(exc).__name__}: {exc}")
@@ -2184,8 +2197,10 @@ def real_load_skip_provenance(entry, recount, log_text, ladder_sample, spec=None
         # round-21: the instance lines on either side must show a frame without a capture
         earlier = INSTANCE_LOG.findall(before)
         later = INSTANCE_LOG.findall(log_text[line.end():])
+        # INSTANCE_LOG groups: frame 0, stage 1, factory 2, instance 3, engine 4, live 5, active 6,
+        # renderer 7, ingest 8, cameraCaptures 9, storedNearCamera 10
         if not earlier or not later or \
-                int(later[0][-1]) - int(earlier[-1][-1]) >= int(later[0][0]) - int(earlier[-1][0]):
+                int(later[0][9]) - int(earlier[-1][9]) >= int(later[0][0]) - int(earlier[-1][0]):
             raise ValueError(f"{L} skip at draw {at} says no camera this frame but the instance"
                              f" lines around it show a capture every frame")
     elif status == "camera-extent-mismatch":

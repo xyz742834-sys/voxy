@@ -35,12 +35,35 @@ public final class McNativeInstanceProbe {
     /** 1 回の観測。 */
     public record Sample(long frame, String stage, boolean factorySet, boolean instancePresent,
                          boolean enginePresent, boolean engineLive, int activeSections,
-                         boolean rendererCreated, boolean ingestEnabled, long cameraCaptures) {}
+                         boolean rendererCreated, boolean ingestEnabled, long cameraCaptures,
+                         int storedNearCamera) {}
 
     private static final List<String> NOTES = new ArrayList<>();
     private static final List<Sample> SAMPLES = new ArrayList<>();
     private static long frames;
-    private static int maxActiveSections;
+    private static int maxActiveSections, maxStoredNearCamera;
+
+    /** Level-0 sections (32 blocks) around the camera, x/z within one, y from two below to the camera's. */
+    static final int STORED_PROBE_RADIUS = 1, STORED_PROBE_BELOW = 2;
+
+    /** How many level-0 sections near the camera the engine can load from storage. */
+    private static int storedNear(me.cortex.voxy.common.world.WorldEngine engine, double x, double y,
+                                  double z) {
+        int cx = (int) Math.floor(x) >> 5, cy = (int) Math.floor(y) >> 5, cz = (int) Math.floor(z) >> 5;
+        int count = 0;
+        for (int dx = -STORED_PROBE_RADIUS; dx <= STORED_PROBE_RADIUS; dx++) {
+            for (int dz = -STORED_PROBE_RADIUS; dz <= STORED_PROBE_RADIUS; dz++) {
+                for (int dy = -STORED_PROBE_BELOW; dy <= 0; dy++) {
+                    var section = engine.acquireIfExists(0, cx + dx, cy + dy, cz + dz);
+                    if (section != null) {
+                        count++;
+                        section.release();
+                    }
+                }
+            }
+        }
+        return count;
+    }
     private static boolean rendererEverCreated;
     private static boolean engineEverPresent;
 
@@ -83,12 +106,19 @@ public final class McNativeInstanceProbe {
         // captures so far says the hook runs on Minecraft's Vulkan backend (the next
         // experiment draws real sections with that matrix).
         long cameraCaptures = McNativeCamera.frame();
+        // ⚠ activeSections is cache occupancy: sections are acquired while ingested and released
+        // right after, so it can read 0 at every sample although the engine ingested (measured
+        // 2026-10-10: 80 samples, all 0). What the engine HOLDS is what it can load: count the
+        // level-0 sections around the camera that exist in storage (acquire, then release).
+        int stored = engineLive && mc.player != null ? storedNear(engine, mc.player.getX(),
+            mc.player.getY(), mc.player.getZ()) : 0;
         var s = new Sample(frames, System.getProperty("voxy.harness.stage", ""), factorySet,
             instancePresent, enginePresent, engineLive, active, rendererCreated, ingestEnabled,
-            cameraCaptures);
+            cameraCaptures, stored);
         synchronized (NOTES) {
             if (SAMPLES.size() < SAMPLE_LIMIT) SAMPLES.add(s);
             maxActiveSections = Math.max(maxActiveSections, active);
+            maxStoredNearCamera = Math.max(maxStoredNearCamera, stored);
             rendererEverCreated |= rendererCreated;
             engineEverPresent |= enginePresent;
         }
@@ -100,7 +130,8 @@ public final class McNativeInstanceProbe {
         Logger.info("[native-vk] native instance at frame " + frames + " stage=" + s.stage()
             + " factory=" + factorySet + " instance=" + instancePresent + " engine=" + enginePresent
             + " live=" + engineLive + " activeSections=" + active + " renderer=" + rendererCreated
-            + " ingest=" + ingestEnabled + " cameraCaptures=" + cameraCaptures);
+            + " ingest=" + ingestEnabled + " cameraCaptures=" + cameraCaptures
+            + " storedNearCamera=" + stored);
         writeEvidence();
     }
 
@@ -123,6 +154,11 @@ public final class McNativeInstanceProbe {
         sb.append("  \"engineEverPresent\": ").append(engineEver).append(",\n");
         sb.append("  \"rendererEverCreated\": ").append(rendererEver).append(",\n");
         sb.append("  \"maxActiveSections\": ").append(maxActive).append(",\n");
+        int maxStored;
+        synchronized (NOTES) {
+            maxStored = maxStoredNearCamera;
+        }
+        sb.append("  \"maxStoredNearCamera\": ").append(maxStored).append(",\n");
         sb.append("  \"sampleInterval\": ").append(SAMPLE_INTERVAL).append(",\n");
         sb.append("  \"samples\": [");
         for (int i = 0; i < samples.size(); i++) {
@@ -137,7 +173,8 @@ public final class McNativeInstanceProbe {
             sb.append(", \"activeSections\": ").append(s.activeSections());
             sb.append(", \"rendererCreated\": ").append(s.rendererCreated());
             sb.append(", \"ingestEnabled\": ").append(s.ingestEnabled());
-            sb.append(", \"cameraCaptures\": ").append(s.cameraCaptures()).append('}');
+            sb.append(", \"cameraCaptures\": ").append(s.cameraCaptures());
+            sb.append(", \"storedNearCamera\": ").append(s.storedNearCamera()).append('}');
         }
         sb.append(samples.isEmpty() ? "],\n" : "\n  ],\n");
         sb.append("  \"notes\": [");

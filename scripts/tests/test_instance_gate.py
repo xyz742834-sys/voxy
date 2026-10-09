@@ -27,11 +27,12 @@ INSTANCE_COMMAND = ["gradlew", "runHarnessClient", "-PharnessNative=true",
 
 
 def sample(frame, stage="warmup", active=12, engine=True, renderer=False, live=None,
-           ingest=True, captures=None):
+           ingest=True, captures=None, stored=None):
     return {"frame": frame, "stage": stage, "factorySet": True, "instancePresent": True,
             "enginePresent": engine, "engineLive": engine if live is None else live,
             "activeSections": active if engine else 0, "rendererCreated": renderer,
-            "ingestEnabled": ingest, "cameraCaptures": frame if captures is None else captures}
+            "ingestEnabled": ingest, "cameraCaptures": frame if captures is None else captures,
+            "storedNearCamera": (active if engine else 0) if stored is None else stored}
 
 
 def report(samples=None, **overrides):
@@ -44,6 +45,7 @@ def report(samples=None, **overrides):
             "engineEverPresent": any(s["enginePresent"] for s in dicts),
             "rendererEverCreated": any(s["rendererCreated"] for s in dicts),
             "maxActiveSections": max((s["activeSections"] for s in dicts), default=0),
+            "maxStoredNearCamera": max((s["storedNearCamera"] for s in dicts), default=0),
             "sampleInterval": verify.INSTANCE_SAMPLE_INTERVAL,
             "samples": samples, "notes": []}
     body.update(overrides)
@@ -58,7 +60,8 @@ def log_for(samples):
         f" factory={flag(s, 'factorySet')} instance={flag(s, 'instancePresent')}"
         f" engine={flag(s, 'enginePresent')} live={flag(s, 'engineLive')}"
         f" activeSections={s.get('activeSections')} renderer={flag(s, 'rendererCreated')}"
-        f" ingest={flag(s, 'ingestEnabled')} cameraCaptures={s.get('cameraCaptures')}\n"
+        f" ingest={flag(s, 'ingestEnabled')} cameraCaptures={s.get('cameraCaptures')}"
+        f" storedNearCamera={s.get('storedNearCamera')}\n"
         for s in samples if isinstance(s, dict))
 
 
@@ -111,7 +114,15 @@ class InstanceGateTest(unittest.TestCase):
         none = [sample(1, engine=False), sample(60, engine=False)]
         self.assertRefused(self.run_gate(report(samples=none)), "no sample saw a world engine")
         empty = [sample(1, active=0), sample(60, active=0)]
-        self.assertRefused(self.run_gate(report(samples=empty)), "never held a section")
+        self.assertRefused(self.run_gate(report(samples=empty)), "holds nothing ingested")
+        # 2026-10-10: an empty active cache with stored sections is an engine that ingested
+        cache_empty = [sample(1, active=0, stored=0), sample(60, active=0, stored=9)]
+        self.assertTrue(self.run_gate(report(samples=cache_empty))["success"])
+        self.assertRefused(self.run_gate(report(samples=[sample(1, active=0, stored=0),
+                                                         sample(60, active=0, stored=-1)])),
+                           "storedNearCamera=-1")
+        self.assertRefused(self.run_gate(report(samples=cache_empty, maxStoredNearCamera=3)),
+                           "maxStoredNearCamera=3")
         gone = [sample(1, active=0), sample(60, active=4), sample(120, engine=False)]
         self.assertRefused(self.run_gate(report(samples=gone)), "has no live world engine")
         dead = [sample(1, active=0), sample(60, active=4, live=False)]
@@ -179,13 +190,13 @@ class InstanceGateTest(unittest.TestCase):
 
     def test_missing_fields_and_wrong_types_fail(self):
         for field in ("enabled", "backend", "frames", "engineEverPresent", "rendererEverCreated",
-                      "maxActiveSections", "sampleInterval", "samples", "notes"):
+                      "maxActiveSections", "maxStoredNearCamera", "sampleInterval", "samples", "notes"):
             body = report()
             body.pop(field)
             self.assertRefused(self.run_gate(body), field)
         for field in ("frame", "stage", "factorySet", "instancePresent", "enginePresent",
                       "engineLive", "activeSections", "rendererCreated", "ingestEnabled",
-                      "cameraCaptures"):
+                      "cameraCaptures", "storedNearCamera"):
             body = report()
             body["samples"][1].pop(field)
             self.assertRefused(self.run_gate(body), field)

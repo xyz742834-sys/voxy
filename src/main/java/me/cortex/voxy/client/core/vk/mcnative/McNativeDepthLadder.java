@@ -38,7 +38,7 @@ import static org.lwjgl.vulkan.VK10.*;
  * <b>深度書き込み無効</b>のまま次の順で描く:
  * <ol>
  *   <li>比較 ALWAYS、色 BASE (白) — 帯の全画素を必ず塗る。これが「ここに描いた」の証拠。</li>
- *   <li>比較 GREATER、深度 {@code z_0}、色 LOW (灰) — {@code d < z_0} の画素だけ残る。
+ *   <li>比較 GREATER、深度 {@code z_0}、色 LOW (暗い紫) — {@code d < z_0} の画素だけ残る。
  *       これが LESS 経路の<b>正の対照</b>: LESS が全段落ちる画素でも、深度テストが
  *       機能していれば GREATER が通る。どちらも通らなければ (d == z_0 を除き) 異常。</li>
  *   <li>比較 LESS、深度 {@code z_0 < z_1 < … < z_7} の<b>昇順</b>、段ごとに別の色 —
@@ -104,12 +104,16 @@ public final class McNativeDepthLadder implements Destroyable {
 
     /**
      * パレット。各チャネルは 0 / 0.5 / 1 の三値で、gate は同じ三値量子化で分類する。
-     * 添字: 0 = BASE (ALWAYS、白)、1 = LOW (GREATER z_0、灰)、2.. = 段 0..7。
+     * 添字: 0 = BASE (ALWAYS、白)、1 = LOW (GREATER z_0、暗い紫)、2.. = 段 0..7。
+     * ⚠ LOW was grey (0.5, 0.5, 0.5) until 2026-10-10: Minecraft's distance-fogged terrain
+     * quantises to the same three-level grey (measured: (106, 131, 128) at `return`), so a
+     * rejected-orientation crop looked half drawn and the orientation guard refused a real
+     * sample. Dark purple (0.5, 0, 0.5) is not fog, stone, water, grass or netherrack.
      * ⚠ gate は自分の定数と比べる。ここを変えたら {@code scripts/verify.py} も変える。
      */
     public static final float[][] PALETTE = {
         {1.0f, 1.0f, 1.0f},   // BASE
-        {0.5f, 0.5f, 0.5f},   // LOW
+        {0.5f, 0.0f, 0.5f},   // LOW (dark purple; was grey, see above)
         {1.0f, 0.0f, 1.0f},   // rung 0  magenta
         {0.0f, 1.0f, 1.0f},   // rung 1  cyan
         {1.0f, 1.0f, 0.0f},   // rung 2  yellow

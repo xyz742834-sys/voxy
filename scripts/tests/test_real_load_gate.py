@@ -223,7 +223,7 @@ class RealLoadGateTest(unittest.TestCase):
             def f(text):
                 line = "[native-vk] real load at draw 3000 status=no-camera-this-frame\n"
                 inst = ("[native-vk] native instance at frame {f} stage=descend factory=true instance=true"
-                        " engine=true live=true activeSections=1 renderer=false ingest=true cameraCaptures={c}\n")
+                        " engine=true live=true activeSections=1 renderer=false ingest=true cameraCaptures={c} storedNearCamera=1\n")
                 return text.replace(line, inst.format(f=60, c=60) + line
                                     + inst.format(f=120, c=120 if full else 119))
             return f
@@ -233,13 +233,13 @@ class RealLoadGateTest(unittest.TestCase):
         # no world engine while the instance log shows a live engine
         def live(text):
             return ("[native-vk] native instance at frame 1 stage=warmup factory=true instance=true"
-                    " engine=true live=true activeSections=1 renderer=false ingest=true cameraCaptures=1\n"
+                    " engine=true live=true activeSections=1 renderer=false ingest=true cameraCaptures=1 storedNearCamera=1\n"
                     + text)
         self.assertRefused(self.run_gate(real_status={0: "no-world-engine"}, log=live, **T),
                            "shows a live engine")
         def dead(text):
             return ("[native-vk] native instance at frame 1 stage=warmup factory=true instance=true"
-                    " engine=false live=false activeSections=0 renderer=false ingest=true cameraCaptures=1\n"
+                    " engine=false live=false activeSections=0 renderer=false ingest=true cameraCaptures=1 storedNearCamera=1\n"
                     + text)
         self.assertTrue(self.run_gate(real_status={0: "no-world-engine"}, log=dead, **T)["success"])
         # nothing meshed without a logged empty build
