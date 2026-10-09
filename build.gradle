@@ -611,6 +611,12 @@ loom {
             if (project.hasProperty('harnessNativeTerrainLoad')) {
                 vmArg '-Dvoxy.native.terrainload=true'
             }
+            // Native instance mode: on Minecraft's Vulkan backend start Voxy's instance (world
+            // engine, storage, ingest) without any render path, and record that a world engine
+            // with real sections exists while no VoxyRenderSystem does. Off by default.
+            if (project.hasProperty('harnessNativeInstance')) {
+                vmArg '-Dvoxy.native.instance=true'
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')

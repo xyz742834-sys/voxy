@@ -1445,6 +1445,149 @@ def coexist_checks(output, report, recounts, log_text, required=False):
             "z": EXPECTED_LADDER_DEPTHS[COEXIST_RUNG]}
 
 
+# ---------------- native instance mode: a world engine without a render path ----------------
+
+INSTANCE_LOG = re.compile(r"native instance at frame (\d+) stage=(\S*) factory=(true|false)"
+                          r" instance=(true|false) engine=(true|false) live=(true|false)"
+                          r" activeSections=(\d+) renderer=(true|false) ingest=(true|false)")
+INSTANCE_SAMPLE_INTERVAL = 60
+
+
+def native_instance_result(output, required=False, log_text=None):
+    """Native instance mode: on Minecraft's Vulkan backend Voxy's instance (world engine,
+    storage, ingest) ran WITHOUT any render path, and real sections were ingested.
+
+    The dependency the next experiment (real sections through Voxy's terrain pipeline) rests
+    on: a world engine must exist and hold sections, and no VoxyRenderSystem (the GL/interop
+    renderer) may have been created. Says nothing about the sections' content or drawing.
+    """
+    result = {"success": False, "failures": [],
+              "scope": "a Voxy world engine with ingested sections and no render path on"
+                       " Minecraft's Vulkan backend; NOT drawing, NOT content"}
+    path = output / "native-instance.json"
+    try:
+        if not path.is_file():
+            if required:
+                raise ValueError("the launch enabled native instance mode but"
+                                 " native-instance.json is not retained")
+            result.update(success=True, enabled=False)
+            return result
+        report = json.loads(path.read_text())
+        for field, kind in (("enabled", bool), ("backend", (str, type(None))), ("frames", int),
+                            ("engineEverPresent", bool), ("rendererEverCreated", bool),
+                            ("maxActiveSections", int), ("sampleInterval", int),
+                            ("samples", list), ("notes", list)):
+            if field not in report:
+                raise ValueError(f"the instance report does not state {field}")
+            value = report[field]
+            if kind is bool:
+                if not isinstance(value, bool):
+                    raise ValueError(f"instance.{field} is {value!r}, not a bool")
+            elif kind is int:
+                if not finite_int(value):
+                    raise ValueError(f"instance.{field} is {value!r}, not an int")
+            elif not isinstance(value, kind):
+                raise ValueError(f"instance.{field} is {value!r}, not a {kind}")
+        if not report["enabled"]:
+            if required:
+                raise ValueError("the launch enabled native instance mode but the report says"
+                                 " enabled=false")
+            if report["samples"] or report["frames"]:
+                raise ValueError("the instance probe recorded while disabled")
+            result.update(success=True, enabled=False)
+            return result
+        if report["backend"] is not None:
+            raise ValueError(f"native instance mode requires no Voxy backend, but the report"
+                             f" names {report['backend']!r}; a render path may have been built")
+        if report["notes"]:
+            raise ValueError(f"the instance probe reported notes: {report['notes']}")
+        if report["rendererEverCreated"]:
+            raise ValueError("a VoxyRenderSystem was created in native instance mode")
+        if report["sampleInterval"] != INSTANCE_SAMPLE_INTERVAL:
+            raise ValueError(f"the instance probe samples every {report['sampleInterval']}"
+                             f" frames, not the {INSTANCE_SAMPLE_INTERVAL} its source lays out")
+        samples = report["samples"]
+        if not samples:
+            raise ValueError("the instance probe retained no sample")
+        last_frame, max_active, engine_ever, renderer_ever = 0, 0, False, False
+        for index, sample in enumerate(samples):
+            if not isinstance(sample, dict):
+                raise ValueError(f"instance sample {index} is {sample!r}, not an object")
+            for field, kind in (("frame", int), ("stage", str), ("factorySet", bool),
+                                ("instancePresent", bool), ("enginePresent", bool),
+                                ("engineLive", bool), ("activeSections", int),
+                                ("rendererCreated", bool), ("ingestEnabled", bool)):
+                if field not in sample:
+                    raise ValueError(f"instance sample {index} does not state {field}")
+                value = sample[field]
+                if kind is bool and not isinstance(value, bool):
+                    raise ValueError(f"instance sample {index}.{field} is {value!r}, not a bool")
+                if kind is int and not finite_int(value):
+                    raise ValueError(f"instance sample {index}.{field} is {value!r}, not an int")
+                if kind is str and not isinstance(value, str):
+                    raise ValueError(f"instance sample {index}.{field} is {value!r}, not a str")
+            if sample["frame"] <= last_frame:
+                raise ValueError(f"instance samples are out of order at frame {sample['frame']}")
+            if sample["frame"] != 1 and sample["frame"] % INSTANCE_SAMPLE_INTERVAL:
+                raise ValueError(f"instance sample at frame {sample['frame']} is not on the"
+                                 f" probe's interval")
+            if sample["activeSections"] < 0:
+                raise ValueError(f"instance sample at frame {sample['frame']} has"
+                                 f" activeSections={sample['activeSections']}")
+            if sample["enginePresent"] and not (sample["factorySet"] and sample["instancePresent"]):
+                raise ValueError(f"instance sample at frame {sample['frame']} has an engine"
+                                 f" without a factory or instance")
+            last_frame = sample["frame"]
+            max_active = max(max_active, sample["activeSections"])
+            engine_ever |= sample["enginePresent"]
+            renderer_ever |= sample["rendererCreated"]
+        if last_frame > report["frames"]:
+            raise ValueError(f"the last instance sample is at frame {last_frame} but only"
+                             f" {report['frames']} frames were counted")
+        for field, want in (("maxActiveSections", max_active), ("engineEverPresent", engine_ever),
+                            ("rendererEverCreated", renderer_ever)):
+            if report[field] != want:
+                raise ValueError(f"the instance report says {field}={report[field]!r} but its"
+                                 f" samples say {want!r}")
+        if not engine_ever:
+            raise ValueError("no sample saw a world engine: native instance mode did not start"
+                             " Voxy's instance for the level")
+        if max_active < 1:
+            raise ValueError("the world engine never held a section: nothing was ingested")
+        final = samples[-1]
+        if not final["enginePresent"] or not final["engineLive"]:
+            raise ValueError(f"the last sample (frame {final['frame']}, stage"
+                             f" {final['stage']!r}) has no live world engine")
+        if not final["ingestEnabled"]:
+            raise ValueError("ingest was disabled at the last sample")
+        if log_text is not None:
+            logged = {}
+            for m in INSTANCE_LOG.findall(log_text):
+                if int(m[0]) in logged:
+                    raise ValueError(f"the log holds two instance lines for frame {m[0]}")
+                logged[int(m[0])] = m[1:]
+            if sorted(logged) != [s["frame"] for s in samples]:
+                raise ValueError(f"the log holds instance lines for frames {sorted(logged)} but"
+                                 f" the report lists {[s['frame'] for s in samples]}")
+            for sample in samples:
+                want = (sample["stage"], str(sample["factorySet"]).lower(),
+                        str(sample["instancePresent"]).lower(),
+                        str(sample["enginePresent"]).lower(), str(sample["engineLive"]).lower(),
+                        str(sample["activeSections"]), str(sample["rendererCreated"]).lower(),
+                        str(sample["ingestEnabled"]).lower())
+                if tuple(logged[sample["frame"]]) != want:
+                    raise ValueError(f"the log's instance line for frame {sample['frame']} says"
+                                     f" {logged[sample['frame']]} but the report says {want}")
+        result.update(success=True, enabled=True, samples=len(samples),
+                      max_active_sections=max_active,
+                      answer=f"a Voxy world engine ran without a render path on Minecraft's"
+                             f" Vulkan backend and held up to {max_active} sections across"
+                             f" {len(samples)} samples")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        result["failures"].append(f"{type(exc).__name__}: {exc}")
+    return result
+
+
 # ---------------- terrain-LOAD: Voxy's real terrain pipeline against Minecraft's loaded depth ----------------
 
 TERRAIN_LOAD_SCENE = "depthSweep"
@@ -2973,6 +3116,8 @@ def replay_evidence(directory):
         required.append("native-terrain-probe.json")
     if stage_for_inventory.get("depth"):
         required.append("native-depth-probe.json")
+    if (stage_for_inventory.get("instance") or {}).get("enabled"):
+        required.append("native-instance.json")
     missing = [name for name in required if name not in files or not (directory / name).is_file()]
     outcome["required_missing"] = missing
     if missing:
@@ -3036,6 +3181,20 @@ def replay_evidence(directory):
             outcome["depth"] = {"answer": depth.get("answer"),
                                 "recount": depth.get("recount", {}).get("size")}
             outcome["replayed"].append("depth probe acceptance checks and pixel recount")
+        # Native instance mode (a world engine without a render path): required when the
+        # retained launch command enabled it; the retained native.log is reconciled.
+        instance_launched = launch_enables((stage or {}).get("command"), "harnessNativeInstance")
+        instance_log = directory / "native.log"
+        instance = native_instance_result(
+            directory, instance_launched,
+            instance_log.read_text(errors="replace") if instance_log.is_file() else None)
+        if not instance["success"]:
+            raise ValueError(f"instance gate: {instance['failures']}")
+        if instance.get("enabled"):
+            outcome["instance"] = {"answer": instance.get("answer"),
+                                   "samples": instance.get("samples")}
+            outcome["replayed"].append("native instance mode acceptance checks (world engine,"
+                                       " ingested sections, no render path), log reconciled")
         terrain_path = directory / "native-terrain-probe.json"
         if terrain_path.is_file():
             terrain = json.loads(terrain_path.read_text())
@@ -3271,7 +3430,8 @@ def main():
                 "-PharnessGraphicsBackend=vulkan", "-PharnessNativeMarker=true",
                 "-PharnessNativeFeatures=true", "-PharnessNativeAdopt=true",
                 "-PharnessNativeProbe=true", "-PharnessNativeTerrain=true",
-                "-PharnessNativeDepth=true"], output, args.timeout)
+                "-PharnessNativeDepth=true", "-PharnessNativeInstance=true"], output,
+                args.timeout)
             result["gate"] = native_environment_result(native_output)
             result["success"] &= result["gate"]["success"]
             checkpoints = result["gate"].get("checkpoints") or []
@@ -3296,6 +3456,12 @@ def main():
             # contradicts itself or asserts an unmeasured convention does not.
             result["depth"] = native_depth_result(native_output, expected_device)
             result["success"] &= result["depth"]["success"]
+            # Native instance mode: a world engine with ingested sections and no render path.
+            # Required whenever the launch enabled it (Gradle's semantics, see launch_enables).
+            result["instance"] = native_instance_result(
+                native_output, launch_enables(result["command"], "harnessNativeInstance"),
+                (output / "native.log").read_text(errors="replace"))
+            result["success"] &= result["instance"]["success"]
             native_log_checks(result, output / "native.log")
             result["scope"] = "Minecraft-native Vulkan environment only; no Voxy LoD acceptance"
             result["voxy_integration_status"] = "BLOCKED_UNIMPLEMENTED"

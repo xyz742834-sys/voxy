@@ -1488,6 +1488,42 @@ fine as the ladder's brackets: inside a bracket nothing is decided, and the gate
 pixels rather than claiming them. A passing result does not authenticate that the GPU executed
 the compare, any more than any other retained record does.
 
+## Native instance mode: a world engine without a render path (2026-10-09)
+
+**Why.** The next experiment — real sections through Voxy's terrain pipeline into Minecraft's
+LOADed pass — needs real sections to exist. On Minecraft's Vulkan backend `VoxyClient` chooses
+no backend (`BACKEND = null`) and therefore never registers the instance factory, so there is no
+`VoxyClientInstance`, no `WorldEngine`, no ingest; the interop probe's `ensureRealScene` had
+already logged "no Voxy world engine for this level" in that situation. The renderer the
+instance would normally bring (`VoxyRenderSystem`) is the GL/interop path, which cannot exist on
+Minecraft's Vulkan backend (its constructor calls GL and casts Minecraft's textures to
+`GlTextureView`).
+
+**What the flag does.** `-Dvoxy.native.instance=true` (`-PharnessNativeInstance`, default off,
+experimental): when Minecraft is not on OpenGL, `VoxyClient` registers the instance factory and
+nothing else — no backend, no renderer. `MixinLevelRenderer.voxy$createRenderer` creates the
+world engine for the level and returns without a renderer. Everything the instance brings
+(storage under the game directory, the ingest service fed by `MixinClientChunkCache` /
+`MixinClientLevel` through `WorldIdentifier`, the saving service, the import manager) is
+GL-free. The consumers of `IVoxyRenderSystemHolder.getNullable()` already tolerate a null
+renderer.
+
+**What is recorded.** `McNativeInstanceProbe` samples at the level-render tail every 60 frames
+(and at frame 1): factory set, instance present, engine present and live, the engine's active
+section count, whether a `VoxyRenderSystem` exists, ingest enabled; one log line per sample;
+`native-instance.json` with the samples and the aggregates. The gate
+(`native_instance_result`, stage and replay, required whenever the launch command enabled the
+mode in any Gradle form) requires: no backend named, no renderer ever, at least one sample with
+an engine, a maximum active-section count of at least one, a live engine with ingest enabled at
+the last sample, samples on the interval and in order, aggregates equal to the samples, log
+lines equal to the report, no notes. It is part of the **first** native launch (the one that
+carries marker, terrain, depth copy), not the ladder launch.
+
+**What it does and does not say.** It says Voxy's instance can run on Minecraft's Vulkan backend
+without a render path and ingests sections there. It does not say the sections' content is
+right, that anything is drawn, or anything about LoD. Measured figures are in the retained run
+named in `handoff.md`.
+
 ## What is NOT answered yet, and must be measured on hardware
 
 1. **Image-state ownership** — partly answered. Opening the pass through Minecraft's

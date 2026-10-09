@@ -33,6 +33,16 @@ public class VoxyClient implements ClientModInitializer {
     }
 
     private static Backend BACKEND = null;
+    /**
+     * ⚠ EXPERIMENTAL, default off. Minecraft on its Vulkan backend: start Voxy's INSTANCE
+     * (world engine, storage, ingest — none of it GL) without any render path, so the native
+     * experiments can reach real sections. {@code BACKEND} stays null: nothing draws, and
+     * {@code MixinLevelRenderer} must not create {@code VoxyRenderSystem}
+     * [docs/ai/handoff.md, next steps].
+     */
+    public static final String NATIVE_INSTANCE_FLAG = "voxy.native.instance";
+    private static boolean nativeInstanceMode = false;
+    public static boolean nativeInstanceMode() { return nativeInstanceMode; }
 
     /**
      * 使用するバックエンド。{@link #initVoxyClient} の後にだけ意味がある。
@@ -131,6 +141,15 @@ public class VoxyClient implements ClientModInitializer {
                 systemSupported = false;
             }
 
+        }
+
+        if (!systemSupported && !mcIsOnOpenGl && Boolean.getBoolean(NATIVE_INSTANCE_FLAG)) {
+            // ⚠ native instance mode: the instance factory only. No backend, no renderer.
+            nativeInstanceMode = true;
+            Logger.info("[native-vk] native instance mode: Minecraft is on Vulkan and "
+                + NATIVE_INSTANCE_FLAG + " is set; starting Voxy's instance (world engine,"
+                + " storage, ingest) without a render path");
+            VoxyCommon.setInstanceFactory(VoxyClientInstance::new);
         }
 
         if (systemSupported) {

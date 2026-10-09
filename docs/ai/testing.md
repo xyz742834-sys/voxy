@@ -27,7 +27,9 @@ The lifecycle has thirteen checkpointed stages since 2026-10-07: the eleven befo
 `descend` and `ascend` (straight down at the ground under (0, 0) from 12 and 108 blocks above
 it), which the depth ladder's gate reads the Z direction from.
 Since 2026-10-07 the stage launches Minecraft **twice**: the first launch carries the
-marker, terrain, depth-copy and proof-file diagnostics; the second carries only the
+marker, terrain, depth-copy and proof-file diagnostics and (since 2026-10-09) native
+instance mode (`-PharnessNativeInstance`: Voxy's world engine and ingest without any render
+path, gated by `native_instance_result`); the second carries only the
 depth ladder (`-PharnessNativeDepthLadder`), its coexistence experiment
 (`-PharnessNativeCoexist`) and the terrain-LOAD experiment (`-PharnessNativeTerrainLoad`,
 Voxy's real terrain pipeline into a pass that LOADs MC's colour and depth, after the

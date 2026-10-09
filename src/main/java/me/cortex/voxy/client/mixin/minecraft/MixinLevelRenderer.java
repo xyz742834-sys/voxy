@@ -64,6 +64,8 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
         // 既定では何もしない。
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainLoad.renderIfEnabled();
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.renderIfEnabled();
+        // ⚠ instance mode の観測。GPU には触らない。既定では何もしない。
+        me.cortex.voxy.client.core.vk.mcnative.McNativeInstanceProbe.sampleIfEnabled();
         me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.renderIfEnabled();
     }
 
@@ -111,6 +113,18 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
             // [docs/phase5c-plan.md 9 の 5c-1a]。
             Logger.info("Not creating renderer: the Vulkan backend is selected but the render "
                 + "path is not wired yet (Phase 5c-1a). Minecraft renders unchanged.");
+            return;
+        }
+        if (VoxyClient.backend() == null && VoxyClient.nativeInstanceMode()) {
+            // ⚠ native instance mode (experimental, flagged): the world engine is wanted — it is
+            // what ingests real sections — but the GL/interop renderer must never be built on
+            // Minecraft's Vulkan backend (its constructor calls GL and casts MC's textures to
+            // GlTextureView). Create the engine, skip the renderer.
+            if (this.identifier != null && VoxyCommon.getInstance() != null) {
+                WorldEngine world = this.identifier.getOrCreateEngine(true);
+                Logger.info("[native-vk] native instance mode: world engine "
+                    + (world == null ? "not created" : "created") + "; no renderer");
+            }
             return;
         }
         if (this.identifier == null) {
