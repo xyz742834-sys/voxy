@@ -467,7 +467,8 @@ of the point — and the replay status of each is:
 | [20261009T063708-667962Z](runs/native-evidence/20261009T063708-667962Z/MANIFEST.json) | no — predates the terrain-LOAD experiment, the literal-token requirement and the request-time log line (round 17 confirmed its 24 pairs) |
 | [20261009T073850-255416Z](runs/native-evidence/20261009T073850-255416Z/MANIFEST.json) | no — predates native instance mode (round 18 judged it) |
 | [20261009T080812-119439Z](runs/native-evidence/20261009T080812-119439Z/MANIFEST.json) | no — predates the pinned terrain-LOAD view, the camera capture and the `horizon` stage |
-| [20261009T085529-037358Z](runs/native-evidence/20261009T085529-037358Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; 14 stages; Z direction, coexistence, terrain-LOAD (21 samples, zero violations) and instance mode (4 860 matrix captures, up to 92 sections, no renderer) judged |
+| [20261009T085529-037358Z](runs/native-evidence/20261009T085529-037358Z/MANIFEST.json) | no — predates real-LOAD and the complete instance inventory (round 19 judged it) |
+| [20261009T100957-766731Z](runs/native-evidence/20261009T100957-766731Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction, coexistence, terrain-LOAD, instance mode and real-LOAD judged |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1535,6 +1536,46 @@ engine held up to 16 active sections (the count rises as chunks arrive and falls
 are saved and idled, which is the engine's normal behaviour, so the gate requires a maximum of
 at least one and a live engine at the end, not a monotone count). The same run's terrain-LOAD
 experiment: 24 samples, zero violations, 17 with both determinate kinds.
+
+## Real sections, Minecraft's own matrix, Minecraft's loaded depth (2026-10-09)
+
+**The experiment.** `McNativeRealLoad` (flag `voxy.native.realload`, `-PharnessNativeRealLoad`,
+in the ladder launch, needs native instance mode) takes the frames the ladder hands it — the
+ladder now hands each sampled frame to exactly one depth-writing experiment, alternating with
+terrain-LOAD, and publishes the hand-off per sample. On such a frame it meshes the **world
+engine's real sections** at level 3, radius 4 around the camera (`McNativeRealScene`: the
+interop probe's components — REAL atlas, the world's `Mapper`, `VkRealModelBakery`,
+`VkRealMesher`, `VkRealSectionUpload`), writes the uniform with **Minecraft's own projection and
+model-view** (copied each frame from Sodium's CUTOUT hook, `McNativeCamera`) after the device is
+observed idle, renders Voxy's own reference (colour + D32) fence-waited, then records
+`recordDrawsInRenderPass` into a pass that LOADs Minecraft's colour and depth (Voxy's
+`GREATER_OR_EQUAL`, writes on) and reads it back. Each pixel is judged exactly as terrain-LOAD's.
+Every handed sample carries a result: judged, or a reason from a fixed set.
+
+**A GL dependency found and removed on the way.** The first gated run aborted the JVM: Voxy's
+`SoftwareModelTextureBakery.setupTexture` read Minecraft's block atlas with raw GL
+(`glGetInteger`, `glGetTexImage`), and on Minecraft's Vulkan backend there is no GL context.
+The bakery is otherwise software rasterisation. `McNativeAtlas` now copies the atlas (mip 0,
+2048×2048, RGBA8) with Minecraft's own `copyTextureToBuffer` and supplies it to the bakery;
+samples before it arrives are skipped as `atlas-pending`. The GL path is unchanged.
+
+**Measured** (run [20261009T100957-766731Z](runs/native-evidence/20261009T100957-766731Z/MANIFEST.json), replay 0 in this checkout):
+11 samples handed to real-LOAD; one `atlas-pending`, **10 judged with zero violations**. 675 264
+geometry pixels judged: **143 425 had to show Voxy and did**, 531 839 fell inside Minecraft's
+bracket (undetermined), **0 had to be hidden**. 8 of the 10 judged samples hold pixels that must
+appear — over Minecraft's sky, including the `horizon` look at the Voxy-only terrain around
+x = 768 (20 610 such pixels). Minecraft's Vulkan projection already produces 0..1 depth (the
+probe never had to adjust it); its far plane is 2048 blocks. Four scenes were built (the camera
+moved between level-3 sections at `travel` and back).
+
+**What it does and does not say.** Voxy's real meshes, drawn with Minecraft's matrix through
+Voxy's terrain pipeline, land in **the same depth space** as Minecraft's scene, at bracket grain:
+where Minecraft shows sky, Voxy's terrain appears exactly as its own reference says, and where
+Minecraft's terrain and Voxy's coincide the verdict is undetermined, not violated. It does **not**
+show occlusion of Voxy by nearer Minecraft geometry: no judged pixel had to be hidden, so that
+half of the composition is untested here. It is not LoD selection, traversal, culling,
+translucency, lighting or a delivered renderer: one coarse level around the camera, opaque only,
+experimental and flagged. The depth state is declared, not read back.
 
 ## What is NOT answered yet, and must be measured on hardware
 

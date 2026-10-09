@@ -37,7 +37,10 @@ path, gated by `native_instance_result`); the second carries only the
 depth ladder (`-PharnessNativeDepthLadder`), its coexistence experiment
 (`-PharnessNativeCoexist`) and the terrain-LOAD experiment (`-PharnessNativeTerrainLoad`,
 Voxy's real terrain pipeline into a pass that LOADs MC's colour and depth, after the
-ladder's readbacks), because the terrain probe clears the depth attachment the ladder
+ladder's readbacks), native instance mode (`-PharnessNativeInstance`) and the real-section
+experiment (`-PharnessNativeRealLoad`: the world engine's real sections drawn with Minecraft's
+own matrix into its LOADed colour and depth; the ladder hands each sample to terrain-LOAD or
+real-LOAD alternately), because the terrain probe clears the depth attachment the ladder
 measures. Any Gradle form naming a harness property enables it (`hasProperty`); the gate
 reads the retained command with Gradle's semantics and, on replay, additionally requires
 the stage's literal tokens, refusing any ladder command that lacks them. Both launches are gated, logged

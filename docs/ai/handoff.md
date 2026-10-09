@@ -1,9 +1,9 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-19 candidate **9a6ca051** (`9a6ca051d6f15beee6141ac1ca98552253deda7b`,
-dispatched 2026-10-09 in Orca worktree `native-review-r19`, terminal
-`term_2da7d7f2-b183-40df-9d74-d26e675670bb`). Round 18 judged `a6e1c3a3`: REDESIGN on DELIVERY-BOUNDARY only;
+`vulkan-macos`, round-20 candidate = the docs commit on top of `93ab4652` (the dispatch commit after it
+names the exact SHA). Round 19 judged `9a6ca051`: REDESIGN on DELIVERY-BOUNDARY only; R18 items closed;
+instance mode and matrix capture confirmed. Round 18 judged `a6e1c3a3`: REDESIGN on DELIVERY-BOUNDARY only;
 R16-COEXIST-LAUNCH-SEMANTICS and R14-DOC-DRIFT closed; terrain-LOAD measurement confirmed; four
 non-blocking items repaired in `bb55f53b`. (Round 17 judged `19b2444a`: coexistence CONFIRMED a third time,
 R16-COEXIST-LAUNCH-SEMANTICS left open on other Gradle CLI spellings and repaired here with the
@@ -31,10 +31,10 @@ stage's literal tokens as the authority; the terrain-LOAD experiment is now in t
 ## The review discipline (this is the spine)
 
 `scripts/verify.py` is the verification spine. Native work is **"measured", never "verified"**
-until a fresh independent review of a frozen commit records a verdict. Eighteen rounds have
+until a fresh independent review of a frozen commit records a verdict. Nineteen rounds have
 run, **all REDESIGN** — the standing delivery boundary (native LoD is not implemented) is
-always blocking. Round 18 was the first with **no blocking finding besides the boundary**.
-Reports are in `docs/ai/runs/native-integration-review-r1..r18.{md,json}`.
+always blocking. Rounds 18 and 19 had **no blocking finding besides the boundary**.
+Reports are in `docs/ai/runs/native-integration-review-r1..r19.{md,json}`.
 
 **Owner directive (2026-10-09, via the coordination mail):** do not spend effort on waste; the
 parallel agents watch each other for it. Take the shortest safe route to real-world native
@@ -56,14 +56,14 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9 … -19 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r19`. Start
+-9 … -20 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r20`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 18, and what this HEAD claims
+### Findings status after round 19, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
@@ -77,7 +77,8 @@ report separately from any repair.
 | R15-TEST-COEXIST | closed by r17 (all 23 refusal guards have a failing test) |
 | R14-DOC-DRIFT | closed by r18 |
 | **Terrain-LOAD experiment** (Voxy's real terrain pipeline, depth writes on, into a pass that LOADs MC colour+depth) | **confirmed by r18** as a bounded measurement |
-| **Native instance mode** + MC matrix capture + `horizon` stage | in this HEAD, measured; **unreviewed** |
+| **Native instance mode** + MC matrix capture + `horizon` stage | confirmed by r19 (bounded); R19-INSTANCE-INVENTORY / R19-TEST-INSTANCE / R19-DOC-DRIFT repaired in `9caf152d`; **unreviewed** |
+| **Real-section LOAD** + Blaze3D atlas read | in this HEAD, measured; **unreviewed** |
 | non-blocking limits (anchor grain, consistent forgery, creator restore, geometry scope, depth-copy scope, recorder binding untested in JUnit) | **stated as limits** |
 
 B1 has one recurring shape: **the gate trusted something the thing under test controls.**
@@ -134,6 +135,13 @@ frame extent, every retained file a manifest member.
   `20261009T080812-119439Z`): a world engine for the level, no `VoxyRenderSystem` ever, up to
   16 active sections across 73 samples, ingest enabled, log reconciled. Says
   nothing about the sections' content or drawing. Survey section "Native instance mode".
+- **Real sections, drawn with MC's own matrix through Voxy's terrain pipeline into MC's LOADed
+  colour and depth, compose per pixel** (flag `voxy.native.realload`, `McNativeRealLoad`, gate
+  `real_load_checks`; run `20261009T100957-766731Z`): 10 judged samples, zero violations, 143 425 pixels that had to
+  show Voxy did (8 samples, incl. `horizon` over MC's sky); **0 pixels had to be hidden**, so
+  occlusion by nearer MC geometry is untested. MC's Vulkan projection is already 0..1 depth;
+  far plane 2048. On the way: Voxy's model bakery read MC's atlas with raw GL (JVM abort on MC
+  Vulkan); `McNativeAtlas` reads it through Blaze3D instead.
 - **The Z direction is measured: larger depth value = nearer (reverse-Z).** Two harness stages
   look straight down at the ground under (0, 0) (y = 67, from the heightmap) from 12 and 108
   blocks above it; the ladder labels samples with stage and camera; the gate takes the last
@@ -177,10 +185,11 @@ screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_ch
 (same function as the stage), saying explicitly "not replayed" for runs that retained none and
 refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 343 (1 documented skip, 0 failures; 8 for the
-terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode);
-Python 260 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T085529-037358Z` (replay 0 **in this
+Gate/test counts at this HEAD: JUnit 346 (1 documented skip, 0 failures; 8 for the
+terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode,
+3 for real-LOAD);
+Python 274 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T100957-766731Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
 round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
@@ -189,17 +198,17 @@ terrain at x ≈ 768 from spawn, yaw -90, pitch 15 — added 2026-10-09 for the 
 experiment). Older retained runs do not replay under this
 gate, which is expected and tabled in the survey.
 
-## Round 19
+## Round 20
 
-Dispatched against `9a6ca051` with `docs/ai/runs/native-review-prompt-r19.txt` (worktree
-`native-review-r19`, terminal `term_2da7d7f2-b183-40df-9d74-d26e675670bb`). When its report
-lands: copy it to `docs/ai/runs/native-integration-review-r19.{md,json}`, commit the report
+Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r20.txt` (if not already
+done — check `git log` for a "docs: record the round-20 dispatch" commit). When its report
+lands: copy it to `docs/ai/runs/native-integration-review-r20.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
 
-1. Import the round-19 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 20. Do the goal work alongside; do not wait for an overall
+1. Import the round-20 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 21. Do the goal work alongside; do not wait for an overall
    PASS (owner directive).
 2. The goal work, done in this HEAD: **Voxy's real terrain pipeline in a LOADed pass** as a
    separate probe (`McNativeTerrainLoad`, `voxy.native.terrainload`,
@@ -209,7 +218,16 @@ alone, then repair blocking findings in a separate commit.
    own depth on PreferVulkan/MoltenVK" — the dependency every real-world LoD draw rests on —
    at bracket grain, for a synthetic scene. Survey section "Voxy's terrain pipeline in a LOADed
    pass, judged per pixel".
-3. **Next seam into real data:** real section meshes into `VkTerrainResources` in place of
+3. **Done in this HEAD (measured, unreviewed): the real-section LOAD experiment** — see
+   "What is measured". **Next, in order:** (a) a look where Voxy's sections are *behind* nearer
+   MC geometry, so pixels that must be hidden exist (e.g. at spawn, facing a hill or the
+   glass/fill blocks of the `edit` stage from a distance, with the real-section scene centred
+   on terrain beyond it) — occlusion is the untested half; (b) LoD beyond one level: mesh the
+   levels the hierarchical scene selects (`VkHierarchicalScene` traversal) instead of one fixed
+   level; (c) tie the scene's lifetime to MC's submissions without the per-sample
+   `vkDeviceWaitIdle` (today's safe-but-blocking uniform write). The historical design notes
+   follow.
+   **Earlier next-seam notes (kept for the record):** real section meshes into `VkTerrainResources` in place of
    `SyntheticTerrain`. Round 18 (R18-DOC-SEAM) corrected an earlier sentence here: on MC's
    Vulkan backend nothing produced sections until native instance mode (this HEAD) — Voxy's
    `WorldEngine`/meshing/`NodeManager` and the Vulkan traversal/`VkTerrainRenderer` are

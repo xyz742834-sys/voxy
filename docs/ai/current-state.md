@@ -77,7 +77,11 @@ violations, 14 of 20 samples with both determinate kinds; limits: declared depth
 synthetic scene, bracket-grain verdicts). **Voxy's instance (world engine, storage, ingest)
 runs on MC's Vulkan backend without any render path** (2026-10-09, flag `voxy.native.instance`;
 engine present, up to 16 sections held, no `VoxyRenderSystem`; the precondition for drawing real
-sections natively). The probe itself still asserts no convention and the
+sections natively). **Real sections drawn with MC's own matrix into MC's LOADed colour and depth
+compose per pixel** (2026-10-09, flag `voxy.native.realload`, run `20261009T100957-766731Z`: 10 judged samples, zero
+violations, 143 425 pixels that had to show Voxy did, none had to be hidden — occlusion by nearer
+MC geometry is untested; Voxy's model bakery now reads MC's block atlas through Blaze3D, not GL,
+in that mode). The probe itself still asserts no convention and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,
 tested behaviourally" and "Round-8 review repairs, and the per-pixel ladder".
 
