@@ -464,7 +464,8 @@ of the point — and the replay status of each is:
 | [20261009T041151-205062Z](runs/native-evidence/20261009T041151-205062Z/MANIFEST.json) | no — predates the coexistence experiment and the fourth pipeline state (round 14 confirmed its direction) |
 | [20261009T045515-905630Z](runs/native-evidence/20261009T045515-905630Z/MANIFEST.json) | no — predates the exact-RGB coexist rule and the required-evidence gate (round 15 confirmed its 24 samples) |
 | [20261009T060453-272917Z](runs/native-evidence/20261009T060453-272917Z/MANIFEST.json) | no — predates the launch-token semantics repair (round 16 confirmed its 24 pairs) |
-| [20261009T063708-667962Z](runs/native-evidence/20261009T063708-667962Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction and coexistence judged |
+| [20261009T063708-667962Z](runs/native-evidence/20261009T063708-667962Z/MANIFEST.json) | no — predates the terrain-LOAD experiment, the literal-token requirement and the request-time log line (round 17 confirmed its 24 pairs) |
+| [20261009T073850-255416Z](runs/native-evidence/20261009T073850-255416Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction, coexistence and terrain-LOAD judged |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1454,6 +1455,18 @@ colour and depth crops of the same band (once per frame size and rect, `.ppm.gz`
 twelve counts with the report and with the log line, requires both determinate kinds in at
 least one sample, and reconciles the probe's report with the ladder's view of it (pass count,
 device, formats: colour 37, depth 126 = `D32_SFLOAT`, which the pipeline declares).
+
+**Measured** (run
+[20261009T073850-255416Z](runs/native-evidence/20261009T073850-255416Z/MANIFEST.json), replay 0
+in this checkout): 20 samples, one terrain-LOAD pass each, **495 376 geometry pixels judged with
+zero violations** — no pixel showed Voxy where its depth was at or below Minecraft's bracket, none
+hid it where its depth was at or above, none held a third colour, none without geometry changed.
+Of those pixels 439 452 were expected visible and were, 22 973 were expected hidden and were,
+32 951 fell inside Minecraft's bracket and were counted as undetermined (shown or not, both
+allowed); 14 of the 20 samples hold both determinate kinds (the near panels over Minecraft's
+terrain, the far panel behind it; over sky everything shows). The coexist quad in the same run:
+zero violations in 20 samples (2 mixed); the Z direction: reverse-Z, as before. Per-sample
+counts are in `ladder/native-terrain-load.json` and the log; the gate's recount is the replay.
 
 **The first run failed its own gate, on chronology, not on pixels (2026-10-09).** The ladder's
 sample line is written when the GPU callback runs; the harness's `stage=` line is written when

@@ -1,8 +1,10 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-17 candidate **19b2444a** (`19b2444a5a5c40dca47160ece609970caf6a4c07`, dispatched 2026-10-09 in Orca worktree `native-review-r17`, terminal `term_c1c0e855-b94a-4e1e-ab2b-326bf8efdd2e`; round 16 judged
-`a49b926f`: coexistence CONFIRMED again, R16-COEXIST-LAUNCH-SEMANTICS refuted and repaired here).
+`vulkan-macos`, round-18 candidate = the docs commit on top of the terrain-LOAD commit (the dispatch
+commit after it names the exact SHA; round 17 judged `19b2444a`: coexistence CONFIRMED a third time,
+R16-COEXIST-LAUNCH-SEMANTICS left open on other Gradle CLI spellings and repaired here with the
+stage's literal tokens as the authority; the terrain-LOAD experiment is now in the tree and measured).
 
 > Read `docs/ai/project-goal.md` and `docs/ai/current-state.md` first, then this. This file is
 > task state, not source of truth; when the work moves on, update it or delete it.
@@ -26,12 +28,12 @@ Written 2026-10-07 for a **fresh session with no conversation context**. Branch
 ## The review discipline (this is the spine)
 
 `scripts/verify.py` is the verification spine. Native work is **"measured", never "verified"**
-until a fresh independent review of a frozen commit records a verdict. Sixteen rounds have
+until a fresh independent review of a frozen commit records a verdict. Seventeen rounds have
 run, **all REDESIGN** — the standing delivery boundary (native LoD is not implemented) is
-always blocking; round 16 confirmed the coexistence measurement again and added
-R16-COEXIST-LAUNCH-SEMANTICS (replay read only the literal `=true` launch token while Gradle
-enables on `hasProperty`), repaired in this HEAD.
-Reports are in `docs/ai/runs/native-integration-review-r1..r16.{md,json}`.
+always blocking; rounds 16 and 17 confirmed the coexistence measurement and kept
+R16-COEXIST-LAUNCH-SEMANTICS open (replay modelled the launch token; Gradle has more spellings),
+repaired in this HEAD by making the stage's literal tokens the authority.
+Reports are in `docs/ai/runs/native-integration-review-r1..r17.{md,json}`.
 
 **Owner directive (2026-10-09, via the coordination mail):** do not spend effort on waste; the
 parallel agents watch each other for it. Take the shortest safe route to real-world native
@@ -53,25 +55,26 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9 … -17 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r17`. Start
+-9 … -18 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r18`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 16, and what this HEAD claims
+### Findings status after round 17, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
 | every evidence/gate finding B1 … R13-Z-BINDING, R14-TEST-BINDINGS | closed |
 | DELIVERY-BOUNDARY | standing: diagnostics are not an accepted foundation; native LoD is unimplemented |
 | **Z direction** | confirmed (r13, r14): reverse-Z |
-| **Coexistence, known-depth quad** | **confirmed by r15 and r16** as a bounded measurement (24 samples, zero exact-RGB violations, four mixed) |
+| **Coexistence, known-depth quad** | **confirmed by r15, r16 and r17** as a bounded measurement (24 samples, zero exact-RGB violations, four mixed) |
 | R15-COEXIST-PRESENCE | closed by r16 (the original attack is refused); its residual became R16-COEXIST-LAUNCH-SEMANTICS |
-| **R16-COEXIST-LAUNCH-SEMANTICS** | repaired in this HEAD (`9c6cf401`) — `launch_enables()` reads the retained command with Gradle's `hasProperty` semantics in stage and replay; replay tests for `=false`, `=`, bare, and a non-enabling neighbour; **unreviewed** |
-| non-blocking R15-TEST-COEXIST residual (five guards whose removal passed the suite) | each has a failing test now, checked by mutating each guard to `False` |
-| non-blocking R14-DOC-DRIFT residual (gate date, "replays in this checkout" for old runs, this file's launch-2 flags) | corrected in the survey, `current-state.md` and this file |
+| **R16-COEXIST-LAUNCH-SEMANTICS** | r17: attached `-P` forms repaired, but `-P x`, `--project-prop`, `org.gradle.project.*` still escaped. Repaired in this HEAD: `launch_enables()` reads every CLI form r17 measured, AND replay requires the retained ladder command to carry the stage's literal tokens (`LADDER_LAUNCH_FLAGS`) and no depth-writing experiment — any other command is not the stage's launch; **unreviewed** |
+| R15-TEST-COEXIST | closed by r17 (all 23 refusal guards have a failing test) |
+| non-blocking R14-DOC-DRIFT residuals (manual ladder command without coexist, run count) | fixed in this file; **unreviewed** |
+| **Terrain-LOAD experiment** (Voxy's real terrain pipeline, depth writes on, into a pass that LOADs MC colour+depth) | **in the tree and measured in this HEAD** (`McNativeTerrainLoad`, gate `terrain_load_checks`); **unreviewed** — see "What is measured" |
 | non-blocking limits (anchor grain, consistent forgery, creator restore, geometry scope, depth-copy scope, recorder binding untested in JUnit) | **stated as limits** |
 
 B1 has one recurring shape: **the gate trusted something the thing under test controls.**
@@ -109,6 +112,19 @@ frame extent, every retained file a manifest member.
   sampled frame a second pass draws the quad at z* = 2⁻⁸ over the band, a second readback is
   compared pixel by pixel with the ladder's brackets from the same frame; zero violations
   required and measured. Survey section "Coexistence, first measurement".
+- **Voxy's real terrain pipeline composes per pixel against MC's LOADed depth, with depth
+  writes on** (flag `voxy.native.terrainload`, separate probe `McNativeTerrainLoad`, in the
+  ladder launch): on each sampled frame, after the ladder's two readbacks, a third pass LOADs
+  MC's colour and depth and records `VkTerrainRenderer.recordDrawsInRenderPass` for
+  `SyntheticTerrain.depthSweep()` (five panels at 32·{1,2,4,8,16} blocks, fitted into the ladder
+  band, depths on both sides of MC's terrain bracket); a third readback is judged per pixel from
+  the ladder's bracket and Voxy's own reference depth of the same scene: reference colour
+  exactly where d_V ≥ bracket top, byte-identical to the previous readback where d_V ≤ bracket
+  bottom, undetermined between, unchanged without geometry. **Measured** (run `20261009T073850-255416Z`, replay 0 in this checkout): 20 samples, 495 376 geometry pixels judged, **zero violations** (no pixel shown where Voxy's depth was at or below MC's bracket, none hidden where it was at or above, none of another colour, none changed without geometry); 439 452 pixels expected visible and 22 973 expected hidden, 32 951 undetermined; 14 samples hold both determinate kinds. Survey section
+  "Voxy's terrain pipeline in a LOADed pass, judged per pixel". Limits: the depth state is
+  declared (`[6, 1, 1]`), not read back; synthetic scene; bracket-grain verdicts. The first run
+  failed on a log-chronology race (sample line logged after the next stage began), repaired by
+  a request-time log line the gate now anchors to; see the survey.
 - **The Z direction is measured: larger depth value = nearer (reverse-Z).** Two harness stages
   look straight down at the ground under (0, 0) (y = 67, from the heightmap) from 12 and 108
   blocks above it; the ladder labels samples with stage and camera; the gate takes the last
@@ -127,9 +143,14 @@ frame extent, every retained file a manifest member.
   same day** (`fcd5ce18`). The linear rungs 0.0625..0.9375 sat inside the first block in front
   of the camera. Round 8 refuted the same claim independently. **Why the buffer copy read 0.0
   everywhere** while the depth test sees non-zero values is not established.
-- The depth **scale** beyond one value is not measured: the coexistence quad shows that a
-  depth of 2⁻⁸ in Voxy's convention lands where Minecraft's 2⁻⁸ does, nothing more. Voxy's
-  real terrain pipeline against MC's LOADed depth is not yet attempted.
+- The depth **scale** is measured only at bracket grain: the quad at 2⁻⁸ and the sweep's
+  panels (≈ 2⁻⁸·¹ … 2⁻¹²·⁷) land on the side of Minecraft's brackets their values say; inside a
+  bracket nothing is decided. Real-world geometry (Voxy's LoD meshes against MC's chunks at the
+  same world scale) is not yet drawn; the sweep is synthetic and its camera is not MC's.
+- The terrain-LOAD pipeline's depth state is **declared**, not read back from pipeline
+  creation (the ladder's is). `VkTerrainRenderer` builds it with
+  `depthTest(true).depthWrite(true).depthCompare(VkDepth.COMPARE_OP)`; the probe publishes
+  `declaredDepthState: [6, 1, 1]`, `depthStateReadBack: false`, and the gate pins both.
 - No round has accepted the diagnostic layer as a foundation. Round 4's wording still governs:
   terrain investigation may be **experimental**, not "continuation from an accepted layer".
 
@@ -137,62 +158,55 @@ frame extent, every retained file a manifest member.
 
 Clean at HEAD. The native stage (`--only native`) launches Minecraft **twice**: launch 1 as
 before (marker, features, adopt, probe, terrain, depth copy), launch 2 with
-`-PharnessNativeDepthLadder=true -PharnessNativeCoexist=true` (+ native/adopt/features/probe)
-and nothing that writes or clears MC's depth. Both are gated; the second's
+`-PharnessNativeDepthLadder=true -PharnessNativeCoexist=true -PharnessNativeTerrainLoad=true`
+(+ native/adopt/features/probe; `verify.LADDER_LAUNCH_FLAGS`) and nothing that writes or clears
+MC's depth before the ladder's readbacks. Both are gated; the second's
 device and frame extents are tied to its **own** checkpoints. Evidence for the ladder launch is
 retained under `<run>/ladder/` (report, every sample's two crops, band crops from every
 screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_checks` on it
 (same function as the stage), saying explicitly "not replayed" for runs that retained none and
 refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 333 (1 documented skip, 0 failures); Python 199 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T063708-667962Z` (replay 0 **in this
+Gate/test counts at this HEAD: JUnit 341 (1 documented skip, 0 failures; 8 new for the
+terrain-LOAD probe, one of them a GPU render of the reference scene); Python 220 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T073850-255416Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
-inventory, so only a run built from HEAD's sources replays; `20261009T060453-272917Z`, which
-rounds 15–16 judged, replayed 0 in the checkout it was built from). The lifecycle now has thirteen
+inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
+round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has thirteen
 checkpointed stages (`descend`, `ascend` added). Older retained runs do not replay under this
 gate, which is expected and tabled in the survey.
 
-## Round 17
+## Round 18
 
-Dispatched against `19b2444a` with `docs/ai/runs/native-review-prompt-r17.txt` (worktree
-`native-review-r17`, terminal `term_c1c0e855-b94a-4e1e-ab2b-326bf8efdd2e`). When its report
-lands: copy it to `docs/ai/runs/native-integration-review-r17.{md,json}`, commit the report
+Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r18.txt` (if not already
+done — check `git log` for a "docs: record the round-18 dispatch" commit). When its report
+lands: copy it to `docs/ai/runs/native-integration-review-r18.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
 
-1. Import the round-17 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 18. (Round 17 was dispatched alongside the terrain-LOAD
-   work; do both without waiting for an overall PASS, per the owner directive.)
-2. The goal work, in progress: **Voxy's real terrain pipeline in a LOADed pass**, as a
-   **separate probe with its own flag** (`McNativeTerrainLoad`, `voxy.native.terrainload`,
-   `-PharnessNativeTerrainLoad`), because rule 3 below forbids the ladder itself from writing
-   MC's depth. Design, settled 2026-10-09 (not yet in the tree): on each frame the ladder
-   samples, after the ladder's two readbacks are requested, the probe opens a third pass that
-   LOADs MC's colour and depth and records `VkTerrainRenderer.recordDrawsInRenderPass`
-   (Voxy's own depth state: `GREATER_OR_EQUAL`, writes ON) for a synthetic scene whose
-   footprint is fitted into the ladder band and whose depths straddle MC's brackets; then a
-   third readback. Expectation per band pixel from two independent measurements of the same
-   frame — the ladder's bracket (lo, hi] for MC's depth and Voxy's own reference render of the
-   same scene with the same MVP into its own target (colour + D32 depth, read back once per
-   extent): Voxy's colour must appear exactly where its depth ≥ hi, the pixel must stay
-   byte-identical to the previous readback where depth ≤ lo, either is allowed in between
-   (undetermined, counted), and pixels without Voxy geometry must not change. Zero violations;
-   at least one sample with both determinate kinds. Evidence: the third crop, its thumbnail,
-   the reference colour and depth crops, a `native-terrain-load.json` report and a log line
-   per sample, retained and recounted by the gate like the quad's. MC's depth format must be
-   `D32_SFLOAT` (126, measured) to match the pipeline's declared attachment. The reference
-   build reuses the terrain probe's fence-waited build (to be factored into a shared scene
-   builder), the leak/retire discipline from rounds 5–6, and `recordBeforeRenderPass` is not
-   needed in MC's pass because uploads and the depth bound are fence-complete at build time.
-   Integration question it answers: can Voxy's real terrain pipeline, with its own depth
-   state, composite per pixel against MC's own depth on PreferVulkan/MoltenVK — the dependency
-   every real-world LoD draw rests on. Next seam after it: real section data (WorldEngine /
-   NodeManager meshes) into `VkTerrainResources` in place of `SyntheticTerrain`.
+1. Import the round-18 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 19. Do the goal work alongside; do not wait for an overall
+   PASS (owner directive).
+2. The goal work, done in this HEAD: **Voxy's real terrain pipeline in a LOADed pass** as a
+   separate probe (`McNativeTerrainLoad`, `voxy.native.terrainload`,
+   `-PharnessNativeTerrainLoad`; shared fence-waited scene builder `McNativeTerrainScene`, which
+   the terrain probe now also uses). It answers the integration question "can Voxy's real
+   terrain pipeline, with its own depth state and writes on, composite per pixel against MC's
+   own depth on PreferVulkan/MoltenVK" — the dependency every real-world LoD draw rests on —
+   at bracket grain, for a synthetic scene. Survey section "Voxy's terrain pipeline in a LOADed
+   pass, judged per pixel".
+3. **Next seam into real data:** real section meshes into `VkTerrainResources` in place of
+   `SyntheticTerrain` — the native path has Voxy's `WorldEngine`/meshing/`NodeManager` producing
+   sections, and the Vulkan traversal/`VkTerrainRenderer` consuming `VkTerrainResources`; the
+   missing piece is the upload of real section geometry/metadata/positions/models and MC's
+   actual camera matrix (`viewport.MVP`, GL convention, which Voxy's matrices already follow)
+   into the uniform. Approach it as another bounded, gated experiment: a LOAD pass of real
+   sections around the harness camera, judged against the ladder's brackets the same way
+   (reference depth from Voxy's own render of the same sections). Not a general framework.
    Open and not needed for that: why the buffer copy reads 0.0.
-3. Nothing in the ladder may ever write MC's depth. If a future variant needs to, it is a
-   different probe with a different flag (which is what item 2 does).
+4. Nothing in the ladder may ever write MC's depth. A variant that writes is a different probe
+   with a different flag (which is what `McNativeTerrainLoad` is).
 
 ## Commands
 

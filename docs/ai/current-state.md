@@ -66,7 +66,13 @@ depth** (2026-10-09, zero violations). The ladder runs in
 its own launch inside `--only native` (terrain and marker off, the report says so, the gate
 requires it) and that launch is retained; the newest run replays in the checkout it was built
 from (rounds 15 and 16 confirmed the quad's composition on independent recounts; round 16
-found that replay read the launch token too narrowly, repaired 2026-10-09). The probe itself still asserts no convention and the
+found that replay read the launch token too narrowly, repaired 2026-10-09; round 17 found more
+Gradle spellings and the stage's literal tokens are now the authority). **Voxy's real terrain
+pipeline, with depth writes on, composes per pixel against MC's LOADed depth** (2026-10-09, flag
+`voxy.native.terrainload`, a separate probe: a synthetic depth sweep fitted into the ladder band,
+judged from the ladder's bracket and Voxy's own reference depth; 495 376 pixels, zero
+violations, 14 of 20 samples with both determinate kinds; limits: declared depth state,
+synthetic scene, bracket-grain verdicts). The probe itself still asserts no convention and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,
 tested behaviourally" and "Round-8 review repairs, and the per-pixel ladder".
 
