@@ -558,9 +558,11 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
         text += real_log_for(real_entries)
     if hier:
         frames = {e["at"]: 100 * (i + 1) for i, e in enumerate(hier_entries)} if hier_frames else None
+        # every ladder frame is composited, skipped or a handed sample
+        composited = body["drawsRecorded"] - len(hier_entries) if hier_frames else 0
         (out / "native-hier-load.json").write_text(json.dumps(
             hier_report(hier_entries, atlasReads=atlas_reads, everyFrame=hier_frames,
-                        framesComposited=100 * (len(hier_entries) + 1) if hier_frames else 0)))
+                        framesComposited=composited)))
         text += hier_log_for(hier_entries,
                              atlas_logged=any(e["status"] == "judged" for e in real_entries),
                              frames=frames)

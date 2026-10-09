@@ -65,8 +65,11 @@ final class McNativeComposite {
 
     /**
      * In Voxy's own submission, after the scene wrote the target (and any readbacks): make both
-     * sources readable by the fragment shader of Minecraft's later pass. The submission is fence
-     * waited before Minecraft's pass is recorded.
+     * sources readable by the fragment shader of Minecraft's later pass. On a handed sample the
+     * submission is fence waited before Minecraft's pass is recorded; on an every-frame frame it
+     * is not — that path relies on Voxy's submission preceding Minecraft's on the same queue, with
+     * this barrier's scope reaching the later composite (see
+     * {@code McNativeHierarchicalLoad.drawEveryFrame}).
      */
     void prepareSources(VkCommandBuffer cmd) {
         this.colour.barrier(cmd, 0, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,

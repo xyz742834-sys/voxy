@@ -181,7 +181,7 @@ class HierLoadGateTest(unittest.TestCase):
     def test_every_frame_rendering_is_reconciled_with_the_log(self):
         ok = self.run_gate(frames=True)
         self.assertTrue(ok["success"], ok["failures"])
-        self.assertEqual(ok["hier_load"]["frames"]["framesComposited"], 300)
+        self.assertEqual(ok["hier_load"]["frames"]["framesComposited"], 4998)
         self.assertEqual(self.run_gate()["hier_load"]["frames"], {"everyFrame": False})
         self.assertRefused(self.run_gate(frames=False, require_frames=True),
                            "everyFrame=false")
@@ -199,8 +199,13 @@ class HierLoadGateTest(unittest.TestCase):
                            "hierLoad.everyFrame is 'yes'")
         self.assertRefused(self.run_gate(frames=True, mutate_hier=lambda r: r.update(frameSkips={"bored": 2})),
                            "not a skip reason")
-        self.assertTrue(self.run_gate(frames=True,
-                                      mutate_hier=lambda r: r.update(frameSkips={"atlas-pending": 2}))["success"])
+        self.assertTrue(self.run_gate(frames=True, mutate_hier=lambda r: r.update(
+            frameSkips={"atlas-pending": 2}, framesComposited=r["framesComposited"] - 2))["success"])
+        # round-25 R25-FRAME-ACCOUNTING: composited + skipped + handed must equal the ladder's frames
+        self.assertRefused(self.run_gate(frames=True, mutate_hier=lambda r: r.update(framesComposited=10 ** 12)),
+                           "but the ladder drew on 5000")
+        self.assertRefused(self.run_gate(frames=True, mutate_hier=lambda r: r.update(frameSkips={"nothing-meshed": 10 ** 12})),
+                           "but the ladder drew on 5000")
         def drop(text):
             return "".join(l for l in text.splitlines(keepends=True) if "hier frames before draw 3240" not in l)
         self.assertRefused(self.run_gate(frames=True, log=drop), "every handed sample logs one")

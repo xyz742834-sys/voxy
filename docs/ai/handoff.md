@@ -83,10 +83,10 @@ report separately from any repair.
 | **Terrain-LOAD experiment** (Voxy's real terrain pipeline, depth writes on, into a pass that LOADs MC colour+depth) | **confirmed by r18** as a bounded measurement |
 | **Native instance mode** + MC matrix capture + `horizon` stage | confirmed by r19 (bounded); R19-INSTANCE-INVENTORY / R19-TEST-INSTANCE / R19-DOC-DRIFT repaired in `9caf152d`; **unreviewed** |
 | **Real-section LOAD** + Blaze3D atlas read | **confirmed by r20** (bounded: visible half only); R20 items addressed in `da91d70e`; r21 closed two and found four incomplete, those and two new r21 items addressed in `d0a08faf`; **unreviewed** |
-| **Hierarchical-LOAD** (`McNativeHierarchicalLoad` + `McNativeComposite`, three-way hand-off) | measured (6 judged, zero violations, 82 073 shown / 3 962 hidden); **round 24 reviews `03461cea`** |
-| **Hierarchical-LOAD every frame** (`voxy.native.hierframes`) | measured (5 083 frames composited, 8 judged in CULL mode, zero violations); **unreviewed** |
+| **Hierarchical-LOAD** (`McNativeHierarchicalLoad` + `McNativeComposite`, three-way hand-off) | measured (6 judged, zero violations, 82 073 shown / 3 962 hidden); judged by r24 (four defects, repaired) |
+| **Hierarchical-LOAD every frame** (`voxy.native.hierframes`) | **confirmed by r25** within source/specification and retained-run scope (own fence + same queue + target barriers); ordinary-frame pixels not judged; R25-FRAME-ACCOUNTING (totals unbounded) addressed after it — the gate reconciles composited + skipped + handed with the ladder's frames; **unreviewed** |
 | **Voxy's own projection + reprojecting resolve** (`429ce46a`) | measured (8 judged, zero violations, every reference depth re-derived); **unreviewed** (after the round-25 candidate) |
-| **R24 findings** (HIER-CULL, DIRTY-CALLBACK, RETIRED-CONTEXT, INSTANCE-STORED, HIER-GUARD-COVERAGE, EMPTY-BUILD) | repaired in `b6e24c24` / `65f26ff1`; **unreviewed** |
+| **R24 findings** | HIER-CULL, DIRTY-CALLBACK, RETIRED-CONTEXT, INSTANCE-STORED, EMPTY-BUILD **closed by r25**; HIER-GUARD-COVERAGE **partly**: the seven hierarchy-specific predicates are detected, the 27 shared-helper predicates are detected only by the real-LOAD tests (stated, not repaired) |
 | **Occlusion** (render-distance cut, `horizon` wall, hidden pixels required) | **confirmed by r22** (one look, bracket grain); R22 residuals (budget-guard test, draw-time cut, wording) addressed after it; **unreviewed** |
 | non-blocking limits (anchor grain, consistent forgery, creator restore, geometry scope, depth-copy scope, recorder binding untested in JUnit) | **stated as limits** |
 

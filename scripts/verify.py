@@ -2481,7 +2481,7 @@ def hier_load_build_attempts(text):
 HIER_FRAMES_LOG = re.compile(r"hier frames before draw (\d+): composited=(\d+)")
 
 
-def hier_frames_checks(report, log_text, entries, required):
+def hier_frames_checks(report, log_text, entries, required, ladder_draws=None):
     """The every-frame path (voxy.native.hierframes): the hierarchical scene rendered and
     composited on every frame, not only on handed samples. Those frames are not judged per pixel
     (the handed samples are); this reconciles what the probe says it composited with the log:
@@ -2532,6 +2532,14 @@ def hier_frames_checks(report, log_text, entries, required):
             if before[b] <= before[a]:
                 raise ValueError(f"no frame was composited between the judged samples at draws {a}"
                                  f" and {b} ({before[a]} then {before[b]})")
+    # round-25 R25-FRAME-ACCOUNTING: every frame the level-render tail ran is one of: composited,
+    # skipped with a reason, or a handed sample (judged or skipped as a result). The ladder counts
+    # the same frames independently (it draws on each, ahead of this probe).
+    accounted = composited + sum(skips.values()) + len(entries)
+    if ladder_draws is not None and accounted != ladder_draws:
+        raise ValueError(f"the {L} probe accounts for {accounted} frame(s) ({composited} composited,"
+                         f" {sum(skips.values())} skipped, {len(entries)} handed) but the ladder drew"
+                         f" on {ladder_draws}")
     return {"everyFrame": True, "framesComposited": composited, "frameSkips": dict(skips),
             "composedBeforeSample": before}
 
@@ -2637,7 +2645,8 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     if sorted(by_at) != sorted(sample_ats):
         raise ValueError(f"{L} results exist for draws {sorted(by_at)} but the ladder handed it"
                          f" draws {sorted(sample_ats)}; every handed sample must carry one")
-    frames = hier_frames_checks(report, log_text, entries, require_frames)
+    frames = hier_frames_checks(report, log_text, entries, require_frames,
+                                ladder_report.get("drawsRecorded"))
     if log_text is not None and sorted(logged) != sorted(sample_ats):
         raise ValueError(f"the ladder log holds hier-load lines for draws {sorted(logged)} but the"
                          f" ladder handed it draws {sorted(sample_ats)}")
