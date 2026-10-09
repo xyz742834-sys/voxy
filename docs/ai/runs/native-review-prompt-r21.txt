@@ -1,0 +1,58 @@
+You are an INDEPENDENT reviewer, round 21. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (03ee3485185cf094db40b2f9b1508237c9d32207). Round 20 returned REDESIGN against 39584eba on the
+standing DELIVERY-BOUNDARY only: it closed R19-INSTANCE-INVENTORY, R19-TEST-INSTANCE and
+R19-DOC-DRIFT, and CONFIRMED the real-section LOAD measurement (visible half, bracket grain) and
+the Blaze3D atlas read. Non-blocking: R20-REAL-METADATA, R20-REAL-SKIP-PROVENANCE,
+R20-REAL-ENGINE-IDENTITY, R20-DESTROY-ACCOUNTING, R20-ATLAS-RELOAD, R20-TEST-REALLOAD. Report:
+docs/ai/runs/native-integration-review-r20.md, machine verdict ...-r20.json.
+
+The HEAD repairs all six (commit da91d70e):
+- skip provenance: verify.real_load_skip_provenance corroborates each reason (atlas-pending:
+  an outstanding atlas request in the log and the probe's atlas state PENDING; no-camera: an
+  unchanged capture count; extent mismatch: the ladder sample's extent; no-world-engine: the last
+  instance log line shows no live engine; nothing-meshed: a logged empty build; budget: the build
+  count); skips carry only skip keys and a bare log line.
+- metadata: min/max depth vs the reference depth crop; both projections published, the used one
+  equal to MC's or exactly its halved range and consistent with projectionAdjusted; farPlane =
+  |m32/m22|; centre/sections/quads/draws bounded; stage equal to the ladder sample's; captures
+  strictly increasing; builds and device required.
+- engine identity: McNativeRealLoad holds the scene's world engine (weak reference) and atlas
+  generation and rebuilds when either changes; the gate refuses reuse across engine or atlas
+  changes and across disconnect/reconnect.
+- destroy accounting: scene and atlas-buffer free failures counted, must be zero.
+- atlas reload: McNativeAtlas.refreshIfReplaced re-reads when MC replaces the atlas texture;
+  reset at shutdown; build budget 6 -> 10.
+- a test per surviving guard asserting the guard's own message.
+Newest run docs/ai/runs/native-evidence/20261009T105825-290625Z (built from da91d70e): real-LOAD
+7 judged, zero violations, 85359 expected visible, 0 expected hidden; atlas read twice (reload),
+the next scene rebuilt with generation 2; no free failures.
+
+The boundary from rounds 4-20 still governs and the candidate accepts it. It claims (a) the six
+R20 items are repaired, (b) the re-measured real-section result stands as round 20 bounded it —
+NOT occlusion by nearer MC geometry (no pixel had to be hidden), NOT LoD selection, traversal,
+culling, translucency, lighting or a delivered renderer, (c) the survey/handoff claim no more.
+
+Judge, CONFIRMED or REFUTED with file/line or command:
+1. Re-run your R20 attacks (relabelled skips, fabricated metadata, scene reuse across
+   engine/atlas/reconnect, swallowed free failures, atlas reuse after reload) against the new run;
+   name any that replay 0.
+2. Recount every judged real-LOAD sample independently and judge the atlas refresh in the log.
+3. Tests: JUnit 347 (1 documented skip), Python 278; guard removals for real_load_checks and
+   real_load_skip_provenance. Fixtures must not be shrunk.
+4. Survey/handoff overstatement.
+5. Safety for normal play with every voxy.native.* flag unset, on GL and on Minecraft Vulkan.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T105825-290625Z
+Do NOT run scripts/verify.py --only native or --only live; judge the committed evidence.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round20_findings_closed (mapping
+R20-REAL-METADATA, R20-REAL-SKIP-PROVENANCE, R20-REAL-ENGINE-IDENTITY, R20-DESTROY-ACCOUNTING,
+R20-ATLAS-RELOAD, R20-TEST-REALLOAD to true/false), real_load_judgment, atlas_judgment,
+instance_mode_judgment, terrain_load_judgment, coexist_judgment, z_direction_judgment and
+ladder_judgment.
