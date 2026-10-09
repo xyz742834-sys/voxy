@@ -92,8 +92,11 @@ class HierLoadGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(hier_status={0: "felt-like-it"}), "nor a reason")
 
     def test_scene_and_iteration_facts_are_reconciled(self):
-        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(meshed=36)),
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(meshedAtBuild=36)),
                            "the log's build line says")
+        # meshing continues after the build: fewer sections now than at build is refused
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(meshed=34)),
+                           "34 meshed sections now and 35 at build")
         self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(iterationsRun=1)),
                            "ran 1 iteration(s)")
         self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(builds=2)),

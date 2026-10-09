@@ -575,7 +575,7 @@ def hier_entry(sample, field, before, depth, after):
                  frameFile=f"native-hier-load-frame-{at}.ppm.gz",
                  referenceFile=f"native-hier-load-reference-{at}.ppm.gz",
                  referenceDepthFile=f"native-hier-load-depth-{at}.f32.gz",
-                 meshed=35, iterationsRun=verify.HIER_LOAD_ITERATIONS,
+                 meshed=156, meshedAtBuild=35, iterationsRun=verify.HIER_LOAD_ITERATIONS,
                  previousCapture=at - 1, buildsSoFar=1)
     return entry
 
@@ -606,7 +606,7 @@ def hier_log_for(entries, atlas_logged=False):
                 lines.append("[native-vk] block atlas read through Blaze3D: 2048x2048\n")
                 ready = True
             if not scene:
-                lines.append(f"[native-vk] hier-LOAD scene #1: {e['meshed']} sections meshed,"
+                lines.append(f"[native-vk] hier-LOAD scene #1: {e['meshedAtBuild']} sections meshed,"
                              f" top radius {verify.HIER_LOAD_TOP_RADIUS}, depth {verify.HIER_LOAD_DEPTH}\n")
                 scene = True
             lines.append("[native-vk] hier load at draw " + str(e["at"]) + " status=judged "

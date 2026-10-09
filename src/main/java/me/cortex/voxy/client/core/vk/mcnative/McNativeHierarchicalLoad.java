@@ -100,7 +100,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                          long referenceSet, long cameraCapture, int engineId, int sceneBuild,
                          int atlasGeneration, float[] mcProjection, float[] projection,
                          int meshed, int iterations, long previousCapture, int buildsSoFar,
-                         int atlasState) {}
+                         int atlasState, int meshedAtBuild) {}
 
     private record Pending(int[][] rects, int[][] colour, float[][] depth, Result partial) {}
 
@@ -111,12 +111,15 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private final McNativeComposite composite;
     private final java.lang.ref.WeakReference<me.cortex.voxy.common.world.WorldEngine> engine;
     private final int atlasGeneration, buildOrdinal, width, height;
+    /** Sections populate() meshed when the scene was built (its log line); {@code meshed} grows after. */
+    private final int meshedAtBuild;
     private boolean destroyed;
 
     private McNativeHierarchicalLoad(VulkanDevice device, long ownerDevice, VkRenderTarget target,
                                      VkHierarchicalScene scene, McNativeComposite composite,
                                      me.cortex.voxy.common.world.WorldEngine engine,
-                                     int atlasGeneration, int buildOrdinal, int width, int height) {
+                                     int atlasGeneration, int buildOrdinal, int width, int height,
+                                     int meshedAtBuild) {
         this.device = device;
         this.ownerDevice = ownerDevice;
         this.target = target;
@@ -127,6 +130,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         this.buildOrdinal = buildOrdinal;
         this.width = width;
         this.height = height;
+        this.meshedAtBuild = meshedAtBuild;
     }
 
     public static boolean enabled() { return Boolean.getBoolean(FLAG); }
@@ -336,7 +340,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         var partial = new Result(at, JUDGED, stage, null, Float.NaN, Float.NaN, null, null, null, null,
             adjusted, farPlane, 0, capture, System.identityHashCode(world), probe.buildOrdinal,
             probe.atlasGeneration, mcProjection, usedProjection, probe.scene.meshedSections(),
-            ITERATIONS, previousCapture, builds, -1);
+            ITERATIONS, previousCapture, builds, -1, probe.meshedAtBuild);
         synchronized (NOTES) {
             PENDING.put(at, new Pending(rects, bandColour, bandDepth, partial));
         }
@@ -365,7 +369,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             Logger.info("[native-vk] hier-LOAD scene #" + builds + ": " + meshed + " sections meshed,"
                 + " top radius " + TOP_RADIUS + ", depth " + DEPTH);
             var built = new McNativeHierarchicalLoad(device, mcDevice, target, scene, composite, world,
-                McNativeAtlas.generation(), builds, width, height);
+                McNativeAtlas.generation(), builds, width, height, meshed);
             target = null; scene = null; composite = null;
             return built;
         } catch (Throwable t) {
@@ -382,7 +386,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private static void skip(long at, String stage, String reason, long capture, long previousCapture,
                              int atlasState) {
         var r = new Result(at, reason, stage, null, Float.NaN, Float.NaN, null, null, null, null, null,
-            Double.NaN, 0, capture, 0, 0, 0, null, null, 0, 0, previousCapture, builds, atlasState);
+            Double.NaN, 0, capture, 0, 0, 0, null, null, 0, 0, previousCapture, builds, atlasState, 0);
         synchronized (NOTES) {
             RESULTS.put(at, r);
         }
@@ -469,7 +473,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 refWritten ? refName : null, refWritten ? depthName : null, p.projectionAdjusted(),
                 p.farPlane(), refSet, p.cameraCapture(), p.engineId(), p.sceneBuild(),
                 p.atlasGeneration(), p.mcProjection(), p.projection(), p.meshed(), p.iterations(),
-                p.previousCapture(), p.buildsSoFar(), -1);
+                p.previousCapture(), p.buildsSoFar(), -1, p.meshedAtBuild());
             synchronized (NOTES) {
                 RESULTS.put(at, result);
             }
@@ -624,6 +628,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 sb.append(", \"mcProjection\": ").append(floats(r.mcProjection()));
                 sb.append(", \"projection\": ").append(floats(r.projection()));
                 sb.append(", \"meshed\": ").append(r.meshed());
+                sb.append(", \"meshedAtBuild\": ").append(r.meshedAtBuild());
                 sb.append(", \"iterationsRun\": ").append(r.iterations());
             } else {
                 sb.append(", \"atlasState\": ").append(r.atlasState());

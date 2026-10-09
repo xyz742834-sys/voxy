@@ -2533,14 +2533,20 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         if entry.get("iterationsRun") != HIER_LOAD_ITERATIONS:
             raise ValueError(f"{L} at draw {at} ran {entry.get('iterationsRun')!r} iteration(s), not"
                              f" {HIER_LOAD_ITERATIONS}")
+        # populate() meshes `meshedAtBuild` sections (the build's log line); serviceRequests
+        # meshes more on every iteration, so `meshed` (now) can only be at least that
+        if not finite_int(entry.get("meshedAtBuild")) or not finite_int(entry.get("meshed")) \
+                or entry["meshedAtBuild"] < 1 or entry["meshed"] < entry["meshedAtBuild"]:
+            raise ValueError(f"{L} at draw {at} has {entry.get('meshed')!r} meshed sections now and"
+                             f" {entry.get('meshedAtBuild')!r} at build")
         if log_text is not None:
             scene = {int(m.group(1)): m for m in HIER_SCENE_LOG.finditer(head)}.get(entry["sceneBuild"])
             want = None if scene is None else (int(scene.group(2)), int(scene.group(3)), int(scene.group(4)))
-            got = (entry.get("meshed"), HIER_LOAD_TOP_RADIUS, HIER_LOAD_DEPTH)
+            got = (entry.get("meshedAtBuild"), HIER_LOAD_TOP_RADIUS, HIER_LOAD_DEPTH)
             if want != got:
                 raise ValueError(f"{L} at draw {at} names scene #{entry['sceneBuild']} with"
-                                 f" {entry.get('meshed')!r} meshed sections but the log's build line"
-                                 f" says {want}")
+                                 f" {entry.get('meshedAtBuild')!r} sections meshed at build but the"
+                                 f" log's build line says {want}")
         previous_judged = entry
         counts, names = judge_load_sample(output, recount, entry, at, coexist_enabled, logged,
                                           log_text, HIER_LOAD_SPEC)
