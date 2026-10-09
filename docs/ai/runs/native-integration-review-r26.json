@@ -1,0 +1,1829 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "460602ab0d599e576481ca72f7ce58c5871c4033",
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "message": "Default-off measured diagnostics do not deliver normally enabled Minecraft-native LoD or full normal-play, lifecycle and resource-pressure acceptance. Candidate accepts this standing boundary; no additional blocking defect reproduced.",
+      "evidence": [
+        "docs/ai/project-goal.md:9",
+        "src/main/java/me/cortex/voxy/client/VoxyClient.java:106",
+        "src/main/java/me/cortex/voxy/client/VoxyClient.java:146"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R24-HIER-GUARD-COVERAGE",
+      "judgment": "CONFIRMED",
+      "message": "CONFIRMED, partly closed, non-blocking. All 36 hierarchy-specific, 12 frame and seven reprojection predicates are detected by hierarchy tests. Of the 37 shared-helper predicates, 27 removals still survive hierarchy-only tests; all 37 are detected by real-LOAD tests",
+      "evidence": [
+        ".agent-run/r26/guard-combined-summary.json",
+        ".agent-run/r26/guard-details.json",
+        "scripts/tests/test_hier_load_gate.py:224"
+      ]
+    },
+    {
+      "id": "R26-PROJECTION-EQUIVALENCE",
+      "judgment": "CONFIRMED",
+      "message": "The fixed near-16/far-48000 helper matches the standard retained case, but is not generally equal to VoxyRenderSystem.computeProjectionMat: short-distance near=8, Sodium-disabled near=0.1, render properties and preserved extra transforms differ.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/VkHostViewport.java:245",
+        "src/main/java/me/cortex/voxy/client/core/VoxyRenderSystem.java:467",
+        "docs/ai/vulkan-native-integration-survey.md:1798",
+        ".agent-run/r26/projection-contract.json"
+      ]
+    },
+    {
+      "id": "R26-COMPOSITE-DOC-SCOPE",
+      "judgment": "CONFIRMED",
+      "message": "Survey still describes resolved reference depth as exactly what the composite writes; actual fragment depth is zero with writes disabled. Gate/replay/test prose still describes matrix/depth-write/bracket semantics. Unconditional absence of later depth consumers and whole GL image equivalence are unproven.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:1802",
+        "docs/ai/vulkan-native-integration-survey.md:1849",
+        "scripts/verify.py:2573",
+        "scripts/verify.py:4443",
+        "src/main/resources/assets/voxy/shaders/lod/vk/native_composite.frag:28",
+        ".agent-run/r26/mc-GameRenderer.javap:1098",
+        ".agent-run/r26/mc-TargetInput.javap:70"
+      ]
+    },
+    {
+      "id": "R26-LADDER-GUARD-COVERAGE",
+      "judgment": "CONFIRMED",
+      "message": "22 whole-predicate removals remain undetected across the six named ladder/LOAD classes. This is a scoped test-coverage residual, not a demonstrated unchanged-gate acceptance escape.",
+      "evidence": [
+        ".agent-run/r26/guard-combined-summary.json",
+        ".agent-run/r26/guard-combined-details.json",
+        "scripts/verify.py:1024",
+        "scripts/verify.py:1027",
+        "scripts/verify.py:1092",
+        "scripts/verify.py:1186",
+        "scripts/verify.py:1207",
+        "scripts/verify.py:1220",
+        "scripts/verify.py:1223",
+        "scripts/verify.py:1246",
+        "scripts/verify.py:1252",
+        "scripts/verify.py:990",
+        "scripts/verify.py:1174",
+        "scripts/verify.py:1193",
+        "scripts/verify.py:1242",
+        "scripts/verify.py:995",
+        "scripts/verify.py:1197",
+        "scripts/verify.py:1200",
+        "scripts/verify.py:1202",
+        "scripts/verify.py:3031",
+        "scripts/verify.py:3035",
+        "scripts/verify.py:3060",
+        "scripts/verify.py:3171",
+        "scripts/verify.py:3126"
+      ]
+    }
+  ],
+  "safe_for_normal_play": true,
+  "safety_scope": "All voxy.native.* flags unset from startup; source/offline dormant safety and preserved supported GL path. Minecraft Vulkan still disables Voxy. Neither backend received a fresh normal-play launch.",
+  "round25_findings_closed": {
+    "DELIVERY-BOUNDARY": false,
+    "R25-FRAME-ACCOUNTING": true,
+    "R25-DOC-SCOPE": true,
+    "R24-HIER-GUARD-COVERAGE": false
+  },
+  "clear_class_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "For finite stored depth in [0,1], ordered BASE/LOW/CLEAR/rung draws classify exactly d==0 as CLEAR and 0<d<z0 as LOW. Coexist ranges, direction refusal, count/log/recount reconciliation preserve existing guards. 23 independent retained ladder/coexist recounts agree; 15 Java removals and seven changed Python expressions detected.",
+    "evidence": [
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:514",
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:699",
+      "scripts/verify.py:1469",
+      "scripts/verify.py:3161",
+      ".agent-run/r26/java-contract.json",
+      ".agent-run/r26/java-guard-removals.json",
+      ".agent-run/r26/semantic-guard-removals.json",
+      ".agent-run/r26/recount.json"
+    ]
+  },
+  "gl_rule_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Clear-depth eligibility agrees with GL stencil setup. Hierarchy's clear-only judge establishes exact sampled-band colour visibility/unchanged behaviour; real/terrain retain depth-test rules. Full GL colour/depth, render-point, HiZ, lighting and translucency parity remains unaccepted.",
+    "evidence": [
+      "src/main/java/me/cortex/voxy/client/core/AbstractRenderPipeline.java:147",
+      "src/main/resources/assets/voxy/shaders/post/setup_stencil_depth.frag:10",
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeComposite.java:57",
+      "src/main/resources/assets/voxy/shaders/lod/vk/native_composite.frag:24",
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeTerrainLoad.java:416",
+      "scripts/verify.py:1837"
+    ],
+    "full_gl_parity_judgment": "REFUTED",
+    "reference_depth_is_written_judgment": "REFUTED"
+  },
+  "projection_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Fixed near=16/far=48000 reverse-Z formula and actual hierarchy/resolve use confirmed; standard retained matrices agree. Unqualified equivalence to GL computeProjectionMat is false outside that case.",
+    "evidence": [
+      "src/main/java/me/cortex/voxy/client/core/vk/VkHostViewport.java:269",
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:335",
+      "src/main/java/me/cortex/voxy/client/core/VoxyRenderSystem.java:467",
+      ".agent-run/r26/projection-contract.json"
+    ],
+    "general_gl_equivalence_judgment": "REFUTED"
+  },
+  "reprojection_gate_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Every retained reference depth is independently derived from raw Voxy depth and published projections within 1e-3 relative tolerance; maximum independent error 3.577212253520692e-7. Seven of seven complete direct-raise predicates detected. Valid interop resolve sequence preserved by delegation; new readback/resolve barrier chain sound on inspected successful submitted paths. Zero retained beyond-Minecraft-far pixels; synthetic clamp probe is not hardware evidence.",
+    "evidence": [
+      "scripts/verify.py:2403",
+      "src/main/java/me/cortex/voxy/client/core/vk/VkDepthResolve.java:128",
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:498",
+      "src/main/resources/assets/voxy/shaders/lod/vk/depth_resolve.frag:52",
+      ".agent-run/r26/gate-probes.json",
+      ".agent-run/r26/guard-combined-summary.json",
+      ".agent-run/r26/recount.json"
+    ],
+    "guard_removals": {
+      "audited": 7,
+      "detected": 7
+    },
+    "interop_live_regression_checked": false,
+    "beyond_minecraft_far_hardware_pixels": 0
+  },
+  "frame_accounting_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Specific R25 impossible-final-total escape closed: 5119 composited + 290 skipped + 8 handed == 5417 ladder draws; 10^12 composite or skip mutations rejected. All 12 frame predicates detected by hierarchy tests. Correct cumulative snapshots/sum do not authenticate every intervening frame or ordinary pixels.",
+    "evidence": [
+      "scripts/verify.py:2552",
+      "scripts/verify.py:2667",
+      ".agent-run/r26/gate-probes.json",
+      ".agent-run/r26/recount.json"
+    ],
+    "totals": {
+      "composited": 5119,
+      "skipped": 290,
+      "handed": 8,
+      "ladder": 5417
+    }
+  },
+  "hier_load_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Eight retained judged samples independently match 23359 must-show shown and 350597 must-hide unchanged, no undetermined/ambiguous/other geometry or violations. Horizon draw2642 and overworld draw4562 independently reproject/recount and anchor actual-image thumbnails. Bounded source/capture consistency, not native delivery or native-call authentication.",
+    "evidence": [
+      ".agent-run/r26/recount.py",
+      ".agent-run/r26/recount.json",
+      ".agent-run/r26/replay.log"
+    ],
+    "totals": {
+      "geometry": 373956,
+      "noGeometry": 317500,
+      "expectVisible": 23359,
+      "expectHidden": 350597,
+      "undetermined": 0,
+      "visible": 23359,
+      "hidden": 350597,
+      "ambiguous": 0,
+      "other": 0,
+      "visibleWhereHidden": 0,
+      "hiddenWhereVisible": 0,
+      "changedWhereNoGeometry": 0
+    },
+    "required_independent_samples": [
+      {
+        "at": 2642,
+        "stage": "horizon",
+        "rect": [
+          342,
+          576,
+          1366,
+          653
+        ],
+        "size": [
+          1024,
+          77
+        ],
+        "geometry": 6567,
+        "noGeometry": 72281,
+        "expectVisible": 2605,
+        "expectHidden": 3962,
+        "undetermined": 0,
+        "visible": 2605,
+        "hidden": 3962,
+        "ambiguous": 0,
+        "other": 0,
+        "visibleWhereHidden": 0,
+        "hiddenWhereVisible": 0,
+        "changedWhereNoGeometry": 0,
+        "max_reprojection_relative_error": 3.564258350920807e-07,
+        "clamped": 0,
+        "anchor_blocks": 4845,
+        "positive_depth_range": [
+          3.1495390430791304e-05,
+          5.389038778957911e-05
+        ]
+      },
+      {
+        "at": 4562,
+        "stage": "overworld",
+        "rect": [
+          384,
+          648,
+          1536,
+          734
+        ],
+        "size": [
+          1152,
+          86
+        ],
+        "geometry": 88032,
+        "noGeometry": 11040,
+        "expectVisible": 3399,
+        "expectHidden": 84633,
+        "undetermined": 0,
+        "visible": 3399,
+        "hidden": 84633,
+        "ambiguous": 0,
+        "other": 0,
+        "visibleWhereHidden": 0,
+        "hiddenWhereVisible": 0,
+        "changedWhereNoGeometry": 0,
+        "max_reprojection_relative_error": 3.26639419235282e-07,
+        "clamped": 0,
+        "anchor_blocks": 6048,
+        "positive_depth_range": [
+          0.00032109947642311454,
+          0.0009180147317238152
+        ]
+      }
+    ]
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "All 23 retained ladder and coexist samples independently reconcile palette counts, must-pass/must-fail exact RGB and anchors, with LOW empty. Ground direction separates near/far brackets and rejects CLEAR/LOW. No existing refusal or threshold weakened in candidate delta; removal coverage is explicitly scoped and remains partial.",
+    "evidence": [
+      "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeDepthLadder.java:141",
+      "scripts/verify.py:915",
+      "scripts/verify.py:1153",
+      "scripts/verify.py:3022",
+      "scripts/verify.py:3161",
+      ".agent-run/r26/recount.json",
+      ".agent-run/r26/guard-combined-summary.json"
+    ]
+  },
+  "gate_guard_audit": {
+    "inventory": 189,
+    "detected_by_any": 167,
+    "survivors": [
+      {
+        "function": "ladder_report_checks",
+        "line": 1024,
+        "predicate": "not report['hierLoadEnabled'] and report['hierLoadDrawsRecorded']",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1027,
+        "predicate": "not report['realLoadEnabled'] and report['realLoadDrawsRecorded']",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1092,
+        "predicate": "report.get('frameScale') != LADDER_FRAME_SCALE",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1186,
+        "predicate": "not isinstance(sample, dict)",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1207,
+        "predicate": "len(camera) != 5 or any((v is not None and (not finite_number(v)) for v in camera))",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1220,
+        "predicate": "sample['flipped'] == sample['rejectedFlipped']",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1223,
+        "predicate": "full_w < 1 or full_h < 1",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1246,
+        "predicate": "not isinstance(rungs, list) or len(rungs) != LADDER_RUNGS or any((not finite_int(v) or v < 0 for v in rungs))",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1252,
+        "predicate": "total != area",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 990,
+        "predicate": "not isinstance(value, bool)",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1174,
+        "predicate": "len(camera) != 5 or any(((a is None) != math.isnan(b) or (a is not None and abs(a - b) > 0.001) for a, b in zip(camera, logged_camera)))",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1193,
+        "predicate": "field not in sample",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1242,
+        "predicate": "not finite_int(counts.get(field)) or counts[field] < 0",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 995,
+        "predicate": "not isinstance(value, kind)",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1197,
+        "predicate": "not isinstance(value, bool)",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1200,
+        "predicate": "not finite_int(value)",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_report_checks",
+        "line": 1202,
+        "predicate": "not isinstance(value, kind)",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "recount_ladder_sample",
+        "line": 3031,
+        "predicate": "not rejected.is_file()",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "recount_ladder_sample",
+        "line": 3035,
+        "predicate": "rw != rejected_rect[2] - rejected_rect[0] or rh != rejected_rect[3] - rejected_rect[1]",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "recount_ladder_sample",
+        "line": 3060,
+        "predicate": "anchored == 0",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_z_direction",
+        "line": 3171,
+        "predicate": "not near['cameraY'] < far['cameraY']",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      },
+      {
+        "function": "ladder_z_direction",
+        "line": 3126,
+        "predicate": "checkpoint is None",
+        "outcomes": [
+          {
+            "class": "LadderGateTest",
+            "tests_run": 37,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderDirectionTest",
+            "tests_run": 16,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "LadderCoexistTest",
+            "tests_run": 21,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 20,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "TerrainLoadGateTest",
+            "tests_run": 22,
+            "detected": false,
+            "detecting_test": null
+          }
+        ]
+      }
+    ],
+    "hier_only_survivors": [
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2190,
+        "predicate": "extra",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_skip_reasons_are_corroborated"
+          }
+        ]
+      },
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2192,
+        "predicate": "log_text is None",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_skip_reasons_are_corroborated"
+          }
+        ]
+      },
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2195,
+        "predicate": "line is None or line.group(3).strip()",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_skip_reasons_are_corroborated"
+          }
+        ]
+      },
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2204,
+        "predicate": "entry['buildsSoFar'] != len(attempts)",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_skip_reasons_are_corroborated"
+          }
+        ]
+      },
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2200,
+        "predicate": "not finite_int(entry.get(field))",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_skip_reasons_are_corroborated"
+          }
+        ]
+      },
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2208,
+        "predicate": "entry['atlasState'] != REAL_LOAD_ATLAS_PENDING_STATE",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_skip_reasons_are_corroborated"
+          }
+        ]
+      },
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2215,
+        "predicate": "entry['previousCapture'] != entry['cameraCapture']",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_skip_reasons_are_corroborated"
+          }
+        ]
+      },
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2223,
+        "predicate": "not earlier or not later or int(later[0][9]) - int(earlier[-1][9]) >= int(later[0][0]) - int(earlier[-1][0])",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_skip_reasons_are_corroborated"
+          }
+        ]
+      },
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2229,
+        "predicate": "not (isinstance(cam, list) and isinstance(frame, list)) or cam == frame or frame != [ladder_sample.get('targetWidth'), ladder_sample.get('targetHeight')] or (ladder_sample.get('stage') != 'resize')",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_skip_reasons_are_corroborated"
+          }
+        ]
+      },
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2237,
+        "predicate": "not lines or (lines[-1][4] == 'true' and lines[-1][5] == 'true')",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_skip_reasons_are_corroborated"
+          }
+        ]
+      },
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2248,
+        "predicate": "entry['buildsSoFar'] != spec['budget']",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_skip_reasons_are_corroborated"
+          }
+        ]
+      },
+      {
+        "function": "load_judged_entry_checks",
+        "line": 2269,
+        "predicate": "not isinstance(entry.get('projectionAdjusted'), bool)",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_report_level_checks_are_live"
+          }
+        ]
+      },
+      {
+        "function": "load_judged_entry_checks",
+        "line": 2274,
+        "predicate": "entry.get('stage') != published.get('stage')",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_published_scene_and_projection_facts_are_reconciled"
+          }
+        ]
+      },
+      {
+        "function": "load_judged_entry_checks",
+        "line": 2278,
+        "predicate": "not (isinstance(mc_p, list) and isinstance(used_p, list) and (len(mc_p) == 16) and (len(used_p) == 16) and all((finite_number(v) for v in mc_p + used_p)))",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_published_scene_and_projection_facts_are_reconciled"
+          }
+        ]
+      },
+      {
+        "function": "load_judged_entry_checks",
+        "line": 2290,
+        "predicate": "want_far is None or not finite_number(far) or abs(far - want_far) > 0.001 * max(1.0, want_far)",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_published_scene_and_projection_facts_are_reconciled"
+          }
+        ]
+      },
+      {
+        "function": "load_judged_entry_checks",
+        "line": 2293,
+        "predicate": "not finite_int(entry.get('cameraCapture')) or entry['cameraCapture'] < 1",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_published_scene_and_projection_facts_are_reconciled"
+          }
+        ]
+      },
+      {
+        "function": "load_judged_entry_checks",
+        "line": 2296,
+        "predicate": "not finite_int(entry.get(field))",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_published_scene_and_projection_facts_are_reconciled"
+          }
+        ]
+      },
+      {
+        "function": "load_judged_entry_checks",
+        "line": 2308,
+        "predicate": "entry['atlasGeneration'] != reads_before",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_atlas_generations_follow_the_logged_reads"
+          }
+        ]
+      },
+      {
+        "function": "load_judged_entry_checks",
+        "line": 2316,
+        "predicate": "entry['sceneBuild'] < previous_judged['sceneBuild']",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_scene_reuse_across_engines_or_atlases_fails"
+          }
+        ]
+      },
+      {
+        "function": "load_judged_entry_checks",
+        "line": 2320,
+        "predicate": "entry[field] != previous_judged[field] and entry['sceneBuild'] == previous_judged['sceneBuild']",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_scene_reuse_across_engines_or_atlases_fails"
+          }
+        ]
+      },
+      {
+        "function": "judge_load_sample",
+        "line": 2344,
+        "predicate": "(aw, ah) != (lw, lh)",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_missing_files_wrong_sizes_and_orphans_fail"
+          }
+        ]
+      },
+      {
+        "function": "judge_load_sample",
+        "line": 2351,
+        "predicate": "(rw, rh) != (aw, ah) or (dw, dh) != (aw, ah)",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_missing_files_wrong_sizes_and_orphans_fail"
+          }
+        ]
+      },
+      {
+        "function": "judge_load_sample",
+        "line": 2354,
+        "predicate": "any((not 0.0 <= d <= 1.0 or math.isnan(d) for row in depth for d in row))",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_missing_files_wrong_sizes_and_orphans_fail"
+          }
+        ]
+      },
+      {
+        "function": "judge_load_sample",
+        "line": 2357,
+        "predicate": "ladder_anchor_blocks(after, recount['rect'], thumb) == 0",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 8,
+            "detected": true,
+            "detecting_test": "test_missing_files_wrong_sizes_and_orphans_fail"
+          }
+        ]
+      },
+      {
+        "function": "judge_load_sample",
+        "line": 2379,
+        "predicate": "entry.get('referenceSet') != ref_set",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_report_level_checks_are_live"
+          }
+        ]
+      },
+      {
+        "function": "judge_load_sample",
+        "line": 2362,
+        "predicate": "entry[field] != value",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_report_level_checks_are_live"
+          }
+        ]
+      },
+      {
+        "function": "judge_load_sample",
+        "line": 2373,
+        "predicate": "got is not None",
+        "outcomes": [
+          {
+            "class": "HierLoadGateTest",
+            "tests_run": 14,
+            "detected": false,
+            "detecting_test": null
+          },
+          {
+            "class": "RealLoadGateTest",
+            "tests_run": 1,
+            "detected": true,
+            "detecting_test": "test_scene_facts_are_their_build_line"
+          }
+        ]
+      }
+    ],
+    "by_function": {
+      "coexist_checks": {
+        "audited": 23,
+        "detected": 23
+      },
+      "hier_frames_checks": {
+        "audited": 12,
+        "detected": 12
+      },
+      "hier_load_checks": {
+        "audited": 36,
+        "detected": 36
+      },
+      "hier_reprojection_checks": {
+        "audited": 7,
+        "detected": 7
+      },
+      "judge_load_sample": {
+        "audited": 12,
+        "detected": 12
+      },
+      "ladder_report_checks": {
+        "audited": 57,
+        "detected": 40
+      },
+      "ladder_z_direction": {
+        "audited": 8,
+        "detected": 6
+      },
+      "load_judged_entry_checks": {
+        "audited": 12,
+        "detected": 12
+      },
+      "real_load_skip_provenance": {
+        "audited": 13,
+        "detected": 13
+      },
+      "recount_ladder_sample": {
+        "audited": 9,
+        "detected": 6
+      }
+    },
+    "scope": "Whole direct-raise If predicates in ten named verifier functions. Ladder survivors screened against six unchanged test classes; shared LOAD helpers screened separately against hierarchy and real LOAD. Detection includes assertion failures and incidental errors. Other test classes, individual boolean terms and GPU/native-call arguments are outside this audit."
+  },
+  "tests_and_evidence": {
+    "gradle": {
+      "command": "./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true",
+      "exit_code": 0,
+      "tests": 351,
+      "passed": 350,
+      "skipped": 1,
+      "documented_skip": "VkBarriersTest.missingBarrierIsDetected",
+      "strict_junit": {
+        "tests": 351,
+        "failures": [],
+        "skips": [],
+        "known_gaps": [
+          "me.cortex.voxy.vk.VkBarriersTest.missingBarrierIsDetected"
+        ],
+        "diagnostics": [],
+        "success": true
+      },
+      "log": ".agent-run/r26/gradle-test.log"
+    },
+    "python": {
+      "command": "python3 -m unittest discover -s scripts/tests",
+      "exit_code": 0,
+      "tests": 297,
+      "seconds": 1249.266,
+      "python": "3.9.6",
+      "log": ".agent-run/r26/python-tests.log"
+    },
+    "replay": {
+      "command": "python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T200758-879288Z",
+      "exit_code": 0,
+      "stages": 14,
+      "log": ".agent-run/r26/replay.log"
+    },
+    "manifest_members": 381,
+    "matching_selected_fingerprints": 428,
+    "source_keyset_equal": true,
+    "built_and_final_run_revision": "6dffc1b4a301009623fd25aa3791df13a5363a8e",
+    "native_sync_validation_certified": false
+  },
+  "limitations": [
+    "No live/native or normal-play launch; no fresh standalone GL interop run.",
+    "CPU source contracts substitute dependencies; no GPU/native-call authentication or full asynchronous lifetime/fault-injection coverage.",
+    "No final Minecraft depth capture, ordinary-frame pixel proof, full native GL parity, raw atlas/complete selected-section inventory, per-frame uniform bytes, or compiled-JAR authentication.",
+    "No hardware geometry beyond Minecraft's far plane; projection extras/GL short-distance behaviour are outside retained measurements.",
+    "No unsubmitted Minecraft batch, driver failure, complete streaming/edit/dimension/reload/resource-pressure acceptance.",
+    "Removal audits have stated function/test-class scopes; hierarchy-only shared-helper and ladder coverage residuals remain. Coordinated evidence rewriting and restore-after-call arguments are not authenticated.",
+    "Retained adopted context says syncValidation=false; requested offscreen suite separately verifies its own synchronization validation."
+  ]
+}
