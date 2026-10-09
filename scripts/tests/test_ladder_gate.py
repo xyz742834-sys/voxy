@@ -477,9 +477,10 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
             before = quad if coexist else crops(f, s["flipped"])[0]
             status = (real_status or {}).get(i, "judged")
             if status != "judged":
+                judged_before = any(e["status"] == "judged" for e in real_entries)
                 skip = {"at": s["at"], "status": status, "stage": s["stage"],
                         "cameraCapture": s["at"], "previousCapture": s["at"] - 1,
-                        "buildsSoFar": 1, "atlasState": -1}
+                        "buildsSoFar": 1 if judged_before else 0, "atlasState": -1}
                 if status == "atlas-pending":
                     skip["atlasState"] = verify.REAL_LOAD_ATLAS_PENDING_STATE
                 elif status == "no-camera-this-frame":
@@ -533,7 +534,8 @@ def real_entry(sample, field, before, depth, after):
     at = sample["at"]
     projection = verify._mat_perspective(math.radians(70), 16 / 9, 0.05, 2048.0)
     entry.update(status="judged", stage=sample["stage"], cameraCapture=sample["at"],
-                 engineId=12345, sceneBuild=1, atlasGeneration=1,
+                 engineId=12345, sceneBuild=1, atlasGeneration=1, excludedNear=3,
+                 cutBlocks=verify.REAL_LOAD_CUT_BLOCKS,
                  mcProjection=list(projection), projection=list(projection),
                  file=f"native-real-load-{at}.ppm.gz",
                  frameFile=f"native-real-load-frame-{at}.ppm.gz",
@@ -557,8 +559,9 @@ def write_real_files(out, sample, field, after, depth, entry):
 
 def real_report(entries, **overrides):
     judged = [e for e in entries if e["status"] == "judged"]
-    body = {"enabled": True, "attempted": True, "drawsRecorded": len(judged), "builds": 1,
-            "atlasReads": 1, "atlasCloseFailures": 0,
+    body = {"enabled": True, "attempted": True, "drawsRecorded": len(judged),
+            "builds": 1 if judged else 0,
+            "atlasReads": 1 if judged else 0, "atlasCloseFailures": 0,
             "buildBudget": verify.REAL_LOAD_BUILD_BUDGET, "level": verify.REAL_LOAD_LEVEL,
             "radius": verify.REAL_LOAD_RADIUS, "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True,
@@ -576,13 +579,25 @@ def real_log_for(entries):
     for e in entries:
         if e["status"] == "judged" and not ready:
             lines.append("[native-vk] block atlas read through Blaze3D: 2048x2048\n")
+            lines.append(f"[native-vk] real-LOAD scene #1: {e['sceneSections']} sections,"
+                         f" {e['sceneQuads']} quads, {e['sceneDraws']} draws at level {e['sceneLevel']}"
+                         f" around [{', '.join(str(c) for c in e['sceneCentre'])}] r=4"
+                         f" excludedNear={e['excludedNear']} cut={e['cutBlocks']}\n")
             ready = True
         if e["status"] == "judged":
             lines.append("[native-vk] real load at draw " + str(e["at"]) + " status=judged "
                          + " ".join(f"{k}={e[k]}" for k in verify.TERRAIN_LOAD_COUNTS)
                          + f" depth=[{e['minDepth']} {e['maxDepth']}]\n")
         else:
-            lines.append(f"[native-vk] real load at draw {e['at']} status={e['status']}\n")
+            line = f"[native-vk] real load at draw {e['at']} status={e['status']}\n"
+            if e["status"] == "no-camera-this-frame":
+                # the probe's instance lines around a frame without a capture: one frame missed
+                inst = ("[native-vk] native instance at frame {f} stage={st} factory=true instance=true"
+                        " engine=true live=true activeSections=1 renderer=false ingest=true"
+                        " cameraCaptures={c}\n")
+                line = (inst.format(f=600, st=e["stage"], c=600) + line
+                        + inst.format(f=660, st=e["stage"], c=659))
+            lines.append(line)
     return "".join(lines)
 
 

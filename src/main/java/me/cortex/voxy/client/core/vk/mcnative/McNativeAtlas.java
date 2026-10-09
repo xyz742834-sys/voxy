@@ -29,6 +29,8 @@ public final class McNativeAtlas {
     /** The atlas GpuTexture the current pixels came from (identity), and how often it was read. */
     private static volatile Object source;
     private static volatile int reads, closeFailures, generation;
+    /** Round-21 R21-ATLAS-RESET: a callback from a request made before the last reset is ignored. */
+    private static volatile int epoch;
 
     private McNativeAtlas() {}
 
@@ -57,6 +59,7 @@ public final class McNativeAtlas {
 
     /** Forget the pixels (disconnect, replacement): the bakery falls back to "not supplied". */
     public static void reset() {
+        epoch++;
         SoftwareModelTextureBakery.supplyAtlas(null);
         source = null;
         state = State.NOT_REQUESTED;
@@ -89,8 +92,9 @@ public final class McNativeAtlas {
                 GpuBuffer.USAGE_MAP_READ | GpuBuffer.USAGE_COPY_DST, bytes);
             final GpuBuffer readback = buffer;
             final Object from = tex;
+            final int requestEpoch = epoch;
             gpu.createCommandEncoder().copyTextureToBuffer(tex, readback, 0,
-                () -> receive(readback, w, h, from), 0);
+                () -> receive(readback, w, h, from, requestEpoch), 0);
             buffer = null;
             Logger.info("[native-vk] requested the block atlas (" + w + "x" + h + ") through Blaze3D");
         } catch (Throwable t) {
@@ -103,7 +107,13 @@ public final class McNativeAtlas {
         }
     }
 
-    private static void receive(GpuBuffer buffer, int w, int h, Object from) {
+    private static void receive(GpuBuffer buffer, int w, int h, Object from, int requestEpoch) {
+        if (requestEpoch != epoch) {
+            // reset since this copy was requested: its pixels must not repopulate the cache
+            Logger.info("[native-vk] block atlas copy from before a reset discarded");
+            try { buffer.close(); } catch (Throwable t) { closeFailures++; }
+            return;
+        }
         try (var view = new GpuBufferSlice(buffer, 0, buffer.size()).map(true, false)) {
             var data = view.data().order(ByteOrder.LITTLE_ENDIAN);
             int[] pixels = new int[w * h];

@@ -2087,12 +2087,25 @@ def terrain_load_checks(output, ladder_report, recounts, coexist_enabled, log_te
 
 REAL_LOAD_LEVEL, REAL_LOAD_RADIUS, REAL_LOAD_BUILD_BUDGET = 3, 4, 10
 REAL_LOAD_ATLAS_PENDING_STATE = 1     # McNativeAtlas.State.PENDING.ordinal()
+# Sections nearer than Minecraft's render distance are not drawn by the real-section scene
+# (Voxy does not draw where vanilla terrain draws). The stage's options.txt sets renderDistance:8.
+REAL_LOAD_CUT_BLOCKS = 8 * 16
 REAL_LOAD_SKIP_KEYS = {"at", "status", "stage", "cameraCapture", "previousCapture", "buildsSoFar",
                        "atlasState", "cameraExtent", "frameExtent"}
 REAL_LOAD_LOG_LINE = re.compile(r"real load at draw (\d+) status=(\S+)(.*)$", re.M)
 ATLAS_REQUEST_LOG = re.compile(r"requested the block atlas \(")
 ATLAS_READY_LOG = re.compile(r"block atlas read through Blaze3D: ")
-NOTHING_MESHED_LOG = re.compile(r"real-LOAD: nothing meshed at level")
+NOTHING_MESHED_LOG = re.compile(r"real-LOAD: nothing meshed at level \d+ around \[[-\d, ]+\] \(scene #(\d+)\)")
+REAL_SCENE_LOG = re.compile(r"real-LOAD scene #(\d+): (\d+) sections, (\d+) quads, (\d+) draws at level"
+                            r" (\d+) around \[(-?\d+), (-?\d+), (-?\d+)\] r=(\d+) excludedNear=(\d+)"
+                            r" cut=(\d+)")
+REAL_LOAD_MAX_QUADS = 2_000_000       # McNativeRealLoad.MAX_QUADS
+
+
+def real_load_build_attempts(text):
+    """Build ordinals attempted in `text`: scenes that meshed and builds that meshed nothing."""
+    return sorted([int(m.group(1)) for m in REAL_SCENE_LOG.finditer(text)]
+                  + [int(m.group(1)) for m in NOTHING_MESHED_LOG.finditer(text)])
 
 
 def halve_depth_range(m):
@@ -2120,6 +2133,11 @@ def real_load_skip_provenance(entry, recount, log_text, ladder_sample):
     for field in ("previousCapture", "buildsSoFar", "atlasState", "cameraCapture"):
         if not finite_int(entry.get(field)):
             raise ValueError(f"real-LOAD skip at draw {at} does not state {field}")
+    # round-21: the build count a skip states is the number of build attempts logged before it
+    attempts = real_load_build_attempts(before)
+    if entry["buildsSoFar"] != len(attempts):
+        raise ValueError(f"real-LOAD skip at draw {at} says {entry['buildsSoFar']} build(s) so far but"
+                         f" the log shows {len(attempts)} attempt(s) before it")
     if status == "atlas-pending":
         if entry["atlasState"] != REAL_LOAD_ATLAS_PENDING_STATE:
             raise ValueError(f"real-LOAD skip at draw {at} says atlas-pending but the atlas state was"
@@ -2131,10 +2149,18 @@ def real_load_skip_provenance(entry, recount, log_text, ladder_sample):
         if entry["previousCapture"] != entry["cameraCapture"]:
             raise ValueError(f"real-LOAD skip at draw {at} says no camera this frame but the capture"
                              f" count moved from {entry['previousCapture']} to {entry['cameraCapture']}")
+        # round-21: the instance lines on either side must show a frame without a capture
+        earlier = INSTANCE_LOG.findall(before)
+        later = INSTANCE_LOG.findall(log_text[line.end():])
+        if not earlier or not later or \
+                int(later[0][-1]) - int(earlier[-1][-1]) >= int(later[0][0]) - int(earlier[-1][0]):
+            raise ValueError(f"real-LOAD skip at draw {at} says no camera this frame but the instance"
+                             f" lines around it show a capture every frame")
     elif status == "camera-extent-mismatch":
         cam, frame = entry.get("cameraExtent"), entry.get("frameExtent")
         if not (isinstance(cam, list) and isinstance(frame, list)) or cam == frame or \
-                frame != [ladder_sample.get("targetWidth"), ladder_sample.get("targetHeight")]:
+                frame != [ladder_sample.get("targetWidth"), ladder_sample.get("targetHeight")] or \
+                ladder_sample.get("stage") != "resize":
             raise ValueError(f"real-LOAD skip at draw {at} says the camera extent {cam!r} differs from"
                              f" the frame {frame!r}, which the ladder sample does not support")
     elif status == "no-world-engine":
@@ -2146,7 +2172,8 @@ def real_load_skip_provenance(entry, recount, log_text, ladder_sample):
     elif status == "nothing-meshed":
         previous = [m for m in REAL_LOAD_LOG_LINE.finditer(before)]
         since = before[previous[-1].end():] if previous else before
-        if not NOTHING_MESHED_LOG.search(since) or entry["buildsSoFar"] < 1:
+        empty = NOTHING_MESHED_LOG.findall(since)
+        if not empty or int(empty[-1]) != entry["buildsSoFar"]:
             raise ValueError(f"real-LOAD skip at draw {at} says nothing meshed but no build that meshed"
                              f" nothing is logged before it")
     elif status == "build-budget-spent":
@@ -2234,6 +2261,15 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
                          f" readbacksInFlight={report['readbacksInFlight']}")
     if not (0 <= report["builds"] <= REAL_LOAD_BUILD_BUDGET):
         raise ValueError(f"the real-LOAD probe built {report['builds']} scene(s)")
+    if log_text is not None:
+        attempts = real_load_build_attempts(log_text)
+        if attempts != list(range(1, len(attempts) + 1)) or report["builds"] != len(attempts):
+            raise ValueError(f"the real-LOAD probe reports {report['builds']} build(s) but the log"
+                             f" shows build attempts {attempts}")
+        logged_reads = len(ATLAS_READY_LOG.findall(log_text))
+        if report["atlasReads"] != logged_reads:
+            raise ValueError(f"the real-LOAD probe reports {report['atlasReads']} atlas read(s) but the"
+                             f" log shows {logged_reads}")
     if report["atlasCloseFailures"]:
         raise ValueError(f"the block-atlas readback buffer failed to close"
                          f" {report['atlasCloseFailures']} time(s)")
@@ -2281,6 +2317,7 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     out, visible_samples, total = [], 0, {name: 0 for name in TERRAIN_LOAD_COUNTS}
     ladder_samples_by_at = {s.get("at"): s for s in ladder_report.get("samples") or [] if isinstance(s, dict)}
     previous_judged = None
+    hidden_samples = 0
     for recount in recounts:
         at = recount["at"]
         entry = by_at[at]
@@ -2319,7 +2356,8 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
             raise ValueError(f"real-LOAD at draw {at} names scene centre {centre!r}")
         side = 2 * REAL_LOAD_RADIUS + 1
         if not (1 <= entry["sceneSections"] <= side ** 3) or not finite_int(entry.get("sceneQuads")) \
-                or entry["sceneQuads"] < 1 or entry["sceneDraws"] > 7 * entry["sceneSections"]:
+                or not (1 <= entry["sceneQuads"] <= REAL_LOAD_MAX_QUADS) \
+                or entry["sceneDraws"] > 7 * entry["sceneSections"]:
             raise ValueError(f"real-LOAD at draw {at} names {entry['sceneSections']} sections,"
                              f" {entry.get('sceneQuads')!r} quads, {entry['sceneDraws']} draws")
         mc_p, used_p = entry.get("mcProjection"), entry.get("projection")
@@ -2340,12 +2378,37 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
                              f" gives {want_far!r}")
         if not finite_int(entry.get("cameraCapture")) or entry["cameraCapture"] < 1:
             raise ValueError(f"real-LOAD at draw {at} has cameraCapture={entry.get('cameraCapture')!r}")
-        for field in ("engineId", "sceneBuild", "atlasGeneration"):
+        for field in ("engineId", "sceneBuild", "atlasGeneration", "excludedNear", "cutBlocks"):
             if not finite_int(entry.get(field)):
                 raise ValueError(f"real-LOAD at draw {at} does not state {field}")
+        if entry["cutBlocks"] != REAL_LOAD_CUT_BLOCKS or entry["excludedNear"] < 0:
+            raise ValueError(f"real-LOAD at draw {at} cut sections nearer than {entry['cutBlocks']}"
+                             f" blocks ({entry['excludedNear']} excluded), not Minecraft's"
+                             f" {REAL_LOAD_CUT_BLOCKS}-block render distance")
         if entry["atlasGeneration"] < 1 or entry["atlasGeneration"] > report["atlasReads"]:
             raise ValueError(f"real-LOAD at draw {at} names atlas generation {entry['atlasGeneration']}"
                              f" of {report['atlasReads']} read(s)")
+        if log_text is not None:
+            own = next((m for m in REAL_LOAD_LOG_LINE.finditer(log_text) if int(m.group(1)) == at), None)
+            head = log_text[:own.start()] if own else ""
+            # round-21 R21-ATLAS-PROVENANCE: the generation is the number of atlas reads logged
+            # before this sample
+            reads_before = len(ATLAS_READY_LOG.findall(head))
+            if entry["atlasGeneration"] != reads_before:
+                raise ValueError(f"real-LOAD at draw {at} names atlas generation"
+                                 f" {entry['atlasGeneration']} but {reads_before} atlas read(s) are"
+                                 f" logged before it")
+            # round-21 R20-REAL-METADATA: the scene facts are its build's log line
+            scene = {int(m.group(1)): m for m in REAL_SCENE_LOG.finditer(head)}.get(entry["sceneBuild"])
+            want = None if scene is None else (int(scene.group(2)), int(scene.group(3)), int(scene.group(4)),
+                                               int(scene.group(5)), [int(scene.group(6)), int(scene.group(7)),
+                                                                     int(scene.group(8))],
+                                               int(scene.group(10)), int(scene.group(11)))
+            got = (entry["sceneSections"], entry["sceneQuads"], entry["sceneDraws"], entry["sceneLevel"],
+                   entry["sceneCentre"], entry.get("excludedNear"), entry.get("cutBlocks"))
+            if want != got:
+                raise ValueError(f"real-LOAD at draw {at} names scene #{entry['sceneBuild']} as {got} but"
+                                 f" the log's build line says {want}")
         if previous_judged is not None:
             if entry["cameraCapture"] <= previous_judged["cameraCapture"]:
                 raise ValueError(f"real-LOAD at draw {at} has camera capture {entry['cameraCapture']},"
@@ -2417,6 +2480,8 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
                              f" terrain did not compose per pixel with Minecraft's matrix")
         if counts["expectVisible"]:
             visible_samples += 1
+        if counts["expectHidden"]:
+            hidden_samples += 1
         for k in total:
             total[k] += counts[k]
         out.append({"at": at, "status": status, "stage": entry.get("stage"), **counts})
@@ -2436,8 +2501,14 @@ def real_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     if not visible_samples:
         raise ValueError("no judged real-LOAD sample holds a pixel where Voxy's real terrain must"
                          " appear, so the experiment decided nothing")
+    # Occlusion: the `horizon` look puts a wall Minecraft draws in front of Voxy-only terrain;
+    # Voxy's pixels behind it must be hidden. Without such pixels occlusion is untested.
+    if not hidden_samples:
+        raise ValueError("no judged real-LOAD sample holds a pixel where Voxy's real terrain must"
+                         " be hidden behind nearer Minecraft geometry, so occlusion is untested")
     return {"enabled": True, "samples": out, "judged": len(judged),
-            "visibleSamples": visible_samples, "expectVisible": total["expectVisible"],
+            "visibleSamples": visible_samples, "hiddenSamples": hidden_samples,
+            "expectVisible": total["expectVisible"],
             "expectHidden": total["expectHidden"], "undetermined": total["undetermined"],
             "geometry": total["geometry"]}
 
@@ -2681,7 +2752,8 @@ def native_ladder_result(output, expected_device=None, expected_extents=None,
             rl = result["real_load"]
             result["answer"] += (f"; real sections drawn with Minecraft's matrix in a LOADed pass:"
                                  f" {rl['judged']} judged sample(s), zero violations,"
-                                 f" {rl['expectVisible']} pixel(s) expected visible")
+                                 f" {rl['expectVisible']} pixel(s) expected visible,"
+                                 f" {rl['expectHidden']} expected hidden")
         if result["terrain_load"].get("enabled"):
             tl = result["terrain_load"]
             result["answer"] += (f"; Voxy's terrain pipeline in a LOADed pass composed per pixel"

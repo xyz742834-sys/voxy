@@ -89,7 +89,7 @@ public final class McNativeRealLoad implements Destroyable {
                          int sceneDraws, long referenceSet, long cameraCapture,
                          // round-20 review R20-REAL-METADATA / -ENGINE-IDENTITY / -SKIP-PROVENANCE:
                          int engineId, int sceneBuild, int atlasGeneration, float[] mcProjection,
-                         float[] projection, Skip skip) {}
+                         float[] projection, Skip skip, int excludedNear, int cutBlocks) {}
 
     /** What a skipped sample saw, so the gate can corroborate the reason. */
     public record Skip(long previousCapture, int[] cameraExtent, int[] frameExtent, int buildsSoFar,
@@ -236,8 +236,10 @@ public final class McNativeRealLoad implements Destroyable {
                 return;
             }
             builds++;
+            int cut = mc.options.getEffectiveRenderDistance() * 16;
             var scene = McNativeRealScene.build(world, LEVEL, centre, RADIUS, MAX_QUADS, width, height,
-                builds, McNativeRealLoad::logOnly, () -> closeFailures++);
+                builds, new double[] {view.x(), view.y(), view.z()}, cut,
+                McNativeRealLoad::logOnly, () -> closeFailures++);
             if (scene == null) {
                 skip(at, stage, NOTHING_MESHED, capture, new Skip(previousCapture, null, null, builds, -1));
                 return;
@@ -305,7 +307,7 @@ public final class McNativeRealLoad implements Destroyable {
         var partial = new Result(at, JUDGED, stage, null, Float.NaN, Float.NaN, null, null, null, null,
             adjusted, farPlane, s.level, s.centre.clone(), s.sectionCount, s.totalQuads, s.drawCount,
             0, capture, s.engineId, s.buildOrdinal, probe.atlasGeneration, mcProjection,
-            usedProjection, null);
+            usedProjection, null, s.excludedNear, s.cutBlocks);
         synchronized (NOTES) {
             PENDING.put(at, new Pending(rects, colours, depths, partial));
         }
@@ -314,7 +316,7 @@ public final class McNativeRealLoad implements Destroyable {
 
     private static void skip(long at, String stage, String reason, long capture, Skip why) {
         var r = new Result(at, reason, stage, null, Float.NaN, Float.NaN, null, null, null, null,
-            null, Double.NaN, LEVEL, null, 0, 0, 0, 0, capture, 0, 0, 0, null, null, why);
+            null, Double.NaN, LEVEL, null, 0, 0, 0, 0, capture, 0, 0, 0, null, null, why, 0, 0);
         synchronized (NOTES) {
             RESULTS.put(at, r);
         }
@@ -404,7 +406,8 @@ public final class McNativeRealLoad implements Destroyable {
                 refWritten ? refName : null, refWritten ? depthName : null, p.projectionAdjusted(),
                 p.farPlane(), p.sceneLevel(), p.sceneCentre(), p.sceneSections(), p.sceneQuads(),
                 p.sceneDraws(), refSet, p.cameraCapture(), p.engineId(), p.sceneBuild(),
-                p.atlasGeneration(), p.mcProjection(), p.projection(), null);
+                p.atlasGeneration(), p.mcProjection(), p.projection(), null, p.excludedNear(),
+                p.cutBlocks());
             synchronized (NOTES) {
                 RESULTS.put(at, result);
             }
@@ -496,6 +499,7 @@ public final class McNativeRealLoad implements Destroyable {
     }
 
     public static void shutdownImmediate(org.lwjgl.vulkan.VkDevice waitedDevice) {
+        McNativeAtlas.reset();
         var probe = instance;
         if (probe == null) return;
         instance = null;
@@ -513,7 +517,8 @@ public final class McNativeRealLoad implements Destroyable {
     public static void shutdown() {
         var probe = instance;
         if (probe != null) retire(probe);
-        // round-20 R20-ATLAS-RELOAD: the 16 MiB atlas copy is not kept past the level
+        // the 16 MiB atlas copy is dropped when the level renderer closes, the session ends
+        // (ClientSessionEvents) or the device is released; a copy still in flight is discarded
         McNativeAtlas.reset();
         writeEvidence();
     }
@@ -575,6 +580,8 @@ public final class McNativeRealLoad implements Destroyable {
                 sb.append(", \"atlasGeneration\": ").append(r.atlasGeneration());
                 sb.append(", \"mcProjection\": ").append(floats(r.mcProjection()));
                 sb.append(", \"projection\": ").append(floats(r.projection()));
+                sb.append(", \"excludedNear\": ").append(r.excludedNear());
+                sb.append(", \"cutBlocks\": ").append(r.cutBlocks());
             }
             if (r.skip() != null) {
                 var k = r.skip();

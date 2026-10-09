@@ -27,6 +27,8 @@ public class ClientSessionEvents {
         if (VoxyClient.backend() == VoxyClient.Backend.VULKAN) {
             me.cortex.voxy.client.core.vk.interop.VkInteropProbe.shutdown();
         }
+        // native experiments: drop the block-atlas copy with the session (round-21 R21-ATLAS-RESET)
+        me.cortex.voxy.client.core.vk.mcnative.McNativeAtlas.reset();
         VoxyCommon.shutdownInstance();
     }
 }

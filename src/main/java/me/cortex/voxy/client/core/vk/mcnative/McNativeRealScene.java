@@ -47,6 +47,8 @@ final class McNativeRealScene {
     final int sectionCount, totalQuads, drawCount, meshed;
     /** The world engine this scene was meshed from ({@code System.identityHashCode}) and its build ordinal. */
     final int engineId, buildOrdinal;
+    /** Sections not drawn because they lie within Minecraft's render distance, and that distance (blocks). */
+    final int excludedNear, cutBlocks;
     private boolean freed;
     /** 参照の提出を観測できなかった (= 資源が使用中かもしれない) なら以後使わない。 */
     boolean poisoned;
@@ -56,7 +58,7 @@ final class McNativeRealScene {
                               VkTerrainRenderer renderer, VkRenderTarget target, int width,
                               int height, int level, int radius, int[] centre, int sectionCount,
                               int totalQuads, int drawCount, int meshed, int engineId,
-                              int buildOrdinal) {
+                              int buildOrdinal, int excludedNear, int cutBlocks) {
         this.res = res;
         this.modelTarget = modelTarget;
         this.bakery = bakery;
@@ -74,6 +76,21 @@ final class McNativeRealScene {
         this.meshed = meshed;
         this.engineId = engineId;
         this.buildOrdinal = buildOrdinal;
+        this.excludedNear = excludedNear;
+        this.cutBlocks = cutBlocks;
+    }
+
+    /**
+     * Shortest distance (blocks) from the camera to a section's box at {@code level}
+     * ({@code 32 << level} blocks on a side, origin {@code (x, y, z) << (5 + level)}).
+     */
+    static double distanceToSection(double cx, double cy, double cz, int level, int x, int y, int z) {
+        double size = 32 << level;
+        double x0 = (double) x * size, y0 = (double) y * size, z0 = (double) z * size;
+        double dx = Math.max(0, Math.max(x0 - cx, cx - (x0 + size)));
+        double dy = Math.max(0, Math.max(y0 - cy, cy - (y0 + size)));
+        double dz = Math.max(0, Math.max(z0 - cz, cz - (z0 + size)));
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
     /**
@@ -81,8 +98,16 @@ final class McNativeRealScene {
      * 資源に置く。何もメッシュ化できなければ {@code null} (理由は {@code note})。
      * GPU には何も提出しない (提出は {@link #reference})。
      */
+    /**
+     * @param camera    camera position (blocks); sections whose box comes nearer than
+     *                  {@code cutBlocks} are not drawn — an approximation, at this level's
+     *                  granularity, of Voxy not drawing where vanilla terrain draws (Voxy's own
+     *                  mechanism is the vanilla visible-section stream feeding its depth bound,
+     *                  which is not implemented natively)
+     */
     static McNativeRealScene build(WorldEngine world, int level, int[] centre, int radius,
                                    int maxQuads, int width, int height, int buildOrdinal,
+                                   double[] camera, int cutBlocks,
                                    Consumer<String> note, Runnable onFreeFailure) {
         int side = 2 * radius + 1;
         int maxSections = side * side * side;
@@ -102,22 +127,37 @@ final class McNativeRealScene {
             bakery = new VkRealModelBakery(modelTarget, world.getMapper());
             mesher = new VkRealMesher(world, bakery);
             built = mesher.meshAround(centre[0], centre[1], centre[2], radius, level);
+            int excluded = 0;
+            for (var it = built.iterator(); it.hasNext(); ) {
+                var b = it.next();
+                double d = distanceToSection(camera[0], camera[1], camera[2], level,
+                    WorldEngine.getX(b.position), WorldEngine.getY(b.position), WorldEngine.getZ(b.position));
+                if (d < cutBlocks) {
+                    excluded++;
+                    try { b.free(); } catch (Throwable t) { onFreeFailure.run(); }
+                    it.remove();
+                }
+            }
             int meshed = built.size();
             if (built.isEmpty()) {
-                note.accept("nothing meshed at level " + level + " around " + java.util.Arrays.toString(centre));
+                note.accept("nothing meshed at level " + level + " around " + java.util.Arrays.toString(centre)
+                    + " (scene #" + buildOrdinal + ")");
                 return null;
             }
             bakery.replayBiomes();
             var uploaded = VkRealSectionUpload.upload(built, res);
             renderer = new VkTerrainRenderer(res, width, height, VkTerrainRenderer.Barriers.CONSERVATIVE);
             target = new VkRenderTarget(width, height);
-            Logger.info("[native-vk] real-LOAD scene: " + uploaded.sectionCount() + " sections, "
-                + uploaded.totalQuads() + " quads, " + uploaded.drawCount() + " draws at level "
-                + level + " around " + java.util.Arrays.toString(centre) + " r=" + radius);
+            // round-21 R20-REAL-METADATA: the build ordinal ties each judged sample's scene facts
+            // to this line
+            Logger.info("[native-vk] real-LOAD scene #" + buildOrdinal + ": " + uploaded.sectionCount()
+                + " sections, " + uploaded.totalQuads() + " quads, " + uploaded.drawCount()
+                + " draws at level " + level + " around " + java.util.Arrays.toString(centre) + " r=" + radius
+                + " excludedNear=" + excluded + " cut=" + cutBlocks);
             var scene = new McNativeRealScene(res, modelTarget, bakery, mesher, renderer, target,
                 width, height, level, radius, centre.clone(), uploaded.sectionCount(),
                 uploaded.totalQuads(), uploaded.drawCount(), meshed,
-                System.identityHashCode(world), buildOrdinal);
+                System.identityHashCode(world), buildOrdinal, excluded, cutBlocks);
             res = null; modelTarget = null; bakery = null; mesher = null; renderer = null; target = null;
             return scene;
         } catch (Throwable t) {

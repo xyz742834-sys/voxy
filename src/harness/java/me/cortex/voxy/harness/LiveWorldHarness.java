@@ -59,7 +59,7 @@ public final class LiveWorldHarness implements ClientModInitializer {
      * the native depth ladder's band (rays 1–9° below) where Minecraft shows sky. The real-section
      * LOAD experiment's expected-visible pixels come from this look.
      */
-    static final int HORIZON_YAW = -90, HORIZON_PITCH = 15;
+    static final int HORIZON_YAW = -90, HORIZON_PITCH = 18, HORIZON_Y = 160, HORIZON_WALL_X = 20;
     /**
      * The Z-direction experiment: the same ground, looked at straight down from two heights.
      * The depth ladder (its own launch) samples both; the gate compares the brackets. The
@@ -196,8 +196,22 @@ public final class LiveWorldHarness implements ClientModInitializer {
             }
             case 3 -> command(mc, "tp @s 768 120 0 0 30");
             case 4 -> command(mc, "tp @s 0 120 0 0 30");
-            case 5 -> command(mc, "tp @s 0 120 0 " + HORIZON_YAW + " " + HORIZON_PITCH);
+            case 5 -> {
+                // From y 160, pitch 18, the ladder band's rays run 4-10 degrees below the
+                // horizon: over the hills Minecraft draws within its 128-block render distance,
+                // so Minecraft shows sky there, and they meet the ground at x 530+ where only
+                // Voxy has terrain (ingested around x 768 during `travel`). A stone wall 20 blocks
+                // ahead (the rays meet x = 20 at y 156-158) on the +z side only: the Voxy-only
+                // terrain lies within ~11 degrees of the view axis, so the -z half stays in front
+                // of Minecraft's sky (must appear) and the +z half is behind the wall (must be
+                // hidden).
+                command(mc, "fill " + HORIZON_WALL_X + " 150 0 " + HORIZON_WALL_X + " 165 12 minecraft:stone");
+                command(mc, "tp @s 0 " + HORIZON_Y + " 0 " + HORIZON_YAW + " " + HORIZON_PITCH);
+            }
             case 6 -> {
+                command(mc, "fill " + HORIZON_WALL_X + " 150 0 " + HORIZON_WALL_X + " 165 12 minecraft:air");
+                // back to where `edit` always ran, so later stages see what they saw before `horizon`
+                command(mc, "tp @s 0 120 0 0 30");
                 if (!nativeMode) editVersion = VkInteropProbe.meshVersionAt(0, 104, 24);
                 command(mc, "fill -8 100 20 8 108 28 minecraft:glass");
             }
@@ -226,8 +240,9 @@ public final class LiveWorldHarness implements ClientModInitializer {
         return switch (stage) {
             case 1, 4, 11 -> mc.level.dimension() == Level.OVERWORLD && near(mc, 0, 120, 0);
             case 3 -> near(mc, 768, 120, 0);
-            case 5 -> near(mc, 0, 120, 0);
-            case 6 -> mc.level.getBlockState(new BlockPos(0, 104, 24)).is(Blocks.GLASS)
+            case 5 -> near(mc, 0, HORIZON_Y, 0)
+                && mc.level.getBlockState(new BlockPos(HORIZON_WALL_X, 157, 6)).is(Blocks.STONE);
+            case 6 -> near(mc, 0, 120, 0) && mc.level.getBlockState(new BlockPos(0, 104, 24)).is(Blocks.GLASS)
                 && (nativeMode || VkInteropProbe.meshVersionAt(0, 104, 24) > editVersion);
             case 7 -> mc.level.getBlockState(new BlockPos(0, 104, 24)).isAir()
                 && (nativeMode || VkInteropProbe.meshVersionAt(0, 104, 24) > editVersion);
