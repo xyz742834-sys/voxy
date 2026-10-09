@@ -1,8 +1,8 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-20 candidate = the docs commit on top of `93ab4652` (the dispatch commit after it
-names the exact SHA). Round 19 judged `9a6ca051`: REDESIGN on DELIVERY-BOUNDARY only; R18 items closed;
+`vulkan-macos`, round-20 candidate **39584eba** (`39584eba58731109ee4b0d38e180f173b55104ba`, dispatched
+2026-10-09 in Orca worktree `native-review-r20`, terminal `term_e3520629-8023-431f-a21e-0c01e804a05b`). Round 19 judged `9a6ca051`: REDESIGN on DELIVERY-BOUNDARY only; R18 items closed;
 instance mode and matrix capture confirmed. Round 18 judged `a6e1c3a3`: REDESIGN on DELIVERY-BOUNDARY only;
 R16-COEXIST-LAUNCH-SEMANTICS and R14-DOC-DRIFT closed; terrain-LOAD measurement confirmed; four
 non-blocking items repaired in `bb55f53b`. (Round 17 judged `19b2444a`: coexistence CONFIRMED a third time,
@@ -200,8 +200,8 @@ gate, which is expected and tabled in the survey.
 
 ## Round 20
 
-Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r20.txt` (if not already
-done — check `git log` for a "docs: record the round-20 dispatch" commit). When its report
+Dispatched against `39584eba` with `docs/ai/runs/native-review-prompt-r20.txt` (worktree
+`native-review-r20`, terminal `term_e3520629-8023-431f-a21e-0c01e804a05b`). When its report
 lands: copy it to `docs/ai/runs/native-integration-review-r20.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 

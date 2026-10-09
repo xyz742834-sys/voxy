@@ -1,0 +1,71 @@
+You are an INDEPENDENT reviewer, round 20. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (39584eba58731109ee4b0d38e180f173b55104ba). Round 19 returned REDESIGN against 9a6ca051 on the
+standing DELIVERY-BOUNDARY only: it closed R18-TEST-TERRAINLOAD, R18-TERRAIN-METADATA and
+R18-DOC-SEAM and CONFIRMED native instance mode and the Minecraft matrix capture as bounded.
+Non-blocking: R19-INSTANCE-INVENTORY (a sparse two-sample instance package replayed 0),
+R19-TEST-INSTANCE (seven explicit instance guards without a removal-sensitive test),
+R19-DOC-DRIFT (older runs described as replaying here; a stale Python count). Report:
+docs/ai/runs/native-integration-review-r19.md, machine verdict ...-r19.json.
+
+The HEAD does:
+(1) REPAIRS (9caf152d): the instance gate requires the complete sample inventory (frame 1 and
+every 60th frame up to the frames counted, first 256); a test per explicit instance guard
+asserting the guard's own message; replay attributions and the stale count corrected.
+(2) NEW, measured, experimental, flagged, default off:
+ - Real-section LOAD (9caf152d): McNativeRealLoad (-Dvoxy.native.realload=true, needs instance
+   mode) on frames the ladder hands it meshes the world engine's real sections at level 3,
+   radius 4 around the camera (McNativeRealScene: the interop probe's components), writes the
+   uniform with Minecraft's projection/model-view (McNativeCamera) after vkDeviceWaitIdle,
+   renders Voxy's own reference (colour + D32) fence-waited, then records
+   recordDrawsInRenderPass into a pass that LOADs MC's colour and depth (GEQUAL, writes on),
+   reads back, and is judged per pixel like terrain-LOAD (verify.real_load_checks). Every
+   handed sample carries a result: judged, or a reason from a fixed set.
+ - The ladder hands each sampled frame to exactly ONE depth-writing experiment (both on:
+   alternate, terrain-LOAD first), publishes the hand-off per sample, and the gate enforces it;
+   terrain_load_checks judges only its samples. The ladder launch now carries instance mode and
+   real-LOAD (LADDER_LAUNCH_FLAGS); its instance report is gated.
+ - Blaze3D atlas read (e72f37a3): the first gated run aborted the JVM because
+   SoftwareModelTextureBakery.setupTexture read MC's block atlas with raw GL; McNativeAtlas now
+   copies it with Minecraft's copyTextureToBuffer and supplies it to the bakery in native mode
+   (GL path unchanged); samples before it arrives are skipped as atlas-pending.
+ Newest run docs/ai/runs/native-evidence/20261009T100957-766731Z (built from e72f37a3):
+ real-LOAD 10 judged samples, zero violations, 143425 pixels expected visible, 0 expected
+ hidden; MC's projection already 0..1, far 2048.
+
+The boundary from rounds 4-19 still governs and the candidate accepts it. It claims (a) the R19
+items are repaired, (b) real sections drawn with Minecraft's own matrix through Voxy's terrain
+pipeline land in the same depth space as Minecraft's scene at bracket grain where Minecraft
+shows sky — and explicitly NOT occlusion by nearer Minecraft geometry (no pixel had to be
+hidden), not LoD selection/traversal/culling/translucency/lighting, not a delivered renderer,
+(c) the survey/handoff claim no more. Judge all three.
+
+Judge, CONFIRMED or REFUTED with file/line or command:
+1. R19 repairs: re-run the sparse-inventory attack and the seven guard removals.
+2. Real-LOAD: recount every judged sample independently (ladder crop, coexist crop, real-LOAD
+   crop, reference colour, reference depth) and state the rule you applied. Is the reference
+   rendered with the same uniform, resources, pipeline and extent as MC's pass? Is the uniform
+   written only when no MC submission can be reading it? Is the copy requested outside the
+   pass? Does anything leak or get destroyed while in use (scene rebuilds at travel/return,
+   disconnect/reconnect, the atlas buffer)? Attack the gate (pixels, counts, log lines, skip
+   reasons, hand-off, files) and name any mutation that replays 0.
+3. The Blaze3D atlas read: same layout as the GL read? GL path truly unchanged? Any other GL
+   call reachable on the native path?
+4. Tests: JUnit 346 (1 documented skip), Python 274; guard removals for real_load_checks, the
+   hand-off rule and the instance inventory. Fixtures must not be shrunk.
+5. Survey/handoff overstatement (especially the occlusion gap and next-steps item 3).
+6. Safety for normal play with every voxy.native.* flag unset, on GL and on Minecraft Vulkan;
+   confirm the GL atlas read path is untouched there.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T100957-766731Z
+Do NOT run scripts/verify.py --only native or --only live; judge the committed evidence.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round19_findings_closed (mapping
+R19-INSTANCE-INVENTORY, R19-TEST-INSTANCE, R19-DOC-DRIFT to true/false), real_load_judgment,
+atlas_judgment, instance_mode_judgment, terrain_load_judgment, coexist_judgment,
+z_direction_judgment and ladder_judgment.
