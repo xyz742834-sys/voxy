@@ -1,0 +1,733 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "03ee3485185cf094db40b2f9b1508237c9d32207",
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "message": "Standing experimental foundation/native LoD delivery boundary remains.",
+      "evidence": [
+        "docs/ai/project-goal.md:9",
+        "docs/ai/handoff.md:72"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R20-REAL-METADATA",
+      "judgment": "CONFIRMED",
+      "message": "Unbounded quads and fabricated scene centre replay 0; original scalar attacks now refused.",
+      "evidence": [
+        "scripts/verify.py:2321",
+        ".agent-run/r21/attacks.json"
+      ]
+    },
+    {
+      "id": "R20-REAL-SKIP-PROVENANCE",
+      "judgment": "CONFIRMED",
+      "message": "Three fabricated skip-state attacks conceal a judged sample and replay 0; budget=10 contradicts final builds=5.",
+      "evidence": [
+        "scripts/verify.py:2131",
+        "scripts/verify.py:2136",
+        "scripts/verify.py:2153",
+        ".agent-run/r21/attacks.json"
+      ]
+    },
+    {
+      "id": "R21-ATLAS-PROVENANCE",
+      "judgment": "CONFIRMED",
+      "message": "Stale atlas generation/count replay 0 despite second successful read in log.",
+      "evidence": [
+        "scripts/verify.py:2346",
+        ".agent-run/r21/attacks.json"
+      ]
+    },
+    {
+      "id": "R21-ATLAS-RESET",
+      "judgment": "CONFIRMED",
+      "message": "Pending callback can repopulate the cache after reset; sessionEnd does not reset the atlas.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeAtlas.java:59",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeAtlas.java:120",
+        ".agent-run/r21/atlas-mock.log"
+      ]
+    },
+    {
+      "id": "R20-TEST-REALLOAD",
+      "judgment": "CONFIRMED",
+      "message": "4 of 68 direct-refusal guards leave the full unchanged class green on removal.",
+      "evidence": [
+        ".agent-run/r21/guards.json"
+      ]
+    },
+    {
+      "id": "R21-REPAIR-HANDOFF",
+      "judgment": "CONFIRMED",
+      "message": "Six-repair completeness and test-per-guard claims exceed enforcement; real-LOAD JUnit count says 3 instead of 4.",
+      "evidence": [
+        "docs/ai/vulkan-native-integration-survey.md:1581",
+        "docs/ai/handoff.md:82",
+        "docs/ai/handoff.md:191"
+      ]
+    }
+  ],
+  "safe_for_normal_play": true,
+  "safety_scope": "All voxy.native.* flags unset at startup; source/offline supported GL and disabled-Voxy Minecraft Vulkan; no fresh normal-play run.",
+  "round20_findings_closed": {
+    "R20-REAL-METADATA": false,
+    "R20-REAL-SKIP-PROVENANCE": false,
+    "R20-REAL-ENGINE-IDENTITY": true,
+    "R20-DESTROY-ACCOUNTING": true,
+    "R20-ATLAS-RELOAD": false,
+    "R20-TEST-REALLOAD": false
+  },
+  "real_load_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Original real-section LOAD, bracket-grain visible half only; no nearer-MC occlusion or delivery acceptance.",
+    "judged": 7,
+    "visible_samples": 5,
+    "counts": {
+      "geometry": 468939,
+      "noGeometry": 123445,
+      "expectVisible": 85359,
+      "expectHidden": 0,
+      "undetermined": 383580,
+      "visible": 468481,
+      "hidden": 458,
+      "ambiguous": 0,
+      "other": 0,
+      "visibleWhereHidden": 0,
+      "hiddenWhereVisible": 0,
+      "changedWhereNoGeometry": 0
+    },
+    "samples": [
+      {
+        "at": 722,
+        "stage": "turn",
+        "pixels": 78848,
+        "geometry": 74713,
+        "noGeometry": 4135,
+        "expectVisible": 27932,
+        "expectHidden": 0,
+        "undetermined": 46781,
+        "visible": 74702,
+        "hidden": 11,
+        "ambiguous": 0,
+        "other": 0,
+        "visibleWhereHidden": 0,
+        "hiddenWhereVisible": 0,
+        "changedWhereNoGeometry": 0
+      },
+      {
+        "at": 1202,
+        "stage": "travel",
+        "pixels": 78848,
+        "geometry": 0,
+        "noGeometry": 78848,
+        "expectVisible": 0,
+        "expectHidden": 0,
+        "undetermined": 0,
+        "visible": 0,
+        "hidden": 0,
+        "ambiguous": 0,
+        "other": 0,
+        "visibleWhereHidden": 0,
+        "hiddenWhereVisible": 0,
+        "changedWhereNoGeometry": 0
+      },
+      {
+        "at": 1682,
+        "stage": "return",
+        "pixels": 78848,
+        "geometry": 77625,
+        "noGeometry": 1223,
+        "expectVisible": 11399,
+        "expectHidden": 0,
+        "undetermined": 66226,
+        "visible": 77597,
+        "hidden": 28,
+        "ambiguous": 0,
+        "other": 0,
+        "visibleWhereHidden": 0,
+        "hiddenWhereVisible": 0,
+        "changedWhereNoGeometry": 0
+      },
+      {
+        "at": 2162,
+        "stage": "horizon",
+        "pixels": 78848,
+        "geometry": 42317,
+        "noGeometry": 36531,
+        "expectVisible": 20610,
+        "expectHidden": 0,
+        "undetermined": 21707,
+        "visible": 42238,
+        "hidden": 79,
+        "ambiguous": 0,
+        "other": 0,
+        "visibleWhereHidden": 0,
+        "hiddenWhereVisible": 0,
+        "changedWhereNoGeometry": 0
+      },
+      {
+        "at": 2642,
+        "stage": "edit",
+        "pixels": 78848,
+        "geometry": 77625,
+        "noGeometry": 1223,
+        "expectVisible": 11399,
+        "expectHidden": 0,
+        "undetermined": 66226,
+        "visible": 77597,
+        "hidden": 28,
+        "ambiguous": 0,
+        "other": 0,
+        "visibleWhereHidden": 0,
+        "hiddenWhereVisible": 0,
+        "changedWhereNoGeometry": 0
+      },
+      {
+        "at": 3122,
+        "stage": "resize",
+        "pixels": 99072,
+        "geometry": 97587,
+        "noGeometry": 1485,
+        "expectVisible": 14019,
+        "expectHidden": 0,
+        "undetermined": 83568,
+        "visible": 97305,
+        "hidden": 282,
+        "ambiguous": 0,
+        "other": 0,
+        "visibleWhereHidden": 0,
+        "hiddenWhereVisible": 0,
+        "changedWhereNoGeometry": 0
+      },
+      {
+        "at": 4082,
+        "stage": "ascend",
+        "pixels": 99072,
+        "geometry": 99072,
+        "noGeometry": 0,
+        "expectVisible": 0,
+        "expectHidden": 0,
+        "undetermined": 99072,
+        "visible": 99042,
+        "hidden": 30,
+        "ambiguous": 0,
+        "other": 0,
+        "visibleWhereHidden": 0,
+        "hiddenWhereVisible": 0,
+        "changedWhereNoGeometry": 0
+      }
+    ]
+  },
+  "atlas_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Original GL-free Blaze3D read and post-replacement rebake; cache-lifetime and replay chronology incomplete.",
+    "reads": 2,
+    "generation": 2,
+    "next_scene_build": 5,
+    "source_reset_counterexample": true
+  },
+  "instance_mode_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Engine/ingest/occupancy, complete inventory, no renderer; not content/persistence correctness.",
+    "main_samples": 78,
+    "main_frames": 4620,
+    "main_max_active_sections": 53,
+    "ladder_samples": 75,
+    "ladder_frames": 4440,
+    "ladder_max_active_sections": 34
+  },
+  "terrain_load_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Synthetic depth sweep only; declared pipeline state.",
+    "samples": 10,
+    "mixed_samples": 6,
+    "counts": {
+      "geometry": 240696,
+      "noGeometry": 608456,
+      "expectVisible": 204678,
+      "expectHidden": 15099,
+      "undetermined": 20919,
+      "visible": 210027,
+      "hidden": 30669,
+      "ambiguous": 0,
+      "other": 0,
+      "visibleWhereHidden": 0,
+      "hiddenWhereVisible": 0,
+      "changedWhereNoGeometry": 0
+    }
+  },
+  "coexist_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Known-depth quad, no depth writes; not real-section occlusion.",
+    "samples": 19,
+    "counts": {
+      "present": 1549814,
+      "absent": 69642,
+      "other": 0,
+      "expectedPass": 1549814,
+      "expectedFail": 69642,
+      "absentWherePass": 0,
+      "presentWhereFail": 0,
+      "unchangedElsewhere": 69642
+    }
+  },
+  "z_direction_judgment": {
+    "judgment": "CONFIRMED",
+    "direction": "reverse-Z",
+    "scope": "Same reported ground, two straight-down looks; no metric calibration.",
+    "near_draw": 3842,
+    "far_draw": 4082,
+    "ground_y": 67
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "19 retained per-pixel samples, both orientations, one assigned depth-writing consumer per sample.",
+    "samples": 19,
+    "terrain_results": 10,
+    "real_results": 9,
+    "real_skips": 2,
+    "anchor_blocks": {
+      "ladder": 99273,
+      "rejected": 99273,
+      "coexist": 99273,
+      "real": 36321,
+      "terrain": 52059
+    }
+  },
+  "tests": {
+    "junit_total": 347,
+    "junit_passed": 346,
+    "junit_documented_skips": 1,
+    "python_passed": 278,
+    "python_version": "3.14",
+    "replay_exit": 0,
+    "guards_total": 68,
+    "guards_detected": 64,
+    "guards_survived": [
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2113,
+        "condition": "log_text is None",
+        "exit": 0,
+        "reused_completed": true
+      },
+      {
+        "function": "real_load_skip_provenance",
+        "line": 2121,
+        "condition": "not finite_int(entry.get(field))",
+        "exit": 0,
+        "reused_completed": true
+      },
+      {
+        "function": "real_load_checks",
+        "line": 2433,
+        "condition": "before_builds and after_builds and min(after_builds) <= max(before_builds)",
+        "exit": 0,
+        "seconds": 162.65
+      },
+      {
+        "function": "real_load_checks",
+        "line": 2402,
+        "condition": "got is not None",
+        "exit": 0,
+        "seconds": 104.53
+      }
+    ]
+  },
+  "replay_attacks": [
+    {
+      "attack": "real-min-nan",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD at draw 722 reports minDepth=nan but the reference depth crop says 0.00038304174086079']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-far-nan",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD at draw 722 reports farPlane=nan but its projection gives 2047.9999721478816']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-far-10",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD at draw 722 reports farPlane=10 but its projection gives 2047.9999721478816']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-capture-0",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD at draw 722 has cameraCapture=0']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-centre-empty",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD at draw 722 names scene centre []']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-sceneQuads-negative",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD at draw 722 names 8 sections, -1 quads, 49 draws']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-projection-flip",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD at draw 722 says projectionAdjusted=True but its projection is Minecraft\u2019s']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-sceneSections-1",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD at draw 722 names 1 sections, 3210 quads, 49 draws']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-builds-0",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: the judged samples name scene builds [1, 2, 3, 3, 3, 4, 5] but the probe built 0']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-device-null",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: the real-LOAD probe judged samples but names no device']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-skip-with-depth-file",
+      "exit": 1,
+      "error": "ValueError: ladder gate: [\"ValueError: real-LOAD skip at draw 242 carries ['referenceDepthFile'], which a skip never has\"]",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-skip-log-count",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: the real-load log line for skipped draw 242 is missing or carries more than its status']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-fixed-skip-consistent",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD skip at draw 242 says no world engine but the last instance line before it shows a live engine']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-known-skip-substitution",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD skip at draw 722 says atlas-pending but the log has no outstanding atlas request at that point']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-stage-fabricated",
+      "exit": 1,
+      "error": "ValueError: ladder gate: [\"ValueError: real-LOAD at draw 722 says stage 'nether' but the ladder sample says 'turn'\"]",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-matrix-fabricated",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD at draw 722 says projectionAdjusted=False but its projection is neither']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-centre-invented",
+      "exit": 0,
+      "error": null,
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "real-quads-invented",
+      "exit": 0,
+      "error": null,
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "conceal-no-camera-this-frame",
+      "exit": 0,
+      "error": null,
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "conceal-camera-extent-mismatch",
+      "exit": 0,
+      "error": null,
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "conceal-build-budget-spent",
+      "exit": 0,
+      "error": null,
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "reuse-engine",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD at draw 2162: engineId changed but the same scene (build 3) was reused']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "reuse-atlas",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD at draw 2162: atlasGeneration changed but the same scene (build 3) was reused']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "reuse-reload-stale-generation",
+      "exit": 0,
+      "error": null,
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "reuse-reload-ignore-second-read",
+      "exit": 0,
+      "error": null,
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "reuse-engine-label-hidden",
+      "exit": 0,
+      "error": null,
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "reuse-reconnect",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: real-LOAD at draw 4082: atlasGeneration changed but the same scene (build 4) was reused']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "scene-free-failure",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: the real-LOAD probe reports notes=[], problems=0, closeFailures=1, leakedScenes=0, firstProblem=None, deviceDiverged=False, readbacksInFlight=0']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "atlas-free-failure",
+      "exit": 1,
+      "error": "ValueError: ladder gate: ['ValueError: the block-atlas readback buffer failed to close 1 time(s)']",
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "log-scene-free-failure",
+      "exit": 0,
+      "error": null,
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    },
+    {
+      "attack": "log-voxy-error",
+      "exit": 0,
+      "error": null,
+      "source_binding": {
+        "entries": 422,
+        "inventory": 422,
+        "mismatched": [],
+        "absent": [],
+        "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r21"
+      }
+    }
+  ],
+  "reconnect_direct_guard": [
+    {
+      "attack": "baseline",
+      "accepted": true
+    },
+    {
+      "attack": "reuse-reconnect",
+      "accepted": false,
+      "error": "real-LOAD after reconnect drew scene build 4, which was meshed before the disconnect"
+    }
+  ],
+  "could_not_check": [
+    "Native/live launches prohibited",
+    "No original real-LOAD draw after reconnect",
+    "Full raw atlas, full screenshots and per-sample model-view/uniform bytes absent",
+    "No compiled-JAR attestation or live cleanup/allocator/fault/lifetime proof",
+    "No real-section expected-hidden pixels or delivered LoD acceptance"
+  ]
+}
