@@ -1562,7 +1562,7 @@ The bakery is otherwise software rasterisation. `McNativeAtlas` now copies the a
 2048×2048, RGBA8) with Minecraft's own `copyTextureToBuffer` and supplies it to the bakery;
 samples before it arrives are skipped as `atlas-pending`. The GL path is unchanged.
 
-**Measured** (run [20261009T100957-766731Z](runs/native-evidence/20261009T100957-766731Z/MANIFEST.json), replay 0 in this checkout):
+**Measured** (run [20261009T100957-766731Z](runs/native-evidence/20261009T100957-766731Z/MANIFEST.json), which replayed 0 in the checkout it was built from; round 20 confirmed it):
 11 samples handed to real-LOAD; one `atlas-pending`, **10 judged with zero violations**. 675 264
 geometry pixels judged: **143 425 had to show Voxy and did**, 531 839 fell inside Minecraft's
 bracket (undetermined), **0 had to be hidden**. 8 of the 10 judged samples hold pixels that must
@@ -1646,7 +1646,8 @@ checkout it was built from; round 22 confirmed it; re-measured identically at `h
 cut — nearest drawn section 511.5–512.5 blocks):
 at `horizon`, **2 003 pixels had to show Voxy's terrain over Minecraft's sky and did, 3 306 had
 to be hidden behind the wall Minecraft draws and were, zero violations, nothing undetermined.**
-Seven judged real-LOAD samples in all, zero violations; the other judged samples hold no Voxy
+In the older run seven real-LOAD samples were judged; in the newer one six were judged and four
+skipped (atlas-pending, nothing-meshed); zero violations in both; the other judged samples hold no Voxy
 geometry in the band now that near sections are cut. The Z direction, coexistence and
 terrain-LOAD are judged in the same run.
 

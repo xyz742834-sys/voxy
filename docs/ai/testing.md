@@ -26,10 +26,11 @@ disables itself; this environment gate cannot certify Voxy native LoD rendering.
 The lifecycle has fourteen checkpointed stages: the eleven original ones, `descend` and
 `ascend` (since 2026-10-07; straight down at the ground under (0, 0) from 12 and 108 blocks
 above it, which the depth ladder's gate reads the Z direction from), and `horizon` (since
-2026-10-09; back at spawn after the travel to x = 768, facing +x with the camera 15° down, so
-the sections ingested around x = 768 — Voxy-only, beyond Minecraft's 8-chunk render distance —
-lie inside the native depth ladder's band where Minecraft shows sky; the real-section LOAD
-experiment's expected-visible pixels come from this look).
+2026-10-09; back above spawn after the travel to x = 768, at y 160 facing +x with the camera 18°
+down, so the sections ingested around x = 768 — Voxy-only, beyond Minecraft's 8-chunk render
+distance — lie inside the native depth ladder's band where Minecraft shows sky, with a stone
+wall 20 blocks ahead covering half of them; the real-section LOAD experiment's must-appear and
+must-hide pixels both come from this look; `edit` removes the wall and returns to y 120).
 Since 2026-10-07 the stage launches Minecraft **twice**: the first launch carries the
 marker, terrain, depth-copy and proof-file diagnostics and (since 2026-10-09) native
 instance mode (`-PharnessNativeInstance`: Voxy's world engine and ingest without any render

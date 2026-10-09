@@ -206,7 +206,8 @@ checkout** — replay requires the retained source fingerprint to equal the tree
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
 round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
 checkpointed stages (`descend`, `ascend` added 2026-10-07; `horizon` — facing the Voxy-only
-terrain at x ≈ 768 from spawn, yaw -90, pitch 15 — added 2026-10-09 for the real-section
+terrain at x ≈ 768 from spawn at y 160, yaw -90, pitch 18, with a stone wall 20 blocks ahead —
+added 2026-10-09 for the real-section
 experiment). Older retained runs do not replay under this
 gate, which is expected and tabled in the survey.
 
@@ -306,7 +307,8 @@ alone, then repair blocking findings in a separate commit.
      the client ingested: around spawn (x = 0) and around the `travel` teleport (x = 768), each
      ±128 blocks. Sections at x ≈ 640–896 are **Voxy-only** after `return` — the LoD case
      itself. The existing looks face +z (yaw 0) and never see them, so add a stage, e.g.
-     `horizon` after `return`: `tp @s 0 120 0 -90 15` (face +x, pitch 15° down: the band's rays
+     `horizon` after `return` (superseded: the look in the tree is y 160, pitch 18, plus a wall —
+     see the survey's occlusion section): `tp @s 0 120 0 -90 15` (face +x, pitch 15° down: the band's rays
      run 1–9° below horizontal, so MC shows sky there and Voxy's far terrain at 640–896 blocks,
      3.5–4.9° below, falls inside the band → expected VISIBLE). Mesh at a coarse level
      (`meshAround(cx, cy, cz, r, level)` with level 2–3 so radius 4 covers ±1024 blocks; the
