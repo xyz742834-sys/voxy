@@ -193,9 +193,15 @@ def report(samples=None, **overrides):
             "problems": 0, "firstProblem": None, "closeFailures": 0, "leakedPipelines": 0,
             "deviceDiverged": False, "terrainProbeEnabled": False, "terrainDrawsRecorded": 0,
             "markerDrawEnabled": False, "markerDrawsRecorded": 0,
-            "terrainLoadEnabled": False, "terrainLoadDrawsRecorded": 0, "device": hex(DEVICE),
+            "terrainLoadEnabled": False, "terrainLoadDrawsRecorded": 0,
+            "realLoadEnabled": False, "realLoadDrawsRecorded": 0, "device": hex(DEVICE),
             "notes": []}
     body.update(overrides)
+    # the hand-off each sample carries follows the fixed rule unless a test overrides it
+    for index, s in enumerate(body["samples"] if isinstance(body.get("samples"), list) else []):
+        if isinstance(s, dict) and "experiment" not in s:
+            s["experiment"] = verify.ladder_expected_consumer(
+                body.get("terrainLoadEnabled"), body.get("realLoadEnabled"), index)
     return body
 
 
@@ -452,13 +458,13 @@ def write_terrain_files(out, sample, field, after, depth, entry):
 
 
 def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=True,
-                        terrain=True):
+                        terrain=True, real=False, real_violate=None, real_status=None):
     """Write everything the stage's ladder launch retains for `pairs`: the ladder crops, the
     coexist crops and entries, the terrain-LOAD crops/references and entries. Returns the
     ladder report body, the terrain report body and the complete log text."""
     afters = [coexist_after(f, s["flipped"]) for s, f in pairs]
     coexist_entries = [coexist_entry(s, f, a) for (s, f), a in zip(pairs, afters)]
-    terrain_entries = []
+    terrain_entries, real_entries = [], []
     for i, ((s, f), quad) in enumerate(zip(pairs, afters)):
         write_sample_files(out, s, f)
         if coexist:
@@ -466,6 +472,20 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
             _, rej = crops(f, s["flipped"])
             write_gz_ppm(out / f"native-depth-ladder-coexist-frame-{s['at']}.ppm.gz",
                          thumbnail(quad, s["rect"], rej, s["rejectedRect"]))
+        consumer = verify.ladder_expected_consumer(terrain, real, i)
+        if consumer == verify.LADDER_REAL_LOAD:
+            before = quad if coexist else crops(f, s["flipped"])[0]
+            status = (real_status or {}).get(i, "judged")
+            if status != "judged":
+                real_entries.append({"at": s["at"], "status": status, "stage": s["stage"],
+                                     "cameraCapture": 5})
+                continue
+            depth = terrain_depth(len(f[0]), len(f), depth_kind)
+            after = terrain_after(f, before, depth, real_violate if not real_entries else None)
+            entry = real_entry(s, f, before, depth, after)
+            write_real_files(out, s, f, after, depth, entry)
+            real_entries.append(entry)
+            continue
         if terrain:
             before = quad if coexist else crops(f, s["flipped"])[0]
             depth = terrain_depth(len(f[0]), len(f), depth_kind)
@@ -473,10 +493,12 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
             entry = terrain_entry(s, f, before, depth, after)
             write_terrain_files(out, s, f, after, depth, entry)
             terrain_entries.append(entry)
+    judged = [e for e in real_entries if e["status"] == "judged"]
     body = report(samples=[s for s, _ in pairs], coexistEnabled=coexist,
                   coexist=[dict(e) for e in coexist_entries] if coexist else [],
                   terrainLoadEnabled=terrain,
-                  terrainLoadDrawsRecorded=len(terrain_entries) if terrain else 0)
+                  terrainLoadDrawsRecorded=len(terrain_entries) if terrain else 0,
+                  realLoadEnabled=real, realLoadDrawsRecorded=len(judged))
     reference_set = None
     if terrain:
         last_depth = terrain_depth(len(pairs[-1][1][0]), len(pairs[-1][1]), depth_kind)
@@ -484,12 +506,66 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
     tl = terrain_report(terrain_entries, reference_set=reference_set) if terrain else None
     if tl is not None:
         (out / "native-terrain-load.json").write_text(json.dumps(tl))
+    if real:
+        (out / "native-real-load.json").write_text(json.dumps(real_report(real_entries)))
     text = log_for(body["samples"])
     if coexist:
         text += coexist_log_for(coexist_entries)
     if terrain:
         text += terrain_log_for(terrain_entries)
+    if real:
+        text += real_log_for(real_entries)
     return body, tl, text
+
+
+def real_entry(sample, field, before, depth, after):
+    """The real-LOAD probe's published result for a judged sample: the same counts as
+    terrain-LOAD (derived independently from the crops) plus the scene and projection facts."""
+    entry = terrain_entry(sample, field, before, depth, after)
+    at = sample["at"]
+    entry.update(status="judged", stage=sample["stage"], cameraCapture=5,
+                 file=f"native-real-load-{at}.ppm.gz",
+                 frameFile=f"native-real-load-frame-{at}.ppm.gz",
+                 referenceFile=f"native-real-load-reference-{at}.ppm.gz",
+                 referenceDepthFile=f"native-real-load-depth-{at}.f32.gz",
+                 referenceSet=sum(1 for row in depth for d in row if d > 0.0),
+                 projectionAdjusted=False, farPlane=2048.0, sceneLevel=verify.REAL_LOAD_LEVEL,
+                 sceneCentre=[3, 0, 0], sceneSections=40, sceneQuads=90000, sceneDraws=180)
+    return entry
+
+
+def write_real_files(out, sample, field, after, depth, entry):
+    _, rej = crops(field, sample["flipped"])
+    write_gz_ppm(out / entry["file"], after)
+    write_gz_ppm(out / entry["frameFile"], thumbnail(after, sample["rect"], rej, sample["rejectedRect"]))
+    write_gz_ppm(out / entry["referenceFile"],
+                 [[TERRAIN_REF if d > 0.0 else (13, 13, 26) for d in row] for row in depth])
+    write_gz_f32(out / entry["referenceDepthFile"], depth)
+
+
+def real_report(entries, **overrides):
+    judged = [e for e in entries if e["status"] == "judged"]
+    body = {"enabled": True, "attempted": True, "drawsRecorded": len(judged), "builds": 1,
+            "buildBudget": verify.REAL_LOAD_BUILD_BUDGET, "level": verify.REAL_LOAD_LEVEL,
+            "radius": verify.REAL_LOAD_RADIUS, "declaredDepthState": [6, 1, 1],
+            "depthStateReadBack": False, "instanceMode": True,
+            "results": [dict(e) for e in entries], "problems": 0, "firstProblem": None,
+            "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
+            "readbacksInFlight": 0, "device": hex(DEVICE), "notes": []}
+    body.update(overrides)
+    return body
+
+
+def real_log_for(entries):
+    lines = []
+    for e in entries:
+        if e["status"] == "judged":
+            lines.append("[native-vk] real load at draw " + str(e["at"]) + " status=judged "
+                         + " ".join(f"{k}={e[k]}" for k in verify.TERRAIN_LOAD_COUNTS)
+                         + f" depth=[{e['minDepth']} {e['maxDepth']}]\n")
+        else:
+            lines.append(f"[native-vk] real load at draw {e['at']} status={e['status']}\n")
+    return "".join(lines)
 
 
 def log_for(samples, stage_lines=True, late_sample_lines=False):
@@ -1258,7 +1334,8 @@ class LadderCoexistTest(unittest.TestCase):
                         ["--system-prop", "harnessNativeCoexist=true"]):
             self.assertFalse(enables(command, "harnessNativeCoexist"), command)
         self.assertEqual(verify.ladder_launch_requirements(LADDER_COMMAND),
-                         {"coexist": True, "terrainLoad": True})
+                         {"coexist": True, "terrainLoad": True, "realLoad": True,
+                          "instance": True})
 
     def test_a_result_list_that_is_not_a_list_is_refused_as_such(self):
         """Round-16: the type guard's removal survived because the fragment asserted was
@@ -1442,12 +1519,18 @@ class LadderRetentionTest(unittest.TestCase):
             # every retained launch carries the two straight-down looks, which replay judges,
             # and (since round 17) the coexist and terrain-LOAD evidence its command enables
             samples = list(samples) + direction_samples()
+            # the stage's ladder launch runs every experiment its command enables, including
+            # instance mode and real-LOAD (alternating with terrain-LOAD)
+            import test_instance_gate
+            instance_body = test_instance_gate.report()
+            (ladder_output / "native-instance.json").write_text(json.dumps(instance_body))
             if with_files:
-                body, _, log_text = full_ladder_package(ladder_output, samples)
+                body, _, log_text = full_ladder_package(ladder_output, samples, real=True)
             else:
                 body = report(samples=[s for s, _ in samples], coexistEnabled=True,
                               terrainLoadEnabled=True, terrainLoadDrawsRecorded=len(samples))
                 log_text = log_for(body["samples"])
+            log_text += test_instance_gate.log_for(instance_body["samples"])
             (ladder_output / "native-depth-ladder.json").write_text(json.dumps(body))
             if with_own_result:
                 (ladder_output / "native-result.json").write_text(json.dumps(
@@ -1644,6 +1727,11 @@ class LadderRetentionTest(unittest.TestCase):
         path = target / "ladder" / "native-depth-ladder.json"
         body = json.loads(path.read_text())
         body["samples"] = body["samples"][:1] + body["samples"][2:]
+        # keep the hand-off consistent with the shortened list, so the omitted crops are what
+        # is caught (the hand-off rule has its own tests)
+        for index, entry in enumerate(body["samples"]):
+            entry["experiment"] = verify.ladder_expected_consumer(
+                body["terrainLoadEnabled"], body["realLoadEnabled"], index)
         path.write_text(json.dumps(body))
         self.rehash(target, "ladder/native-depth-ladder.json")
         code, out = self.replay(target)

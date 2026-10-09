@@ -168,6 +168,17 @@ public final class McNativeDepthLadder implements Destroyable {
      * 決して書かない; 書く実験は別の probe と別のフラグである (handoff の規則 3)。
      */
     private static long sampleThisFrame = -1;
+    /**
+     * そのフレームの標本を渡す先。両方の LOAD 実験が有効なら<b>交互</b>に渡す: どちらも MC の
+     * 深度に書くので、同じフレームで二つ目が見る深度はもう MC のものではない。標本ごとの
+     * 渡し先は証跡 ({@code experiment}) に出し、gate は各実験の結果がちょうどその標本に
+     * 対応することを要求する。
+     */
+    private static String consumerThisFrame = null;
+    private static final java.util.Map<Long, String> SAMPLE_CONSUMERS = new java.util.HashMap<>();
+    public static final String EXPERIMENT_TERRAIN_LOAD = "terrainLoad",
+        EXPERIMENT_REAL_LOAD = "realLoad";
+    private static int assigned;
     private static int problems;
     private static String firstProblem;
     private static int closeFailures;
@@ -240,10 +251,27 @@ public final class McNativeDepthLadder implements Destroyable {
      * このフレームで梯子が読み戻しを要求した標本の draw 本数を返し、忘れる (無ければ -1)。
      * 描画スレッドで、梯子の {@link #renderIfEnabled} の後に呼ぶこと。
      */
-    static long takeSampleThisFrame() {
+    static long takeSampleThisFrame(String consumer) {
+        if (sampleThisFrame < 0 || !consumer.equals(consumerThisFrame)) return -1;
         long at = sampleThisFrame;
         sampleThisFrame = -1;
+        consumerThisFrame = null;
         return at;
+    }
+
+    /** 渡し先の決め方: 両方有効なら交互 (terrain-LOAD から)、片方ならそれ、無ければ無し。 */
+    static String assignConsumer(boolean terrain, boolean real, int index) {
+        if (terrain && real) return (index % 2 == 0) ? EXPERIMENT_TERRAIN_LOAD : EXPERIMENT_REAL_LOAD;
+        if (terrain) return EXPERIMENT_TERRAIN_LOAD;
+        if (real) return EXPERIMENT_REAL_LOAD;
+        return null;
+    }
+
+    /** 標本 {@code at} を渡した先、渡していなければ {@code null}。 */
+    static String consumerOf(long at) {
+        synchronized (NOTES) {
+            return SAMPLE_CONSUMERS.get(at);
+        }
     }
 
     /**
@@ -391,7 +419,16 @@ public final class McNativeDepthLadder implements Destroyable {
             nextReadbackAt = drawsRecorded + READBACK_INTERVAL;
             long at = drawsRecorded;
             requestReadback(colour, width, height);
-            if (readbackInFlight) sampleThisFrame = at;
+            if (readbackInFlight) {
+                String consumer = assignConsumer(McNativeTerrainLoad.enabled(),
+                    McNativeRealLoad.enabled(), assigned);
+                if (consumer != null) assigned++;
+                sampleThisFrame = consumer == null ? -1 : at;
+                consumerThisFrame = consumer;
+                synchronized (NOTES) {
+                    if (consumer != null) SAMPLE_CONSUMERS.put(at, consumer);
+                }
+            }
             if (Boolean.getBoolean(COEXIST_FLAG) && readbackInFlight) {
                 // ⚠ Same frame, same pixels: a second LOAD pass draws the coexistence quad over
                 // the band with Voxy's compare op and NO depth write, then a second readback.
@@ -563,7 +600,7 @@ public final class McNativeDepthLadder implements Destroyable {
             byte[] classes, pixels;
             // ⚠ terrain-LOAD (a separate probe) reads the same frame after the quad: leave the
             // classes in place and hand it the band AS THE QUAD LEFT IT, byte for byte.
-            boolean keepForTerrain = McNativeTerrainLoad.enabled();
+            boolean keepForTerrain = consumerOf(at) != null;
             synchronized (NOTES) {
                 for (var s : SAMPLES) if (s.at() == at) sample = s;
                 classes = keepForTerrain ? BAND_CLASSES.get(at) : BAND_CLASSES.remove(at);
@@ -697,7 +734,8 @@ public final class McNativeDepthLadder implements Destroyable {
             synchronized (SAMPLES) {
                 SAMPLES.add(sample);
             }
-            if (Boolean.getBoolean(COEXIST_FLAG) || McNativeTerrainLoad.enabled()) {
+            if (Boolean.getBoolean(COEXIST_FLAG) || McNativeTerrainLoad.enabled()
+                    || McNativeRealLoad.enabled()) {
                 int[] q = rects[chosen];
                 int n = (q[2] - q[0]) * (q[3] - q[1]);
                 byte[] cls = new byte[n];
@@ -1258,6 +1296,7 @@ public final class McNativeDepthLadder implements Destroyable {
             sb.append(", \"rejectedFile\": ").append(McNativeVulkanProbe.quote(s.rejectedFile()));
             sb.append(", \"frameFile\": ").append(McNativeVulkanProbe.quote(s.frameFile()));
             sb.append(", \"stage\": ").append(McNativeVulkanProbe.quote(s.stage()));
+            sb.append(", \"experiment\": ").append(McNativeVulkanProbe.quote(consumerOf(s.at())));
             sb.append(", \"camera\": [");
             for (int k = 0; k < 5; k++) {
                 double v = s.camera()[k];
@@ -1289,6 +1328,9 @@ public final class McNativeDepthLadder implements Destroyable {
         // so the gate can reconcile the pass count with the sample count.
         sb.append("  \"terrainLoadEnabled\": ").append(McNativeTerrainLoad.enabled()).append(",\n");
         sb.append("  \"terrainLoadDrawsRecorded\": ").append(McNativeTerrainLoad.drawsRecorded())
+          .append(",\n");
+        sb.append("  \"realLoadEnabled\": ").append(McNativeRealLoad.enabled()).append(",\n");
+        sb.append("  \"realLoadDrawsRecorded\": ").append(McNativeRealLoad.drawsRecorded())
           .append(",\n");
         sb.append("  \"device\": ").append(McNativeVulkanProbe.quote(deviceHandle()))
           .append(",\n");

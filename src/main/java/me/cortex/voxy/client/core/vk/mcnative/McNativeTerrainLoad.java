@@ -167,7 +167,7 @@ public final class McNativeTerrainLoad implements Destroyable {
 
     private static void render() {
         // 梯子がこのフレームで標本を取ったときだけ動く。取っていなければ何も触らない。
-        long at = McNativeDepthLadder.takeSampleThisFrame();
+        long at = McNativeDepthLadder.takeSampleThisFrame(McNativeDepthLadder.EXPERIMENT_TERRAIN_LOAD);
         if (at < 0) return;
         var notes = new ArrayList<String>();
         VulkanDevice device = McNativeVulkan.device(notes);
@@ -558,7 +558,7 @@ public final class McNativeTerrainLoad implements Destroyable {
 
     // ---------------- 証跡ファイル ----------------
 
-    private static String writeCrop(ByteBuffer data, int width, int[] q, String name) {
+    static String writeCrop(ByteBuffer data, int width, int[] q, String name) {
         String dir = System.getProperty("voxy.harness.output");
         if (dir == null || dir.isBlank()) return null;
         int w = q[2] - q[0], h = q[3] - q[1];
@@ -585,7 +585,7 @@ public final class McNativeTerrainLoad implements Destroyable {
     }
 
     /** 梯子と同じ縮尺・同じ平均 ({@link McNativeDepthLadder#FRAME_SCALE})。gate は同じ式で照合する。 */
-    private static String writeFrame(ByteBuffer data, int width, int height, String name) {
+    static String writeFrame(ByteBuffer data, int width, int height, String name) {
         String dir = System.getProperty("voxy.harness.output");
         if (dir == null || dir.isBlank()) return null;
         int scale = McNativeDepthLadder.FRAME_SCALE;

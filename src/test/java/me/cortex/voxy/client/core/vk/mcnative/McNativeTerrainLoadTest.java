@@ -30,7 +30,7 @@ public class McNativeTerrainLoadTest {
         assertFalse(McNativeTerrainLoad.attempted(), "a disabled probe must not record an attempt");
         assertEquals(0, McNativeTerrainLoad.drawsRecorded());
         // the ladder hands this frame's sample to nobody when nothing sampled
-        assertEquals(-1, McNativeDepthLadder.takeSampleThisFrame());
+        assertEquals(-1, McNativeDepthLadder.takeSampleThisFrame(McNativeDepthLadder.EXPERIMENT_TERRAIN_LOAD));
         assertNull(McNativeDepthLadder.takeBand(1));
     }
 

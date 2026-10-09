@@ -143,6 +143,40 @@ class InstanceGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(report(samples=inconsistent)),
                            "engine without a factory or instance")
 
+    def test_the_inventory_must_be_complete(self):
+        """Round-19 R19-INSTANCE-INVENTORY: two retained samples of 82 replayed 0."""
+        sparse = [sample(1, active=0), sample(180, active=9)]
+        self.assertRefused(self.run_gate(report(samples=sparse)), "the inventory is not complete")
+        # frames counted beyond the last retained sample's interval: one missing at the end
+        self.assertRefused(self.run_gate(report(frames=240)), "missing [240]")
+        # the limit: samples beyond SAMPLE_LIMIT are not expected
+        many = [sample(1, active=1)] + [sample(60 * k, active=1) for k in range(1, verify.INSTANCE_SAMPLE_LIMIT)]
+        result = self.run_gate(report(samples=many, frames=60 * 400))
+        self.assertTrue(result["success"], result["failures"])
+
+    def test_each_explicit_type_guard_is_live(self):
+        """Round-19 R19-TEST-INSTANCE: these guards' removals left the suite green, because
+        later checks or a KeyError also failed. Each test asserts the guard's own message."""
+        body = report()
+        body.pop("notes")
+        self.assertRefused(self.run_gate(body), "the instance report does not state notes")
+        self.assertRefused(self.run_gate(report(samples="x")), "instance.samples is 'x', not a")
+        body = report()
+        body["samples"][1].pop("stage")
+        self.assertRefused(self.run_gate(body), "instance sample 1 does not state stage")
+        body = report()
+        body["samples"][1]["engineLive"] = 1
+        self.assertRefused(self.run_gate(body), "instance sample 1.engineLive is 1, not a bool")
+        body = report()
+        body["samples"][1]["activeSections"] = 2.5
+        self.assertRefused(self.run_gate(body), "instance sample 1.activeSections is 2.5, not an int")
+        body = report()
+        body["samples"][1]["stage"] = 7
+        self.assertRefused(self.run_gate(body), "instance sample 1.stage is 7, not a str")
+        body = report()
+        body["samples"][1]["activeSections"] = -1
+        self.assertRefused(self.run_gate(body), "has activeSections=-1")
+
     def test_missing_fields_and_wrong_types_fail(self):
         for field in ("enabled", "backend", "frames", "engineEverPresent", "rendererEverCreated",
                       "maxActiveSections", "sampleInterval", "samples", "notes"):

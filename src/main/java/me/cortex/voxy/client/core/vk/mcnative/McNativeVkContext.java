@@ -310,6 +310,7 @@ public final class McNativeVkContext {
             McNativeMarkerDraw.shutdownImmediate(VkContext.get().device);
             McNativeTerrainProbe.shutdownImmediate(VkContext.get().device);
             McNativeTerrainLoad.shutdownImmediate(VkContext.get().device);
+            McNativeRealLoad.shutdownImmediate(VkContext.get().device);
             McNativeDepthLadder.shutdownImmediate(VkContext.get().device);
         } catch (Throwable t) {
             Logger.warn("[native-vk] could not release the marker draw: " + t);

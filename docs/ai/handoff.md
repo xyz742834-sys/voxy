@@ -123,7 +123,7 @@ frame extent, every retained file a manifest member.
   band, depths on both sides of MC's terrain bracket); a third readback is judged per pixel from
   the ladder's bracket and Voxy's own reference depth of the same scene: reference colour
   exactly where d_V ≥ bracket top, byte-identical to the previous readback where d_V ≤ bracket
-  bottom, undetermined between, unchanged without geometry. **Measured** (run `20261009T073850-255416Z`, replay 0 in this checkout): 20 samples, 495 376 geometry pixels judged, **zero violations** (no pixel shown where Voxy's depth was at or below MC's bracket, none hidden where it was at or above, none of another colour, none changed without geometry); 439 452 pixels expected visible and 22 973 expected hidden, 32 951 undetermined; 14 samples hold both determinate kinds. Survey section
+  bottom, undetermined between, unchanged without geometry. **Measured** (run `20261009T073850-255416Z`, which replayed 0 in the checkout it was built from; round 18 confirmed it): 20 samples, 495 376 geometry pixels judged, **zero violations** (no pixel shown where Voxy's depth was at or below MC's bracket, none hidden where it was at or above, none of another colour, none changed without geometry); 439 452 pixels expected visible and 22 973 expected hidden, 32 951 undetermined; 14 samples hold both determinate kinds. Survey section
   "Voxy's terrain pipeline in a LOADed pass, judged per pixel". Limits: the depth state is
   declared (`[6, 1, 1]`), not read back; synthetic scene; bracket-grain verdicts. The first run
   failed on a log-chronology race (sample line logged after the next stage began), repaired by
@@ -297,7 +297,7 @@ alone, then repair blocking findings in a separate commit.
 ```
 ./gradlew test --offline --no-daemon -PvkLibname=/opt/homebrew/lib/libvulkan.dylib \
   -PvkValidation=true -PvkSyncEnv=true          # JUnit
-python3 -m unittest discover -s scripts/tests   # 199 cases, ~6 min
+python3 -m unittest discover -s scripts/tests   # count in "Exact state of the tree", ~9 min
 python3 scripts/verify.py --only native --seconds 8 --timeout 1500   # launches MC twice, ~5 min
 python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/<run>   # no launch
 ```

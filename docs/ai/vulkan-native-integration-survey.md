@@ -1461,8 +1461,8 @@ least one sample, and reconciles the probe's report with the ladder's view of it
 device, formats: colour 37, depth 126 = `D32_SFLOAT`, which the pipeline declares).
 
 **Measured** (run
-[20261009T073850-255416Z](runs/native-evidence/20261009T073850-255416Z/MANIFEST.json), replay 0
-in this checkout): 20 samples, one terrain-LOAD pass each, **495 376 geometry pixels judged with
+[20261009T073850-255416Z](runs/native-evidence/20261009T073850-255416Z/MANIFEST.json), which
+replayed 0 in the checkout it was built from): 20 samples, one terrain-LOAD pass each, **495 376 geometry pixels judged with
 zero violations** — no pixel showed Voxy where its depth was at or below Minecraft's bracket, none
 hid it where its depth was at or above, none held a third colour, none without geometry changed.
 Of those pixels 439 452 were expected visible and were, 22 973 were expected hidden and were,
@@ -1528,8 +1528,8 @@ without a render path and ingests sections there. It does not say the sections' 
 right, that anything is drawn, or anything about LoD.
 
 **Measured** (run
-[20261009T080812-119439Z](runs/native-evidence/20261009T080812-119439Z/MANIFEST.json), replay 0
-in this checkout): 73 samples over 4 320 frames; the factory, instance and a live world engine
+[20261009T080812-119439Z](runs/native-evidence/20261009T080812-119439Z/MANIFEST.json), which
+replayed 0 in the checkout it was built from): 73 samples over 4 320 frames; the factory, instance and a live world engine
 present at every sample from the first; `VoxyRenderSystem` never created; ingest enabled; the
 engine held up to 16 active sections (the count rises as chunks arrive and falls as sections
 are saved and idled, which is the engine's normal behaviour, so the gate requires a maximum of

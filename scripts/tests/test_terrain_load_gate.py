@@ -124,17 +124,23 @@ class TerrainLoadGateTest(unittest.TestCase):
         # off everywhere: the launch required it
         result = self.run_gate(terrain=False, require=True)
         self.assertRefused(result, "enabled the terrain-LOAD experiment but the ladder says")
-        # the ladder says off but a report/files/log lines were retained
+        # the ladder says off (and so hands no sample to it) but a report/files/log lines
+        # were retained
+        def off(b):
+            b.update(terrainLoadEnabled=False, terrainLoadDrawsRecorded=0)
+            for sample in b["samples"]:
+                sample["experiment"] = None
+        result = self.run_gate(mutate_ladder=off, require=False)
+        self.assertRefused(result, "retained although the ladder says the experiment was off")
+        # the ladder says off but still hands samples to it: the hand-off rule refuses it
         result = self.run_gate(mutate_ladder=lambda b: b.update(terrainLoadEnabled=False,
                                                                  terrainLoadDrawsRecorded=0),
                                require=False)
-        self.assertRefused(result, "retained although the ladder says the experiment was off")
+        self.assertRefused(result, "as the hand-off rule requires")
 
         def strip_report(out, tl):
             (out / "native-terrain-load.json").unlink()
-        result = self.run_gate(mutate_ladder=lambda b: b.update(terrainLoadEnabled=False,
-                                                                 terrainLoadDrawsRecorded=0),
-                               mutate_files=strip_report, require=False)
+        result = self.run_gate(mutate_ladder=off, mutate_files=strip_report, require=False)
         self.assertRefused(result, "terrain-load lines for draws")
         # off and nothing retained: fine when the launch did not require it
         result = self.run_gate(terrain=False, require=False)

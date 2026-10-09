@@ -36,6 +36,7 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
         this.voxy$shutdownRenderer();
         me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.shutdown();
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainLoad.shutdown();
+        me.cortex.voxy.client.core.vk.mcnative.McNativeRealLoad.shutdown();
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.shutdown();
         me.cortex.voxy.client.core.vk.mcnative.McNativeMarkerDraw.shutdown();
     }
@@ -63,6 +64,9 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
         // 梯子の帯へ Voxy の地形を LOAD パスで描いて深度も書く (梯子自身は決して書かない)。
         // 既定では何もしない。
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainLoad.renderIfEnabled();
+        // ⚠ real-LOAD も梯子の後 (梯子は標本を terrain-LOAD と交互に渡す)。毎フレーム呼ぶ:
+        // MC の行列がこのフレームに捕捉されたかを数えるため。既定では何もしない。
+        me.cortex.voxy.client.core.vk.mcnative.McNativeRealLoad.renderIfEnabled();
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.renderIfEnabled();
         // ⚠ instance mode の観測。GPU には触らない。既定では何もしない。
         me.cortex.voxy.client.core.vk.mcnative.McNativeInstanceProbe.sampleIfEnabled();
