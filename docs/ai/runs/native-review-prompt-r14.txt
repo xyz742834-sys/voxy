@@ -1,0 +1,67 @@
+You are an INDEPENDENT reviewer, round 14. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (059df4ca59ad2e9ca8d4d50646d21fc0a06335cc). Round 13 returned REDESIGN against
+e1bf895d: it CONFIRMED the Z direction (reverse-Z) as a bounded observation of the two
+straight-down looks, with the nearer look identified independently of any depth value, and
+refuted the gate's consistency (R13-Z-BINDING): the report's stage labels and cameras were
+trusted, so swapping them in the report alone, images and log untouched, reversed the answer;
+split grounds in the checkpoints did too. Non-blocking: R13-TEST-XZ, R13-DOC-DRIFT, and the
+standing limits. Its report is docs/ai/runs/native-integration-review-r13.md and its machine
+verdict docs/ai/runs/native-integration-review-r13.json.
+
+The HEAD repairs R13-Z-BINDING: every ladder log line now carries the sample's stage and camera
+and the gate reconciles both with the report; the harness's own "[voxy-harness] stage=" lines
+in the retained log must have the sample's stage current when it was logged; the descend and
+ascend checkpoints must state one ground and their cameraY/playerY/playerPitch must be what
+that ground and the pinned teleport offsets imply; each sample's camera must match its
+checkpoint's cameraY; the descend camera must be lower than, and precede, the ascend one; replay
+requires the summary's saved direction to equal the recomputed one. Tests cover x/z
+eligibility, report-only relabelling, a contradicted stage line, split grounds, a checkpoint
+contradicting its teleport, the lifecycle order and the saved direction. The survey's blanket
+consistency sentence is narrowed to the listed checks; the geometry scope (off-centre band,
+larger displaced footprint from the higher camera, no per-ray bound) is stated.
+
+The boundary from rounds 4-13 still governs and the candidate accepts it: an independently
+accepted diagnostic foundation is still REDESIGN. The candidate does NOT claim an accepted
+layer. It claims (a) R13-Z-BINDING is repaired: a report-only relabelling, a split ground, a
+contradicted checkpoint or a reordered pair now fails replay, (b) the direction reading rests
+on retained, mutually reconciled inputs, and (c) the survey claims no more than that, with its
+limits stated. Judge all three.
+
+Read docs/ai/project-goal.md and docs/ai/vulkan-native-integration-survey.md first; the
+survey's "The Z direction, measured" section (with its round-13 paragraph) and
+docs/ai/handoff.md state what changed.
+
+Judge, saying CONFIRMED or REFUTED with the file/line or command for each:
+
+1. R13-Z-BINDING. Re-run your two accepted packages (labels+camera swapped; labels swapped
+   with split grounds) and your images/histograms/log swap against
+   docs/ai/runs/native-evidence/20261009T041151-205062Z; then look for any report-only, checkpoint-
+   only, or log-only change that still reverses the direction and replays as 0. Say what a
+   passing reversal now requires (which files must be rewritten together).
+2. THE DIRECTION MEASUREMENT, as now stated. Is the geometry scope accurate? Is anything in
+   the section stronger than the two retained looks support?
+3. TESTS. JUnit 333 (1 documented skip, 0 failures) and 175 Python cases. Re-run your in-memory direction
+   mutations (x/z predicates removed; first instead of last) and try new ones (shared-ground
+   check removed; checkpoint geometry check removed; log stage reconciliation removed); name
+   any that all tests still pass. Fixtures must not be shrunk.
+4. WHETHER THE SURVEY OVERSTATES. Fifteen retained runs; only the newest replays, by design.
+   Judge what remains, including the round-12 and round-13 paragraphs.
+5. SAFETY FOR NORMAL PLAY. With voxy.native.probe / .marker / .features / .adopt / .terrain /
+   .depth / .depthladder all unset, would you ship this to a player on the GL backend? On
+   Minecraft's Vulkan backend? Confirm the ladder cannot act unflagged and never writes
+   Minecraft's depth even when flagged, and that the harness changes live only in the
+   development-only harness source set.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T041151-205062Z
+Do NOT run scripts/verify.py --only native or --only live (it launches Minecraft and takes the
+GPU); judge the committed evidence instead.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on
+the first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit,
+blocking_findings, non_blocking_findings, safe_for_normal_play, round13_findings_closed (an
+object mapping R13-Z-BINDING, R13-TEST-XZ, R13-DOC-DRIFT to true/false), z_direction_judgment,
+terrain_experiment_judgment, depth_result_judgment, and ladder_judgment.

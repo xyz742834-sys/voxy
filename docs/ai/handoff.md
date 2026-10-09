@@ -1,7 +1,7 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, HEAD **e1bf895d** (`e1bf895dc02527c11fc716ce62a836b7a1ec5eeb`, round-13 candidate; round 12 judged `9b6a1816` with no open evidence finding).
+`vulkan-macos`, HEAD **059df4ca** (`059df4ca59ad2e9ca8d4d50646d21fc0a06335cc`, round-14 candidate; round 13 judged `e1bf895d`: direction confirmed, gate consistency refuted).
 
 > Read `docs/ai/project-goal.md` and `docs/ai/current-state.md` first, then this. This file is
 > task state, not source of truth; when the work moves on, update it or delete it.
@@ -25,10 +25,10 @@ Written 2026-10-07 for a **fresh session with no conversation context**. Branch
 ## The review discipline (this is the spine)
 
 `scripts/verify.py` is the verification spine. Native work is **"measured", never "verified"**
-until a fresh independent review of a frozen commit records a verdict. Twelve rounds have run,
-**all REDESIGN** — round 12's only blocking item is the standing delivery boundary (native LoD is
-not implemented); every evidence/gate finding is closed. Reports are in
-`docs/ai/runs/native-integration-review-r1..r12.{md,json}`.
+until a fresh independent review of a frozen commit records a verdict. Thirteen rounds have
+run, **all REDESIGN** — the standing delivery boundary (native LoD is not implemented) is
+always blocking; round 13 added R13-Z-BINDING (gate trusted the direction labels), repaired
+in this HEAD. Reports are in `docs/ai/runs/native-integration-review-r1..r13.{md,json}`.
 
 Dispatch procedure (works; GPT-6.1-Sol, not Astra):
 
@@ -40,21 +40,23 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9 … -13 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r13`. Start
+-9 … -14 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r14`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 12, and what this HEAD claims
+### Findings status after round 13, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
-| every evidence/gate finding B1 … R10-CREATE-TEST | **closed (r12)** |
+| every evidence/gate finding B1 … R10-CREATE-TEST | closed (r12) |
 | DELIVERY-BOUNDARY | standing: diagnostics are not an accepted foundation; native LoD is unimplemented |
-| non-blocking limits R12-NATIVE-CALL-LIMIT / R10-ANCHOR-GRAIN / R10-CONSISTENT-FORGERY | **stated as limits** in the survey |
-| **Z direction** (new, goal work) | measured in this HEAD by the gate from two straight-down looks: larger depth value = nearer (reverse-Z), **unreviewed** |
+| **Z direction** | **confirmed by r13** as a bounded observation (reverse-Z); R13-GEOMETRY-SCOPE stated as a limit |
+| **R13-Z-BINDING** | repaired in this HEAD — log carries stage+camera per sample, harness stage lines bind the chronology, shared ground, checkpoint geometry, height and lifecycle order, saved direction reconciled; **unreviewed** |
+| non-blocking R13-TEST-XZ / R13-DOC-DRIFT | addressed (x/z tests; this file, survey, current-state) |
+| non-blocking limits R10-ANCHOR-GRAIN / R10-CONSISTENT-FORGERY / R12-CREATOR-RESTORE / R13-DEPTH-COPY-SCOPE | **stated as limits** |
 
 B1 has one recurring shape: **the gate trusted something the thing under test controls.**
 Repairs have removed that progressively — raw pixels instead of aggregates, source constants
@@ -92,8 +94,8 @@ frame extent, every retained file a manifest member.
   blocks above it; the ladder labels samples with stage and camera; the gate takes the last
   sample of each look (camera at ground + offset + 1.62 within a block, pitch 90) and requires
   every bracket of the nearer look to lie strictly on one side of the farther look's. Measured:
-  near brackets 3–4, far bracket 2. Retained in `20261009T033539-494735Z/ladder/`. The depth *scale*
-  is not measured.
+  near brackets 3–4, far bracket 2. Retained in `20261009T041151-205062Z/ladder/`. Round 13 confirmed the direction. The depth
+  *scale* is not measured.
 
 ## What is NOT established — do not claim these
 
@@ -122,24 +124,24 @@ screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_ch
 (same function as the stage), saying explicitly "not replayed" for runs that retained none and
 refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 333 (1 documented skip, 0 failures); Python 170 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T033539-494735Z` (replay 0 **in this
+Gate/test counts at this HEAD: JUnit 333 (1 documented skip, 0 failures); Python 175 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T041151-205062Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays). The lifecycle now has thirteen
 checkpointed stages (`descend`, `ascend` added). Older retained runs do not replay under this
 gate, which is expected and tabled in the survey.
 
-## Round 13
+## Round 14
 
-Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r13.txt` (if not already
-done — check `git log` for a "docs: record the round-13 dispatch" commit). When its report
-lands: copy it to `docs/ai/runs/native-integration-review-r13.{md,json}`, commit the report
+Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r14.txt` (if not already
+done — check `git log` for a "docs: record the round-14 dispatch" commit). When its report
+lands: copy it to `docs/ai/runs/native-integration-review-r14.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
 
-1. Import the round-13 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 14.
+1. Import the round-14 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 15.
 2. Then the goal work, next step: a **depth-tested Voxy draw against MC's LOADed depth** at
    this hook — the terrain probe today CLEARS MC's frame to compare against Voxy's own target;
    the coexistence experiment must instead LOAD MC's colour and depth, draw Voxy's synthetic
@@ -191,4 +193,4 @@ not fingerprinted.
   replays; the others are tabled).
 - `docs/ai/harness.md` — the review rule.
 - `docs/ai/testing.md` — the stages and what each proves.
-- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 14 runs.
+- `docs/ai/runs/native-evidence/<run>/` — retained evidence, 15 runs.
