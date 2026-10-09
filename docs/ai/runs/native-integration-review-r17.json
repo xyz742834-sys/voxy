@@ -1,0 +1,257 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "19b2444a5a5c40dca47160ece609970caf6a4c07",
+  "review_round": 17,
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "summary": "Standing rounds 4-16 boundary: diagnostic evidence is neither an accepted foundation nor delivered native Voxy LoD. Candidate accepts this boundary.",
+      "locations": [
+        "docs/ai/project-goal.md:9",
+        "docs/ai/handoff.md:29",
+        "src/main/java/me/cortex/voxy/client/VoxyClient.java:96"
+      ]
+    },
+    {
+      "id": "R16-COEXIST-LAUNCH-SEMANTICS",
+      "judgment": "REFUTED full closure; CONFIRMED attached short-form repair",
+      "summary": "launch_enables handles attached -P forms but disagrees with actual Gradle on separated -P, long --project-prop and org.gradle.project system-property forms. Three still-enabling command variants replay 0 behind an off/empty report, deleted coexist images and lines, and refreshed manifests.",
+      "locations": [
+        "scripts/verify.py:1198",
+        "scripts/verify.py:1210",
+        "scripts/verify.py:2653",
+        "scripts/verify.py:2890",
+        "build.gradle:602"
+      ],
+      "reproduction": "python3 .agent-run/r17-attacks.py downgrade_silent_log_command_long downgrade_silent_log_command_split downgrade_silent_log_command_system",
+      "artifacts": [
+        ".agent-run/r17-launch-matrix.json",
+        ".agent-run/r17-attacks-all.json",
+        ".agent-run/r17-long-cli-replay.json"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R14-DOC-DRIFT",
+      "judgment": "REFUTED blanket closure; CONFIRMED named survey/prose edits",
+      "summary": "Replay dates and historical attribution are corrected, and launch-2 prose includes coexist. Handoff manual command described as what launch 2 does still omits coexist; final inventory says 17 runs rather than 18.",
+      "locations": [
+        "docs/ai/handoff.md:207",
+        "docs/ai/handoff.md:216",
+        "docs/ai/handoff.md:237"
+      ]
+    },
+    {
+      "id": "STANDING-EVIDENCE-LIMITS",
+      "judgment": "CONFIRMED disclosed limits",
+      "summary": "Editable records, 4x4 anchoring and post-return pipeline states do not authenticate runtime/GPU execution or native create/bind consumption. Coordinated downgrades with genuinely non-enabling or absent commands still pass; missing saved-command provenance and saved coexist-summary consistency are outside the disclosed replay guarantee."
+    }
+  ],
+  "safe_for_normal_play": {
+    "gl_backend": true,
+    "minecraft_vulkan_backend_inert": true,
+    "would_ship_dormant_change_on_supported_gl_configuration": true,
+    "would_ship_as_functioning_native_voxy": false,
+    "all_native_flags_unset_required": true,
+    "flags": [
+      "voxy.native.probe",
+      "voxy.native.marker",
+      "voxy.native.features",
+      "voxy.native.adopt",
+      "voxy.native.terrain",
+      "voxy.native.depth",
+      "voxy.native.depthladder",
+      "voxy.native.coexist"
+    ],
+    "coexist_cannot_draw_unflagged": true,
+    "coexist_depth_writes_when_flagged": false,
+    "ladder_depth_writes_when_flagged": false,
+    "harness_changes_development_only": true,
+    "scope": "Source inspection and fresh offline tests; no player/package/native/live run. Supported established GL safety does not certify the macOS diagnostic GL/Vulkan interop product."
+  },
+  "round16_findings_closed": {
+    "R16-COEXIST-LAUNCH-SEMANTICS": false,
+    "R15-TEST-COEXIST": true,
+    "R14-DOC-DRIFT": false
+  },
+  "coexist_judgment": {
+    "judgment": "CONFIRMED bounded exact-RGB measurement; REFUTED complete launch-required gate",
+    "same_frame_same_pixels": true,
+    "compare_op_is_voxys": true,
+    "compare_op": "GREATER_OR_EQUAL (6), VkDepth.COMPARE_OP",
+    "no_depth_write": true,
+    "bracket_rule_sound": true,
+    "zero_violations_confirmed": true,
+    "samples": 24,
+    "original_pixels_compared": 2114816,
+    "mixed_samples": [
+      2,
+      3842,
+      4562,
+      4802
+    ],
+    "anchored_complete_4x4_blocks": 388539,
+    "original_replay_exit": 0,
+    "original_round15_presence_attack_closed": true,
+    "attached_short_forms_repaired": true,
+    "full_launch_semantics_closed": false,
+    "gpu_origin_authenticated": false,
+    "passing_attacks": [
+      "downgrade_silent_log_command_long",
+      "downgrade_silent_log_command_missing",
+      "downgrade_silent_log_command_neighbour",
+      "downgrade_silent_log_command_off",
+      "downgrade_silent_log_command_split",
+      "downgrade_silent_log_command_system"
+    ]
+  },
+  "z_direction_judgment": {
+    "judgment": "CONFIRMED bounded reverse-Z at this hook and these looks; general scale unmeasured",
+    "direction": "larger depth value is nearer (reverse-Z)",
+    "near": {
+      "at": 4802,
+      "cameraY": 80.61999988555908,
+      "groundY": 67,
+      "aboveGround": 13.619999885559082,
+      "brackets": [
+        3,
+        4
+      ],
+      "rungs": [
+        0,
+        0,
+        0,
+        44694,
+        54378,
+        0,
+        0,
+        0
+      ]
+    },
+    "far": {
+      "at": 5282,
+      "cameraY": 176.61999988555908,
+      "groundY": 67,
+      "aboveGround": 109.61999988555908,
+      "brackets": [
+        2
+      ],
+      "rungs": [
+        0,
+        0,
+        99072,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "basis": "two looks straight down at the same ground from 12 and 108 blocks above it (harness teleports; camera positions published by the ladder; ground height from the checkpoints); every pixel bracket of the nearer look lies strictly on one side of every bracket of the farther look",
+    "per_ray_distance_bound_measured": false
+  },
+  "terrain_experiment_judgment": {
+    "judgment": "CONFIRMED all 21 retained synthetic pairs exact RGB equal; REFUTED real native LoD/coexistence acceptance",
+    "independently_equal_retained_pairs": 21,
+    "selected_draw": 4104,
+    "clear_rgb": [
+      13,
+      13,
+      26
+    ],
+    "non_background_pixels": 26116,
+    "mismatches": 0,
+    "clears_minecraft_targets": true,
+    "real_world_lod": false,
+    "next_load_probe_judgment": "CONFIRMED separate experimental design and flag, not implemented in candidate; ladder must never write Minecraft depth"
+  },
+  "depth_result_judgment": {
+    "judgment": "CONFIRMED retained quantized all-zero copy; REFUTED depth direction/scale/cause inference",
+    "width": 1708,
+    "height": 960,
+    "zero_quantized_samples": 1639680,
+    "raw_float_zero_independently_retained": false,
+    "cause_established": false
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED bounded brackets, direction bindings and current source-bound recount; REFUTED full launch-required coexist evidence and native delivery acceptance",
+    "samples": 24,
+    "source_entries": 408,
+    "manifest_members": 277,
+    "original_replay_named_checks": 10,
+    "source_bytes_match_checkout": true,
+    "source_revision_recorded": "9c6cf401da235d41cff97dddda4cfb3b5937e54f",
+    "changed_sources_during_run": [],
+    "retained_runs": 18,
+    "replaying_runs": 1,
+    "diagnostic_layer_accepted": false,
+    "native_lod_accepted": false
+  },
+  "verification": {
+    "junit": {
+      "tests": 333,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "junit_output_gate": {
+      "tests": 333,
+      "failures": [],
+      "skips": [],
+      "known_gaps": [
+        "me.cortex.voxy.vk.VkBarriersTest.missingBarrierIsDetected"
+      ],
+      "diagnostics": [],
+      "success": true
+    },
+    "python": {
+      "tests": 199,
+      "seconds": 463.326,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "coexist_guard_mutants": 23,
+    "coexist_focused_tests": 20,
+    "coexist_guard_mutants_surviving_focused_suite": [],
+    "original_guard_mapping": {
+      "1205": 1232,
+      "1208": 1235,
+      "1211": 1247,
+      "1214": 1253,
+      "1220": 1259,
+      "1224": 1266,
+      "1235": 1277,
+      "1239": 1281,
+      "1242": 1284,
+      "1246": 1288,
+      "1250": 1292,
+      "1254": 1295,
+      "1257": 1298,
+      "1283": 1324,
+      "1291": 1331,
+      "1294": 1334,
+      "1298": 1338,
+      "1304": 1334,
+      "1310": 1347
+    },
+    "launch_matrix_forms": 15,
+    "launch_matrix_harness_properties": 9,
+    "replay_attack_cases": 32,
+    "native_or_live_launched": false,
+    "fixtures_shrunk": false,
+    "implementation_modified": false
+  },
+  "could_not_check": [
+    "Fresh Minecraft/native/live execution prohibited by request.",
+    "Player/package GL or Vulkan regression, sustained updates/lifetime/pressure/reload proof.",
+    "Runtime dependency/compiled class/driver/GPU provenance or actual native create/bind consumption.",
+    "Full original readback buffers, native depth exactly equal to z*, world save/per-ray distances or general depth scale.",
+    "Full 199-case suite separately for every guard mutant; complete unchanged focused 20-case coexist class used.",
+    "Next terrain-LOAD implementation and result absent from this candidate."
+  ],
+  "report": "docs/ai/runs/native-integration-review.md",
+  "artifacts_root": ".agent-run/r17*"
+}
