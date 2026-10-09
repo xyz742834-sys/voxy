@@ -475,7 +475,8 @@ of the point — and the replay status of each is:
 | [20261009T175351-583841Z](runs/native-evidence/20261009T175351-583841Z/MANIFEST.json) | no — predates the every-frame path (round 24 judged it) |
 | [20261009T182330-214639Z](runs/native-evidence/20261009T182330-214639Z/MANIFEST.json) | no — predates the round-24 repairs |
 | [20261009T183706-779208Z](runs/native-evidence/20261009T183706-779208Z/MANIFEST.json) | no — predates Voxy's own projection (round 25 judges it) |
-| [20261009T190223-644732Z](runs/native-evidence/20261009T190223-644732Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; as above with Voxy's own projection and the reprojecting resolve |
+| [20261009T190223-644732Z](runs/native-evidence/20261009T190223-644732Z/MANIFEST.json) | no — predates the CLEAR class and Voxy's GL composition rule |
+| [20261009T200758-879288Z](runs/native-evidence/20261009T200758-879288Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; as above with Voxy's GL composition rule and the ladder's CLEAR class |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1812,13 +1813,43 @@ reference depth where Voxy drew nothing, and Voxy's depth in (0, 1]. It counts p
 Minecraft's far plane (`beyondMinecraftFar`). The hierarchical fixture uses a 32-block near plane:
 its synthetic panels at 0.5 / 1e-6 would otherwise lie inside Voxy's 16-block near plane.
 
-**Measured** (run [20261009T190223-644732Z](runs/native-evidence/20261009T190223-644732Z/MANIFEST.json), replay 0 in this checkout): 8
+**Measured** (run [20261009T190223-644732Z](runs/native-evidence/20261009T190223-644732Z/MANIFEST.json), which replayed 0 in the checkout it was built from): 8
 judged samples, zero violations; 17 794 must-show shown, 73 271 must-hide hidden (69 309 at
 `descend`); every reference depth re-derived; the horizon depths (3.1495e-5 … 5.3890e-5) match the
 previous run's, rendered with Minecraft's projection, to float precision. `beyondMinecraftFar` is 0:
 the scene's top radius covers about ±768 blocks and the harness world holds ingested terrain only
 around the places the player visited, so nothing beyond 2048 blocks exists to draw. Showing LoD past
 Minecraft's far plane needs a world ingested that far, not only a larger radius.
+
+### Voxy's GL composition rule natively (2026-10-10)
+
+**The rule.** Voxy's GL renderer draws its terrain only where Minecraft drew nothing:
+`AbstractRenderPipeline.initDepthStencil` runs `setup_stencil_depth.frag` over Minecraft's depth,
+excluding (stencil 0, depth NEAR) every pixel whose depth is not the clear value, and Voxy renders
+with the stencil test. The native composite used Voxy's depth test instead, which let Voxy win
+wherever it was nearer — a deviation from Voxy's behaviour.
+
+**What changed** (`6dffc1b4`). The composite now writes the clear value 0 as its fragment depth and
+tests with Voxy's GREATER_OR_EQUAL, writes off: it passes exactly where Minecraft's stored depth is
+still 0 (reverse Z). The ladder gains a **CLEAR** class: after LOW, a quad at depth 0 with
+GREATER_OR_EQUAL (the coexist pipeline, writes off) in light pink (1, 0.5, 1), appended as palette
+index 10 so the other indices keep their meaning. LOW is now 0 < d < z_0. The log line, report
+counts, recount, direction check and both coexist expectations (Java and gate; the "must fail"
+range is now bounded to the rungs, which the new index would otherwise have entered) carry it. The
+hierarchical samples are judged by the rule (`McNativeTerrainLoad.judge(..., clearOnly)`,
+`terrain_load_judge(..., clear_only)`, `HIER_LOAD_SPEC["clear_only"]`): Voxy must show on CLEAR
+pixels where it drew and nowhere else. Real-LOAD and terrain-LOAD keep the depth-test rule, under
+which CLEAR always expects Voxy.
+
+**Measured** (run [20261009T200758-879288Z](runs/native-evidence/20261009T200758-879288Z/MANIFEST.json), replay 0 in this checkout): 8
+judged hierarchical samples, zero violations, and **no undetermined pixel**: every Voxy pixel is
+decided — 23 359 had to show and did, 350 597 had to stay Minecraft's and did. Minecraft's sky is
+exactly clear: the LOW class is empty in all 23 ladder samples. 5 119 frames composited.
+
+**Limits.** Minecraft's depth does not receive Voxy's depth (writes off; nothing after the
+level-render tail reads it). On GL the excluded pixels also enter Voxy's own depth as NEAR, so
+Minecraft's terrain occludes Voxy's HiZ/traversal; natively Voxy's submission runs before
+Minecraft's frame executes, so that occlusion is absent — less culling, not a different picture.
 
 ## What is NOT answered yet, and must be measured on hardware
 

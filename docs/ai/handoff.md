@@ -1,8 +1,9 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-25 candidate **043aa11f** (dispatched 2026-10-10, worktree `native-review-r25`): every-frame
-hierarchical-LOAD and the round-24 repairs. Round 24 judged `03461cea`: REDESIGN (DELIVERY-BOUNDARY + four defects, repaired). Round 23 judged `14743bf4`: REDESIGN on DELIVERY-BOUNDARY
+`vulkan-macos`, round-26 candidate = the docs commit after `7f58d730` (the dispatch commit names it): Voxy's own
+projection, frame accounting and Voxy's GL composition rule. Round 25 judged `043aa11f`: REDESIGN on DELIVERY-BOUNDARY only.
+Round 24 judged `03461cea`: REDESIGN (DELIVERY-BOUNDARY + four defects, repaired). Round 23 judged `14743bf4`: REDESIGN on DELIVERY-BOUNDARY
 only; no open code or gate finding; its wording residuals fixed in `32de53c2`. Round 22 judged `8ba67fc5`: REDESIGN on DELIVERY-BOUNDARY only; occlusion CONFIRMED;
 four R21 items closed; three non-blocking residuals addressed in `5476545d`. Round 21 judged `03ee3485`: REDESIGN on DELIVERY-BOUNDARY only; two R20 items closed;
 four residual and two new non-blocking items addressed in `d0a08faf`; occlusion measured. Round 20 judged `39584eba`: REDESIGN on DELIVERY-BOUNDARY only; R19 items closed;
@@ -60,14 +61,14 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9 … -25 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r25`. Start
+-9 … -26 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r26`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 24, and what this HEAD claims
+### Findings status after round 25, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
@@ -85,6 +86,7 @@ report separately from any repair.
 | **Real-section LOAD** + Blaze3D atlas read | **confirmed by r20** (bounded: visible half only); R20 items addressed in `da91d70e`; r21 closed two and found four incomplete, those and two new r21 items addressed in `d0a08faf`; **unreviewed** |
 | **Hierarchical-LOAD** (`McNativeHierarchicalLoad` + `McNativeComposite`, three-way hand-off) | measured (6 judged, zero violations, 82 073 shown / 3 962 hidden); judged by r24 (four defects, repaired) |
 | **Hierarchical-LOAD every frame** (`voxy.native.hierframes`) | **confirmed by r25** within source/specification and retained-run scope (own fence + same queue + target barriers); ordinary-frame pixels not judged; R25-FRAME-ACCOUNTING (totals unbounded) addressed after it — the gate reconciles composited + skipped + handed with the ladder's frames; **unreviewed** |
+| **Voxy's GL composition rule + ladder CLEAR class** (`6dffc1b4`) | measured (8 judged, every Voxy pixel decided: 23 359 shown, 350 597 kept Minecraft's, zero violations); **unreviewed** |
 | **Voxy's own projection + reprojecting resolve** (`429ce46a`) | measured (8 judged, zero violations, every reference depth re-derived); **unreviewed** (after the round-25 candidate) |
 | **R24 findings** | HIER-CULL, DIRTY-CALLBACK, RETIRED-CONTEXT, INSTANCE-STORED, EMPTY-BUILD **closed by r25**; HIER-GUARD-COVERAGE **partly**: the seven hierarchy-specific predicates are detected, the 27 shared-helper predicates are detected only by the real-LOAD tests (stated, not repaired) |
 | **Occlusion** (render-distance cut, `horizon` wall, hidden pixels required) | **confirmed by r22** (one look, bracket grain); R22 residuals (budget-guard test, draw-time cut, wording) addressed after it; **unreviewed** |
@@ -214,11 +216,11 @@ screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_ch
 (same function as the stage), saying explicitly "not replayed" for runs that retained none and
 refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 350 (1 documented skip, 0 failures; 8 for the
+Gate/test counts at this HEAD: JUnit 351 (1 documented skip, 0 failures; 8 for the
 terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode,
 4 for real-LOAD);
-Python 296 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T190223-644732Z` (replay 0 **in this
+Python 297 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T200758-879288Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
 round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
@@ -228,19 +230,20 @@ added 2026-10-09 for the real-section
 experiment). Older retained runs do not replay under this
 gate, which is expected and tabled in the survey.
 
-## Round 25
+## Round 26
 
-Round 24 (`03461cea`) returned REDESIGN: DELIVERY-BOUNDARY plus R24-HIER-CULL, R24-DIRTY-CALLBACK,
-R24-RETIRED-CONTEXT, R24-INSTANCE-STORED (report `docs/ai/runs/native-integration-review-r24.md`);
-all repaired in `b6e24c24` (survey "Round-24 repairs"). Round 25 was dispatched 2026-10-10 against
-`043aa11f` (`043aa11f93ac7791eae9f36c00eaeec9272b8501`) with `docs/ai/runs/native-review-prompt-r25.txt`
-(worktree `native-review-r25`, terminal `term_fd52ecc9-f364-413b-abfb-02304e8899a4`). When its report lands: copy it to `docs/ai/runs/native-integration-review-r25.{md,json}`,
-commit the report alone, then repair blocking findings in a separate commit.
+Round 25 (`043aa11f`) returned REDESIGN on DELIVERY-BOUNDARY only (report
+`docs/ai/runs/native-integration-review-r25.md`): the four round-24 blocking defects closed; its
+non-blocking R25-FRAME-ACCOUNTING and R25-DOC-SCOPE repaired in `638b02f6`. Round 26 is dispatched
+on the docs commit after `7f58d730` with `docs/ai/runs/native-review-prompt-r26.txt` (check
+`git log` for "record the round-26 dispatch"): Voxy's own projection, the frame accounting and Voxy's
+GL composition rule. When its report lands: copy it to
+`docs/ai/runs/native-integration-review-r26.{md,json}`, commit the report alone, then repair.
 
 ### Next steps, in order
 
-1. Import the round-25 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 26. Do the goal work alongside; do not wait for an overall
+1. Import the round-26 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 27. Do the goal work alongside; do not wait for an overall
    PASS (owner directive).
 2. The goal work, done in this HEAD: **Voxy's real terrain pipeline in a LOADed pass** as a
    separate probe (`McNativeTerrainLoad`, `voxy.native.terrainload`,

@@ -91,7 +91,8 @@ a native depth-tested composite, 6 judged samples, zero violations, 82 073 must-
 frame — run `20261009T183706-779208Z`: 5 083 frames, 8 judged samples in Voxy's CULL mode, zero violations; the
 round-24 blocking defects are repaired in `b6e24c24` and closed by round 25 (the guard-coverage
 residual is only partly closed: shared-helper predicates are detected by the real-LOAD tests alone); since `429ce46a` it renders with Voxy's own
-near 16 / far 48 000 projection and reprojects into MC's depth space — run `20261009T190223-644732Z`, 8 judged, zero
+near 16 / far 48 000 projection and reprojects into MC's depth space; since `6dffc1b4` it composes by
+Voxy's GL rule, only where MC's depth is still clear — run `20261009T200758-879288Z`, 8 judged, every Voxy pixel decided, zero
 violations). The probe itself still asserts no convention and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,
 tested behaviourally" and "Round-8 review repairs, and the per-pixel ladder".
