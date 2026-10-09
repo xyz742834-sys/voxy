@@ -49,9 +49,9 @@ public class McNativeRealLoadTest {
     void theSkipReasonsAreTheFixedSet() {
         assertEquals("judged", McNativeRealLoad.JUDGED);
         assertEquals(java.util.List.of("no-world-engine", "no-camera-this-frame",
-                "camera-extent-mismatch", "nothing-meshed", "build-budget-spent"),
+                "camera-extent-mismatch", "nothing-meshed", "build-budget-spent", "atlas-pending"),
             java.util.List.of(McNativeRealLoad.NO_ENGINE, McNativeRealLoad.NO_CAMERA,
                 McNativeRealLoad.EXTENT, McNativeRealLoad.NOTHING_MESHED,
-                McNativeRealLoad.BUILD_BUDGET_SPENT));
+                McNativeRealLoad.BUILD_BUDGET_SPENT, McNativeRealLoad.ATLAS_PENDING));
     }
 }

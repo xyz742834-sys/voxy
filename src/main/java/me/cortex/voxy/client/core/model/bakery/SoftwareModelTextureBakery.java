@@ -60,10 +60,32 @@ public class SoftwareModelTextureBakery {
         this.fr = new FluidRenderer(Minecraft.getInstance().getModelManager().getFluidStateModelSet());
     }
 
+    /**
+     * Block-atlas pixels supplied from outside GL (EXPERIMENTAL, native instance mode only).
+     *
+     * <p>On Minecraft's Vulkan backend there is no GL context, so the raw-GL read below aborts
+     * the JVM ("No context is current", measured 2026-10-09). The native real-section experiment
+     * reads the atlas through Minecraft's own Blaze3D API ({@code McNativeAtlas}) and supplies the
+     * pixels here — same layout as the GL read: mip 0, RGBA8 bytes as little-endian ints.
+     * When unset, the GL path is used exactly as before.
+     */
+    public record AtlasPixels(int[] pixels, int width, int height) {}
+    private static volatile AtlasPixels suppliedAtlas;
+    public static void supplyAtlas(AtlasPixels atlas) { suppliedAtlas = atlas; }
+
     public void setupTexture() {
         var tex = Minecraft.getInstance().getTextureManager().getTexture(Identifier.fromNamespaceAndPath("minecraft", "textures/atlas/blocks.png")).getTexture();
         if (tex.getFormat() != GpuFormat.RGBA8_UNORM) {
             throw new IllegalStateException("Block atlas not rgba8: " + tex.getFormat());
+        }
+        var supplied = suppliedAtlas;
+        if (supplied != null) {
+            if (supplied.width() != tex.getWidth(0) || supplied.height() != tex.getHeight(0)) {
+                throw new IllegalStateException("the supplied block atlas is " + supplied.width() + "x"
+                        + supplied.height() + " but the atlas is " + tex.getWidth(0) + "x" + tex.getHeight(0));
+            }
+            this.useAtlas(supplied.pixels(), supplied.width(), supplied.height());
+            return;
         }
 
         int targetMipLevel = 0;// Math.min(tex.getMipLevels(), 4)-1;//todo: we want to target the mip layer that has the 16x16 sized textures
@@ -127,6 +149,10 @@ public class SoftwareModelTextureBakery {
                     + Integer.toHexString(err) + " (" + width + "x" + height + ")");
         }
 
+        this.useAtlas(texture, width, height);
+    }
+
+    private void useAtlas(int[] texture, int width, int height) {
         // 【規約 11】「落ちなかった」は「読めた」の証拠にならない。
         // 読めていなければ配列は 0 のままで、**焼けるモデルが全て同じ絵になる** —
         // それは規約 1 (取り違えたら絵に出る) を黙って壊す。

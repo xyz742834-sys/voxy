@@ -2087,7 +2087,7 @@ def terrain_load_checks(output, ladder_report, recounts, coexist_enabled, log_te
 
 REAL_LOAD_LEVEL, REAL_LOAD_RADIUS, REAL_LOAD_BUILD_BUDGET = 3, 4, 6
 REAL_LOAD_SKIPS = ("no-world-engine", "no-camera-this-frame", "camera-extent-mismatch",
-                   "nothing-meshed", "build-budget-spent")
+                   "nothing-meshed", "build-budget-spent", "atlas-pending")
 REAL_LOAD_LOG = re.compile(r"real load at draw (\d+) status=(\S+)(?: "
                            + " ".join(f"{name}=(\\d+)" for name in TERRAIN_LOAD_COUNTS) + ")?")
 

@@ -58,7 +58,8 @@ public final class McNativeRealLoad implements Destroyable {
     /** 判定しなかった理由 (gate はこの集合だけを受け付ける)。 */
     static final String JUDGED = "judged", NO_ENGINE = "no-world-engine",
         NO_CAMERA = "no-camera-this-frame", EXTENT = "camera-extent-mismatch",
-        NOTHING_MESHED = "nothing-meshed", BUILD_BUDGET_SPENT = "build-budget-spent";
+        NOTHING_MESHED = "nothing-meshed", BUILD_BUDGET_SPENT = "build-budget-spent",
+        ATLAS_PENDING = "atlas-pending";
 
     private static final long READBACK_BUDGET_BYTES = 40L << 20;
     private static final int FAILURE_BUDGET = 3;
@@ -178,6 +179,14 @@ public final class McNativeRealLoad implements Destroyable {
         if (view.width() != width || view.height() != height) { skip(at, stage, EXTENT, capture); return; }
         var world = mc.level == null ? null : WorldIdentifier.ofEngineNullable(mc.level);
         if (world == null || !world.isLive()) { skip(at, stage, NO_ENGINE, capture); return; }
+        // the model bakery samples Minecraft's block atlas; on Vulkan it is read through Blaze3D
+        // (McNativeAtlas) and arrives in a later frame
+        McNativeAtlas.requestOnce();
+        if (McNativeAtlas.state() == McNativeAtlas.State.FAILED) {
+            fail(McNativeAtlas.failure());
+            return;
+        }
+        if (McNativeAtlas.state() != McNativeAtlas.State.READY) { skip(at, stage, ATLAS_PENDING, capture); return; }
 
         int[] anchor = {VkHostViewport.sectionOf(view.x()), VkHostViewport.sectionOf(view.y()),
             VkHostViewport.sectionOf(view.z())};
