@@ -476,7 +476,8 @@ of the point — and the replay status of each is:
 | [20261009T182330-214639Z](runs/native-evidence/20261009T182330-214639Z/MANIFEST.json) | no — predates the round-24 repairs |
 | [20261009T183706-779208Z](runs/native-evidence/20261009T183706-779208Z/MANIFEST.json) | no — predates Voxy's own projection (round 25 judges it) |
 | [20261009T190223-644732Z](runs/native-evidence/20261009T190223-644732Z/MANIFEST.json) | no — predates the CLEAR class and Voxy's GL composition rule |
-| [20261009T200758-879288Z](runs/native-evidence/20261009T200758-879288Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; as above with Voxy's GL composition rule and the ladder's CLEAR class |
+| [20261009T200758-879288Z](runs/native-evidence/20261009T200758-879288Z/MANIFEST.json) | no — predates the product switch and its launch (round 26 judges it) |
+| [20261009T203836-462316Z](runs/native-evidence/20261009T203836-462316Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches: environment, ladder (all experiments), product switch alone |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1841,7 +1842,7 @@ hierarchical samples are judged by the rule (`McNativeTerrainLoad.judge(..., cle
 pixels where it drew and nowhere else. Real-LOAD and terrain-LOAD keep the depth-test rule, under
 which CLEAR always expects Voxy.
 
-**Measured** (run [20261009T200758-879288Z](runs/native-evidence/20261009T200758-879288Z/MANIFEST.json), replay 0 in this checkout): 8
+**Measured** (run [20261009T200758-879288Z](runs/native-evidence/20261009T200758-879288Z/MANIFEST.json), which replayed 0 in the checkout it was built from): 8
 judged hierarchical samples, zero violations, and **no undetermined pixel**: every Voxy pixel is
 decided — 23 359 had to show and did, 350 597 had to stay Minecraft's and did. Minecraft's sky is
 exactly clear: the LOW class is empty in all 23 ladder samples. 5 119 frames composited.
@@ -1850,6 +1851,38 @@ exactly clear: the LOW class is empty in all 23 ladder samples. 5 119 frames com
 level-render tail reads it). On GL the excluded pixels also enter Voxy's own depth as NEAR, so
 Minecraft's terrain occludes Voxy's HiZ/traversal; natively Voxy's submission runs before
 Minecraft's frame executes, so that occlusion is absent — less culling, not a different picture.
+
+### The product switch: the native path as normal play runs it (2026-10-10)
+
+**What it is** (`345ebde7`, gate fix `c4ddb119`). `McNativeRender` (flag `voxy.native.render`,
+`-PharnessNativeRender`, off by default) is one switch for the native path without diagnostics:
+Voxy's shader features on Minecraft's device, adoption of that device, Voxy's instance (world
+engine, storage, ingest) under Minecraft Vulkan, and the hierarchical scene rendered and composited
+on every frame by Voxy's GL rule. Each consumer accepts its own diagnostic flag or the switch, read
+where it already reads its flag (device features are requested while Minecraft creates its device).
+The ladder, judged samples, the instance probe's sampling and the other experiments stay off;
+evidence files are written only under the harness. Outside the ladder the build budget does not
+apply: a scene is rebuilt whenever it no longer covers the camera, at most once per 60 frames
+(`rebuild-wait`).
+
+**Gated** by a third launch of `--only native` with the switch alone (`native_render_result`): no
+diagnostic ran (an off probe's own shutdown report saying `enabled=false, attempted=false` is not a
+run — measured in the first product launch, whose gate refused it until that was distinguished); the
+probe report is the clean product path (`product`, `everyFrame`, no budget, no results, no problems
+or leaks); every probe call is composited or skipped for a stated reason; builds and atlas reads
+reconcile with the log; one "hier frames entering stage" line per stage in the harness's order, with
+frames composited in every lifecycle stage but the nether (its build meshes nothing until ingest has
+stored sections there). Retained under `render/` with its own checkpoints, log and a quarter-scale
+thumbnail of every checkpoint frame; replay runs the same gate.
+
+**Measured** (run [20261009T203836-462316Z](runs/native-evidence/20261009T203836-462316Z/MANIFEST.json), replay 0 in this checkout): the
+switch alone composited Voxy's scene in **5 228 frames**, 238–647 in each required stage (nether 1),
+6 builds, zero problems, close failures or leaks, validation clean. The ladder launch of the same run
+judged 8 hierarchical samples by Voxy's GL rule: zero violations, no undetermined pixel.
+
+**Not yet delivery.** Voxy still disables itself under Minecraft Vulkan unless the switch is set
+(`VoxyClient`); the switch's frames are counted, not judged per pixel (the ladder judges the same
+path); scene radius, lighting, translucency ordering and the composite point are as stated above.
 
 ## What is NOT answered yet, and must be measured on hardware
 

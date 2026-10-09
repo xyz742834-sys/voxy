@@ -86,6 +86,7 @@ report separately from any repair.
 | **Real-section LOAD** + Blaze3D atlas read | **confirmed by r20** (bounded: visible half only); R20 items addressed in `da91d70e`; r21 closed two and found four incomplete, those and two new r21 items addressed in `d0a08faf`; **unreviewed** |
 | **Hierarchical-LOAD** (`McNativeHierarchicalLoad` + `McNativeComposite`, three-way hand-off) | measured (6 judged, zero violations, 82 073 shown / 3 962 hidden); judged by r24 (four defects, repaired) |
 | **Hierarchical-LOAD every frame** (`voxy.native.hierframes`) | **confirmed by r25** within source/specification and retained-run scope (own fence + same queue + target barriers); ordinary-frame pixels not judged; R25-FRAME-ACCOUNTING (totals unbounded) addressed after it — the gate reconciles composited + skipped + handed with the ladder's frames; **unreviewed** |
+| **Product switch `voxy.native.render`** + third gated launch (`345ebde7`, `c4ddb119`) | measured (5 228 frames composited with the switch alone, every required stage, clean); **unreviewed** |
 | **Voxy's GL composition rule + ladder CLEAR class** (`6dffc1b4`) | measured (8 judged, every Voxy pixel decided: 23 359 shown, 350 597 kept Minecraft's, zero violations); **unreviewed** |
 | **Voxy's own projection + reprojecting resolve** (`429ce46a`) | measured (8 judged, zero violations, every reference depth re-derived); **unreviewed** (after the round-25 candidate) |
 | **R24 findings** | HIER-CULL, DIRTY-CALLBACK, RETIRED-CONTEXT, INSTANCE-STORED, EMPTY-BUILD **closed by r25**; HIER-GUARD-COVERAGE **partly**: the seven hierarchy-specific predicates are detected, the 27 shared-helper predicates are detected only by the real-LOAD tests (stated, not repaired) |
@@ -219,8 +220,8 @@ refusing when the summary says a ladder ran but none is retained.
 Gate/test counts at this HEAD: JUnit 351 (1 documented skip, 0 failures; 8 for the
 terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode,
 4 for real-LOAD);
-Python 297 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T200758-879288Z` (replay 0 **in this
+Python 303 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T203836-462316Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
 round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
@@ -262,9 +263,10 @@ GL composition rule. When its report lands: copy it to
    implementation milestone below (owner directive: no evidence-only loops).
    **Done 2026-10-10 (measured, unreviewed): `McNativeHierarchicalLoad`** and its every-frame
    path (`voxy.native.hierframes`), and Voxy's own projection with the reprojecting resolve
-   (`429ce46a`) — see the survey. Next: the native near cut (Voxy's vanilla depth bound), a larger
-   top radius once a world ingested past 2048 blocks is available, and the composite's render
-   point (before Minecraft's translucents, as GL). The original design notes follow.
+   (`429ce46a`), Voxy's GL composition rule (`6dffc1b4`) and the product switch (`345ebde7`) — see
+   the survey. Next: make the switch the default under Minecraft Vulkan with a kill switch (the
+   owner's goal; held until round 26/27 reviews the switch), then scene radius from Voxy's config,
+   and the composite's render point (before Minecraft's translucents, as GL). The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
    whole hierarchical pipeline natively, the step from "real sections at one level" to Voxy's LoD:
    `VkHierarchicalScene` (real world mapper/bakery, `NodeManager`, HiZ, traversal, prep/cull,
