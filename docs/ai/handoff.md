@@ -1,9 +1,10 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-18 candidate **a6e1c3a3** (`a6e1c3a39fab2a4d00848a133387e7c009c3b06e`, dispatched
-2026-10-09 in Orca worktree `native-review-r18`, terminal `term_bf2731e6-fa41-4296-9fa9-ef05db2f53c6`;
-round 17 judged `19b2444a`: coexistence CONFIRMED a third time,
+`vulkan-macos`, round-19 candidate = the docs commit on top of `ef1979f6` (the dispatch commit
+after it names the exact SHA). Round 18 judged `a6e1c3a3`: REDESIGN on DELIVERY-BOUNDARY only;
+R16-COEXIST-LAUNCH-SEMANTICS and R14-DOC-DRIFT closed; terrain-LOAD measurement confirmed; four
+non-blocking items repaired in `bb55f53b`. (Round 17 judged `19b2444a`: coexistence CONFIRMED a third time,
 R16-COEXIST-LAUNCH-SEMANTICS left open on other Gradle CLI spellings and repaired here with the
 stage's literal tokens as the authority; the terrain-LOAD experiment is now in the tree and measured).
 
@@ -29,12 +30,10 @@ stage's literal tokens as the authority; the terrain-LOAD experiment is now in t
 ## The review discipline (this is the spine)
 
 `scripts/verify.py` is the verification spine. Native work is **"measured", never "verified"**
-until a fresh independent review of a frozen commit records a verdict. Seventeen rounds have
+until a fresh independent review of a frozen commit records a verdict. Eighteen rounds have
 run, **all REDESIGN** — the standing delivery boundary (native LoD is not implemented) is
-always blocking; rounds 16 and 17 confirmed the coexistence measurement and kept
-R16-COEXIST-LAUNCH-SEMANTICS open (replay modelled the launch token; Gradle has more spellings),
-repaired in this HEAD by making the stage's literal tokens the authority.
-Reports are in `docs/ai/runs/native-integration-review-r1..r17.{md,json}`.
+always blocking. Round 18 was the first with **no blocking finding besides the boundary**.
+Reports are in `docs/ai/runs/native-integration-review-r1..r18.{md,json}`.
 
 **Owner directive (2026-10-09, via the coordination mail):** do not spend effort on waste; the
 parallel agents watch each other for it. Take the shortest safe route to real-world native
@@ -56,14 +55,14 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9 … -18 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r18`. Start
+-9 … -19 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r19`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 17, and what this HEAD claims
+### Findings status after round 18, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
@@ -72,10 +71,12 @@ report separately from any repair.
 | **Z direction** | confirmed (r13, r14): reverse-Z |
 | **Coexistence, known-depth quad** | **confirmed by r15, r16 and r17** as a bounded measurement (24 samples, zero exact-RGB violations, four mixed) |
 | R15-COEXIST-PRESENCE | closed by r16 (the original attack is refused); its residual became R16-COEXIST-LAUNCH-SEMANTICS |
-| **R16-COEXIST-LAUNCH-SEMANTICS** | r17: attached `-P` forms repaired, but `-P x`, `--project-prop`, `org.gradle.project.*` still escaped. Repaired in this HEAD: `launch_enables()` reads every CLI form r17 measured, AND replay requires the retained ladder command to carry the stage's literal tokens (`LADDER_LAUNCH_FLAGS`) and no depth-writing experiment — any other command is not the stage's launch; **unreviewed** |
+| R16-COEXIST-LAUNCH-SEMANTICS | closed by r18 |
+| non-blocking R18-TERRAIN-METADATA / R18-TEST-TERRAINLOAD / R18-DOC-SEAM / depth-copy wording | repaired in `bb55f53b` (view, matrix, extent, counters pinned; a test per guard; seam sentence and "near-zero" wording corrected); **unreviewed** |
 | R15-TEST-COEXIST | closed by r17 (all 23 refusal guards have a failing test) |
-| non-blocking R14-DOC-DRIFT residuals (manual ladder command without coexist, run count) | fixed in this file; **unreviewed** |
-| **Terrain-LOAD experiment** (Voxy's real terrain pipeline, depth writes on, into a pass that LOADs MC colour+depth) | **in the tree and measured in this HEAD** (`McNativeTerrainLoad`, gate `terrain_load_checks`); **unreviewed** — see "What is measured" |
+| R14-DOC-DRIFT | closed by r18 |
+| **Terrain-LOAD experiment** (Voxy's real terrain pipeline, depth writes on, into a pass that LOADs MC colour+depth) | **confirmed by r18** as a bounded measurement |
+| **Native instance mode** + MC matrix capture + `horizon` stage | in this HEAD, measured; **unreviewed** |
 | non-blocking limits (anchor grain, consistent forgery, creator restore, geometry scope, depth-copy scope, recorder binding untested in JUnit) | **stated as limits** |
 
 B1 has one recurring shape: **the gate trusted something the thing under test controls.**
@@ -177,8 +178,8 @@ refusing when the summary says a ladder ran but none is retained.
 
 Gate/test counts at this HEAD: JUnit 343 (1 documented skip, 0 failures; 8 for the
 terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode);
-Python 258 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T073850-255416Z` (replay 0 **in this
+Python 260 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T085529-037358Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
 round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
@@ -187,17 +188,17 @@ terrain at x ≈ 768 from spawn, yaw -90, pitch 15 — added 2026-10-09 for the 
 experiment). Older retained runs do not replay under this
 gate, which is expected and tabled in the survey.
 
-## Round 18
+## Round 19
 
-Dispatched against `a6e1c3a3` with `docs/ai/runs/native-review-prompt-r18.txt` (worktree
-`native-review-r18`, terminal `term_bf2731e6-fa41-4296-9fa9-ef05db2f53c6`). When its report
-lands: copy it to `docs/ai/runs/native-integration-review-r18.{md,json}`, commit the report
+Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r19.txt` (if not already
+done — check `git log` for a "docs: record the round-19 dispatch" commit). When its report
+lands: copy it to `docs/ai/runs/native-integration-review-r19.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
 ### Next steps, in order
 
-1. Import the round-18 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 19. Do the goal work alongside; do not wait for an overall
+1. Import the round-19 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 20. Do the goal work alongside; do not wait for an overall
    PASS (owner directive).
 2. The goal work, done in this HEAD: **Voxy's real terrain pipeline in a LOADed pass** as a
    separate probe (`McNativeTerrainLoad`, `voxy.native.terrainload`,
@@ -225,6 +226,12 @@ alone, then repair blocking findings in a separate commit.
    (`:737-784`) owns the opaque/HiZ/traversal/cull/table/temporal/translucent sequence over a
    Voxy target — its projection/depth relationship to MC's pass and its upload retirement are
    the concrete integration questions, not missing terrain algorithms.
+   **Measured in run `20261009T085529-037358Z`:** the Sodium CUTOUT hook runs on MC Vulkan and
+   copied MC's matrices 4 860 times; the engine held up to 92 active sections. ⚠ During
+   `horizon` the engine's *active* (in-memory) section count was 0 — active sections are the
+   cache, not what is stored. The real-section mesher must therefore `acquire` sections (which
+   loads them from storage), not rely on the active set; check that sections around x = 768
+   were saved before `horizon`, or the experiment will mesh nothing there.
    **Obstacle, measured and removed (2026-10-09):** on MC's Vulkan backend `VoxyClient` set
    `BACKEND = null` and never registered the instance factory, so no `WorldEngine` existed.
    **Native instance mode** (`voxy.native.instance`, in this HEAD) registers the factory only;

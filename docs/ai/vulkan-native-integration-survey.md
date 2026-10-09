@@ -445,7 +445,7 @@ The retained files stay readable and their figures stay checkable by hand, but t
 deliberately — deleting them would turn their measurements into narrative, which is the opposite
 of the point — and the replay status of each is:
 
-| Run | Replays under the current gate (2026-10-09) |
+| Run | Replays under the current gate (2026-10-09, evening) |
 | --- | --- |
 | [20261006T070311-099413Z](runs/native-evidence/20261006T070311-099413Z/MANIFEST.json) | no — predates raw-sample retention entirely |
 | [20261006T073859-396220Z](runs/native-evidence/20261006T073859-396220Z/MANIFEST.json) | no — no `leakedPipelines` counter |
@@ -466,7 +466,8 @@ of the point — and the replay status of each is:
 | [20261009T060453-272917Z](runs/native-evidence/20261009T060453-272917Z/MANIFEST.json) | no — predates the launch-token semantics repair (round 16 confirmed its 24 pairs) |
 | [20261009T063708-667962Z](runs/native-evidence/20261009T063708-667962Z/MANIFEST.json) | no — predates the terrain-LOAD experiment, the literal-token requirement and the request-time log line (round 17 confirmed its 24 pairs) |
 | [20261009T073850-255416Z](runs/native-evidence/20261009T073850-255416Z/MANIFEST.json) | no — predates native instance mode (round 18 judged it) |
-| [20261009T080812-119439Z](runs/native-evidence/20261009T080812-119439Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; Z direction, coexistence, terrain-LOAD and instance mode judged |
+| [20261009T080812-119439Z](runs/native-evidence/20261009T080812-119439Z/MANIFEST.json) | no — predates the pinned terrain-LOAD view, the camera capture and the `horizon` stage |
+| [20261009T085529-037358Z](runs/native-evidence/20261009T085529-037358Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; 14 stages; Z direction, coexistence, terrain-LOAD (21 samples, zero violations) and instance mode (4 860 matrix captures, up to 92 sections, no renderer) judged |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
