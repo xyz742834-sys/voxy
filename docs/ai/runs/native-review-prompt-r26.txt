@@ -1,0 +1,52 @@
+You are an INDEPENDENT reviewer, round 26. Do not fix anything; judge it.
+
+Candidate: this checkout's HEAD (460602ab0d599e576481ca72f7ce58c5871c4033). Round 25 returned REDESIGN against 043aa11f on the standing
+DELIVERY-BOUNDARY only; R24 blocking findings closed; non-blocking R24-HIER-GUARD-COVERAGE (partly),
+R25-FRAME-ACCOUNTING, R25-DOC-SCOPE. Report: docs/ai/runs/native-integration-review-r25.md, machine
+verdict ...-r25.json.
+
+Since 043aa11f:
+- 429ce46a: the hierarchical scene renders with Voxy's own projection (VkHostViewport.voxyProjection,
+  near 16 / far 48000, = VoxyRenderSystem.computeProjectionMat); the existing reprojecting
+  VkDepthResolve (depth_resolve.frag REPROJECT_DEPTH, = blit_texture_depth_cutout.frag) writes that
+  depth in Minecraft's space into an R32F image the composite samples; VkDepthResolve gained a plain
+  VkTexture output (interop overload unchanged in behaviour). Gate: hier_reprojection_checks re-derives
+  every reference depth from the retained raw Voxy depth and the two published projections.
+- 638b02f6: R25-FRAME-ACCOUNTING (composited + skipped + handed == the ladder's drawsRecorded);
+  R25-DOC-SCOPE (composite comment, docs).
+- 6dffc1b4: Voxy's GL composition rule. GL draws Voxy only where Minecraft's depth is the clear value
+  (AbstractRenderPipeline.initDepthStencil + setup_stencil_depth.frag). The native composite now writes
+  fragment depth 0 with GREATER_OR_EQUAL, writes off. The ladder gains a CLEAR class (GREATER_OR_EQUAL
+  quad at depth 0 after LOW, palette index 10, light pink); LOW becomes 0 < d < z0; log/report/recount/
+  coexist/direction carry it. Hierarchical samples are judged clear-only (show on CLEAR, unchanged
+  elsewhere); real/terrain-LOAD keep the depth-test rule (CLEAR always expects Voxy).
+Run docs/ai/runs/native-evidence/20261009T200758-879288Z (built from 6dffc1b4): 8 judged hierarchical samples, zero
+violations, no undetermined pixel (23359 must-show shown, 350597 must-hide kept), LOW empty in all 23
+ladder samples, 5119 frames composited.
+
+The boundary from rounds 4-25 still governs and the candidate accepts it. Judge, CONFIRMED or
+REFUTED with file/line or command:
+1. The CLEAR class: is it sound (draw order, compare op, exactly d == 0, interaction with LOW, rungs,
+   anomaly, coexist pass/fail ranges in Java and gate, direction check, log/report reconciliation)?
+   Does any existing guard weaken? Guard-removal audit of the changed ladder and judge code.
+2. The GL-rule composite: is it Voxy's GL behaviour (compare AbstractRenderPipeline and
+   setup_stencil_depth.frag)? Is the clear-only judge sound, and does it prove what the docs claim?
+3. Voxy's projection and the reprojection: formula, VkDepthResolve refactor (interop path unchanged),
+   barriers around the raw-depth readback and the resolve, and hier_reprojection_checks (tolerance,
+   coverage, guard removals).
+4. Frame accounting (R25-FRAME-ACCOUNTING closed?) and R25-DOC-SCOPE.
+5. Recount at least the horizon and one overworld hierarchical sample of the new run.
+6. Survey/handoff/current-state overstatement; safety for normal play with every voxy.native.* flag
+   unset on GL and on Minecraft Vulkan; GL renderer behaviour unchanged.
+
+Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
+-PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T200758-879288Z
+Do NOT run scripts/verify.py --only native or --only live; judge the committed evidence.
+
+Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on the
+first line, then per-item findings, then what you could not check and why. Write
+.agent-run/native-integration-review.json with final_verdict, reviewed_commit, blocking_findings,
+non_blocking_findings, safe_for_normal_play, round25_findings_closed (mapping each R25 id and
+R24-HIER-GUARD-COVERAGE to true/false), clear_class_judgment, gl_rule_judgment, projection_judgment,
+reprojection_gate_judgment, frame_accounting_judgment, hier_load_judgment, ladder_judgment.

@@ -1,7 +1,7 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-26 candidate = the docs commit after `7f58d730` (the dispatch commit names it): Voxy's own
+`vulkan-macos`, round-26 candidate **460602ab** (dispatched 2026-10-10, worktree `native-review-r26`): Voxy's own
 projection, frame accounting and Voxy's GL composition rule. Round 25 judged `043aa11f`: REDESIGN on DELIVERY-BOUNDARY only.
 Round 24 judged `03461cea`: REDESIGN (DELIVERY-BOUNDARY + four defects, repaired). Round 23 judged `14743bf4`: REDESIGN on DELIVERY-BOUNDARY
 only; no open code or gate finding; its wording residuals fixed in `32de53c2`. Round 22 judged `8ba67fc5`: REDESIGN on DELIVERY-BOUNDARY only; occlusion CONFIRMED;
@@ -234,9 +234,10 @@ gate, which is expected and tabled in the survey.
 
 Round 25 (`043aa11f`) returned REDESIGN on DELIVERY-BOUNDARY only (report
 `docs/ai/runs/native-integration-review-r25.md`): the four round-24 blocking defects closed; its
-non-blocking R25-FRAME-ACCOUNTING and R25-DOC-SCOPE repaired in `638b02f6`. Round 26 is dispatched
-on the docs commit after `7f58d730` with `docs/ai/runs/native-review-prompt-r26.txt` (check
-`git log` for "record the round-26 dispatch"): Voxy's own projection, the frame accounting and Voxy's
+non-blocking R25-FRAME-ACCOUNTING and R25-DOC-SCOPE repaired in `638b02f6`. Round 26 was dispatched
+2026-10-10 against `460602ab` (`460602ab0d599e576481ca72f7ce58c5871c4033`) with
+`docs/ai/runs/native-review-prompt-r26.txt` (worktree `native-review-r26`, terminal
+`term_8062c557-895a-450e-a121-fd9ca700d656`): Voxy's own projection, the frame accounting and Voxy's
 GL composition rule. When its report lands: copy it to
 `docs/ai/runs/native-integration-review-r26.{md,json}`, commit the report alone, then repair.
 
