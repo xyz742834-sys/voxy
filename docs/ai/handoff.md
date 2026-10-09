@@ -230,6 +230,35 @@ alone, then repair blocking findings in a separate commit.
    and `VkTerrainRenderer.recordDrawsInRenderPass` in a LOAD pass with MC's own matrix
    (GL convention, as Voxy's), gated like terrain-LOAD: the ladder's brackets against Voxy's own
    reference depth of the same sections. Keep it flagged and experimental; no acceptance claim.
+   **Design settled 2026-10-09 (not yet in the tree), `McNativeRealLoad`, flag
+   `voxy.native.realload`, in the ladder launch together with instance mode:**
+   - Matrix: `McNativeCamera` (in the tree, `df4cbce5`) copies Sodium's `ChunkRenderMatrices`
+     and camera from the CUTOUT hook each frame in instance mode; the instance gate requires
+     captures. Use `VkHostViewport.projectionForVulkan` (0..1 depth; it returns MC's matrix
+     unchanged when MC already produces 0..1, else halves the range — which of the two happened
+     must be published, because the whole point is to draw in MC's own depth space) and
+     `VkHostViewport.mvp(projection, modelView, cameraSubPos)` with anchor = camera section.
+   - Scene: `VkTerrainResources(REAL)` + `useExternalAtlasContent()`, `VkModelUploadTarget`,
+     `VkRealModelBakery(target, world.getMapper())`, `VkRealMesher.meshAround(cx, cy, cz, r,
+     0)`, `bakery.replayBiomes()`, `VkRealSectionUpload.upload(built, res)` (the interop probe's
+     `ensureRealScene`); `bakery.recordUploads(cmd)` must be recorded once before the first draw.
+     Re-mesh when the camera leaves the meshed radius; cap quads.
+   - Per sample frame (the ladder's handoff): write the uniform with THIS frame's matrix, record
+     (outside any pass, into MC's command buffer) `recordBeforeRenderPass`, then a reference
+     pass into Voxy's own `VkRenderTarget` (CLEAR) with colour + depth readback into Voxy's
+     host-visible buffers, then the LOAD pass with `recordDrawsInRenderPass` into MC's colour
+     and depth, then MC's readback; judge in MC's callback (the frame is complete, so Voxy's
+     reference buffers are too). No fence wait on the render thread.
+   - Samples: the ladder hands each sampled frame to ONE consumer, alternating terrain-LOAD and
+     real-LOAD, and publishes the consumer per sample; each gate requires exactly its samples
+     and at least one sample with both determinate kinds. Both experiments stay in one launch.
+   - What real sections at LoD 0 around the camera can decide: over sky, Voxy must appear; where
+     Voxy's mesh is farther than MC's nearer terrain, it must be hidden; where the surfaces
+     coincide, Voxy's reference depth must fall in (or at the edge of) MC's bracket — the
+     projection/depth agreement the coordinator named. Inside a bracket nothing is decided.
+   - Evidence like terrain-LOAD's (third crop, thumbnail, per-sample reference colour and depth
+     crops — per sample here, because the matrix changes — report, log line), gated by a
+     `real_load_checks` mirroring `terrain_load_checks` plus the published projection choice.
    Open and not needed for that: why the buffer copy reads 0.0.
 4. Nothing in the ladder may ever write MC's depth. A variant that writes is a different probe
    with a different flag (which is what `McNativeTerrainLoad` is).
