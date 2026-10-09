@@ -85,6 +85,7 @@ report separately from any repair.
 | **Real-section LOAD** + Blaze3D atlas read | **confirmed by r20** (bounded: visible half only); R20 items addressed in `da91d70e`; r21 closed two and found four incomplete, those and two new r21 items addressed in `d0a08faf`; **unreviewed** |
 | **Hierarchical-LOAD** (`McNativeHierarchicalLoad` + `McNativeComposite`, three-way hand-off) | measured (6 judged, zero violations, 82 073 shown / 3 962 hidden); **round 24 reviews `03461cea`** |
 | **Hierarchical-LOAD every frame** (`voxy.native.hierframes`) | measured (5 083 frames composited, 8 judged in CULL mode, zero violations); **unreviewed** |
+| **Voxy's own projection + reprojecting resolve** (`429ce46a`) | measured (8 judged, zero violations, every reference depth re-derived); **unreviewed** (after the round-25 candidate) |
 | **R24 findings** (HIER-CULL, DIRTY-CALLBACK, RETIRED-CONTEXT, INSTANCE-STORED, HIER-GUARD-COVERAGE, EMPTY-BUILD) | repaired in `b6e24c24` / `65f26ff1`; **unreviewed** |
 | **Occlusion** (render-distance cut, `horizon` wall, hidden pixels required) | **confirmed by r22** (one look, bracket grain); R22 residuals (budget-guard test, draw-time cut, wording) addressed after it; **unreviewed** |
 | non-blocking limits (anchor grain, consistent forgery, creator restore, geometry scope, depth-copy scope, recorder binding untested in JUnit) | **stated as limits** |
@@ -216,8 +217,8 @@ refusing when the summary says a ladder ran but none is retained.
 Gate/test counts at this HEAD: JUnit 350 (1 documented skip, 0 failures; 8 for the
 terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode,
 4 for real-LOAD);
-Python 295 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T183706-779208Z` (replay 0 **in this
+Python 296 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T190223-644732Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
 round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
@@ -256,10 +257,10 @@ commit the report alone, then repair blocking findings in a separate commit.
    fixed in `32de53c2`). Round 24 is NOT dispatched for wording alone; it goes with the next
    implementation milestone below (owner directive: no evidence-only loops).
    **Done 2026-10-10 (measured, unreviewed): `McNativeHierarchicalLoad`** and its every-frame
-   path (`voxy.native.hierframes`) — see "What is measured". Next: Voxy's own projection (near 16,
-   far 48 000, as `VoxyRenderSystem.computeProjectionMat`) with the depth reprojection of
-   `blit_texture_depth_cutout.frag` in the composite, a larger top radius, and the native near
-   cut. The original design notes follow.
+   path (`voxy.native.hierframes`), and Voxy's own projection with the reprojecting resolve
+   (`429ce46a`) — see the survey. Next: the native near cut (Voxy's vanilla depth bound), a larger
+   top radius once a world ingested past 2048 blocks is available, and the composite's render
+   point (before Minecraft's translucents, as GL). The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
    whole hierarchical pipeline natively, the step from "real sections at one level" to Voxy's LoD:
    `VkHierarchicalScene` (real world mapper/bakery, `NodeManager`, HiZ, traversal, prep/cull,

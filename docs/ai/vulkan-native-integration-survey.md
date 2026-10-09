@@ -474,7 +474,8 @@ of the point — and the replay status of each is:
 | [20261009T125419-994300Z](runs/native-evidence/20261009T125419-994300Z/MANIFEST.json) | no — predates hierarchical-LOAD, the purple LOW colour and the stored-section instance check (round 23 judged it) |
 | [20261009T175351-583841Z](runs/native-evidence/20261009T175351-583841Z/MANIFEST.json) | no — predates the every-frame path (round 24 judged it) |
 | [20261009T182330-214639Z](runs/native-evidence/20261009T182330-214639Z/MANIFEST.json) | no — predates the round-24 repairs |
-| [20261009T183706-779208Z](runs/native-evidence/20261009T183706-779208Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; as above with the round-24 repairs (CULL mode) |
+| [20261009T183706-779208Z](runs/native-evidence/20261009T183706-779208Z/MANIFEST.json) | no — predates Voxy's own projection (round 25 judges it) |
+| [20261009T190223-644732Z](runs/native-evidence/20261009T190223-644732Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; as above with Voxy's own projection and the reprojecting resolve |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1784,10 +1785,40 @@ Round 24 judged `03461cea` REDESIGN: DELIVERY-BOUNDARY plus four blocking defect
 - Non-blocking: R24-EMPTY-BUILD was already repaired in `65f26ff1`; R24-HIER-GUARD-COVERAGE has a
   test per named predicate, each confirmed to fail with its predicate disabled.
 
-**Measured** (run [20261009T183706-779208Z](runs/native-evidence/20261009T183706-779208Z/MANIFEST.json), replay 0 in this checkout): 8
+**Measured** (run [20261009T183706-779208Z](runs/native-evidence/20261009T183706-779208Z/MANIFEST.json), which replayed 0 in the checkout it was built from): 8
 judged hierarchical samples, all in CULL mode, zero violations (17 878 must-show shown, 3 989
 must-hide hidden), 5 083 frames composited every frame; instance mode up to 27 sections with
 blocks near the camera.
+
+### Voxy's own projection and the depth reprojection (2026-10-10)
+
+**What changed** (`429ce46a`). The hierarchical scene renders with Voxy's own projection —
+Minecraft's matrix with only the depth row replaced by near 16 / far 48 000, reverse Z
+(`VkHostViewport.voxyProjection`, the existing helper, = `VoxyRenderSystem.computeProjectionMat`).
+In Voxy's submission the existing reprojecting `VkDepthResolve` (`depth_resolve.frag` with
+`REPROJECT_DEPTH`, the GL path's `blit_texture_depth_cutout` formula: unproject with Voxy's MVP,
+project with Minecraft's, clamp just inside Minecraft's far plane, FAR passed through) writes that
+depth in Minecraft's depth space into an R32F image. The composite samples that image, so the
+judged reference depth is exactly what the composite writes. `VkDepthResolve` gained a plain
+Vulkan-texture output (the interop overload calls it and keeps its final GENERAL barrier; the
+interop tests pass unchanged).
+
+**Gated.** The report states `voxyNear`/`voxyFar`; each judged sample publishes `voxyProjection`
+(checked against the formula applied to its `projection`) and retains Voxy's raw depth
+(`native-hier-load-voxydepth-*.f32.gz`). `hier_reprojection_checks` re-derives every reference
+pixel in double from the raw depth and the two projections (tolerance 1e-3 relative: the GPU runs
+it in float32 with full MVPs; a missing reprojection is off by orders of magnitude), requires no
+reference depth where Voxy drew nothing, and Voxy's depth in (0, 1]. It counts pixels clamped at
+Minecraft's far plane (`beyondMinecraftFar`). The hierarchical fixture uses a 32-block near plane:
+its synthetic panels at 0.5 / 1e-6 would otherwise lie inside Voxy's 16-block near plane.
+
+**Measured** (run [20261009T190223-644732Z](runs/native-evidence/20261009T190223-644732Z/MANIFEST.json), replay 0 in this checkout): 8
+judged samples, zero violations; 17 794 must-show shown, 73 271 must-hide hidden (69 309 at
+`descend`); every reference depth re-derived; the horizon depths (3.1495e-5 … 5.3890e-5) match the
+previous run's, rendered with Minecraft's projection, to float precision. `beyondMinecraftFar` is 0:
+the scene's top radius covers about ±768 blocks and the harness world holds ingested terrain only
+around the places the player visited, so nothing beyond 2048 blocks exists to draw. Showing LoD past
+Minecraft's far plane needs a world ingested that far, not only a larger radius.
 
 ## What is NOT answered yet, and must be measured on hardware
 

@@ -89,7 +89,9 @@ frame** (2026-10-10, flag `voxy.native.hierload`, run `20261009T175351-583841Z`:
 a native depth-tested composite, 6 judged samples, zero violations, 82 073 must-show shown,
 3 962 must-hide hidden; with `voxy.native.hierframes` it renders and composites on every
 frame — run `20261009T183706-779208Z`: 5 083 frames, 8 judged samples in Voxy's CULL mode, zero violations; the
-round-24 defects are repaired in `b6e24c24`). The probe itself still asserts no convention and the
+round-24 defects are repaired in `b6e24c24`; since `429ce46a` it renders with Voxy's own
+near 16 / far 48 000 projection and reprojects into MC's depth space — run `20261009T190223-644732Z`, 8 judged, zero
+violations). The probe itself still asserts no convention and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,
 tested behaviourally" and "Round-8 review repairs, and the per-pixel ladder".
 
