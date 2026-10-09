@@ -497,6 +497,14 @@ public final class McNativeDepthLadder implements Destroyable {
             gpu.createCommandEncoder().copyTextureToBuffer(colour.texture(), readback, 0,
                 () -> measure(readback, width, height, at, stage, camera), 0);
             buffer = null;
+            // ⚠ The chronology line is written NOW, when the frame is captured, not when the GPU
+            // callback runs: the callback can land after the harness has moved to the next
+            // stage (measured: draw 1922 requested in `return`, its sample line logged under
+            // `edit`), so the gate anchors the stage to this line and requires the sample line
+            // to repeat it.
+            Logger.info("[native-vk] depth ladder sample requested at draw " + at + " stage=" + stage
+                + " camera=[" + camera[0] + " " + camera[1] + " " + camera[2] + " " + camera[3]
+                + " " + camera[4] + "]");
         } catch (Throwable t) {
             fail("the ladder readback could not be requested: " + t);
         } finally {

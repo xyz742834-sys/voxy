@@ -1455,6 +1455,19 @@ twelve counts with the report and with the log line, requires both determinate k
 least one sample, and reconciles the probe's report with the ladder's view of it (pass count,
 device, formats: colour 37, depth 126 = `D32_SFLOAT`, which the pipeline declares).
 
+**The first run failed its own gate, on chronology, not on pixels (2026-10-09).** The ladder's
+sample line is written when the GPU callback runs; the harness's `stage=` line is written when
+the stage changes. At draw 1922 the readback was requested during `return` and the callback
+logged the sample under `edit`, so the gate's "stage current when the sample was logged" check
+refused the run (its 20 terrain-LOAD samples held zero violations; they are not cited as proof
+because the run did not pass and was not retained). Repaired, strengthening rather than
+relaxing: the ladder now logs a **request line at capture time** (`depth ladder sample
+requested at draw N stage=… camera=[…]`); the gate anchors the stage of record to that line,
+requires exactly one request per sampled draw, and requires the later sample line to repeat the
+request's stage and camera. The probe's final report also lost its scene facts when the scene
+was retired at shutdown (`built: false, referenceSet: 0`); the facts of the last built scene
+are now kept in statics and published with a separate `live` flag.
+
 **Stated limits.** The depth state is *declared* (`[6, 1, 1]`, `depthStateReadBack: false`),
 not read back from pipeline creation as the ladder's is — `VkGraphicsPipeline` builds it and the
 probe publishes what the builder was asked for. The scene is synthetic. The verdict is only as

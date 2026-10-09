@@ -80,6 +80,15 @@ public final class McNativeTerrainLoad implements Destroyable {
     private static final java.util.Map<Long, Result> RESULTS = new java.util.LinkedHashMap<>();
     private static final java.util.Set<String> REFERENCE_FILES = new java.util.HashSet<>();
     private static McNativeTerrainLoad instance;
+    /**
+     * 最後に組み立てたシーンの事実 (寸法、フォーマット、行列、描画数、参照画素数、device)。
+     * 証跡はこれを出す: 退役 (resize、終了) で {@link #instance} が無くなっても、組み立てた
+     * 事実は消えない (実測: 終了後に書いた報告が built=false, referenceSet=0 になった)。
+     */
+    private static boolean builtOnce;
+    private static int builtWidth, builtHeight, builtColourFormat, builtDepthFormat, builtDrawCount;
+    private static long builtReferenceSet, builtDevice;
+    private static float[] builtMvp;
     private static long drawsRecorded;
     private static boolean attempted;
     private static int problems;
@@ -248,6 +257,17 @@ public final class McNativeTerrainLoad implements Destroyable {
             }
             probe = new McNativeTerrainLoad(device, mcDevice, format, depthVk, width, height, scene);
             instance = probe;
+            synchronized (NOTES) {
+                builtOnce = true;
+                builtWidth = width;
+                builtHeight = height;
+                builtColourFormat = format;
+                builtDepthFormat = depthVk;
+                builtDrawCount = scene.drawCount;
+                builtReferenceSet = scene.set;
+                builtDevice = mcDevice;
+                builtMvp = scene.mvp.clone();
+            }
             Logger.info("[native-vk] terrain-LOAD scene built: " + scene.set + " reference pixels,"
                 + " " + scene.drawCount + " draw(s), depth state declared "
                 + java.util.Arrays.toString(DECLARED_DEPTH_STATE));
@@ -734,15 +754,32 @@ public final class McNativeTerrainLoad implements Destroyable {
             notes = List.copyOf(NOTES);
         }
         var it = instance;
+        boolean built;
+        int width, height, colourFormat, depthFormat, drawCount;
+        long referenceSet, device;
+        float[] mvp;
+        synchronized (NOTES) {
+            built = builtOnce;
+            width = builtWidth;
+            height = builtHeight;
+            colourFormat = builtColourFormat;
+            depthFormat = builtDepthFormat;
+            drawCount = builtDrawCount;
+            referenceSet = builtReferenceSet;
+            device = builtDevice;
+            mvp = builtMvp == null ? null : builtMvp.clone();
+        }
         var sb = new StringBuilder("{\n");
         sb.append("  \"enabled\": ").append(enabled()).append(",\n");
         sb.append("  \"attempted\": ").append(attempted).append(",\n");
-        sb.append("  \"built\": ").append(it != null && !it.destroyed).append(",\n");
+        // ⚠ "built" = a scene was built in this session; "live" = one is held right now.
+        sb.append("  \"built\": ").append(built).append(",\n");
+        sb.append("  \"live\": ").append(it != null && !it.destroyed).append(",\n");
         sb.append("  \"drawsRecorded\": ").append(drawsRecorded).append(",\n");
-        sb.append("  \"width\": ").append(it == null ? 0 : it.width).append(",\n");
-        sb.append("  \"height\": ").append(it == null ? 0 : it.height).append(",\n");
-        sb.append("  \"colourFormat\": ").append(it == null ? 0 : it.colourFormat).append(",\n");
-        sb.append("  \"depthFormat\": ").append(it == null ? 0 : it.depthFormat).append(",\n");
+        sb.append("  \"width\": ").append(width).append(",\n");
+        sb.append("  \"height\": ").append(height).append(",\n");
+        sb.append("  \"colourFormat\": ").append(colourFormat).append(",\n");
+        sb.append("  \"depthFormat\": ").append(depthFormat).append(",\n");
         sb.append("  \"scene\": ").append(McNativeVulkanProbe.quote(SCENE)).append(",\n");
         sb.append("  \"eye\": ").append(floats(EYE)).append(",\n");
         sb.append("  \"centre\": ").append(floats(CENTRE)).append(",\n");
@@ -750,9 +787,9 @@ public final class McNativeTerrainLoad implements Destroyable {
         sb.append("  \"near\": ").append(NEAR).append(",\n");
         sb.append("  \"far\": ").append(FAR).append(",\n");
         sb.append("  \"fitMargin\": ").append(FIT_MARGIN).append(",\n");
-        sb.append("  \"mvp\": ").append(it == null ? "null" : floats(it.scene.mvp)).append(",\n");
-        sb.append("  \"drawCount\": ").append(it == null ? 0 : it.scene.drawCount).append(",\n");
-        sb.append("  \"referenceSet\": ").append(it == null ? 0 : it.scene.set).append(",\n");
+        sb.append("  \"mvp\": ").append(mvp == null ? "null" : floats(mvp)).append(",\n");
+        sb.append("  \"drawCount\": ").append(drawCount).append(",\n");
+        sb.append("  \"referenceSet\": ").append(referenceSet).append(",\n");
         sb.append("  \"declaredDepthState\": [").append(DECLARED_DEPTH_STATE[0]).append(", ")
           .append(DECLARED_DEPTH_STATE[1]).append(", ").append(DECLARED_DEPTH_STATE[2]).append("],\n");
         sb.append("  \"depthStateReadBack\": false,\n");
@@ -783,7 +820,7 @@ public final class McNativeTerrainLoad implements Destroyable {
         sb.append("  \"deviceDiverged\": ").append(deviceDiverged).append(",\n");
         sb.append("  \"readbacksInFlight\": ").append(readbacksInFlight).append(",\n");
         sb.append("  \"device\": ").append(McNativeVulkanProbe.quote(
-            it == null ? null : "0x" + Long.toHexString(it.ownerDevice))).append(",\n");
+            built ? "0x" + Long.toHexString(device) : null)).append(",\n");
         sb.append("  \"notes\": [");
         for (int i = 0; i < notes.size(); i++) {
             if (i > 0) sb.append(", ");

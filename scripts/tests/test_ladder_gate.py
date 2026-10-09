@@ -477,23 +477,40 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
     return body, tl, text
 
 
-def log_for(samples, stage_lines=True):
+def log_for(samples, stage_lines=True, late_sample_lines=False):
     """Log lines in the implementation's format, derived from the samples' own fields: the
-    harness's "stage=" line before each change of stage, then the sample line with its
-    orientation, counts, stage and camera."""
+    harness's "stage=" line before each change of stage, the request line when the frame is
+    captured, then the sample line (GPU callback) with its orientation, counts, stage and
+    camera. With `late_sample_lines` the sample line lands after the NEXT stage line, as it
+    does when the callback runs after the harness moved on (measured at draw 1922)."""
     lines = []
     current = None
+    pending = None
     for s in sorted(samples, key=lambda s: s.get("at", 0)):
         c = s.get("counts") or {}
         rungs = " ".join(f"r{i}={v}" for i, v in enumerate(c.get("rungs") or []))
         if stage_lines and s.get("stage") != current:
             current = s.get("stage")
             lines.append(f"[STDOUT]: [voxy-harness] stage={current}\n")
+            if pending is not None:
+                lines.append(pending)
+                pending = None
         cam = " ".join("NaN" if v is None else str(float(v)) for v in (s.get("camera") or []))
-        lines.append(f"[native-vk] depth ladder sample at draw {s.get('at', 0)}"
-                     f" flipped={str(s.get('flipped', False)).lower()} counts=[anomaly="
-                     f"{c.get('anomaly')} low={c.get('low')} {rungs} other={c.get('other')}]"
+        lines.append(f"[native-vk] depth ladder sample requested at draw {s.get('at', 0)}"
                      f" stage={s.get('stage')} camera=[{cam}]\n")
+        sample_line = (f"[native-vk] depth ladder sample at draw {s.get('at', 0)}"
+                       f" flipped={str(s.get('flipped', False)).lower()} counts=[anomaly="
+                       f"{c.get('anomaly')} low={c.get('low')} {rungs} other={c.get('other')}]"
+                       f" stage={s.get('stage')} camera=[{cam}]\n")
+        if late_sample_lines:
+            if pending is not None:
+                lines.append(pending)
+            pending = sample_line
+        else:
+            lines.append(sample_line)
+    if pending is not None:
+        lines.append("[STDOUT]: [voxy-harness] stage=disconnect\n")
+        lines.append(pending)
     return "".join(lines)
 
 
@@ -665,7 +682,10 @@ class LadderGateTest(unittest.TestCase):
         text = log_for(body["samples"]).replace(f"low={low}", "low=999999")
         self.assertFails(self.run_gate(body, fields, log=text), "flipped/counts")
         body, fields = self.one()
-        text = f"[native-vk] depth ladder sample at draw {body['samples'][0]['at']} \n"
+        at = body['samples'][0]['at']
+        request = next(l for l in log_for(body["samples"]).splitlines(keepends=True)
+                       if "sample requested at draw" in l)
+        text = request + f"[native-vk] depth ladder sample at draw {at} \n"
         self.assertFails(self.run_gate(body, fields, log=text), "does not state its orientation")
 
     def test_the_pinned_constants_are_the_literal_ones(self):
@@ -834,7 +854,8 @@ class LadderGateTest(unittest.TestCase):
                       "depthWritesEnabled", "zConventionMeasuredHere", "rungDepths", "band",
                       "palette", "samples", "problems", "closeFailures", "leakedPipelines",
                       "deviceDiverged", "notes", "terrainProbeEnabled", "terrainDrawsRecorded",
-                      "markerDrawEnabled", "markerDrawsRecorded", "device"):
+                      "markerDrawEnabled", "markerDrawsRecorded", "terrainLoadEnabled",
+                      "terrainLoadDrawsRecorded", "device"):
             body, fields = self.one()
             result = self.run_gate(body, fields, drop=(field,))
             self.assertFalse(result["success"], field)
@@ -920,6 +941,52 @@ class LadderDirectionTest(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertIn("log for draw", " ".join(result["failures"]))
 
+    def test_a_sample_line_logged_after_the_next_stage_is_anchored_by_its_request(self):
+        """Measured 2026-10-09 at draw 1922: the readback was requested in `return`, the GPU
+        callback logged the sample line under `edit`, and the gate refused the run. The
+        request line, written at capture time, is the stage of record; the late sample line
+        must repeat it. A request line in the wrong stage, a missing or doubled request line,
+        and a sample line that disagrees with its request all fail."""
+        pairs = direction_samples()
+        gate = LadderGateTest()
+        body = report(samples=[s for s, _ in pairs])
+        late = log_for(body["samples"], late_sample_lines=True)
+        self.assertIn("stage=ascend\n[native-vk] depth ladder sample at draw 3000", late)
+        result = gate.run_gate(body, [f for _, f in pairs], log=late,
+                               checkpoints=direction_checkpoints())
+        self.assertTrue(result["success"], result["failures"])
+        # the request line under the wrong stage: the harness chronology refuses it
+        wrong = late.replace("[voxy-harness] stage=descend", "[voxy-harness] stage=overworld")
+        result = gate.run_gate(body, [f for _, f in pairs], log=wrong,
+                               checkpoints=direction_checkpoints())
+        self.assertFalse(result["success"])
+        self.assertIn("had stage 'overworld' current", " ".join(result["failures"]))
+        # no request line for a sampled draw
+        missing = "".join(l for l in late.splitlines(keepends=True)
+                          if "sample requested at draw 3000" not in l)
+        result = gate.run_gate(body, [f for _, f in pairs], log=missing,
+                               checkpoints=direction_checkpoints())
+        self.assertFalse(result["success"])
+        self.assertIn("complete request lines", " ".join(result["failures"]))
+        # the same draw requested twice
+        line = next(l for l in late.splitlines(keepends=True) if "sample requested at draw 3000" in l)
+        result = gate.run_gate(body, [f for _, f in pairs], log=late + line,
+                               checkpoints=direction_checkpoints())
+        self.assertFalse(result["success"])
+        self.assertIn("requests draw 3000 twice", " ".join(result["failures"]))
+        # the sample line disagrees with its request (stage), report agreeing with the request
+        disagree = late.replace("flipped=false counts=[anomaly=0 low=0 r0=0 r1=0 r2=0 r3=",
+                                "flipped=false counts=[anomaly=0 low=0 r0=0 r1=0 r2=0 r3=", 1)
+        parts = disagree.split("stage=descend camera=")
+        # the first occurrence is the request line, the second the sample line of draw 3000
+        self.assertGreaterEqual(len(parts), 3)
+        disagree = "stage=descend camera=".join(parts[:2]) + "stage=overworld camera=" \
+            + "stage=descend camera=".join(parts[2:])
+        result = gate.run_gate(body, [f for _, f in pairs], log=disagree,
+                               checkpoints=direction_checkpoints())
+        self.assertFalse(result["success"])
+        self.assertIn("but its sample line says", " ".join(result["failures"]))
+
     def test_a_stage_label_the_harness_log_contradicts_fails(self):
         """The sample line may say one stage while the harness's own stage= line said another."""
         pairs = direction_samples()
@@ -936,7 +1003,9 @@ class LadderDirectionTest(unittest.TestCase):
         report truthful); the sample-line/report reconciliation alone must catch it."""
         pairs = direction_samples()
         text = log_for([s for s, _ in pairs])
-        text = text.replace("stage=descend camera=", "stage=overworld camera=", 1)
+        # both the request line and the sample line of the near look (they must agree with
+        # each other; the harness line stays truthful)
+        text = text.replace("stage=descend camera=", "stage=overworld camera=", 2)
         gate = LadderGateTest()
         result = gate.run_gate(report(samples=[s for s, _ in pairs]), [f for _, f in pairs],
                                log=text, checkpoints=direction_checkpoints())

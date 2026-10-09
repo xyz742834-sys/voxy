@@ -911,7 +911,13 @@ LADDER_SAMPLE_LOG_DETAIL = re.compile(
     r" r0=(\d+) r1=(\d+) r2=(\d+) r3=(\d+) r4=(\d+) r5=(\d+) r6=(\d+) r7=(\d+) other=(\d+)\]"
     r" stage=(\S*) camera=\[(\S+) (\S+) (\S+) (\S+) (\S+)\]")
 HARNESS_STAGE_LOG = re.compile(r"\[voxy-harness\] stage=(\w+)")
-LADDER_SAMPLE_OR_STAGE = re.compile(r"\[voxy-harness\] stage=(\w+)|depth ladder sample at draw (\d+) ")
+# The REQUEST line is written when the frame is captured; the sample line when the GPU
+# callback runs, which can be after the harness moved on (measured: a sample requested in
+# `return` was logged under `edit`). The chronology is anchored to the request line.
+LADDER_SAMPLE_REQUEST = re.compile(
+    r"depth ladder sample requested at draw (\d+) stage=(\S*) camera=\[(\S+) (\S+) (\S+) (\S+) (\S+)\]")
+LADDER_SAMPLE_OR_STAGE = re.compile(
+    r"\[voxy-harness\] stage=(\w+)|depth ladder sample requested at draw (\d+) ")
 
 
 def ladder_report_checks(output, report, expected_device=None, expected_extents=None,
@@ -1065,7 +1071,13 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
             if m.group(1):
                 current = m.group(1)
             else:
+                if int(m.group(2)) in stage_of_draw:
+                    raise ValueError(f"the ladder log requests draw {m.group(2)} twice")
                 stage_of_draw[int(m.group(2))] = current
+        requests = {int(m[0]): m[1:] for m in LADDER_SAMPLE_REQUEST.findall(log_text)}
+        if sorted(requests) != listed:
+            raise ValueError(f"the ladder log holds complete request lines (draw, stage, camera)"
+                             f" for draws {sorted(requests)} but the report lists {listed}")
         for sample in samples:
             if not isinstance(sample, dict) or not finite_int(sample.get("at")):
                 continue
@@ -1073,6 +1085,13 @@ def ladder_report_checks(output, report, expected_device=None, expected_extents=
             if line is None:
                 raise ValueError(f"the ladder log line for draw {sample['at']} does not state"
                                  f" its orientation, counts, stage and camera")
+            # the sample line (callback time) must repeat what the request line (capture
+            # time) said about the stage and camera; the stage of record is the request's
+            request = requests[sample["at"]]
+            if list(line[12:18]) != list(request):
+                raise ValueError(f"the ladder log's request for draw {sample['at']} says"
+                                 f" stage/camera {list(request)} but its sample line says"
+                                 f" {list(line[12:18])}")
             counts = sample.get("counts") or {}
             want = [str(sample.get("flipped")).lower(), str(counts.get("anomaly")),
                     str(counts.get("low"))] + [str(v) for v in (counts.get("rungs") or [])] \
