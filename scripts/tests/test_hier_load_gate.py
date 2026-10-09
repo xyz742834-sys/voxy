@@ -101,8 +101,16 @@ class HierLoadGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(hier_status={0: "felt-like-it"}), "nor a reason")
 
     def test_scene_and_iteration_facts_are_reconciled(self):
-        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(meshedAtBuild=36)),
-                           "the log's build line says")
+        # the scene streams like Voxy's GL renderer (RenderDistanceTracker at ceil(distance + 1))
+        def far_line(text):
+            return text.replace("streaming render distance 17", "streaming render distance 9")
+        self.assertRefused(self.run_gate(log=far_line), "build line streams at 9")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(streamRenderDistance=18)),
+                           "streams at 18 columns")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(streaming=False)), "streaming=False")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(maxTopLevels=0)), "nothing was streamed in")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(sectionRenderDistance=None)),
+                           "sectionRenderDistance=None")
         # meshing continues after the build: fewer sections now than at build is refused
         self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(meshed=34)),
                            "34 meshed sections now and 35 at build")

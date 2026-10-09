@@ -80,7 +80,19 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      */
     public static final String EVERY_FRAME_FLAG = "voxy.native.hierframes";
     static final int ITERATIONS = 3;
-    static final int TOP_RADIUS = 1, DEPTH = 2;
+    /**
+     * The render distance the scene streams at, in top-level columns:
+     * {@code ceil(sectionRenderDistance + 1)}, as {@code VoxyRenderSystem.setRenderDistance}.
+     */
+    static int streamRenderDistance() {
+        return (int) Math.ceil(me.cortex.voxy.client.config.VoxyConfig.CONFIG.sectionRenderDistance + 1);
+    }
+
+    /** The level's top-level section range, as {@code VoxyRenderSystem}: {min, max}. */
+    static int[] levelSections() {
+        var level = Minecraft.getInstance().level;
+        return new int[] {level.getMinSectionY() >> 5, (level.getMaxSectionY() - 1) >> 5};
+    }
     static final double SUBDIVISION_PX = 128.0;
     static final int MESHES_PER_PASS = 64;
     static final int SECTIONS = 8192;
@@ -116,6 +128,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private static long drawsRecorded, lastCaptureSeen = -1;
     /** Every-frame composites recorded into Minecraft's frames (not judged; not in drawsRecorded). */
     private static long framesComposited;
+    /** The most top-level nodes a streaming scene held (their geometry arrived) at any frame. */
+    private static int maxTopLevels;
     /** Calls of {@link #renderIfEnabled} that ran (the frame clock of the rebuild rate limit). */
     private static long renderCalls, lastBuildCall = Long.MIN_VALUE / 2;
     private static String lastStageLogged;
@@ -404,7 +418,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         float[] mcMvp = VkHostViewport.mvp(vkProjection, view.modelView(), sub);
         float minSSS = (float) ((SUBDIVISION_PX * SUBDIVISION_PX) / ((double) width * height));
         if (at < 0) {
-            drawEveryFrame(probe, mvp, mcMvp, anchor, sub, minSSS, colour, depth, width, height);
+            drawEveryFrame(probe, mvp, mcMvp, view.x(), view.z(), anchor, sub, minSSS, colour, depth,
+                width, height);
             return;
         }
 
@@ -423,6 +438,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 probe.scene.serviceRequests(MESHES_PER_PASS);
                 probe.requestsUnread = false;
             }
+            // after the wait: removing a top-level column frees geometry a submission may read
+            probe.scene.stream(view.x(), view.z(), streamRenderDistance());
+            maxTopLevels = Math.max(maxTopLevels, probe.scene.topLevelCount());
             int frame = frameId++;
             VkSceneUniform.write(probe.scene.res.uniform, mvp, anchor, frame, sub);
             probe.scene.prepare(new org.joml.Matrix4f().set(mvp), anchor, sub, minSSS, frame, -1.0f);
@@ -521,7 +539,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      * queue, whose frame fence orders after every earlier submission on the queue.
      */
     private static void drawEveryFrame(McNativeHierarchicalLoad probe, float[] mvp, float[] mcMvp,
-                                       int[] anchor,
+                                       double camX, double camZ, int[] anchor,
                                        float[] sub, float minSSS, GpuTextureView colour,
                                        GpuTextureView depth, int width, int height) {
         var tracker = VkFrameTracker.get();
@@ -530,6 +548,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             probe.scene.serviceRequests(MESHES_PER_PASS);
             probe.requestsUnread = false;
         }
+        // after Voxy's own fence: removing a top-level column frees geometry its submission read
+        probe.scene.stream(camX, camZ, streamRenderDistance());
+        maxTopLevels = Math.max(maxTopLevels, probe.scene.topLevelCount());
         int frame = frameId++;
         VkSceneUniform.write(probe.scene.res.uniform, mvp, anchor, frame, sub);
         probe.scene.prepare(new org.joml.Matrix4f().set(mvp), anchor, sub, minSSS, frame, -1.0f);
@@ -607,21 +628,20 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             // round-24 R24-HIER-CULL: Voxy's production mode — the raster cull writes visibility,
             // so the temporal pass draws the newly visible subset (the default is a test mode)
             scene.setVisibility(VISIBILITY);
-            scene.populate(view.x(), view.y(), view.z(), TOP_RADIUS, DEPTH);
+            // Voxy's own streaming (GL's RenderDistanceTracker) instead of a fixed populated region:
+            // top-level columns around the camera at the configured render distance, meshed on
+            // request through serviceRequests
+            int[] sections = levelSections();
+            scene.startStreaming(sections[0], sections[1], streamRenderDistance());
             int meshed = scene.meshedSections();
-            if (meshed == 0) {
-                // the finally block frees scene and target (freeing them here too was a double free)
-                Logger.info("[native-vk] hier-LOAD: nothing meshed (scene #" + builds + ")");
-                return null;
-            }
             mcDepth = new me.cortex.voxy.client.core.vk.VkTexture(VK10.VK_FORMAT_R32_SFLOAT, 1, width,
                 height, VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK10.VK_IMAGE_USAGE_SAMPLED_BIT
                     | VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
             resolve = new me.cortex.voxy.client.core.vk.VkDepthResolve(target.depth, width, height, true);
             mcDepthReadback = new me.cortex.voxy.client.core.vk.VkBuffer((long) width * height * 4);
             composite = new McNativeComposite(target.color, mcDepth);
-            Logger.info("[native-vk] hier-LOAD scene #" + builds + ": " + meshed + " sections meshed,"
-                + " top radius " + TOP_RADIUS + ", depth " + DEPTH);
+            Logger.info("[native-vk] hier-LOAD scene #" + builds + ": streaming render distance "
+                + scene.streamRenderDistance() + ", sections " + sections[0] + ".." + sections[1]);
             var built = new McNativeHierarchicalLoad(device, mcDevice, target, mcDepth, resolve,
                 mcDepthReadback, scene, composite, world,
                 McNativeAtlas.generation(), builds, width, height, meshed);
@@ -926,8 +946,11 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"builds\": ").append(builds).append(",\n");
         sb.append("  \"buildBudget\": ").append(BUILD_BUDGET).append(",\n");
         sb.append("  \"iterations\": ").append(ITERATIONS).append(",\n");
-        sb.append("  \"topRadius\": ").append(TOP_RADIUS).append(",\n");
-        sb.append("  \"depth\": ").append(DEPTH).append(",\n");
+        sb.append("  \"streaming\": true,\n");
+        sb.append("  \"maxTopLevels\": ").append(maxTopLevels).append(",\n");
+        sb.append("  \"sectionRenderDistance\": ").append(
+            me.cortex.voxy.client.config.VoxyConfig.CONFIG.sectionRenderDistance).append(",\n");
+        sb.append("  \"streamRenderDistance\": ").append(streamRenderDistance()).append(",\n");
         sb.append("  \"voxyFar\": ").append(VkHostViewport.VOXY_FAR).append(",\n");
         sb.append("  \"declaredDepthState\": [").append(DECLARED_DEPTH_STATE[0]).append(", ")
           .append(DECLARED_DEPTH_STATE[1]).append(", ").append(DECLARED_DEPTH_STATE[2]).append("],\n");

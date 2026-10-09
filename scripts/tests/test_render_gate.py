@@ -38,7 +38,8 @@ def report(**overrides):
     body = {"enabled": True, "attempted": True, "drawsRecorded": 0, "everyFrame": True,
             "product": True, "buildBudgetApplies": False, "rebuildIntervalFrames": 60,
             "renderCalls": 0, "framesComposited": 0, "frameSkips": {"atlas-pending": 6},
-            "builds": 2, "buildBudget": 6, "iterations": 3, "topRadius": 1, "depth": 2,
+            "builds": 2, "buildBudget": 6, "iterations": 3, "streaming": True,
+            "sectionRenderDistance": 16.0, "streamRenderDistance": 17, "maxTopLevels": 34,
             "voxyNear": 16.0, "voxyFar": 48000.0, "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True, "results": [], "problems": 0,
             "firstProblem": None, "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
@@ -50,14 +51,14 @@ def report(**overrides):
 def log_for(stages=verify.LIFECYCLE_STAGES, per_stage=100, start=0):
     lines = [LOADER, "[native-vk] requested the block atlas (2048x2048) through Blaze3D\n",
              "[native-vk] block atlas read through Blaze3D: 2048x2048\n",
-             "[native-vk] hier-LOAD scene #1: 35 sections meshed, top radius 1, depth 2\n"]
+             "[native-vk] hier-LOAD scene #1: streaming render distance 17, sections -1..0\n"]
     composited = start
     for i, stage in enumerate(stages):
         lines.append(f"[voxy-harness] stage={stage}\n")
         lines.append(f"[native-vk] hier frames entering stage {stage}: composited={composited}"
                      f" skipped=6 builds={1 if i < 9 else 2}\n")
         if i == 9:
-            lines.append("[native-vk] hier-LOAD scene #2: 63 sections meshed, top radius 1, depth 2\n")
+            lines.append("[native-vk] hier-LOAD scene #2: streaming render distance 17, sections -1..0\n")
         composited += per_stage
     return "".join(lines), composited
 
@@ -126,6 +127,10 @@ class RenderGateTest(unittest.TestCase):
                              ("readbacksInFlight", 1), ("attempted", False), ("product", 1)):
             self.assertRefused(self.run_gate(mutate=lambda b, f=field, v=value: b.update({f: v})),
                                f"says {field}=")
+
+    def test_the_product_scene_streams(self):
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(maxTopLevels=0)), "nothing was streamed in")
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(streamRenderDistance=5)), "streams at 5 columns")
 
     def test_every_frame_is_accounted_for(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(renderCalls=b["renderCalls"] + 1)),

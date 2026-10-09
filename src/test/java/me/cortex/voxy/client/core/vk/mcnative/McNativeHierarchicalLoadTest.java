@@ -25,8 +25,12 @@ public class McNativeHierarchicalLoadTest {
         assertTrue(json.contains("\"attempted\": false"), json);
         assertTrue(json.contains("\"results\": []"), json);
         assertTrue(json.contains("\"iterations\": 3"), json);
-        assertTrue(json.contains("\"topRadius\": 1"), json);
-        assertTrue(json.contains("\"depth\": 2"), json);
+        // the scene streams like Voxy's GL renderer: ceil(sectionRenderDistance + 1) top-level columns
+        assertTrue(json.contains("\"streaming\": true"), json);
+        assertTrue(json.contains("\"streamRenderDistance\": " + McNativeHierarchicalLoad.streamRenderDistance()), json);
+        assertEquals((int) Math.ceil(me.cortex.voxy.client.config.VoxyConfig.CONFIG.sectionRenderDistance + 1),
+            McNativeHierarchicalLoad.streamRenderDistance());
+        assertTrue(json.contains("\"maxTopLevels\": 0"), json);
         assertTrue(json.contains("\"buildBudget\": 6"), json);
         assertTrue(json.contains("\"declaredDepthState\": [6, 1, 1]"), json);
         // the every-frame path is off by default too and composited nothing

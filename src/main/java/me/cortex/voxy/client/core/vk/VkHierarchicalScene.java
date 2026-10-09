@@ -892,6 +892,7 @@ public final class VkHierarchicalScene {
 
     /** The diagnostic scene has a bounded region; rebuild it when the camera leaves. */
     public boolean coversCamera(double x, double y, double z) {
+        if (this.distanceTracker != null) return true;   // streaming follows the camera
         int top = WorldEngine.MAX_LOD_LAYER;
         return Math.abs((VkHostViewport.sectionOf(x) >> top) - populatedX) <= populatedRadius
             && Math.abs((VkHostViewport.sectionOf(y) >> top) - populatedY) <= populatedRadius
@@ -1294,6 +1295,50 @@ public final class VkHierarchicalScene {
     /** ⚠ 要求した位置の数。入口の数とは別物である。 */
     public int topLevelRequested() { return this.topLevelRequested; }
     public int meshedSections() { return this.meshedSections; }
+
+    // ---------------- streaming (GL's RenderDistanceTracker) ----------------
+
+    /**
+     * Voxy's own top-level streaming instead of {@link #populate}: GL's
+     * {@code RenderDistanceTracker} on this scene's {@code NodeManager}, exactly as
+     * {@code VoxyRenderSystem} sets it up — a ring of top-level (level-4, 512-block) columns around
+     * the camera, {@code minSec..maxSec} high, added and removed up to 40 columns per call as the
+     * camera moves. Their geometry arrives through {@link #serviceRequests} like every other
+     * request.
+     *
+     * @param renderDistance in top-level columns: {@code ceil(sectionRenderDistance + 1)}, as
+     *                       {@code VoxyRenderSystem.setRenderDistance}
+     */
+    public void startStreaming(int minSec, int maxSec, int renderDistance) {
+        if (this.distanceTracker != null) throw new IllegalStateException("already streaming");
+        this.distanceTracker = new me.cortex.voxy.client.core.rendering.RenderDistanceTracker(
+            STREAM_RATE, minSec, maxSec,
+            pos -> { this.nodes.insertTopLevelNode(pos); this.topLevelRequested++; this.topLevelStreamed++; },
+            pos -> { this.nodes.removeTopLevelNode(pos); this.topLevelRemoved++; });
+        this.distanceTracker.setRenderDistance(renderDistance);
+        this.streamRenderDistance = renderDistance;
+    }
+
+    /** Follow the camera (and a changed render distance). Host-side only; call before {@link #prepare}. */
+    public void stream(double camX, double camZ, int renderDistance) {
+        if (this.distanceTracker == null) return;
+        if (renderDistance != this.streamRenderDistance) {
+            this.distanceTracker.setRenderDistance(renderDistance);
+            this.streamRenderDistance = renderDistance;
+        }
+        this.distanceTracker.setCenterAndProcess(camX, camZ);
+    }
+
+    public boolean streaming() { return this.distanceTracker != null; }
+    public int streamRenderDistance() { return this.streamRenderDistance; }
+    /** Top-level columns×heights added and removed by streaming so far. */
+    public int topLevelStreamed() { return this.topLevelStreamed; }
+    public int topLevelRemoved() { return this.topLevelRemoved; }
+
+    /** {@code VoxyRenderSystem}'s rate: columns per call. */
+    static final int STREAM_RATE = 40;
+    private me.cortex.voxy.client.core.rendering.RenderDistanceTracker distanceTracker;
+    private int streamRenderDistance, topLevelStreamed, topLevelRemoved;
 
     /** Last completed mesh revision at any ancestor of a block (diagnostic only). */
     public long meshVersionAt(int x, int y, int z) {

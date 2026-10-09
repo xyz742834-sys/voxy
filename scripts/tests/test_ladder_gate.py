@@ -636,8 +636,9 @@ def hier_report(entries, **overrides):
     judged = [e for e in entries if e["status"] == "judged"]
     body = {"enabled": True, "attempted": True, "drawsRecorded": len(judged),
             "builds": 1 if judged else 0, "buildBudget": verify.HIER_LOAD_BUILD_BUDGET,
-            "iterations": verify.HIER_LOAD_ITERATIONS, "topRadius": verify.HIER_LOAD_TOP_RADIUS,
-            "depth": verify.HIER_LOAD_DEPTH, "declaredDepthState": [6, 1, 1],
+            "iterations": verify.HIER_LOAD_ITERATIONS, "streaming": True,
+            "sectionRenderDistance": 16.0, "streamRenderDistance": 17, "maxTopLevels": 34,
+            "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True,
             "results": [dict(e) for e in entries], "problems": 0, "firstProblem": None,
             "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
@@ -659,8 +660,8 @@ def hier_log_for(entries, atlas_logged=False, frames=None):
                 lines.append("[native-vk] block atlas read through Blaze3D: 2048x2048\n")
                 ready = True
             if not scene:
-                lines.append(f"[native-vk] hier-LOAD scene #1: {e['meshedAtBuild']} sections meshed,"
-                             f" top radius {verify.HIER_LOAD_TOP_RADIUS}, depth {verify.HIER_LOAD_DEPTH}\n")
+                lines.append("[native-vk] hier-LOAD scene #1: streaming render distance 17,"
+                             " sections -1..0\n")
                 scene = True
             lines.append("[native-vk] hier load at draw " + str(e["at"]) + " status=judged "
                          + " ".join(f"{k}={e[k]}" for k in verify.TERRAIN_LOAD_COUNTS)

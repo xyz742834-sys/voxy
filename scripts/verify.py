@@ -2394,10 +2394,10 @@ def judge_load_sample(output, recount, entry, at, coexist_enabled, logged, log_t
 HIER_LOAD_LOG_LINE = re.compile(r"hier load at draw (\d+) status=(\S+)(.*)$", re.M)
 HIER_LOAD_LOG = re.compile(r"hier load at draw (\d+) status=(\S+)(?: "
                            + " ".join(f"{name}=(\\d+)" for name in TERRAIN_LOAD_COUNTS) + ")?")
-HIER_SCENE_LOG = re.compile(r"hier-LOAD scene #(\d+): (\d+) sections meshed, top radius (\d+),"
-                            r" depth (\d+)")
+HIER_SCENE_LOG = re.compile(r"hier-LOAD scene #(\d+): streaming render distance (\d+), sections"
+                            r" (-?\d+)\.\.(-?\d+)")
 HIER_NOTHING_LOG = re.compile(r"hier-LOAD: nothing meshed \(scene #(\d+)\)")
-HIER_LOAD_BUILD_BUDGET, HIER_LOAD_ITERATIONS, HIER_LOAD_TOP_RADIUS, HIER_LOAD_DEPTH = 6, 3, 1, 2
+HIER_LOAD_BUILD_BUDGET, HIER_LOAD_ITERATIONS = 6, 3
 HIER_LOAD_VISIBILITY = "CULL"
 # Voxy's own projection (VoxyRenderSystem.computeProjectionMat): near 16, far 16*3000, reverse Z.
 HIER_VOXY_NEAR, HIER_VOXY_FAR = 16.0, 48000.0
@@ -2510,6 +2510,22 @@ def hier_reprojection_checks(output, entry, at, recount, ladder_sample):
     return beyond, name
 HIER_LOAD_SKIP_KEYS = {"at", "status", "stage", "cameraCapture", "previousCapture", "buildsSoFar",
                        "atlasState"}
+
+
+def hier_stream_problem(report):
+    """Why the probe's streaming facts are not Voxy's (None if they are): it streams at
+    ceil(sectionRenderDistance + 1) top-level columns, as VoxyRenderSystem.setRenderDistance, and
+    held at least one top-level node."""
+    distance = report.get("sectionRenderDistance")
+    if report.get("streaming") is not True or not finite_number(distance):
+        return (f"says streaming={report.get('streaming')!r},"
+                f" sectionRenderDistance={distance!r}")
+    if report.get("streamRenderDistance") != math.ceil(distance + 1):
+        return (f"streams at {report.get('streamRenderDistance')!r} columns, not"
+                f" ceil({distance} + 1)")
+    if not finite_int(report.get("maxTopLevels")) or report["maxTopLevels"] < 1:
+        return f"held {report.get('maxTopLevels')!r} top-level node(s); nothing was streamed in"
+    return None
 
 
 def hier_load_build_attempts(text):
@@ -2627,7 +2643,8 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     report = json.loads(report_path.read_text())
     for field, kind in (("enabled", bool), ("attempted", bool), ("drawsRecorded", int),
                         ("builds", int), ("buildBudget", int), ("iterations", int),
-                        ("topRadius", int), ("depth", int), ("declaredDepthState", list),
+                        ("streaming", bool), ("streamRenderDistance", int), ("maxTopLevels", int),
+                        ("declaredDepthState", list),
                         ("depthStateReadBack", bool), ("instanceMode", bool), ("results", list),
                         ("problems", int), ("firstProblem", (str, type(None))),
                         ("closeFailures", int), ("leakedScenes", int), ("deviceDiverged", bool),
@@ -2647,11 +2664,12 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     if not report["enabled"] or not report["attempted"] or not report["instanceMode"]:
         raise ValueError(f"the {L} probe reports enabled={report['enabled']},"
                          f" attempted={report['attempted']}, instanceMode={report['instanceMode']}")
-    if (report["buildBudget"], report["iterations"], report["topRadius"], report["depth"]) != (
-            HIER_LOAD_BUILD_BUDGET, HIER_LOAD_ITERATIONS, HIER_LOAD_TOP_RADIUS, HIER_LOAD_DEPTH):
+    if (report["buildBudget"], report["iterations"]) != (HIER_LOAD_BUILD_BUDGET, HIER_LOAD_ITERATIONS):
         raise ValueError(f"the {L} probe runs budget {report['buildBudget']}, {report['iterations']}"
-                         f" iteration(s), top radius {report['topRadius']}, depth {report['depth']},"
-                         f" not what its source lays out")
+                         f" iteration(s), not what its source lays out")
+    stream_problem = hier_stream_problem(report)
+    if stream_problem:
+        raise ValueError(f"the {L} probe {stream_problem}")
     if report.get("voxyFar") != HIER_VOXY_FAR:
         raise ValueError(f"the {L} probe renders with far {report.get('voxyFar')!r}, not Voxy's"
                          f" {HIER_VOXY_FAR}")
@@ -2750,20 +2768,19 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         if entry.get("iterationsRun") != HIER_LOAD_ITERATIONS:
             raise ValueError(f"{L} at draw {at} ran {entry.get('iterationsRun')!r} iteration(s), not"
                              f" {HIER_LOAD_ITERATIONS}")
-        # populate() meshes `meshedAtBuild` sections (the build's log line); serviceRequests
-        # meshes more on every iteration, so `meshed` (now) can only be at least that
+        # a streaming scene starts empty (meshedAtBuild, normally 0) and serviceRequests meshes
+        # what the traversal asks for, so `meshed` (now) can only be at least that
         if not finite_int(entry.get("meshedAtBuild")) or not finite_int(entry.get("meshed")) \
-                or entry["meshedAtBuild"] < 1 or entry["meshed"] < entry["meshedAtBuild"]:
+                or entry["meshedAtBuild"] < 0 or entry["meshed"] < entry["meshedAtBuild"]:
             raise ValueError(f"{L} at draw {at} has {entry.get('meshed')!r} meshed sections now and"
                              f" {entry.get('meshedAtBuild')!r} at build")
         if log_text is not None:
             scene = {int(m.group(1)): m for m in HIER_SCENE_LOG.finditer(head)}.get(entry["sceneBuild"])
-            want = None if scene is None else (int(scene.group(2)), int(scene.group(3)), int(scene.group(4)))
-            got = (entry.get("meshedAtBuild"), HIER_LOAD_TOP_RADIUS, HIER_LOAD_DEPTH)
-            if want != got:
-                raise ValueError(f"{L} at draw {at} names scene #{entry['sceneBuild']} with"
-                                 f" {entry.get('meshedAtBuild')!r} sections meshed at build but the"
-                                 f" log's build line says {want}")
+            want = None if scene is None else int(scene.group(2))
+            if want != report["streamRenderDistance"]:
+                raise ValueError(f"{L} at draw {at} names scene #{entry['sceneBuild']} but the log's"
+                                 f" build line streams at {want!r}, not the report's"
+                                 f" {report['streamRenderDistance']}")
         previous_judged = entry
         counts, names = judge_load_sample(output, recount, entry, at, coexist_enabled, logged,
                                           log_text, HIER_LOAD_SPEC)
@@ -2896,6 +2913,9 @@ def native_render_result(output, log_text, expected_device=None, command=None):
                                  f" reason from {RENDER_SKIPS}")
         if composited < 1:
             raise ValueError(f"the {L} launch composited no frame")
+        stream_problem = hier_stream_problem(report)
+        if stream_problem:
+            raise ValueError(f"the {L} probe {stream_problem}")
         if composited + sum(skips.values()) != calls:
             raise ValueError(f"the {L} probe ran {calls} time(s) but accounts for"
                              f" {composited} composited + {sum(skips.values())} skipped")
