@@ -1,7 +1,7 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, HEAD **27e6581d** plus the docs commit on top of it (the round-17 candidate is that docs commit; the dispatch commit after it names the exact SHA; round 16 judged
+`vulkan-macos`, round-17 candidate **19b2444a** (`19b2444a5a5c40dca47160ece609970caf6a4c07`, dispatched 2026-10-09 in Orca worktree `native-review-r17`, terminal `term_c1c0e855-b94a-4e1e-ab2b-326bf8efdd2e`; round 16 judged
 `a49b926f`: coexistence CONFIRMED again, R16-COEXIST-LAUNCH-SEMANTICS refuted and repaired here).
 
 > Read `docs/ai/project-goal.md` and `docs/ai/current-state.md` first, then this. This file is
@@ -155,8 +155,8 @@ gate, which is expected and tabled in the survey.
 
 ## Round 17
 
-Dispatch against this HEAD with `docs/ai/runs/native-review-prompt-r17.txt` (if not already
-done — check `git log` for a "docs: record the round-17 dispatch" commit). When its report
+Dispatched against `19b2444a` with `docs/ai/runs/native-review-prompt-r17.txt` (worktree
+`native-review-r17`, terminal `term_c1c0e855-b94a-4e1e-ab2b-326bf8efdd2e`). When its report
 lands: copy it to `docs/ai/runs/native-integration-review-r17.{md,json}`, commit the report
 alone, then repair blocking findings in a separate commit.
 
