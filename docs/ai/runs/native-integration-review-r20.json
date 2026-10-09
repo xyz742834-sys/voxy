@@ -1,0 +1,152 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "39584eba58731109ee4b0d38e180f173b55104ba",
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "description": "Default-off experiments are not accepted native Voxy LoD integration or delivered renderer.",
+      "evidence": [
+        "docs/ai/project-goal.md:9",
+        "docs/ai/handoff.md:153"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R20-REAL-METADATA",
+      "judgment": "CONFIRMED",
+      "description": "Unreconciled real-LOAD metadata and nullable device replay 0.",
+      "evidence": [
+        "scripts/verify.py:2166",
+        "scripts/verify.py:2192",
+        "scripts/verify.py:2217",
+        "scripts/verify.py:2223",
+        ".agent-run/r20/attacks.json"
+      ]
+    },
+    {
+      "id": "R20-REAL-SKIP-PROVENANCE",
+      "judgment": "CONFIRMED",
+      "description": "A judged sample can be erased and relabelled as a fixed skip with matching logs/counters; replay 0.",
+      "evidence": [
+        "scripts/verify.py:2206",
+        ".agent-run/r20/attack-real-known-skip-substitution.json"
+      ]
+    },
+    {
+      "id": "R20-REAL-ENGINE-IDENTITY",
+      "judgment": "CONFIRMED",
+      "description": "Cached real scene is not tied to world-engine identity; same-centre reconnect reuses pre-disconnect geometry.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeRealLoad.java:195",
+        "src/main/java/me/cortex/voxy/client/mixin/minecraft/MixinLevelRenderer.java:92"
+      ]
+    },
+    {
+      "id": "R20-DESTROY-ACCOUNTING",
+      "judgment": "CONFIRMED",
+      "description": "Scene and atlas cleanup swallow exceptions; zero counters do not prove no leaks.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeRealScene.java:204",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeAtlas.java:89"
+      ]
+    },
+    {
+      "id": "R20-ATLAS-RELOAD",
+      "judgment": "CONFIRMED",
+      "description": "Atlas snapshot and supplied pixels never reset on reload or disconnect.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeAtlas.java:39"
+      ]
+    },
+    {
+      "id": "R20-TEST-REALLOAD",
+      "judgment": "CONFIRMED",
+      "description": "Explicit real-LOAD guards survive removal in the unchanged complete focused class.",
+      "surviving_guards": [
+        2171,
+        2140,
+        2143,
+        2145
+      ],
+      "evidence": [
+        ".agent-run/r20/guards.json"
+      ]
+    }
+  ],
+  "safe_for_normal_play": {
+    "judgment": "CONFIRMED",
+    "safe": true,
+    "scope": "All voxy.native.* flags unset from startup: established supported GL preserved; MC Vulkan has disabled Voxy, not native LoD. Source/offline evidence only."
+  },
+  "round19_findings_closed": {
+    "R19-INSTANCE-INVENTORY": true,
+    "R19-TEST-INSTANCE": true,
+    "R19-DOC-DRIFT": true
+  },
+  "real_load_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Original retained real-section same-matrix visible composition at bracket grain; no nearer-MC occlusion, no delivered renderer.",
+    "judged_samples": 10,
+    "geometry": 675264,
+    "expect_visible": 143425,
+    "expect_hidden": 0,
+    "undetermined": 531839,
+    "violations": 0,
+    "gate_completeness": "REFUTED",
+    "lifecycle_acceptance": false
+  },
+  "atlas_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Source/layout and committed bounded Blaze3D execution; raw GL branch unchanged in unflagged sessions.",
+    "full_atlas_byte_parity_tested": false,
+    "resource_reload_refresh": false
+  },
+  "instance_mode_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "CPU engine/storage/ingest and camera capture without VoxyRenderSystem; complete inventories in both launches.",
+    "main_samples": 79,
+    "ladder_samples": 86
+  },
+  "terrain_load_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "11 assigned synthetic terrain samples; declared depth state, bracket grain.",
+    "geometry": 276652,
+    "expect_visible": 231642,
+    "expect_hidden": 22600,
+    "violations": 0
+  },
+  "coexist_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "22 known-depth quad samples; exact RGB pass/fail against MC loaded depth.",
+    "expected_pass": 1813250,
+    "expected_fail": 123646,
+    "violations": 0
+  },
+  "z_direction_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "Same-ground two-look bounded reverse-Z direction; not metric depth calibration.",
+    "near_draw": 4322,
+    "far_draw": 4562
+  },
+  "ladder_judgment": {
+    "judgment": "CONFIRMED",
+    "scope": "22 selected/rejected samples, per-pixel recount/thumbnail anchors and single-consumer alternating handoff."
+  },
+  "tests": {
+    "junit_total": 346,
+    "junit_passed": 345,
+    "documented_skips": 1,
+    "python_passed": 274,
+    "replay_exit": 0,
+    "real_guard_count": 38,
+    "real_guards_killed": 34,
+    "instance_guards_killed": 8,
+    "handoff_guard_killed": true
+  },
+  "artifacts": {
+    "human_report": "docs/ai/runs/native-integration-review.md",
+    "review_evidence": ".agent-run/r20/"
+  }
+}
