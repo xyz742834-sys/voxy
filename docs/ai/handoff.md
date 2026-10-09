@@ -212,6 +212,18 @@ alone, then repair blocking findings in a separate commit.
    (`:737-784`) owns the opaque/HiZ/traversal/cull/table/temporal/translucent sequence over a
    Voxy target — its projection/depth relationship to MC's pass and its upload retirement are
    the concrete integration questions, not missing terrain algorithms.
+   **Measured obstacle (2026-10-09, source reading, no run):** on MC's Vulkan backend
+   `VoxyClient` sets `BACKEND = null`, so `VoxyCommon.setInstanceFactory` is never called, no
+   `VoxyClientInstance`/`WorldEngine` exists, and `WorldIdentifier.ofEngineNullable(level)` is
+   null (the interop probe's `ensureRealScene` logs "no Voxy world engine for this level").
+   `MixinLevelRenderer` creates `VoxyRenderSystem` (the GL/interop renderer) when an instance
+   exists. So the first step of the real-section experiment is a **native instance mode**: set
+   the instance factory when MC is on Vulkan and a native flag is on (world engine, storage,
+   ingest — none of it GL), and skip `VoxyRenderSystem` creation in that mode; then
+   `VkRealMesher.meshAround` + `VkRealSectionUpload.upload` into `VkTerrainResources(REAL)`
+   (the interop probe's template at `VkInteropProbe.ensureRealScene`) and
+   `VkTerrainRenderer.recordDrawsInRenderPass` in a LOAD pass with MC's own matrix, gated like
+   terrain-LOAD. Keep it flagged and experimental; no acceptance claim.
    Open and not needed for that: why the buffer copy reads 0.0.
 4. Nothing in the ladder may ever write MC's depth. A variant that writes is a different probe
    with a different flag (which is what `McNativeTerrainLoad` is).
