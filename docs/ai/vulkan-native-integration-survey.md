@@ -478,7 +478,8 @@ of the point — and the replay status of each is:
 | [20261009T190223-644732Z](runs/native-evidence/20261009T190223-644732Z/MANIFEST.json) | no — predates the CLEAR class and Voxy's GL composition rule |
 | [20261009T200758-879288Z](runs/native-evidence/20261009T200758-879288Z/MANIFEST.json) | no — predates the product switch and its launch (round 26 judges it) |
 | [20261009T203836-462316Z](runs/native-evidence/20261009T203836-462316Z/MANIFEST.json) | no — predates the round-26 repairs |
-| [20261009T213621-341358Z](runs/native-evidence/20261009T213621-341358Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, with the round-26 repairs |
+| [20261009T213621-341358Z](runs/native-evidence/20261009T213621-341358Z/MANIFEST.json) | no — predates the round-27 repairs |
+| [20261009T224733-249406Z](runs/native-evidence/20261009T224733-249406Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, with the round-27 repairs |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1870,7 +1871,7 @@ The ladder, judged samples, the instance probe's sampling and the other experime
 evidence files are written only under the harness. Outside the ladder the build budget does not
 apply: a scene is rebuilt whenever it no longer covers the camera, at most once per 60 frames
 (`rebuild-wait`); after a build that meshed nothing the same place is not rebuilt for 600 frames
-(since `round-27 repairs`; before them, never — R27-EMPTY-REBUILD).
+(since `8d241b40`; before it, never — R27-EMPTY-REBUILD).
 
 **Gated** by a third launch of `--only native` with the switch alone (`native_render_result`): no
 diagnostic report other than an off probe's own shutdown report (which round 27 showed could still
@@ -1912,10 +1913,38 @@ repaired in `4518eabd`:
   the interop format enum.
 - R24-HIER-GUARD-COVERAGE stays partly closed (shared-helper predicates detected by real-LOAD only).
 
-**Measured** (run [20261009T213621-341358Z](runs/native-evidence/20261009T213621-341358Z/MANIFEST.json), replay 0 in this checkout): every
+**Measured** (run [20261009T213621-341358Z](runs/native-evidence/20261009T213621-341358Z/MANIFEST.json), which replayed 0 in the checkout it was built from): every
 judged sample at near 16 (128-block vanilla distance); 8 judged hierarchical samples, zero
 violations, none undetermined; the product switch alone composited 5 235 frames, in every required
 stage.
+
+### Round-27 repairs (2026-10-10)
+
+Round 27 judged `9cfd9c01` REDESIGN: DELIVERY-BOUNDARY plus three blocking findings, and judged
+default-on **not ready** (its list: configured radius with streaming, composite before Minecraft's
+translucents and a native near cut, lightmap/fog/translucency, pressure and long sessions, repeated
+lifecycle transitions, gate coverage, far-world evidence). Repaired in `8d241b40`:
+
+- **R27-EMPTY-REBUILD.** The suppression after an empty build keys on engine, camera section, frame
+  extent and atlas generation, and in normal play expires after 600 calls
+  (`McNativeHierarchicalLoad.emptySuppressed`, unit-tested for a stationary player); under the
+  ladder it holds while the key does (each build spends budget).
+- **R27-RENDER-DISABLE.** The native path honours `VoxyConfig.isRenderingEnabled()` (off: the scene
+  is retired, the frame skipped as `rendering-disabled`), and `voxy.native.disable` is a kill
+  switch over the product switch.
+- **R27-RENDER-GATE.** `native_render_result` (stage and replay alike) requires the product switch
+  alone in the command (`RENDER_FORBIDDEN_LAUNCH`), off-reports inert in every counter
+  (`render_off_report_problems`), the launch's own complete scenario (`native_environment_result`
+  without screenshots), a clean log (`native_log_problems`), every stage snapshot inside its own
+  harness stage and within the final totals; retention and replay require all 14 thumbnails.
+- **R26-LADDER-GUARD-COVERAGE.** The two predicates called unreachable are reached and tested.
+- **R27-CONTEXT-DRIFT.** project-goal, current-state and architecture no longer say no native path
+  exists; they distinguish default-off experiments from accepted delivery.
+
+**Measured** (run [20261009T224733-249406Z](runs/native-evidence/20261009T224733-249406Z/MANIFEST.json), replay 0 in this checkout): the
+product switch alone composited 5 301 frames in every required stage under the strengthened gate;
+the ladder judged 8 hierarchical samples, zero violations, none undetermined. The nether stage is
+shorter than the 600-call retry, so its empty build is not retried there.
 
 ## What is NOT answered yet, and must be measured on hardware
 

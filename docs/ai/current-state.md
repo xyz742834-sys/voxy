@@ -97,7 +97,8 @@ residual is only partly closed: shared-helper predicates are detected by the rea
 near 16 / far 48 000 projection and reprojects into MC's depth space; since `6dffc1b4` it composes by
 Voxy's GL rule, only where MC's depth is still clear; since `345ebde7` one product switch
 (`voxy.native.render`) runs the whole native path without diagnostics; since `4518eabd` its projection is GL's
-`computeProjectionMat` in full — run `20261009T213621-341358Z`: 5 235 frames composited in every
+`computeProjectionMat` in full; since `8d241b40` it honours Voxy's rendering setting and the kill switch
+`voxy.native.disable` — run `20261009T224733-249406Z`: 5 301 frames composited in every
 required stage with the switch alone, and in its ladder launch 8 judged, every Voxy pixel decided, zero
 violations). The probe itself still asserts no convention and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,

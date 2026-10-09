@@ -1,8 +1,8 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-27 candidate **9cfd9c01** (dispatched 2026-10-10, worktree `native-review-r27`): the product
-switch and the round-26 repairs. Round 26 judged `460602ab`: REDESIGN on DELIVERY-BOUNDARY only. Round 25 judged `043aa11f`: REDESIGN on DELIVERY-BOUNDARY only.
+`vulkan-macos`, round-28 candidate = the docs commit after `e99304d4` (the dispatch commit names it): the
+round-27 repairs. Round 27 judged `9cfd9c01`: REDESIGN (DELIVERY-BOUNDARY + three defects, repaired; default-on not ready). Round 26 judged `460602ab`: REDESIGN on DELIVERY-BOUNDARY only. Round 25 judged `043aa11f`: REDESIGN on DELIVERY-BOUNDARY only.
 Round 24 judged `03461cea`: REDESIGN (DELIVERY-BOUNDARY + four defects, repaired). Round 23 judged `14743bf4`: REDESIGN on DELIVERY-BOUNDARY
 only; no open code or gate finding; its wording residuals fixed in `32de53c2`. Round 22 judged `8ba67fc5`: REDESIGN on DELIVERY-BOUNDARY only; occlusion CONFIRMED;
 four R21 items closed; three non-blocking residuals addressed in `5476545d`. Round 21 judged `03ee3485`: REDESIGN on DELIVERY-BOUNDARY only; two R20 items closed;
@@ -61,14 +61,14 @@ orca terminal send --terminal <handle> --enter --wait-submit 120 --text "$(cat p
 ```
 
 The round-7 prompt is kept as `docs/ai/runs/native-review-prompt-template.txt`; the round-8,
--9 … -27 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r27`. Start
+-9 … -28 prompts as sent are `docs/ai/runs/native-review-prompt-r8.txt` … `-r28`. Start
 from the newest, replace the SHA, the round number, the findings table and the evidence
 directory.
 The reviewer writes `docs/ai/runs/native-integration-review.md` + `.agent-run/*.json` in its own
 worktree; **copy both into `docs/ai/runs/native-integration-review-rN.*`** and commit the
 report separately from any repair.
 
-### Findings status after round 26, and what this HEAD claims
+### Findings status after round 27, and what this HEAD claims
 
 | Finding | State |
 | --- | --- |
@@ -87,7 +87,8 @@ report separately from any repair.
 | **Hierarchical-LOAD** (`McNativeHierarchicalLoad` + `McNativeComposite`, three-way hand-off) | measured (6 judged, zero violations, 82 073 shown / 3 962 hidden); judged by r24 (four defects, repaired) |
 | **Hierarchical-LOAD every frame** (`voxy.native.hierframes`) | **confirmed by r25** within source/specification and retained-run scope (own fence + same queue + target barriers); ordinary-frame pixels not judged; R25-FRAME-ACCOUNTING (totals unbounded) addressed after it — the gate reconciles composited + skipped + handed with the ladder's frames; **unreviewed** |
 | **Product switch `voxy.native.render`** + third gated launch (`345ebde7`, `c4ddb119`) | measured (5 235 frames composited with the switch alone, every required stage, clean); **unreviewed** |
-| **R26 findings** (PROJECTION-EQUIVALENCE, COMPOSITE-DOC-SCOPE, LADDER-GUARD-COVERAGE) | repaired in `4518eabd` (two ladder predicates documented unreachable); **unreviewed** |
+| **R26 findings** | PROJECTION-EQUIVALENCE, COMPOSITE-DOC-SCOPE closed by r27; LADDER-GUARD-COVERAGE completed after r27 |
+| **R27 findings** (EMPTY-REBUILD, RENDER-DISABLE, RENDER-GATE, CONTEXT-DRIFT) | repaired in `8d241b40`; **unreviewed** |
 | **Voxy's GL composition rule + ladder CLEAR class** (`6dffc1b4`) | measured (8 judged, every Voxy pixel decided: 23 359 shown, 350 597 kept Minecraft's, zero violations); **unreviewed** |
 | **Voxy's own projection + reprojecting resolve** (`429ce46a`) | measured (8 judged, zero violations, every reference depth re-derived); **unreviewed** (after the round-25 candidate) |
 | **R24 findings** | HIER-CULL, DIRTY-CALLBACK, RETIRED-CONTEXT, INSTANCE-STORED, EMPTY-BUILD **closed by r25**; HIER-GUARD-COVERAGE **partly**: the seven hierarchy-specific predicates are detected, the 27 shared-helper predicates are detected only by the real-LOAD tests (stated, not repaired) |
@@ -218,11 +219,11 @@ screenshot, log, own checkpoints) and `--replay-evidence` runs `ladder_report_ch
 (same function as the stage), saying explicitly "not replayed" for runs that retained none and
 refusing when the summary says a ladder ran but none is retained.
 
-Gate/test counts at this HEAD: JUnit 352 (1 documented skip, 0 failures; 8 for the
+Gate/test counts at this HEAD: JUnit 354 (1 documented skip, 0 failures; 8 for the
 terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode,
 4 for real-LOAD);
-Python 313 cases;
-native stage green as `docs/ai/runs/native-evidence/20261009T213621-341358Z` (replay 0 **in this
+Python 317 cases;
+native stage green as `docs/ai/runs/native-evidence/20261009T224733-249406Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
 round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
@@ -232,20 +233,20 @@ added 2026-10-09 for the real-section
 experiment). Older retained runs do not replay under this
 gate, which is expected and tabled in the survey.
 
-## Round 27
+## Round 28
 
-Round 26 (`460602ab`) returned REDESIGN on DELIVERY-BOUNDARY only (report
-`docs/ai/runs/native-integration-review-r26.md`); its non-blocking findings are repaired in `4518eabd`
-(survey "Round-26 repairs"). Round 27 was dispatched 2026-10-10 against `9cfd9c01`
-(`9cfd9c01c546e4a298e2777d104368e6254763f8`) with `docs/ai/runs/native-review-prompt-r27.txt` (worktree
-`native-review-r27`, terminal `term_72057230-f58d-4be7-860b-58767afb87ed`): the
-product switch and its gated launch, and the round-26 repairs. When its report lands: copy it to
-`docs/ai/runs/native-integration-review-r27.{md,json}`, commit the report alone, then repair.
+Round 27 (`9cfd9c01`) returned REDESIGN: DELIVERY-BOUNDARY plus R27-EMPTY-REBUILD,
+R27-RENDER-DISABLE, R27-RENDER-GATE, and judged default-on not ready (report
+`docs/ai/runs/native-integration-review-r27.md`, its readiness list in the JSON); repaired in
+`8d241b40` (survey "Round-27 repairs"). Round 28 is dispatched on the docs commit after `e99304d4`
+with `docs/ai/runs/native-review-prompt-r28.txt` (check `git log` for "record the round-28
+dispatch"). When its report lands: copy it to `docs/ai/runs/native-integration-review-r28.{md,json}`,
+commit the report alone, then repair.
 
 ### Next steps, in order
 
-1. Import the round-27 report; repair its blocking findings; re-run `--only native`, commit,
-   push to `myfork`, dispatch round 28. Do the goal work alongside; do not wait for an overall
+1. Import the round-28 report; repair its blocking findings; re-run `--only native`, commit,
+   push to `myfork`, dispatch round 29. Do the goal work alongside; do not wait for an overall
    PASS (owner directive).
 2. The goal work, done in this HEAD: **Voxy's real terrain pipeline in a LOADed pass** as a
    separate probe (`McNativeTerrainLoad`, `voxy.native.terrainload`,
@@ -264,9 +265,10 @@ product switch and its gated launch, and the round-26 repairs. When its report l
    **Done 2026-10-10 (measured, unreviewed): `McNativeHierarchicalLoad`** and its every-frame
    path (`voxy.native.hierframes`), and Voxy's own projection with the reprojecting resolve
    (`429ce46a`), Voxy's GL composition rule (`6dffc1b4`) and the product switch (`345ebde7`) — see
-   the survey. Next: make the switch the default under Minecraft Vulkan with a kill switch (the
-   owner's goal; held until round 26/27 reviews the switch), then scene radius from Voxy's config,
-   and the composite's render point (before Minecraft's translucents, as GL). The original design notes follow.
+   the survey. Next, in round 27's readiness order: the scene streamed at Voxy's configured radius
+   (port `RenderDistanceTracker`), then the composite before Minecraft's translucents with a native
+   near cut, then lighting/fog, pressure and long sessions. Default-on (the kill switch
+   `voxy.native.disable` exists) waits for those. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
    whole hierarchical pipeline natively, the step from "real sections at one level" to Voxy's LoD:
    `VkHierarchicalScene` (real world mapper/bakery, `NodeManager`, HiZ, traversal, prep/cull,
