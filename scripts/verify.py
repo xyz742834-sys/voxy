@@ -2945,6 +2945,8 @@ def native_pressure_result(output, log_text, expected_device=None, command=None)
     return result
 
 
+# VoxyConfig.subDivisionSize's default; the harness's fresh game directory has no voxy config
+RENDER_SUBDIVISION_PX = 64.0
 # Failure injection (round-27 item 6): a fifth launch, the product switch with one every-frame
 # submission failing (VK_ERROR_DEVICE_LOST, not submitted) once this many frames are composited.
 INJECT_AT_FRAME = 1000
@@ -3025,7 +3027,9 @@ def native_render_result(output, log_text, expected_device=None, command=None,
                 "buildBudgetApplies": False, "instanceMode": True, "drawsRecorded": 0,
                 "results": [], "problems": 0, "firstProblem": None, "notes": [],
                 "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
-                "readbacksInFlight": 0}
+                "readbacksInFlight": 0,
+                # round-27 item 3: Voxy's configured subdivision (the fresh game's default), as GL
+                "subdivisionPx": RENDER_SUBDIVISION_PX}
         if injected:
             want.update(problems=1, firstProblem=INJECTED_FAILURE, notes=[INJECTED_FAILURE])
         else:

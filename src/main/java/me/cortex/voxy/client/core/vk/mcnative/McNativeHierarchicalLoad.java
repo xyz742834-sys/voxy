@@ -93,7 +93,13 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         var level = Minecraft.getInstance().level;
         return new int[] {level.getMinSectionY() >> 5, (level.getMaxSectionY() - 1) >> 5};
     }
-    static final double SUBDIVISION_PX = 128.0;
+    /**
+     * Voxy's subdivision size in pixels, read every frame as GL's traversal does
+     * ({@code HierarchicalOcclusionTraverser}: {@code subDivisionSize^2 / (width*height)}; GL's
+     * auto-balancing is commented out, so it is the configured value, default 64). Round-27 item 3.
+     */
+    static double subdivisionPx() { return me.cortex.voxy.client.config.VoxyConfig.CONFIG.subDivisionSize; }
+    private static double lastSubdivisionPx = -1;
     static final int MESHES_PER_PASS = 64;
     static final int SECTIONS = 8192;
     /**
@@ -503,7 +509,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             VkHostViewport.VOXY_FAR);
         float[] mvp = VkHostViewport.mvp(voxyProjection, view.modelView(), sub);
         float[] mcMvp = VkHostViewport.mvp(vkProjection, view.modelView(), sub);
-        float minSSS = (float) ((SUBDIVISION_PX * SUBDIVISION_PX) / ((double) width * height));
+        double subdivision = subdivisionPx();
+        lastSubdivisionPx = subdivision;
+        float minSSS = (float) ((subdivision * subdivision) / ((double) width * height));
         if (at < 0) {
             drawEveryFrame(probe, mvp, mcMvp, view.x(), view.z(), anchor, sub, minSSS, colour, depth,
                 width, height);
@@ -1084,6 +1092,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"sectionCapacity\": ").append(sectionCapacity()).append(",\n");
         sb.append("  \"maxMeshed\": ").append(maxMeshed).append(",\n");
         sb.append("  \"geometryQuads\": ").append(geometryQuads()).append(",\n");
+        sb.append("  \"subdivisionPx\": ").append(lastSubdivisionPx).append(",\n");
         sb.append("  \"maxGeometryUsedBytes\": ").append(maxGeometryUsed).append(",\n");
         sb.append("  \"geometryReclaimed\": ").append(reclaimedRetired + liveReclaimed()).append(",\n");
         sb.append("  \"geometryRejected\": ").append(rejectedRetired + liveRejected()).append(",\n");

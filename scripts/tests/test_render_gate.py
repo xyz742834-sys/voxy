@@ -47,6 +47,7 @@ def report(**overrides):
             "maxMeshed": 7000, "geometryReclaimed": 0, "geometryRejected": 0,
             "geometryEverExhausted": False,
             "injectSubmitFailureAt": -1, "injectedFailures": 0, "compositedAtInjection": -1,
+            "subdivisionPx": 64.0,
             "voxyNear": 16.0, "voxyFar": 48000.0, "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True, "results": [], "problems": 0,
             "firstProblem": None, "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
@@ -204,6 +205,11 @@ class RenderGateTest(unittest.TestCase):
                 "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=84432744 vkTextures=10 frame=1920x1080",
                 "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=90000000 vkTextures=10 frame=0x0")
         self.assertRefused(self.run_gate(log=sceneless), "retired scenes are not freed")
+
+    def test_the_scene_subdivides_at_voxys_configured_size(self):
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(subdivisionPx=128.0)),
+                           "subdivisionPx=128.0")
+        self.assertRefused(self.run_gate(mutate=lambda b: b.pop("subdivisionPx")), "subdivisionPx=None")
 
     def test_the_product_scene_runs_at_the_default_capacity(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(sectionCapacity=4096)),
