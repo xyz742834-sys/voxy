@@ -2512,6 +2512,11 @@ HIER_LOAD_SKIP_KEYS = {"at", "status", "stage", "cameraCapture", "previousCaptur
                        "atlasState"}
 
 
+VOXY_FOG_MODES = ("FOG_AND_FADE", "FOG", "FADE", "OFF")   # NormalRenderPipeline.FogMode
+# every-frame skips beyond a handed sample's: GL skips its final blit when fog covers all of Voxy
+HIER_FRAME_SKIPS = REAL_LOAD_SKIPS + ("fog-covers-all",)
+
+
 def hier_stream_problem(report):
     """Why the probe's streaming facts are not Voxy's (None if they are): it streams at
     ceil(sectionRenderDistance + 1) top-level columns, as VoxyRenderSystem.setRenderDistance, and
@@ -2530,6 +2535,10 @@ def hier_stream_problem(report):
             or report["maxBoundSections"] < 1:
         return (f"says vanillaBound={report.get('vanillaBound')!r} with"
                 f" {report.get('maxBoundSections')!r} vanilla section(s) in the bound; no near cut")
+    # GL's final blit's colour work (fog, fade) natively, in Voxy's configured mode
+    if report.get("postPass") is not True or report.get("fogMode") not in VOXY_FOG_MODES:
+        return (f"says postPass={report.get('postPass')!r}, fogMode={report.get('fogMode')!r};"
+                f" Voxy's fog and fade are not applied")
     # Minecraft's own lightmap (GL Voxy samples it directly), not the synthetic uniform one
     if report.get("lightmapFailure") is not None or not finite_int(report.get("lightmapsApplied")) \
             or report["lightmapsApplied"] < 1:
@@ -2562,7 +2571,7 @@ def hier_frames_checks(report, log_text, entries, required, ladder_draws=None):
             raise ValueError(f"hierLoad.{field} is {value!r}, not a {kind.__name__}")
     every, composited, skips = report["everyFrame"], report["framesComposited"], report["frameSkips"]
     for reason, n in skips.items():
-        if reason not in REAL_LOAD_SKIPS or not finite_int(n) or n < 1:
+        if reason not in HIER_FRAME_SKIPS or not finite_int(n) or n < 1:
             raise ValueError(f"hierLoad.frameSkips holds {reason!r}: {n!r}, not a skip reason with a"
                              f" positive count")
     logged = [(int(a), int(n)) for a, n in HIER_FRAMES_LOG.findall(log_text or "")]
@@ -2826,7 +2835,8 @@ RENDER_LAUNCH_FLAGS = ("-PharnessNativeRender=true",)
 RENDER_STAGE_LOG = re.compile(r"hier frames entering stage (\w+): composited=(\d+) skipped=(\d+)"
                               r" builds=(\d+)")
 RENDER_SKIPS = tuple(r for r in REAL_LOAD_SKIPS if r != "build-budget-spent") + ("rebuild-wait",
-                                                                                 "rendering-disabled")
+                                                                                 "rendering-disabled",
+                                                                                 "fog-covers-all")
 # Launch properties that turn on a diagnostic (or a part of the native path on its own); the
 # product launch passes none of them (round-27 R27-RENDER-GATE).
 RENDER_FORBIDDEN_LAUNCH = ("harnessNativeDepthLadder", "harnessNativeCoexist",

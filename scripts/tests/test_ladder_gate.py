@@ -639,7 +639,7 @@ def hier_report(entries, **overrides):
             "iterations": verify.HIER_LOAD_ITERATIONS, "streaming": True,
             "sectionRenderDistance": 16.0, "streamRenderDistance": 17, "maxTopLevels": 34,
             "vanillaBound": True, "maxBoundSections": 210, "lightmapsApplied": 480,
-            "lightmapReads": 481, "lightmapFailure": None,
+            "lightmapReads": 481, "lightmapFailure": None, "postPass": True, "fogMode": "FOG_AND_FADE",
             "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True,
             "results": [dict(e) for e in entries], "problems": 0, "firstProblem": None,

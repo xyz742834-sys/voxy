@@ -41,7 +41,7 @@ def report(**overrides):
             "builds": 2, "buildBudget": 6, "iterations": 3, "streaming": True,
             "sectionRenderDistance": 16.0, "streamRenderDistance": 17, "maxTopLevels": 34,
             "vanillaBound": True, "maxBoundSections": 210, "lightmapsApplied": 480,
-            "lightmapReads": 481, "lightmapFailure": None,
+            "lightmapReads": 481, "lightmapFailure": None, "postPass": True, "fogMode": "FOG_AND_FADE",
             "voxyNear": 16.0, "voxyFar": 48000.0, "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True, "results": [], "problems": 0,
             "firstProblem": None, "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
@@ -139,6 +139,9 @@ class RenderGateTest(unittest.TestCase):
         # Minecraft's lightmap
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(lightmapsApplied=0)), "synthetic lighting")
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(lightmapFailure="x")), "synthetic lighting")
+        # fog and fade (GL's final blit)
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(postPass=False)), "fog and fade are not applied")
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(fogMode="sometimes")), "fog and fade are not applied")
 
     def test_every_frame_is_accounted_for(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(renderCalls=b["renderCalls"] + 1)),

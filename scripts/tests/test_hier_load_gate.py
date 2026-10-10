@@ -112,6 +112,7 @@ class HierLoadGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(maxBoundSections=0)), "no near cut")
         self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(vanillaBound=None)), "no near cut")
         self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(lightmapsApplied=0)), "synthetic lighting")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(postPass=None)), "fog and fade are not applied")
         self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(sectionRenderDistance=None)),
                            "sectionRenderDistance=None")
         # meshing continues after the build: fewer sections now than at build is refused

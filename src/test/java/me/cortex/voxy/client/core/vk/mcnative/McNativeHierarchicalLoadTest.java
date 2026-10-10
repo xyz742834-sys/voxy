@@ -34,6 +34,18 @@ public class McNativeHierarchicalLoadTest {
         assertTrue(json.contains("\"vanillaBound\": true"), json);
         assertTrue(json.contains("\"maxBoundSections\": 0"), json);
         assertTrue(json.contains("\"lightmapsApplied\": 0"), json);
+        assertTrue(json.contains("\"postPass\": true"), json);
+        // NormalRenderPipeline.finish's fog/fade uniforms, ported
+        float[] p = McNativePost.parameters(new float[] {0.5f, 0.6f, 0.7f, 1f, 100f, 200f}, true, true, 128f, 16f);
+        assertEquals(1f / 100f, p[0], 1e-9f);
+        assertEquals(-1f, p[1], 1e-6f);
+        assertEquals(1f, p[2], 1e-6f);       // endDistance = max(128, 320) * sqrt 3 = 554 > fog end
+        assertEquals(0.5f, p[4]);
+        assertEquals(1f, p[8]);              // fade mode xz
+        assertEquals(0f, p[12]);             // fog end 200 >= 128: Voxy is shown
+        assertEquals(1f, McNativePost.parameters(new float[] {0, 0, 0, 1, 10f, 100f}, true, true, 128f, 16f)[12]);
+        float[] none = McNativePost.parameters(null, true, true, 128f, 16f);
+        assertEquals(0f, none[7]);           // no fog captured: no fog colour
         assertFalse(McNativeBounds.collecting(), "nothing feeds the native bound with native rendering off");
         assertTrue(json.contains("\"buildBudget\": 6"), json);
         assertTrue(json.contains("\"declaredDepthState\": [6, 1, 1]"), json);

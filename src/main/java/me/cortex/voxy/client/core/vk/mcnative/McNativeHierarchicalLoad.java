@@ -107,6 +107,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         NO_CAMERA = "no-camera-this-frame", EXTENT = "camera-extent-mismatch",
         NOTHING_MESHED = "nothing-meshed", BUILD_BUDGET_SPENT = "build-budget-spent",
         ATLAS_PENDING = "atlas-pending",
+        /** GL's final blit is skipped when Minecraft's fog ends before its render distance. */
+        FOG_COVERS_ALL = "fog-covers-all",
         /** Voxy's own setting says no rendering ({@code VoxyConfig.isRenderingEnabled}): nothing drawn. */
         RENDERING_DISABLED = "rendering-disabled",
         /** Normal play (no ladder): the last build attempt was under REBUILD_INTERVAL_FRAMES ago. */
@@ -133,6 +135,16 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     /** The most vanilla sections the native bound drew in one frame; sections dropped over capacity. */
     private static int maxBoundSections;
     private static int[] boundScratch;
+
+    private static float[] lastPost;
+
+    /** {@code NormalRenderPipeline.finish}'s fog and fade uniforms for this frame (and fog-covers-all). */
+    static float[] postParameters() {
+        var mode = me.cortex.voxy.client.config.VoxyConfig.CONFIG.getFogMode();
+        return McNativePost.parameters(McNativeFog.latest(), mode.hasFog, mode.hasFade,
+            me.cortex.voxy.client.core.VoxyRenderSystem.getVanillaRenderDistance(),
+            me.cortex.voxy.client.config.VoxyConfig.CONFIG.sectionRenderDistance);
+    }
 
     private static long lightmapSeen;
     /** Minecraft lightmaps applied to the scene. */
@@ -211,6 +223,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private final me.cortex.voxy.client.core.vk.VkBuffer mcDepthReadback;
     private final VkHierarchicalScene scene;
     private final McNativeComposite composite;
+    /** GL's final-blit colour work (fog, fade) in Voxy's submission; the composite blends its output. */
+    private McNativePost post;
     private final java.lang.ref.WeakReference<me.cortex.voxy.common.world.WorldEngine> engine;
     private final int atlasGeneration, buildOrdinal, width, height;
     /** Sections populate() meshed when the scene was built (its log line); {@code meshed} grows after. */
@@ -482,6 +496,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 probe.target.recordReadback(cmd);
                 probe.target.recordDepthReadback(cmd);
                 probe.recordResolve(cmd, mvp, mcMvp, true);
+                lastPost = postParameters();
+                probe.post.record(cmd, probe.target.color, probe.target.depth,
+                    new org.joml.Matrix4f().set(mvp).invert(), sub, lastPost, true);
                 probe.composite.prepareSources(cmd);
             }
             tracker.endFrame();
@@ -492,7 +509,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         int n = width * height;
         colours = new int[n];
         depths = new float[n];
-        long base = probe.target.readbackBuffer().addr();
+        // the reference is what the composite blends: the post pass's output (fog, fade)
+        long base = probe.post.readback.addr();
         long dbase = probe.mcDepthReadback.addr();
         long rbase = probe.target.depthReadbackBuffer().addr();
         float[] rawDepths = new float[width * height];
@@ -590,9 +608,17 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         var cmd = tracker.beginFrame();
         probe.scene.record(cmd, probe.target, CLEAR, null);
         probe.recordResolve(cmd, mvp, mcMvp, false);
+        float[] params = postParameters();
+        probe.post.record(cmd, probe.target.color, probe.target.depth,
+            new org.joml.Matrix4f().set(mvp).invert(), sub, params, false);
         probe.composite.prepareSources(cmd);
         tracker.endFrame();
         probe.requestsUnread = true;
+        if (params[12] != 0) {
+            // GL: fog covers all Voxy rendering, so its final blit is skipped and Voxy not shown
+            FRAME_SKIPS.merge(FOG_COVERS_ALL, 1L, Long::sum);
+            return;
+        }
         var notes = new ArrayList<String>();
         try (var pass = RenderSystem.getDevice().createCommandEncoder().createRenderPass(
                 () -> "voxy native hierarchical frame", colour, Optional.empty(), depth,
@@ -651,6 +677,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         VkRenderTarget target = null;
         VkHierarchicalScene scene = null;
         McNativeComposite composite = null;
+        McNativePost post = null;
         me.cortex.voxy.client.core.vk.VkTexture mcDepth = null;
         me.cortex.voxy.client.core.vk.VkDepthResolve resolve = null;
         me.cortex.voxy.client.core.vk.VkBuffer mcDepthReadback = null;
@@ -674,14 +701,16 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                     | VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
             resolve = new me.cortex.voxy.client.core.vk.VkDepthResolve(target.depth, width, height, true);
             mcDepthReadback = new me.cortex.voxy.client.core.vk.VkBuffer((long) width * height * 4);
-            composite = new McNativeComposite(target.color, mcDepth);
+            post = new McNativePost(target.color, target.depth, width, height);
+            composite = new McNativeComposite(post.output, mcDepth);
             Logger.info("[native-vk] hier-LOAD scene #" + builds + ": streaming render distance "
                 + scene.streamRenderDistance() + ", sections " + sections[0] + ".." + sections[1]);
             var built = new McNativeHierarchicalLoad(device, mcDevice, target, mcDepth, resolve,
                 mcDepthReadback, scene, composite, world,
                 McNativeAtlas.generation(), builds, width, height, meshed);
             target = null; scene = null; composite = null;
-            mcDepth = null; resolve = null; mcDepthReadback = null;
+            built.post = post;
+            mcDepth = null; resolve = null; mcDepthReadback = null; post = null;
             return built;
         } catch (Throwable t) {
             fail("could not build the hierarchical scene: " + t);
@@ -689,6 +718,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         } finally {
             // nothing of these was submitted to Minecraft yet
             if (composite != null) try { composite.free(); } catch (Throwable t) { closeFailures++; }
+            if (post != null) try { post.free(); } catch (Throwable t) { closeFailures++; }
             if (resolve != null) try { resolve.free(); } catch (Throwable t) { closeFailures++; }
             if (mcDepth != null) try { mcDepth.free(); } catch (Throwable t) { closeFailures++; }
             if (mcDepthReadback != null) try { mcDepthReadback.free(); } catch (Throwable t) { closeFailures++; }
@@ -910,6 +940,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         if (this.destroyed) return;
         this.destroyed = true;
         try { this.composite.free(); } catch (Throwable t) { closeFailures++; }
+        if (this.post != null) try { this.post.free(); } catch (Throwable t) { closeFailures++; }
         try { this.scene.free(); } catch (Throwable t) { closeFailures++; }
         try { this.target.free(); } catch (Throwable t) { closeFailures++; }
         try { this.resolve.free(); } catch (Throwable t) { closeFailures++; }
@@ -984,6 +1015,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"streaming\": true,\n");
         sb.append("  \"maxTopLevels\": ").append(maxTopLevels).append(",\n");
         sb.append("  \"vanillaBound\": true,\n");
+        sb.append("  \"postPass\": true,\n");
+        sb.append("  \"fogMode\": ").append(McNativeVulkanProbe.quote(
+            me.cortex.voxy.client.config.VoxyConfig.CONFIG.getFogMode().name())).append(",\n");
         sb.append("  \"lightmapsApplied\": ").append(lightmapsApplied).append(",\n");
         sb.append("  \"lightmapReads\": ").append(McNativeLightmap.reads()).append(",\n");
         sb.append("  \"lightmapFailure\": ").append(McNativeVulkanProbe.quote(McNativeLightmap.failure())).append(",\n");
