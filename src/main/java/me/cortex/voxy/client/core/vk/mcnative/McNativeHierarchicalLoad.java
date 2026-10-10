@@ -108,10 +108,22 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      */
     static int sectionCapacity() { return Integer.getInteger("voxy.native.sectionCapacity", SECTIONS); }
     /**
-     * The scene's geometry capacity in quads: {@link #MAX_QUADS}, or {@code voxy.native.geometryQuads}
-     * — the admission limit (bytes), which the pressure launch lowers so Voxy's reclaim must run.
+     * The scene's geometry capacity in quads: {@code voxy.native.geometryQuads} (the pressure launch
+     * lowers the admission limit so Voxy's reclaim must run), else GL's own override
+     * {@code voxy.geometryBufferSizeOverrideMB} (RenderResourceReuse.getGeometryBufferSize: the
+     * geometry buffer is that many MiB; a quad is 8 bytes), else {@link #MAX_QUADS}.
      */
-    static int geometryQuads() { return Integer.getInteger("voxy.native.geometryQuads", MAX_QUADS); }
+    static int geometryQuads() {
+        Integer quads = Integer.getInteger("voxy.native.geometryQuads");
+        if (quads != null) return quads;
+        String override = System.getProperty(GL_GEOMETRY_OVERRIDE_MB, "");
+        if (!override.isEmpty()) {
+            long bytes = Long.parseLong(override.trim()) * 1024L * 1024L;
+            return (int) Math.max(1L, Math.min(Integer.MAX_VALUE, bytes / 8L));
+        }
+        return MAX_QUADS;
+    }
+    static final String GL_GEOMETRY_OVERRIDE_MB = "voxy.geometryBufferSizeOverrideMB";
     static final int MAX_QUADS = 4_000_000;
     static final int BUILD_BUDGET = 6;
     static final float[] CLEAR = {0.05f, 0.05f, 0.10f, 1.0f};

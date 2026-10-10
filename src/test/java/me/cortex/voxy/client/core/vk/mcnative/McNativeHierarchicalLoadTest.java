@@ -120,4 +120,26 @@ public class McNativeHierarchicalLoadTest {
             if (kill == null) System.clearProperty(McNativeRender.DISABLE_FLAG); else System.setProperty(McNativeRender.DISABLE_FLAG, kill);
         }
     }
+
+    /** GL's geometry-buffer override applies to the native scene too; the harness's own knob wins. */
+    @org.junit.jupiter.api.Test
+    void theGeometryCapacityHonoursGlsOverride() {
+        String gl = McNativeHierarchicalLoad.GL_GEOMETRY_OVERRIDE_MB;
+        String savedGl = System.getProperty(gl), savedQuads = System.getProperty("voxy.native.geometryQuads");
+        try {
+            System.clearProperty(gl);
+            System.clearProperty("voxy.native.geometryQuads");
+            assertEquals(McNativeHierarchicalLoad.MAX_QUADS, McNativeHierarchicalLoad.geometryQuads());
+            System.setProperty(gl, "512");
+            assertEquals(512 * 1024 * 1024 / 8, McNativeHierarchicalLoad.geometryQuads());
+            System.setProperty(gl, "4096");
+            assertEquals(4096L * 1024 * 1024 / 8, McNativeHierarchicalLoad.geometryQuads());
+            System.setProperty("voxy.native.geometryQuads", "500000");
+            assertEquals(500000, McNativeHierarchicalLoad.geometryQuads());
+        } finally {
+            if (savedGl == null) System.clearProperty(gl); else System.setProperty(gl, savedGl);
+            if (savedQuads == null) System.clearProperty("voxy.native.geometryQuads");
+            else System.setProperty("voxy.native.geometryQuads", savedQuads);
+        }
+    }
 }
