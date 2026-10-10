@@ -758,14 +758,19 @@ public final class VkHierarchicalScene {
      */
     public void record(VkCommandBuffer cmd, VkRenderTarget target, float[] clearColour,
                        VkInteropDepth depthOut) {
+        long[] t = new long[14];
+        int k = 0;
+        t[k++] = System.nanoTime();
         this.timer.reset(cmd);
         this.timer.mark(cmd, 0);
         this.echoUniforms(cmd);
+        t[k++] = System.nanoTime();
 
         // ⚠ **焼いたタイルをアトラスへ流す。** これを忘れると
         // `useExternalAtlasContent()` で合成の中身も止めているので
         // **アトラスが未初期化のまま**になる。落ちないし絵も出る — 一色になるだけである
         this.bakery.recordUploads(cmd);
+        t[k++] = System.nanoTime();
 
         // The native vanilla bound (VkBoundRenderer, GL's BoundRenderer): Minecraft's built,
         // visible section boxes into each terrain pass's depth bound, so Voxy draws only beyond
@@ -776,7 +781,9 @@ public final class VkHierarchicalScene {
         for (var r : new VkTerrainRenderer[] {this.renderer, this.temporalRenderer, this.translucentRenderer}) {
             r.recordUploads(cmd);
         }
+        t[k++] = System.nanoTime();
         this.res.recordLightmapUpload(cmd);
+        t[k++] = System.nanoTime();
         if (this.vanillaBound != null) {
             for (var r : new VkTerrainRenderer[] {this.renderer, this.temporalRenderer, this.translucentRenderer}) {
                 r.recordUploads(cmd);
@@ -785,16 +792,20 @@ public final class VkHierarchicalScene {
             }
         }
 
+        t[k++] = System.nanoTime();
         // ① 不透明。**前フレームのテーブル**で描き、深度を書く
         this.renderer.record(cmd, target, this.maxDraws, clearColour);
         this.timer.mark(cmd, 1);
+        t[k++] = System.nanoTime();
 
         // ② HiZ。**①が書いた深度**から作る。順序を入れ替えると 1 フレーム古くなる
         this.hiz.record(cmd);
         this.timer.mark(cmd, 2);
+        t[k++] = System.nanoTime();
 
         this.traversal.record(cmd, this.topNodes.count());
         this.timer.mark(cmd, 3);
+        t[k++] = System.nanoTime();
 
         // ⚠ 参照実装の並び: prep -> cull のラスタ -> cmdgen
         // [確認済 — MDICSectionRenderer.buildDrawCalls]。
@@ -805,9 +816,11 @@ public final class VkHierarchicalScene {
         }
         // ⚠ 区間 "cull" は prep を含む (prep は 1 ディスパッチで無視できる)
         this.timer.mark(cmd, 4);
+        t[k++] = System.nanoTime();
 
         this.table.recordAfterPrep(cmd, this.lastDrawnSections, this.maxDraws);
         this.timer.mark(cmd, 5);
+        t[k++] = System.nanoTime();
 
         // ③ temporal。**今フレームのテーブル**で、①の取りこぼしだけを埋める。
         // ⚠ 色も深度もクリアしない — クリアすると①の絵が丸ごと消える
@@ -823,7 +836,20 @@ public final class VkHierarchicalScene {
 
         if (depthOut != null) depthOut.resolve(cmd, target.depth);
         this.timer.mark(cmd, 8);
+        t[k++] = System.nanoTime();
+        if (t[k - 1] - t[0] > 16_000_000L && slowRecordLogs < 50) {
+            // a recording over a 60 FPS frame on its own: which step (first 50)
+            slowRecordLogs++;
+            String[] steps = {"echo", "bakeryUploads", "rendererUploads", "lightmap", "bound", "opaque",
+                "hiz", "traversal", "prepCull", "table", "temporalTranslucent"};
+            var sb = new StringBuilder("[native-vk] slow scene recording: total=").append((t[k - 1] - t[0]) / 1e6);
+            for (int i = 1; i < k && i - 1 < steps.length; i++) {
+                sb.append(' ').append(steps[i - 1]).append('=').append((t[i] - t[i - 1]) / 1e6);
+            }
+            Logger.info(sb.append(" ms").toString());
+        }
     }
+    private static int slowRecordLogs;
 
     /**
      * <b>GPU に見えているユニフォームをそのまま写して返す</b> (Phase 5c-5a の切り分け)。
