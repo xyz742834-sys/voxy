@@ -482,7 +482,8 @@ def write_terrain_files(out, sample, field, after, depth, entry):
 
 def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=True,
                         terrain=True, real=False, real_violate=None, real_status=None,
-                        hier=False, hier_violate=None, hier_status=None, hier_frames=False):
+                        hier=False, hier_violate=None, hier_status=None, hier_frames=False,
+                        far_depths=None):
     """Write everything the stage's ladder launch retains for `pairs`: the ladder crops, the
     coexist crops and entries, the terrain-LOAD crops/references and entries. Returns the
     ladder report body, the terrain report body and the complete log text."""
@@ -514,7 +515,10 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
                 hier_entries.append(skip)
                 continue
             far_look = s["stage"] == verify.LADDER_FAR_STAGE
+            far_true, far_ref = far_depths or (BEYOND_TRUE_DEPTH, BEYOND_REFERENCE_DEPTH)
             depth = terrain_depth(len(f[0]), len(f), "beyond" if far_look else depth_kind)
+            if far_look:
+                depth = [[far_ref if d else 0.0 for d in row] for row in depth]
             # paint the violation on the first sample that has a pixel of its kind
             try:
                 after = terrain_after(f, before, depth, None if hier_violated else hier_violate,
@@ -524,7 +528,7 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
                 after = terrain_after(f, before, depth, None, expect=clear_expect)
             entry = hier_entry(s, f, before, depth, after)
             write_real_files(out, s, f, after, depth, entry)
-            true_depth = ([[BEYOND_TRUE_DEPTH if d else 0.0 for d in row] for row in depth]
+            true_depth = ([[far_true if d else 0.0 for d in row] for row in depth]
                           if far_look else depth)
             write_gz_f32(out / entry["voxyDepthFile"], hier_raw_depth(true_depth, entry, s))
             hier_entries.append(entry)

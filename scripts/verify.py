@@ -3523,6 +3523,12 @@ def ladder_anchor_blocks(crop_rows, crop_rect, thumb_rows):
     checked = 0
     bx0, bx1 = -(-x0 // scale), x1 // scale
     by0, by1 = -(-y0 // scale), y1 // scale
+    # a thumbnail too small for the crop's blocks is malformed evidence, refused with a reason
+    # (it raised IndexError: a crash, not a refusal)
+    if by1 > by0 and bx1 > bx0 and (len(thumb_rows) < by1
+                                    or any(len(thumb_rows[by]) < bx1 for by in range(by0, by1))):
+        raise ValueError(f"the retained frame thumbnail is too small for the crop at {crop_rect}"
+                         f" (it needs blocks up to ({bx1},{by1}))")
     for by in range(by0, by1):
         for bx in range(bx0, bx1):
             sums = [0, 0, 0]

@@ -26,7 +26,7 @@ class HierLoadGateTest(unittest.TestCase):
 
     def run_gate(self, hier_violate=None, hier_status=None, mutate_ladder=None, mutate_hier=None,
                  mutate_files=None, log=None, require=True, depth_kind="sweep", terrain=False,
-                 real=False, frames=False, require_frames=None, pairs=None):
+                 real=False, frames=False, require_frames=None, pairs=None, far_depths=None):
         # the two straight-down ground looks hold no clear pixel; Voxy's GL rule shows it only on
         # clear pixels, so a later look with clear sky between clouds carries the must-show side
         if pairs is None:
@@ -35,7 +35,8 @@ class HierLoadGateTest(unittest.TestCase):
             out = Path(tmp)
             body, tl, text = full_ladder_package(out, pairs, terrain=terrain, real=real, hier=True,
                                                  hier_violate=hier_violate, hier_status=hier_status,
-                                                 depth_kind=depth_kind, hier_frames=frames)
+                                                 depth_kind=depth_kind, hier_frames=frames,
+                                                 far_depths=far_depths)
             if mutate_ladder:
                 mutate_ladder(body)
             if mutate_hier:
@@ -73,13 +74,9 @@ class HierLoadGateTest(unittest.TestCase):
         result = self.run_gate(pairs=direction_samples() + [sample(at=3480, kind="clouds", stage="reconnect")])
         self.assertRefused(result, "0 judged hierarchical-LOAD sample(s) in the far look")
         # a far look whose terrain lies inside the far plane: consistent depths, no far pixel
-        import test_ladder_gate as tlg
-        saved = (tlg.BEYOND_TRUE_DEPTH, tlg.BEYOND_REFERENCE_DEPTH)
-        try:
-            tlg.BEYOND_TRUE_DEPTH = tlg.BEYOND_REFERENCE_DEPTH = verify.HIER_REPROJECT_EPS * 4
-            self.assertRefused(self.run_gate(), "0 Voxy pixel(s) beyond Minecraft's far plane")
-        finally:
-            tlg.BEYOND_TRUE_DEPTH, tlg.BEYOND_REFERENCE_DEPTH = saved
+        inside = verify.HIER_REPROJECT_EPS * 4
+        self.assertRefused(self.run_gate(far_depths=(inside, inside)),
+                           "0 Voxy pixel(s) beyond Minecraft's far plane")
 
     def test_alongside_terrain_and_real_load_every_sample_goes_to_one_experiment(self):
         # three samples outside horizon go terrain, real, hier: the hierarchy gets only the last,
@@ -283,6 +280,127 @@ class HierLoadGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(hier_status={0: "no-camera-this-frame"},
                                          mutate_hier=lambda r: r["results"][0].update(frameExtent=[1, 1])),
                            "carries ['frameExtent']")
+
+    def test_the_shared_load_helpers_guard_hierarchical_samples_too(self):
+        """Round-27 R24-HIER-GUARD-COVERAGE: 27 shared-helper predicates (skip provenance, judged
+        entry facts, per-sample judgement) were detected only by real-LOAD tests. One case each,
+        on the hierarchical fixture, asserting the predicate's own message."""
+        from test_ladder_gate import write_gz_f32
+        R = lambda i, **kw: (lambda r: r["results"][i].update(**kw))
+        def pop(i, key):
+            return lambda r: r["results"][i].pop(key)
+        def log_drop(fragment):
+            return lambda t: "".join(l for l in t.splitlines(keepends=True) if fragment not in l)
+        pend = {0: "atlas-pending"}
+        # -- skip provenance (real_load_skip_provenance) --
+        self.assertRefused(self.run_gate(hier_status=pend, mutate_hier=R(0, bogus=1)),
+                           "carries ['bogus'], which a skip never has")
+        # the shared helper's own extra-key guard is unreachable from here, and stays so: the
+        # hierarchical gate refuses first against a subset of real-LOAD's skip keys
+        self.assertLess(verify.HIER_LOAD_SKIP_KEYS, verify.REAL_LOAD_SKIP_KEYS)
+        self.assertRefused(self.run_gate(hier_status=pend, log=lambda t: None),
+                           "cannot be corroborated without the log")
+        self.assertRefused(self.run_gate(hier_status=pend, log=lambda t: t.replace(
+                               "hier load at draw 3000 status=atlas-pending\n",
+                               "hier load at draw 3000 status=atlas-pending extra=1\n")),
+                           "log line for skipped draw 3000 is missing or carries more")
+        self.assertRefused(self.run_gate(hier_status=pend, mutate_hier=R(0, buildsSoFar=5)),
+                           "says 5 build(s) so far")
+        self.assertRefused(self.run_gate(hier_status=pend, mutate_hier=pop(0, "cameraCapture")),
+                           "does not state cameraCapture")
+        self.assertRefused(self.run_gate(hier_status=pend, mutate_hier=R(0, atlasState=2)),
+                           "the atlas state was 2")
+        self.assertRefused(self.run_gate(hier_status={0: "no-camera-this-frame"},
+                                         mutate_hier=lambda r: r["results"][0].update(
+                                             previousCapture=r["results"][0]["cameraCapture"] - 1)),
+                           "the capture count moved")
+        def bracket(text):
+            line = next(l for l in text.splitlines(keepends=True) if "hier load at draw 3000 " in l)
+            inst = ("[native-vk] native instance at frame {f} stage=descend factory=true instance=true"
+                    " engine=true live=true activeSections=1 renderer=false ingest=true"
+                    " cameraCaptures={f} storedNearCamera=1\n")
+            return text.replace(line, inst.format(f=60) + line + inst.format(f=120))
+        self.assertRefused(self.run_gate(hier_status={0: "no-camera-this-frame"}, log=bracket),
+                           "show a capture every frame")
+        self.assertRefused(self.run_gate(hier_status={0: "camera-extent-mismatch"}),
+                           "which the ladder sample does not support")
+        def live_engine(text):
+            line = next(l for l in text.splitlines(keepends=True) if "hier load at draw 3000 " in l)
+            inst = ("[native-vk] native instance at frame 60 stage=descend factory=true instance=true"
+                    " engine=true live=true activeSections=1 renderer=false ingest=true"
+                    " cameraCaptures=60 storedNearCamera=1\n")
+            return text.replace(line, inst + line)
+        self.assertRefused(self.run_gate(hier_status={0: "no-world-engine"}, log=live_engine),
+                           "shows a live engine")
+        self.assertRefused(self.run_gate(hier_status={0: "build-budget-spent"}),
+                           "the build budget was spent after")
+        # -- judged entry facts (load_judged_entry_checks) --
+        self.assertRefused(self.run_gate(mutate_hier=R(0, projectionAdjusted="no")),
+                           "does not say whether Minecraft's projection was adjusted")
+        self.assertRefused(self.run_gate(mutate_hier=R(0, stage="turn")),
+                           "says stage 'turn' but the ladder sample says 'descend'")
+        self.assertRefused(self.run_gate(mutate_hier=R(0, mcProjection=[1.0] * 15)),
+                           "does not publish both 16-entry projections")
+        self.assertRefused(self.run_gate(mutate_hier=R(0, farPlane=1.0)), "reports farPlane=1.0")
+        self.assertRefused(self.run_gate(mutate_hier=R(0, cameraCapture=0)), "has cameraCapture=0")
+        self.assertRefused(self.run_gate(mutate_hier=pop(0, "engineId")), "does not state engineId")
+        def second_read(text):
+            line = "[native-vk] block atlas read through Blaze3D: 2048x2048\n"
+            return text.replace(line, line + line, 1)
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r.update(atlasReads=2), log=second_read),
+                           "but 2 atlas read(s) are logged before it")
+        def rebuilt(r):   # a second build before draw 3000, the next sample back on the first
+            r.update(builds=2)
+            r["results"][0].update(sceneBuild=2)
+        def second_scene(text):
+            first = "[native-vk] hier-LOAD scene #1: streaming render distance 17, sections -1..0\n"
+            return text.replace(first, first + first.replace("#1", "#2"), 1)
+        self.assertRefused(self.run_gate(mutate_hier=rebuilt, log=second_scene),
+                           "older than the previous sample's")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][1].update(
+                               engineId=r["results"][0]["engineId"] + 1)),
+                           "engineId changed but the same scene")
+        # -- per-sample judgement (judge_load_sample) --
+        def rewrite(name_field, write):
+            def mutate(o):
+                hl = json.loads((o / "native-hier-load.json").read_text())
+                write(o / hl["results"][0][name_field])
+            return mutate
+        tiny = lambda path: write_gz_ppm(path, [[(0, 0, 0)] * 2] * 2)
+        self.assertRefused(self.run_gate(mutate_files=rewrite("file", tiny)),
+                           "crop is 2x2 but the ladder crop is")
+        self.assertRefused(self.run_gate(mutate_files=rewrite("referenceFile", tiny)),
+                           "reference crops are 2x2")
+        def out_of_range(path):
+            depth, (w, h) = verify.read_f32_gz(path)
+            depth[0][0] = 1.5
+            write_gz_f32(path, depth)
+        self.assertRefused(self.run_gate(mutate_files=rewrite("referenceDepthFile", out_of_range)),
+                           "holds values outside [0, 1]")
+        self.assertRefused(self.run_gate(mutate_files=rewrite("frameFile", tiny)),
+                           "thumbnail is too small for the crop")
+        # a band smaller than one thumbnail block (only at tiny extents): judged directly
+        with tempfile.TemporaryDirectory() as tmp:
+            o = Path(tmp)
+            px = [[(10, 20, 30)] * 3 for _ in range(3)]
+            for name in ("native-hier-load-9.ppm.gz", "native-hier-load-reference-9.ppm.gz",
+                         "native-hier-load-frame-9.ppm.gz", "ladder-9.ppm.gz"):
+                write_gz_ppm(o / name, px)
+            write_gz_f32(o / "native-hier-load-depth-9.f32.gz", [[0.0] * 3 for _ in range(3)])
+            entry = {"file": "native-hier-load-9.ppm.gz", "frameFile": "native-hier-load-frame-9.ppm.gz",
+                     "referenceFile": "native-hier-load-reference-9.ppm.gz",
+                     "referenceDepthFile": "native-hier-load-depth-9.f32.gz"}
+            with self.assertRaisesRegex(ValueError, "covers no whole thumbnail block"):
+                verify.judge_load_sample(o, {"sample": "ladder-9.ppm.gz", "rect": [1, 1, 4, 4]},
+                                         entry, 9, False, {}, None, verify.HIER_LOAD_SPEC)
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(
+                               referenceSet=r["results"][0]["referenceSet"] + 1)),
+                           "reports referenceSet=")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].update(
+                               expectVisible=r["results"][0]["expectVisible"] + 1)),
+                           "but the retained crops say")
+        self.assertRefused(self.run_gate(depth_kind="none", mutate_hier=R(0, minDepth=0.5)),
+                           "reports minDepth=0.5 with no geometry")
 
     def test_voxys_own_projection_and_the_reprojection_are_rederived(self):
         from test_ladder_gate import write_gz_f32
