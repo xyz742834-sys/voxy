@@ -61,13 +61,14 @@ def log_for(stages=verify.LIFECYCLE_STAGES, per_stage=100, start=0, cycles=1):
              "[native-vk] block atlas read through Blaze3D: 2048x2048\n",
              "[native-vk] hier-LOAD scene #1: streaming render distance 17, sections -1..0\n"]
     composited = start
+    R = verify.LIFECYCLE_STAGES.index("reload")   # the scene is rebuilt at the new size there
     for i, stage in enumerate(stages):
         lines.append(f"[voxy-harness] stage={stage}\n")
         lines.append(f"[native-vk] hier frames entering stage {stage}: composited={composited}"
-                     f" skipped=6 builds={1 if i < 9 else 2}"
-                     f" vkBuffers={0 if i < 1 else 40} vkBufferBytes={0 if i < 1 else 80961384 + (0 if i < 8 else 3471360)}"
-                     f" vkTextures={0 if i < 1 else 10} frame={'1708x960' if i < 8 else '1920x1080'}\n")
-        if i == 9:
+                     f" skipped=6 builds={1 if i < R + 1 else 2}"
+                     f" vkBuffers={0 if i < 1 else 40} vkBufferBytes={0 if i < 1 else 80961384 + (0 if i < R else 3471360)}"
+                     f" vkTextures={0 if i < 1 else 10} frame={'1708x960' if i < R else '1920x1080'}\n")
+        if i == R + 1:
             lines.append("[native-vk] hier-LOAD scene #2: streaming render distance 17, sections -1..0\n")
         composited += per_stage
     # the soak's repeats: the resize alternates the scene between the two sizes
@@ -113,7 +114,7 @@ class RenderGateTest(unittest.TestCase):
     def test_the_switch_alone_through_the_lifecycle_passes(self):
         result = self.run_gate()
         self.assertTrue(result["success"], result["failures"])
-        self.assertEqual(result["framesComposited"], 1400)
+        self.assertEqual(result["framesComposited"], 1500)
         self.assertEqual(set(result["perStage"]), set(verify.LIFECYCLE_STAGES))
         self.assertNotIn("nether", verify.RENDER_REQUIRED_STAGES)
         self.assertEqual(verify.RENDER_LAUNCH_FLAGS, ("-PharnessNativeRender=true",))
@@ -165,7 +166,7 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(fogMode="sometimes")), "fog and fade are not applied")
 
     def test_retired_scenes_return_their_allocations(self):
-        RECONNECT = "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=84432744 vkTextures=10"
+        RECONNECT = "entering stage reconnect: composited=1400 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=84432744 vkTextures=10"
         def at_reconnect(new):
             return lambda text: text.replace(RECONNECT, new)
         # the fixture itself grows by exactly two readbacks' worth at the resize, and passes
@@ -195,15 +196,15 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(log=counted), "retired scenes are not freed")
         # growth before the resize is judged against its own run, not hidden behind the resize
         def early(text):
-            return text.replace("entering stage resize: composited=700 skipped=6 builds=1 vkBuffers=40 vkBufferBytes=80961384",
-                                "entering stage resize: composited=700 skipped=6 builds=1 vkBuffers=40 vkBufferBytes=90000000")
+            return text.replace("entering stage resize: composited=800 skipped=6 builds=1 vkBuffers=40 vkBufferBytes=80961384",
+                                "entering stage resize: composited=800 skipped=6 builds=1 vkBuffers=40 vkBufferBytes=90000000")
         self.assertRefused(self.run_gate(log=early), "retired scenes are not freed")
         # a snapshot without a live scene (0x0) stays in its run: it cannot start one that excuses bytes
         def sceneless(text):
             return text.replace("vkBuffers=40 vkBufferBytes=84432744 vkTextures=10 frame=1920x1080\n[voxy-harness] stage=disconnect",
                                 "vkBuffers=40 vkBufferBytes=84432744 vkTextures=10 frame=1920x1080\n[voxy-harness] stage=disconnect").replace(
-                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=84432744 vkTextures=10 frame=1920x1080",
-                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=90000000 vkTextures=10 frame=0x0")
+                "entering stage reconnect: composited=1400 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=84432744 vkTextures=10 frame=1920x1080",
+                "entering stage reconnect: composited=1400 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=90000000 vkTextures=10 frame=0x0")
         self.assertRefused(self.run_gate(log=sceneless), "retired scenes are not freed")
 
     def test_the_scene_subdivides_at_voxys_configured_size(self):
@@ -312,7 +313,7 @@ class RenderGateTest(unittest.TestCase):
             return self.run_gate(gate=verify.native_inject_result, **kw)
         ok = run()
         self.assertTrue(ok["success"], ok["failures"])
-        self.assertEqual(ok["compositedAfter"], 1400)
+        self.assertEqual(ok["compositedAfter"], 1500)
         # the product launch refuses the flag, and an injected failure, outright
         self.assertRefused(self.run_gate(command=inject), "enables diagnostics")
         self.assertRefused(self.run_gate(mutate=injected, log=log), "problems=1")
@@ -401,26 +402,26 @@ class RenderGateTest(unittest.TestCase):
 
     def test_frames_must_be_composited_in_every_required_stage(self):
         def stall(text):
-            return text.replace("entering stage edit: composited=500", "entering stage edit: composited=600")
+            return text.replace("entering stage edit: composited=600", "entering stage edit: composited=700")
         self.assertRefused(self.run_gate(log=stall), "composited no frame in stage(s) ['edit']")
         def drop(text):
             return "".join(l for l in text.splitlines(keepends=True)
                            if "entering stage resize" not in l)
         self.assertRefused(self.run_gate(log=drop), "['resize']")
         def twice(text):
-            return text + "[voxy-harness] stage=warmup\n[native-vk] hier frames entering stage warmup: composited=1400 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=84432744 vkTextures=10 frame=1920x1080\n"
+            return text + "[voxy-harness] stage=warmup\n[native-vk] hier frames entering stage warmup: composited=1500 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=84432744 vkTextures=10 frame=1920x1080\n"
         self.assertRefused(self.run_gate(log=twice), "enters a stage twice")
         # round-27: a snapshot belongs to the harness stage current when it was written
         def early(text):
             line = next(l for l in text.splitlines(keepends=True) if "entering stage edit:" in l)
             return text.replace(line, "").replace("[voxy-harness] stage=edit\n", line + "[voxy-harness] stage=edit\n")
-        self.assertRefused(self.run_gate(log=early), "was written during harness stage 'horizon'")
+        self.assertRefused(self.run_gate(log=early), "was written during harness stage 'far'")
         def skipped(text):
             return text.replace("entering stage warmup: composited=0 skipped=6", "entering stage warmup: composited=0 skipped=999999999")
         self.assertRefused(self.run_gate(log=skipped), "exceed the final report")
         def built(text):
-            return text.replace("entering stage reconnect: composited=1300 skipped=6 builds=2",
-                                "entering stage reconnect: composited=1300 skipped=6 builds=9")
+            return text.replace("entering stage reconnect: composited=1400 skipped=6 builds=2",
+                                "entering stage reconnect: composited=1400 skipped=6 builds=9")
         self.assertRefused(self.run_gate(log=built), "exceed the final report")
         def order(text):
             a = next(l for l in text.splitlines(keepends=True) if "entering stage turn:" in l)
@@ -428,7 +429,7 @@ class RenderGateTest(unittest.TestCase):
             return text.replace(a, "@@").replace(b, a).replace("@@", b)
         self.assertRefused(self.run_gate(log=order), "was written during harness stage")
         def fall(text):
-            return text.replace("entering stage edit: composited=500", "entering stage edit: composited=350")
+            return text.replace("entering stage edit: composited=600", "entering stage edit: composited=350")
         self.assertRefused(self.run_gate(log=fall), "running totals fall")
         # the nether may composite nothing (no ingested sections there yet)
         def nether(text):

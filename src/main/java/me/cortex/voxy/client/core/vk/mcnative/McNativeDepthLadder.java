@@ -200,6 +200,12 @@ public final class McNativeDepthLadder implements Destroyable {
         EXPERIMENT_REAL_LOAD = "realLoad", EXPERIMENT_HIER_LOAD = "hierLoad";
     /** The harness stage whose samples go only to the real-world experiments (real, hierarchical). */
     public static final String HORIZON_STAGE = "horizon";
+    /**
+     * The far-world look (LiveWorldHarness.FAR_*): every sample there goes to hierarchical-LOAD when
+     * it runs — Voxy's terrain beyond Minecraft's far plane is what that look is for — and counts
+     * toward neither rotation.
+     */
+    public static final String FAR_STAGE = "far";
     private static int assigned, assignedHorizon;
     private static int problems;
     private static String firstProblem;
@@ -473,9 +479,11 @@ public final class McNativeDepthLadder implements Destroyable {
                 boolean horizon = HORIZON_STAGE.equals(System.getProperty("voxy.harness.stage", ""));
                 boolean real = McNativeRealLoad.enabled(), hier = McNativeHierarchicalLoad.enabled();
                 boolean horizonBranch = horizon && (real || hier);
-                String consumer = assignConsumer(McNativeTerrainLoad.enabled(), real, hier, horizon,
-                    horizonBranch ? assignedHorizon : assigned);
-                if (consumer != null) {
+                boolean far = hier && FAR_STAGE.equals(System.getProperty("voxy.harness.stage", ""));
+                String consumer = far ? EXPERIMENT_HIER_LOAD
+                    : assignConsumer(McNativeTerrainLoad.enabled(), real, hier, horizon,
+                        horizonBranch ? assignedHorizon : assigned);
+                if (consumer != null && !far) {
                     if (horizonBranch) assignedHorizon++; else assigned++;
                 }
                 sampleThisFrame = consumer == null ? -1 : at;

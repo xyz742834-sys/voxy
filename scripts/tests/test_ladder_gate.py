@@ -309,6 +309,10 @@ def terrain_depth(width, height, kind="sweep"):
             t = x / max(1, width)
             if kind == "near-only":
                 d = 0.5
+            elif kind == "beyond":
+                # Voxy's far-world terrain: beyond Minecraft's far plane, so its reference depth is
+                # clamped just inside it (the raw depth is built from BEYOND_TRUE_DEPTH)
+                d = 0.0 if t < 1 / 3 else BEYOND_REFERENCE_DEPTH
             elif kind == "none":
                 d = 0.0
             elif t < 1 / 3:
@@ -509,7 +513,8 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
                     skip["previousCapture"] = s["at"]
                 hier_entries.append(skip)
                 continue
-            depth = terrain_depth(len(f[0]), len(f), depth_kind)
+            far_look = s["stage"] == verify.LADDER_FAR_STAGE
+            depth = terrain_depth(len(f[0]), len(f), "beyond" if far_look else depth_kind)
             # paint the violation on the first sample that has a pixel of its kind
             try:
                 after = terrain_after(f, before, depth, None if hier_violated else hier_violate,
@@ -519,7 +524,9 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
                 after = terrain_after(f, before, depth, None, expect=clear_expect)
             entry = hier_entry(s, f, before, depth, after)
             write_real_files(out, s, f, after, depth, entry)
-            write_gz_f32(out / entry["voxyDepthFile"], hier_raw_depth(depth, entry, s))
+            true_depth = ([[BEYOND_TRUE_DEPTH if d else 0.0 for d in row] for row in depth]
+                          if far_look else depth)
+            write_gz_f32(out / entry["voxyDepthFile"], hier_raw_depth(true_depth, entry, s))
             hier_entries.append(entry)
             continue
         if consumer == verify.LADDER_REAL_LOAD:
@@ -619,6 +626,18 @@ def hier_entry(sample, field, before, depth, after):
 # which Voxy cannot render. A 32-block near plane puts the same panels where Voxy renders (64 and
 # about 2000 blocks), so the bracket sweep is unchanged and Voxy's raw depth is in (0, 1].
 HIER_MC_PROJECTION = verify._mat_perspective(math.radians(70), 16 / 9, 32.0, 2048.0)
+
+
+# where the far look's terrain really is in Minecraft's depth: farther than its far plane
+BEYOND_TRUE_DEPTH = verify.HIER_REPROJECT_EPS / 4
+# and its reference depth: clamped just inside the far plane
+BEYOND_REFERENCE_DEPTH = verify.HIER_REPROJECT_EPS
+
+
+def far_sample(at=3720):
+    """The far-world look (LiveWorldHarness `far`): clear sky in the band, Voxy terrain beyond
+    Minecraft's far plane."""
+    return sample(at=at, kind="clouds", stage=verify.LADDER_FAR_STAGE)
 
 
 def hier_raw_depth(depth, entry, sample):
@@ -1721,7 +1740,7 @@ class LadderRetentionTest(unittest.TestCase):
             # needs one to show anything
             horizon = [sample(at=2520, kind="clouds", stage="horizon"),
                        sample(at=2760, kind="clouds", stage="horizon")]
-            samples = list(samples) + horizon + direction_samples()
+            samples = list(samples) + horizon + direction_samples() + [far_sample()]
             # the stage's ladder launch runs every experiment its command enables, including
             # instance mode and real-LOAD (alternating with terrain-LOAD)
             import test_instance_gate

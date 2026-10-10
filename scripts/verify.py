@@ -273,7 +273,7 @@ def run_stage(name, arguments, output, timeout):
 # The harness's checkpointed lifecycle stages (LiveWorldHarness.STAGES minus "create" and
 # "disconnect", which checkpoint nothing). "descend" and "ascend" are the Z-direction
 # experiment: the same ground looked at straight down from two heights above it.
-LIFECYCLE_STAGES = ("warmup", "turn", "travel", "return", "horizon", "edit", "remove", "resize",
+LIFECYCLE_STAGES = ("warmup", "turn", "travel", "return", "horizon", "far", "edit", "remove", "resize",
                     "reload", "nether", "overworld", "descend", "ascend", "reconnect")
 DESCEND_ABOVE_GROUND, ASCEND_ABOVE_GROUND = 12, 108   # LiveWorldHarness.*_ABOVE_GROUND
 PLAYER_EYE_HEIGHT = 1.62                              # Minecraft's standing eye height
@@ -930,6 +930,8 @@ LADDER_SAMPLE_OR_STAGE = re.compile(
 
 LADDER_TERRAIN_LOAD, LADDER_REAL_LOAD, LADDER_HIER_LOAD = "terrainLoad", "realLoad", "hierLoad"
 LADDER_HORIZON_STAGE = "horizon"
+# McNativeDepthLadder.FAR_STAGE: every sample there goes to hierarchical-LOAD when it runs
+LADDER_FAR_STAGE = "far"
 
 
 def ladder_expected_consumer(terrain, real, index, hier=False, horizon=False):
@@ -949,6 +951,9 @@ def ladder_expected_consumers(terrain, real, hier, stages):
     """The hand-off for a whole sample list, from each sample's published stage."""
     out, general, horizon_count = [], 0, 0
     for stage in stages:
+        if stage == LADDER_FAR_STAGE and hier:
+            out.append(LADDER_HIER_LOAD)
+            continue
         horizon = stage == LADDER_HORIZON_STAGE and (real or hier)
         consumer = ladder_expected_consumer(terrain, real, horizon_count if horizon else general,
                                             hier, horizon)
@@ -2755,6 +2760,7 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     referenced = {"native-hier-load.json"}
     out, visible_samples, hidden_samples, previous_judged = [], 0, 0, None
     beyond_far = 0
+    far_samples = beyond_far_look = 0
     total = {name: 0 for name in TERRAIN_LOAD_COUNTS}
     for recount in recounts:
         at = recount["at"]
@@ -2808,6 +2814,9 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
                                                     ladder_samples_by_at.get(at, {}))
         referenced.add(raw_name)
         beyond_far += beyond
+        if entry.get("stage") == LADDER_FAR_STAGE:
+            far_samples += 1
+            beyond_far_look += beyond
         visible_samples += bool(counts["expectVisible"])
         hidden_samples += bool(counts["expectHidden"])
         for k in total:
@@ -2822,11 +2831,18 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     if not hidden_samples:
         raise ValueError(f"no judged {L} sample holds a pixel where Voxy's terrain must be hidden"
                          f" behind nearer Minecraft geometry, so occlusion is untested")
+    # far-world evidence (round 27): the `far` look shows Voxy terrain beyond Minecraft's far plane,
+    # each such pixel judged like the rest (Voxy's depth clamped just inside it)
+    if required and (not far_samples or beyond_far_look < 1):
+        raise ValueError(f"{far_samples} judged {L} sample(s) in the far look hold"
+                         f" {beyond_far_look} Voxy pixel(s) beyond Minecraft's far plane: Voxy's"
+                         f" far-world terrain is not shown")
     return {"enabled": True, "samples": out, "judged": len(judged),
             "visibleSamples": visible_samples, "hiddenSamples": hidden_samples,
             "expectVisible": total["expectVisible"], "expectHidden": total["expectHidden"],
             "undetermined": total["undetermined"], "geometry": total["geometry"],
-            "frames": frames, "beyondMinecraftFar": beyond_far}
+            "frames": frames, "beyondMinecraftFar": beyond_far, "farSamples": far_samples,
+            "beyondMinecraftFarInFarLook": beyond_far_look}
 
 
 # The product launch (voxy.native.render): the native path as normal play would run it, without

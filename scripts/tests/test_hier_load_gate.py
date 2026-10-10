@@ -19,7 +19,7 @@ import verify
 from verify import native_ladder_result
 from test_marker_gate import write_gz_ppm
 from test_ladder_gate import (DEVICE, EXTENTS, TERRAIN_REF, direction_checkpoints,
-                              direction_samples, full_ladder_package, sample)
+                              direction_samples, far_sample, full_ladder_package, sample)
 
 
 class HierLoadGateTest(unittest.TestCase):
@@ -30,7 +30,7 @@ class HierLoadGateTest(unittest.TestCase):
         # the two straight-down ground looks hold no clear pixel; Voxy's GL rule shows it only on
         # clear pixels, so a later look with clear sky between clouds carries the must-show side
         if pairs is None:
-            pairs = direction_samples() + [sample(at=3480, kind="clouds", stage="reconnect")]
+            pairs = direction_samples() + [sample(at=3480, kind="clouds", stage="reconnect"), far_sample()]
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             body, tl, text = full_ladder_package(out, pairs, terrain=terrain, real=real, hier=True,
@@ -61,10 +61,25 @@ class HierLoadGateTest(unittest.TestCase):
         self.assertTrue(result["success"], result["failures"])
         hl = result["hier_load"]
         self.assertTrue(hl["enabled"])
-        self.assertEqual(hl["judged"], 3)
+        self.assertEqual(hl["judged"], 4)
+        self.assertEqual(hl["farSamples"], 1)
+        self.assertGreater(hl["beyondMinecraftFarInFarLook"], 0)
         self.assertGreater(hl["expectVisible"], 0)
         self.assertGreater(hl["expectHidden"], 0)
         self.assertIn("hierarchical pipeline composited natively", result["answer"])
+
+    def test_the_far_look_must_show_terrain_beyond_minecrafts_far_plane(self):
+        # no far look at all
+        result = self.run_gate(pairs=direction_samples() + [sample(at=3480, kind="clouds", stage="reconnect")])
+        self.assertRefused(result, "0 judged hierarchical-LOAD sample(s) in the far look")
+        # a far look whose terrain lies inside the far plane: consistent depths, no far pixel
+        import test_ladder_gate as tlg
+        saved = (tlg.BEYOND_TRUE_DEPTH, tlg.BEYOND_REFERENCE_DEPTH)
+        try:
+            tlg.BEYOND_TRUE_DEPTH = tlg.BEYOND_REFERENCE_DEPTH = verify.HIER_REPROJECT_EPS * 4
+            self.assertRefused(self.run_gate(), "0 Voxy pixel(s) beyond Minecraft's far plane")
+        finally:
+            tlg.BEYOND_TRUE_DEPTH, tlg.BEYOND_REFERENCE_DEPTH = saved
 
     def test_alongside_terrain_and_real_load_every_sample_goes_to_one_experiment(self):
         # three samples outside horizon go terrain, real, hier: the hierarchy gets only the last,
@@ -200,7 +215,7 @@ class HierLoadGateTest(unittest.TestCase):
     def test_every_frame_rendering_is_reconciled_with_the_log(self):
         ok = self.run_gate(frames=True)
         self.assertTrue(ok["success"], ok["failures"])
-        self.assertEqual(ok["hier_load"]["frames"]["framesComposited"], 4997)
+        self.assertEqual(ok["hier_load"]["frames"]["framesComposited"], 4996)   # 5000 draws, 4 handed
         self.assertEqual(self.run_gate()["hier_load"]["frames"], {"everyFrame": False})
         self.assertRefused(self.run_gate(frames=False, require_frames=True),
                            "everyFrame=false")
