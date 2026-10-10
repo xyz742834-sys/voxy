@@ -998,6 +998,8 @@ public final class VkHierarchicalScene {
     /** Built sections the admission turned away (the geometry region was full and reclaim did not help). */
     public long geometryRejected() { return this.admission.rejected(); }
     public int sectionCapacity() { return this.maxSections; }
+    public long geometryUsedBytes() { return this.geometry.getGeometryUsedBytes(); }
+    public long geometryCapacityBytes() { return this.geometryCapacityBytes; }
 
     public int serviceRequests(int maxMeshesPerCall) {
         if (!this.world.isLive()) return 0;

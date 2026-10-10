@@ -2836,8 +2836,13 @@ RENDER_LAUNCH_FLAGS = ("-PharnessNativeRender=true",)
 # reclaim must run. Above the ~1 800 top-level nodes the default distance streams (the reclaimer never
 # evicts top-level nodes), well under the ~7 300 sections a default run meshes.
 PRESSURE_CAPACITY = 4096
-PRESSURE_LAUNCH_FLAGS = RENDER_LAUNCH_FLAGS + (f"-PharnessNativeSectionCapacity={PRESSURE_CAPACITY}",)
+# the admission limit is geometry bytes: an eighth of the default 4 000 000 quads (measured 2026-10-10:
+# a 4096-section scene with the default quads reclaimed nothing)
+PRESSURE_QUADS = 500_000
+PRESSURE_LAUNCH_FLAGS = RENDER_LAUNCH_FLAGS + (f"-PharnessNativeSectionCapacity={PRESSURE_CAPACITY}",
+                                               f"-PharnessNativeGeometryQuads={PRESSURE_QUADS}")
 DEFAULT_SECTION_CAPACITY = 8192
+DEFAULT_GEOMETRY_QUADS = 4_000_000
 RENDER_STAGE_LOG = re.compile(r"hier frames entering stage (\w+): composited=(\d+) skipped=(\d+)"
                               r" builds=(\d+)")
 RENDER_SKIPS = tuple(r for r in REAL_LOAD_SKIPS if r != "build-budget-spent") + ("rebuild-wait",
@@ -2891,7 +2896,7 @@ def native_pressure_result(output, log_text, expected_device=None, command=None)
     reclaim must have run (sections evicted to admit new ones) while every required stage kept
     compositing."""
     result = native_render_result(output, log_text, expected_device, command,
-                                  capacity=PRESSURE_CAPACITY)
+                                  capacity=PRESSURE_CAPACITY, quads=PRESSURE_QUADS)
     result["scope"] = "the product switch with a small scene capacity: Voxy's geometry reclaim under pressure"
     if not result["success"]:
         return result
@@ -2904,6 +2909,7 @@ def native_pressure_result(output, log_text, expected_device=None, command=None)
             raise ValueError(f"the pressure launch reclaimed {reclaimed!r} section(s); the capacity"
                              f" {PRESSURE_CAPACITY} put no pressure on the scene")
         result.update(reclaimed=reclaimed, maxMeshed=report.get("maxMeshed"),
+                      maxGeometryUsedBytes=report.get("maxGeometryUsedBytes"),
                       rejected=report.get("geometryRejected"),
                       exhausted=report.get("geometryEverExhausted"))
     except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -2913,7 +2919,7 @@ def native_pressure_result(output, log_text, expected_device=None, command=None)
 
 
 def native_render_result(output, log_text, expected_device=None, command=None,
-                         capacity=DEFAULT_SECTION_CAPACITY):
+                         capacity=DEFAULT_SECTION_CAPACITY, quads=DEFAULT_GEOMETRY_QUADS):
     """The product launch: Voxy on Minecraft's Vulkan backend with only voxy.native.render — its
     device features, adoption, instance and every-frame hierarchical composite (Voxy's GL rule),
     no ladder, no judged samples. Not judged per pixel (the ladder launch judges the same path);
@@ -2966,9 +2972,10 @@ def native_render_result(output, log_text, expected_device=None, command=None,
                                  f" reason from {RENDER_SKIPS}")
         if composited < 1:
             raise ValueError(f"the {L} launch composited no frame")
-        if report.get("sectionCapacity") != capacity:
+        if report.get("sectionCapacity") != capacity or report.get("geometryQuads") != quads:
             raise ValueError(f"the {L} scene ran at a capacity of {report.get('sectionCapacity')!r}"
-                             f" sections, not {capacity}")
+                             f" sections and {report.get('geometryQuads')!r} quads, not {capacity}"
+                             f" and {quads}")
         stream_problem = hier_stream_problem(report)
         if stream_problem:
             raise ValueError(f"the {L} probe {stream_problem}")

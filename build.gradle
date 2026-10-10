@@ -645,6 +645,9 @@ loom {
             if (project.hasProperty('harnessNativeSectionCapacity')) {
                 vmArg '-Dvoxy.native.sectionCapacity=' + project.property('harnessNativeSectionCapacity')
             }
+            if (project.hasProperty('harnessNativeGeometryQuads')) {
+                vmArg '-Dvoxy.native.geometryQuads=' + project.property('harnessNativeGeometryQuads')
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')

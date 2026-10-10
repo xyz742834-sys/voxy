@@ -42,7 +42,8 @@ def report(**overrides):
             "sectionRenderDistance": 16.0, "streamRenderDistance": 17, "maxTopLevels": 34,
             "vanillaBound": True, "maxBoundSections": 210, "lightmapsApplied": 480,
             "lightmapReads": 481, "lightmapFailure": None, "postPass": True, "fogMode": "FOG_AND_FADE",
-            "sectionCapacity": 8192, "maxMeshed": 7000, "geometryReclaimed": 0, "geometryRejected": 0,
+            "sectionCapacity": 8192, "geometryQuads": 4000000, "maxGeometryUsedBytes": 9000000,
+            "maxMeshed": 7000, "geometryReclaimed": 0, "geometryRejected": 0,
             "geometryEverExhausted": False,
             "voxyNear": 16.0, "voxyFar": 48000.0, "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True, "results": [], "problems": 0,
@@ -148,12 +149,16 @@ class RenderGateTest(unittest.TestCase):
 
     def test_the_product_scene_runs_at_the_default_capacity(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(sectionCapacity=4096)),
-                           "capacity of 4096 sections, not 8192")
+                           "capacity of 4096 sections")
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(geometryQuads=500000)),
+                           "500000 quads")
 
     def test_the_pressure_launch_reclaims(self):
-        pressure = COMMAND + [f"-PharnessNativeSectionCapacity={verify.PRESSURE_CAPACITY}"]
+        pressure = COMMAND + [f"-PharnessNativeSectionCapacity={verify.PRESSURE_CAPACITY}",
+                              f"-PharnessNativeGeometryQuads={verify.PRESSURE_QUADS}"]
         def under(b):
-            b.update(sectionCapacity=verify.PRESSURE_CAPACITY, geometryReclaimed=900)
+            b.update(sectionCapacity=verify.PRESSURE_CAPACITY, geometryQuads=verify.PRESSURE_QUADS,
+                     geometryReclaimed=900)
         ok = self.run_gate(mutate=under, command=pressure, gate=verify.native_pressure_result)
         self.assertTrue(ok["success"], ok["failures"])
         self.assertEqual(ok["reclaimed"], 900)
@@ -163,7 +168,7 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(mutate=under, gate=verify.native_pressure_result),
                            "lacks")
         self.assertRefused(self.run_gate(command=pressure, gate=verify.native_pressure_result),
-                           "not 4096")
+                           "not 4096 and 500000")
 
     def test_every_frame_is_accounted_for(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(renderCalls=b["renderCalls"] + 1)),

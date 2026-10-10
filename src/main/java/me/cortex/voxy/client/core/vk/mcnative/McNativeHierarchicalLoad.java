@@ -101,6 +101,11 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      * pressure launch sets it low to force Voxy's geometry reclaim during travel and streaming.
      */
     static int sectionCapacity() { return Integer.getInteger("voxy.native.sectionCapacity", SECTIONS); }
+    /**
+     * The scene's geometry capacity in quads: {@link #MAX_QUADS}, or {@code voxy.native.geometryQuads}
+     * — the admission limit (bytes), which the pressure launch lowers so Voxy's reclaim must run.
+     */
+    static int geometryQuads() { return Integer.getInteger("voxy.native.geometryQuads", MAX_QUADS); }
     static final int MAX_QUADS = 4_000_000;
     static final int BUILD_BUDGET = 6;
     static final float[] CLEAR = {0.05f, 0.05f, 0.10f, 1.0f};
@@ -140,6 +145,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     /** Geometry pressure, summed over every scene (retired ones at retirement, the live one now). */
     private static long reclaimedRetired, rejectedRetired;
     private static int maxMeshed;
+    private static long maxGeometryUsed;
     private static boolean everExhausted;
     /** The most vanilla sections the native bound drew in one frame; sections dropped over capacity. */
     private static int maxBoundSections;
@@ -149,6 +155,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
 
     private static void notePressure(McNativeHierarchicalLoad probe) {
         maxMeshed = Math.max(maxMeshed, probe.scene.meshedSections());
+        maxGeometryUsed = Math.max(maxGeometryUsed, probe.scene.geometryUsedBytes());
         everExhausted |= probe.scene.geometryExhausted();
     }
 
@@ -709,7 +716,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         me.cortex.voxy.client.core.vk.VkBuffer mcDepthReadback = null;
         try {
             target = new VkRenderTarget(width, height);
-            scene = new VkHierarchicalScene(world, target, width, height, sectionCapacity(), MAX_QUADS,
+            scene = new VkHierarchicalScene(world, target, width, height, sectionCapacity(), geometryQuads(),
                 VkRenderTarget.FORMAT_COLOR);
             // round-24 R24-HIER-CULL: Voxy's production mode — the raster cull writes visibility,
             // so the temporal pass draws the newly visible subset (the default is a test mode)
@@ -1046,6 +1053,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"postPass\": true,\n");
         sb.append("  \"sectionCapacity\": ").append(sectionCapacity()).append(",\n");
         sb.append("  \"maxMeshed\": ").append(maxMeshed).append(",\n");
+        sb.append("  \"geometryQuads\": ").append(geometryQuads()).append(",\n");
+        sb.append("  \"maxGeometryUsedBytes\": ").append(maxGeometryUsed).append(",\n");
         sb.append("  \"geometryReclaimed\": ").append(reclaimedRetired + liveReclaimed()).append(",\n");
         sb.append("  \"geometryRejected\": ").append(rejectedRetired + liveRejected()).append(",\n");
         sb.append("  \"geometryEverExhausted\": ").append(everExhausted).append(",\n");
