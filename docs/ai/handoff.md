@@ -295,8 +295,11 @@ commit the report alone, then repair.
    fails one every-frame submission after 1000 frames; Voxy composites 4350 more through every
    stage (run `20261010T055934-778167Z`). On Vulkan with the native path Voxy no longer logs that it
    is disabled/unsupported (`545d2b2a`, `5fcaaf97`); the product gates refuse those lines (run
-   `20261010T065741-230625Z`). Still open from round 27 item 6: device changes (Minecraft cannot
-   change its device without a restart; each launch is its own device). Next: failure injection, gate-coverage residuals and far-world evidence, then
+   `20261010T065741-230625Z`). Still open from round 27 item 6: device changes — Minecraft 26.2 sets its
+   device once per process (`RenderSystem.initRenderer` throws "RenderSystem.DEVICE already
+   initialized" and is the only writer of `DEVICE`, javap of the 26.2 jar), so a change is a new
+   launch, which every gated launch already is; the in-process divergence check
+   (`deviceDiverged`) stays. Next: failure injection, gate-coverage residuals and far-world evidence, then
    default-on. Default-on (the kill switch `voxy.native.disable` exists) waits for those and for
    an independent review of everything since `10856154`. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
