@@ -642,6 +642,10 @@ loom {
             if (project.hasProperty('harnessNativeRender')) {
                 vmArg '-Dvoxy.native.render=true'
             }
+            // The failure-injection launch: one every-frame submission fails after this many frames
+            if (project.hasProperty('harnessNativeInjectSubmitFailureAt')) {
+                vmArg '-Dvoxy.native.injectSubmitFailureAt=' + project.property('harnessNativeInjectSubmitFailureAt')
+            }
             // The pressure launch: the product switch with a small scene capacity, so Voxy's geometry
             // reclaim has to run during travel and streaming.
             if (project.hasProperty('harnessNativeSectionCapacity')) {

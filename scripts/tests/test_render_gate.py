@@ -46,6 +46,7 @@ def report(**overrides):
             "sectionCapacity": 8192, "geometryQuads": 4000000, "maxGeometryUsedBytes": 9000000,
             "maxMeshed": 7000, "geometryReclaimed": 0, "geometryRejected": 0,
             "geometryEverExhausted": False,
+            "injectSubmitFailureAt": -1, "injectedFailures": 0, "compositedAtInjection": -1,
             "voxyNear": 16.0, "voxyFar": 48000.0, "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True, "results": [], "problems": 0,
             "firstProblem": None, "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
@@ -276,6 +277,47 @@ class RenderGateTest(unittest.TestCase):
                 out.append(line)
             return "".join(out)
         self.assertRefused(run(log=leak), "across lifecycles")
+
+    def test_the_injection_launch_carries_on_after_one_failed_submission(self):
+        inject = COMMAND + [f"-PharnessNativeInjectSubmitFailureAt={verify.INJECT_AT_FRAME}"]
+        ERROR = ("[12:00:00] [Render thread/ERROR] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]:"
+                 " [native-vk] the hierarchical-LOAD experiment failed\n")
+        def injected(b):
+            b.update(injectSubmitFailureAt=verify.INJECT_AT_FRAME, injectedFailures=1,
+                     compositedAtInjection=1000, problems=1, firstProblem=verify.INJECTED_FAILURE,
+                     notes=[verify.INJECTED_FAILURE], renderCalls=b["renderCalls"] + 1001,
+                     frameSkips={"atlas-pending": 6, "frame-failed": 1},
+                     framesComposited=b["framesComposited"] + 1000)
+        def log(text):
+            text = text.replace("[voxy-harness] stage=reload\n", ERROR + "[voxy-harness] stage=reload\n")
+            return text
+        def run(**kw):
+            kw.setdefault("command", inject)
+            kw.setdefault("mutate", injected)
+            kw.setdefault("log", log)
+            return self.run_gate(gate=verify.native_inject_result, **kw)
+        ok = run()
+        self.assertTrue(ok["success"], ok["failures"])
+        self.assertEqual(ok["compositedAfter"], 1400)
+        # the product launch refuses the flag, and an injected failure, outright
+        self.assertRefused(self.run_gate(command=inject), "enables diagnostics")
+        self.assertRefused(self.run_gate(mutate=injected, log=log), "problems=1")
+        # exactly one failure: a second error line, a second failed frame, no failed frame
+        self.assertRefused(run(log=lambda t: log(log(t))), "not the one injected")
+        self.assertRefused(run(mutate=lambda b: injected(b) or b.update(
+            frameSkips={"atlas-pending": 6, "frame-failed": 2}, renderCalls=b["renderCalls"] + 1)),
+            "skips 2 frame(s)")
+        self.assertRefused(run(mutate=lambda b: injected(b) or b.update(
+            frameSkips={"atlas-pending": 6}, renderCalls=b["renderCalls"] - 1)), "not the one injected")
+        # it really was injected, and Voxy kept compositing afterwards
+        self.assertRefused(run(mutate=lambda b: injected(b) or b.update(injectedFailures=0)),
+                           "injected 0 failure(s)")
+        self.assertRefused(run(mutate=lambda b: injected(b) or b.update(
+            compositedAtInjection=b["framesComposited"] - 10)), "after the injected failure")
+        # any other failure is still a failure
+        self.assertRefused(run(mutate=lambda b: injected(b) or b.update(firstProblem="x")),
+                           "firstProblem")
+        self.assertRefused(run(command=COMMAND), "lacks")
 
     def test_every_frame_is_accounted_for(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(renderCalls=b["renderCalls"] + 1)),

@@ -2874,7 +2874,7 @@ RENDER_FORBIDDEN_LAUNCH = ("harnessNativeDepthLadder", "harnessNativeCoexist",
                            "harnessNativeHierLoad", "harnessNativeHierFrames",
                            "harnessNativeInstance", "harnessNativeMarker", "harnessNativeTerrain",
                            "harnessNativeDepth", "harnessNativeProbe", "harnessNativeFeatures",
-                           "harnessNativeAdopt")
+                           "harnessNativeAdopt", "harnessNativeInjectSubmitFailureAt")
 # An off diagnostic's shutdown report may state these descriptors; every other field must be
 # false, zero, empty or null.
 RENDER_OFF_DESCRIPTORS = {"buildBudget", "level", "radius", "declaredDepthState", "instanceMode",
@@ -2942,8 +2942,48 @@ def native_pressure_result(output, log_text, expected_device=None, command=None)
     return result
 
 
+# Failure injection (round-27 item 6): a fifth launch, the product switch with one every-frame
+# submission failing (VK_ERROR_DEVICE_LOST, not submitted) once this many frames are composited.
+INJECT_AT_FRAME = 1000
+INJECT_LAUNCH_FLAGS = RENDER_LAUNCH_FLAGS + (f"-PharnessNativeInjectSubmitFailureAt={INJECT_AT_FRAME}",)
+INJECTED_FAILURE = ("the hierarchical-LOAD experiment failed: java.lang.IllegalStateException:"
+                    " vkQueueSubmit -> VkResult -4")
+# after the injected failure Voxy must keep compositing at least this many frames
+INJECT_FRAMES_AFTER = 1000
+
+
+def native_inject_result(output, log_text, expected_device=None, command=None):
+    """The failure-injection launch: every product-launch check, except that exactly one
+    every-frame submission failed as injected — one problem, one frame-failed frame, the one
+    expected error line — and Voxy then kept compositing through every later stage."""
+    result = native_render_result(output, log_text, expected_device, command, injected=True)
+    result["scope"] = ("the product switch with one failed submission injected: Minecraft and Voxy"
+                       " carry on")
+    if not result["success"]:
+        return result
+    try:
+        if not isinstance(command, list) or any(f not in command for f in INJECT_LAUNCH_FLAGS):
+            raise ValueError(f"the injection launch command {command!r} lacks {INJECT_LAUNCH_FLAGS}")
+        report = json.loads((output / "native-hier-load.json").read_text())
+        at = report.get("compositedAtInjection")
+        if report.get("injectSubmitFailureAt") != INJECT_AT_FRAME or report.get("injectedFailures") != 1 \
+                or not finite_int(at) or at < INJECT_AT_FRAME:
+            raise ValueError(f"the injection launch injected {report.get('injectedFailures')!r}"
+                             f" failure(s) at {at!r} (asked at {report.get('injectSubmitFailureAt')!r})")
+        after = report["framesComposited"] - at
+        if after < INJECT_FRAMES_AFTER:
+            raise ValueError(f"Voxy composited {after} frame(s) after the injected failure, not"
+                             f" {INJECT_FRAMES_AFTER}")
+        result.update(injectedAt=at, compositedAfter=after)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        result["success"] = False
+        result["failures"].append(f"{type(exc).__name__}: {exc}")
+    return result
+
+
 def native_render_result(output, log_text, expected_device=None, command=None,
-                         capacity=DEFAULT_SECTION_CAPACITY, quads=DEFAULT_GEOMETRY_QUADS, cycles=1):
+                         capacity=DEFAULT_SECTION_CAPACITY, quads=DEFAULT_GEOMETRY_QUADS, cycles=1,
+                         injected=False):
     """The product launch: Voxy on Minecraft's Vulkan backend with only voxy.native.render — its
     device features, adoption, instance and every-frame hierarchical composite (Voxy's GL rule),
     no ladder, no judged samples. Not judged per pixel (the ladder launch judges the same path);
@@ -2958,7 +2998,8 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         # round-27 R27-RENDER-GATE: the launch is the product switch alone
         if not isinstance(command, list) or any(f not in command for f in RENDER_LAUNCH_FLAGS):
             raise ValueError(f"the {L} launch command {command!r} lacks the product switch")
-        enabling = [prop for prop in RENDER_FORBIDDEN_LAUNCH if launch_enables(command, prop)]
+        enabling = [prop for prop in RENDER_FORBIDDEN_LAUNCH if launch_enables(command, prop)
+                    and not (injected and prop == "harnessNativeInjectSubmitFailureAt")]
         if enabling:
             raise ValueError(f"the {L} launch command enables diagnostics: {enabling}")
         # its own scenario: complete, every lifecycle checkpoint, one device (the screenshots are
@@ -2981,6 +3022,10 @@ def native_render_result(output, log_text, expected_device=None, command=None,
                 "results": [], "problems": 0, "firstProblem": None, "notes": [],
                 "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
                 "readbacksInFlight": 0}
+        if injected:
+            want.update(problems=1, firstProblem=INJECTED_FAILURE, notes=[INJECTED_FAILURE])
+        else:
+            want.update(injectSubmitFailureAt=-1, injectedFailures=0, compositedAtInjection=-1)
         for field, value in want.items():
             got = report.get(field)
             if got != value or isinstance(got, bool) != isinstance(value, bool):
@@ -2991,9 +3036,14 @@ def native_render_result(output, log_text, expected_device=None, command=None,
             raise ValueError(f"the {L} report states framesComposited={composited!r},"
                              f" renderCalls={calls!r}, frameSkips={skips!r}")
         for reason, n in skips.items():
+            if injected and reason == "frame-failed" and n == 1:
+                continue
             if reason not in RENDER_SKIPS or not finite_int(n) or n < 1:
                 raise ValueError(f"the {L} report skips {n!r} frame(s) for {reason!r}, not a"
                                  f" reason from {RENDER_SKIPS}")
+        if injected and skips.get("frame-failed") != 1:
+            raise ValueError(f"the {L} report counts {skips.get('frame-failed')!r} failed frame(s),"
+                             f" not the one injected")
         if composited < 1:
             raise ValueError(f"the {L} launch composited no frame")
         if report.get("sectionCapacity") != capacity or report.get("geometryQuads") != quads:
@@ -3012,6 +3062,14 @@ def native_render_result(output, log_text, expected_device=None, command=None,
                              f" checkpoints' device")
         if log_text is None:
             raise ValueError(f"the {L} launch's log is not available")
+        if injected:
+            failed = [line for line in log_text.splitlines()
+                      if "/ERROR]" in line and "(Voxy)" in line
+                      and "[native-vk] the hierarchical-LOAD experiment failed" in line]
+            if len(failed) != 1:
+                raise ValueError(f"the {L} log shows {len(failed)} failed frame error(s), not the"
+                                 f" one injected")
+            log_text = log_text.replace(failed[0], "")
         log_problems = native_log_problems(log_text)
         if log_problems:
             raise ValueError(f"the {L} launch's log: {log_problems}")
@@ -4251,7 +4309,7 @@ def native_log_problems(text):
     return problems
 
 
-def native_log_checks(result, logfile):
+def native_log_checks(result, logfile, injected=False):
     """Judge a native launch's log: validation output, loader evidence, application errors."""
     text = logfile.read_text(errors="replace")
     result["diagnostics"] = [line.strip() for line in text.splitlines()
@@ -4266,6 +4324,12 @@ def native_log_checks(result, logfile):
                        "Voxy is unsupported on your system.")
     result["unexpected_application_errors"] = [line for line in result["application_errors"]
         if not any(message in line for message in expected_errors)]
+    # the injection launch's one failed frame (its gate requires exactly one)
+    injected_lines = [line for line in result["unexpected_application_errors"]
+                      if "[native-vk] the hierarchical-LOAD experiment failed" in line]
+    if injected and len(injected_lines) == 1:
+        result["unexpected_application_errors"].remove(injected_lines[0])
+        result["injected_application_errors"] = injected_lines
     result["success"] &= not result["unexpected_application_errors"]
 
 
@@ -4437,7 +4501,8 @@ def retain_native_evidence(output, native_output, timestamp, summary):
                               "band_crops": sorted(crops), "band_crop_origins": crop_origins}
         # The product launch: its probe report, its own checkpoints, its log, and a quarter-scale
         # thumbnail of every checkpoint frame — what normal play looked like in each stage.
-        for launch, sub in (("native-render", "render"), ("native-pressure", "pressure")):
+        for launch, sub in (("native-render", "render"), ("native-pressure", "pressure"),
+                            ("native-inject", "inject")):
             launch_output = native_output.parent / launch
             kept[sub] = None
             if not launch_output.is_dir():
@@ -4909,7 +4974,10 @@ def replay_evidence(directory):
                 ("pressure", "pressure_run", "native-pressure", PRESSURE_LAUNCH_FLAGS,
                  native_pressure_result,
                  "pressure launch acceptance checks (the product switch with a small scene capacity;"
-                 " Voxy's geometry reclaim ran)")):
+                 " Voxy's geometry reclaim ran)"),
+                ("inject", "inject_run", "native-inject", INJECT_LAUNCH_FLAGS, native_inject_result,
+                 "failure-injection launch acceptance checks (one failed submission injected;"
+                 " Voxy carried on)")):
             sub_dir = directory / sub
             sub_report = sub_dir / "native-hier-load.json"
             if (stage or {}).get(key) and not sub_report.is_file():
@@ -4940,6 +5008,8 @@ def replay_evidence(directory):
                             "perStage": sub_result["perStage"]}
             if sub == "pressure":
                 outcome[sub]["reclaimed"] = sub_result.get("reclaimed")
+            if sub == "inject":
+                outcome[sub]["compositedAfter"] = sub_result.get("compositedAfter")
             # round-27: every lifecycle checkpoint's thumbnail is part of the claim
             ladder_refs += [f"{sub}/native-hier-load.json", f"{sub}/native-result.json",
                             f"{sub}/{launch}.log"] + [f"{sub}/frame-{stage_}.png"
@@ -5181,7 +5251,10 @@ def main():
                      " the native path as normal play runs it"),
                     ("native-pressure", "pressure_run", PRESSURE_LAUNCH_FLAGS, native_pressure_result,
                      f"a fourth launch: the product switch with a {PRESSURE_CAPACITY}-section scene,"
-                     f" so Voxy's geometry reclaim runs, through {SOAK_CYCLES} lifecycles (the soak)")):
+                     f" so Voxy's geometry reclaim runs, through {SOAK_CYCLES} lifecycles (the soak)"),
+                    ("native-inject", "inject_run", INJECT_LAUNCH_FLAGS, native_inject_result,
+                     f"a fifth launch: the product switch with one every-frame submission failing"
+                     f" after {INJECT_AT_FRAME} frames; Minecraft and Voxy must carry on")):
                 launch_output = output / stage_name
                 launch_output.mkdir()
                 launch_game = launch_output / "game"
@@ -5204,7 +5277,7 @@ def main():
                 run["render"] = gate(launch_output, log_path.read_text(errors="replace")
                                      if log_path.is_file() else None, device, run["command"])
                 run["success"] &= run["render"]["success"]
-                native_log_checks(run, log_path)
+                native_log_checks(run, log_path, injected=stage_name == "native-inject")
                 run["scope"] = scope
                 result[key] = run
                 result["success"] &= run["success"]

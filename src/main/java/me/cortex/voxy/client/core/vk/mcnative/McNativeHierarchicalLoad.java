@@ -122,7 +122,17 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         /** Voxy's own setting says no rendering ({@code VoxyConfig.isRenderingEnabled}): nothing drawn. */
         RENDERING_DISABLED = "rendering-disabled",
         /** Normal play (no ladder): the last build attempt was under REBUILD_INTERVAL_FRAMES ago. */
-        REBUILD_WAIT = "rebuild-wait";
+        REBUILD_WAIT = "rebuild-wait",
+        /** The frame threw (a failed submit, say): nothing composited; counted as a problem too. */
+        FRAME_FAILED = "frame-failed";
+    /**
+     * Failure injection (round-27 item 6), off unless set: once this many frames are composited,
+     * the next every-frame submission fails with VK_ERROR_DEVICE_LOST (not submitted). The launch
+     * then shows Minecraft and Voxy carrying on. Never set by the product.
+     */
+    static final String INJECT_FLAG = "voxy.native.injectSubmitFailureAt";
+    private static final long INJECT_AT = Long.getLong(INJECT_FLAG, -1);
+    private static long injectedFailures, compositedAtInjection = -1;
     static final int REBUILD_INTERVAL_FRAMES = 60;
     /**
      * Normal play: an empty build's suppression lasts this many calls, then a (rate-limited) build is
@@ -339,6 +349,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         } catch (Throwable t) {
             // the stack too: a message alone did not say where (the streamed biome NPE)
             Logger.error("[native-vk] the hierarchical-LOAD experiment failed", t);
+            if (everyFrame()) FRAME_SKIPS.merge(FRAME_FAILED, 1L, Long::sum);
             fail("the hierarchical-LOAD experiment failed: " + t);
         }
     }
@@ -645,6 +656,13 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         probe.post.record(cmd, probe.target.color, probe.target.depth,
             new org.joml.Matrix4f().set(mvp).invert(), sub, params, false);
         probe.composite.prepareSources(cmd);
+        if (INJECT_AT >= 0 && injectedFailures == 0 && framesComposited >= INJECT_AT) {
+            injectedFailures++;
+            compositedAtInjection = framesComposited;
+            Logger.info("[native-vk] injecting a failed submission after " + framesComposited
+                + " composited frame(s)");
+            VkFrameTracker.injectSubmitFailure(VK10.VK_ERROR_DEVICE_LOST);
+        }
         tracker.endFrame();
         probe.requestsUnread = true;
         if (params[12] != 0) {
@@ -1070,6 +1088,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"geometryReclaimed\": ").append(reclaimedRetired + liveReclaimed()).append(",\n");
         sb.append("  \"geometryRejected\": ").append(rejectedRetired + liveRejected()).append(",\n");
         sb.append("  \"geometryEverExhausted\": ").append(everExhausted).append(",\n");
+        sb.append("  \"injectSubmitFailureAt\": ").append(INJECT_AT).append(",\n");
+        sb.append("  \"injectedFailures\": ").append(injectedFailures).append(",\n");
+        sb.append("  \"compositedAtInjection\": ").append(compositedAtInjection).append(",\n");
         sb.append("  \"fogMode\": ").append(McNativeVulkanProbe.quote(
             me.cortex.voxy.client.config.VoxyConfig.CONFIG.getFogMode().name())).append(",\n");
         sb.append("  \"lightmapsApplied\": ").append(lightmapsApplied).append(",\n");
