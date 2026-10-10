@@ -325,7 +325,13 @@ commit the report alone, then repair.
    1708x960→1920x1080, 60 FPS cap): Voxy GPU per frame mean 2.8 ms, p95 3.5 ms, max 5.4 ms (opaque
    1.7); render-thread mean 2.1 ms, p50 1.3, p95 7.1, max 56 ms (pressure/soak: p95 7.2, max 79).
    No budget is set (an owner call); the render-thread spikes are the next thing to look at
-   (meshing/streaming on the render thread is the likely cause, unmeasured). Far-world: the gate
+   (meshing/streaming on the render thread is the likely cause, unmeasured). Measured and fixed
+   (`a2a3f5dd`): normal play meshes on worker threads as GL (render-thread p95 7.1 → 2.3 ms; frames
+   over 16 ms 38 → 7–9 per product launch). Remaining: each new scene's first frame (11–90 ms, at
+   resize/reload/dimension change/reconnect) is the opaque terrain shader's first descriptor-set
+   update — with or without validation (`-PharnessNoValidation`) — likely the per-scene real-scale
+   model atlas (12288x8192 + mips, ~0.5 GB, not counted in the buffer-byte figures), which GL reuses
+   across rebuilds (RenderResourceReuse). Next: reuse it across scenes. Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
    here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
    terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the
