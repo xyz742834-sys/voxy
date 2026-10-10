@@ -299,7 +299,12 @@ commit the report alone, then repair.
    device once per process (`RenderSystem.initRenderer` throws "RenderSystem.DEVICE already
    initialized" and is the only writer of `DEVICE`, javap of the 26.2 jar), so a change is a new
    launch, which every gated launch already is; the in-process divergence check
-   (`deviceDiverged`) stays. Next: failure injection, gate-coverage residuals and far-world evidence, then
+   (`deviceDiverged`) stays. Synchronization validation inside Minecraft (`87578942`, round-27 item
+   7): a positive control in the injection launch records two unsynchronised fills; Minecraft logs
+   the hazard as bare text with neither SYNC-HAZARD- nor a VUID, which the native gates did not see
+   before (so earlier native passes did not cover synchronization hazards). The gates now treat
+   Minecraft-logged `vkXxx():` messages as validation output; run `20261010T073717-488727Z` shows
+   the control's hazard and no other. Next: failure injection, gate-coverage residuals and far-world evidence, then
    default-on. Default-on (the kill switch `voxy.native.disable` exists) waits for those and for
    an independent review of everything since `10856154`. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
