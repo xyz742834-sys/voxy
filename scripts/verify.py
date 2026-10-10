@@ -2965,6 +2965,36 @@ def native_pressure_result(output, log_text, expected_device=None, command=None)
     return result
 
 
+def render_performance_problem(report, composited):
+    """Why a product launch's performance evidence is not usable (None if it is): every composited
+    frame's submission timed on the GPU (the scene's timestamp spans, read after Voxy's fence; the
+    last one per scene is never read) and on the render thread, with finite, positive, ordered statistics.
+    Round-27 item 7 asks for the evidence; no budget is set, so none is judged."""
+    perf = report.get("performance")
+    if not isinstance(perf, dict):
+        return f"states performance={perf!r}"
+    if perf.get("gpuUnavailable") != 0:
+        return f"could not read {perf.get('gpuUnavailable')!r} frame(s) of GPU timestamps"
+    # each scene's last submission is never read back (the next frame belongs to a new scene, or
+    # none): at most one untimed GPU frame per build
+    builds = report.get("builds") if finite_int(report.get("builds")) else 0
+    for side, want in (("gpu", composited - builds), ("cpu", composited)):
+        st = perf.get(side)
+        if not isinstance(st, dict) or not finite_int(st.get("frames")) or st["frames"] < want:
+            return f"times {side} frames {st!r}, not at least {want} (the composited frames)"
+        values = [st.get(k) for k in ("meanMs", "p50Ms", "p95Ms", "maxMs")]
+        if not all(finite_number(v) and v > 0 for v in values) or \
+                not values[1] <= values[2] <= values[3] or not values[1] <= values[3]:
+            return f"states {side} statistics {st!r}, not finite, positive and ordered"
+    spans = perf.get("gpuSpanMeanMs")
+    if not isinstance(spans, dict) or set(spans) != set(HIER_GPU_SPANS) or \
+            not all(finite_number(v) and v >= 0 for v in spans.values()):
+        return f"states gpuSpanMeanMs={spans!r}, not one mean per span {HIER_GPU_SPANS}"
+    return None
+
+
+# VkHierarchicalScene.SPANS
+HIER_GPU_SPANS = ("opaque", "hiz", "traversal", "cull", "table", "temporal", "translucent", "resolve")
 # VoxyConfig.subDivisionSize's default; the harness's fresh game directory has no voxy config
 RENDER_SUBDIVISION_PX = 64.0
 # Failure injection (round-27 item 6): a fifth launch, the product switch with one every-frame
@@ -3081,6 +3111,9 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         stream_problem = hier_stream_problem(report)
         if stream_problem:
             raise ValueError(f"the {L} probe {stream_problem}")
+        perf_problem = render_performance_problem(report, composited)
+        if perf_problem:
+            raise ValueError(f"the {L} probe {perf_problem}")
         if composited + sum(skips.values()) != calls:
             raise ValueError(f"the {L} probe ran {calls} time(s) but accounts for"
                              f" {composited} composited + {sum(skips.values())} skipped")
@@ -3212,6 +3245,7 @@ def native_render_result(output, log_text, expected_device=None, command=None,
             raise ValueError(f"the {L} launch composited no frame in stage(s) {missing}"
                              f" (per stage: {growth})")
         result.update(success=True, framesComposited=composited, frameSkips=dict(skips),
+                      performance=report.get("performance"),
                       builds=report["builds"], perStage=growth,
                       answer=f"the product switch alone ran Voxy's hierarchical scene on Minecraft's"
                              f" Vulkan backend and composited {composited} frame(s), in every"

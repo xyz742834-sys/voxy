@@ -48,6 +48,10 @@ def report(**overrides):
             "geometryEverExhausted": False,
             "injectSubmitFailureAt": -1, "injectedFailures": 0, "compositedAtInjection": -1,
             "subdivisionPx": 64.0,
+            "performance": {"gpu": {"frames": 20000, "meanMs": 2.5, "p50Ms": 2.4, "p95Ms": 3.1, "maxMs": 6.0},
+                            "gpuUnavailable": 0,
+                            "cpu": {"frames": 20000, "meanMs": 1.2, "p50Ms": 1.1, "p95Ms": 1.9, "maxMs": 9.0},
+                            "gpuSpanMeanMs": {n: 0.3 for n in verify.HIER_GPU_SPANS}},
             "voxyNear": 16.0, "voxyFar": 48000.0, "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True, "results": [], "problems": 0,
             "firstProblem": None, "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
@@ -206,6 +210,25 @@ class RenderGateTest(unittest.TestCase):
                 "entering stage reconnect: composited=1400 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=84432744 vkTextures=10 frame=1920x1080",
                 "entering stage reconnect: composited=1400 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=90000000 vkTextures=10 frame=0x0")
         self.assertRefused(self.run_gate(log=sceneless), "retired scenes are not freed")
+
+    def test_performance_evidence_is_retained(self):
+        ok = self.run_gate()
+        self.assertTrue(ok["success"], ok["failures"])
+        self.assertEqual(ok["performance"]["gpu"]["p95Ms"], 3.1)
+        perf = lambda f: (lambda b: f(b["performance"]))
+        self.assertRefused(self.run_gate(mutate=lambda b: b.pop("performance")), "states performance=None")
+        self.assertRefused(self.run_gate(mutate=perf(lambda p: p.update(gpuUnavailable=3))),
+                           "could not read 3 frame(s)")
+        self.assertRefused(self.run_gate(mutate=perf(lambda p: p["gpu"].update(frames=10))),
+                           "times gpu frames")
+        self.assertRefused(self.run_gate(mutate=perf(lambda p: p["cpu"].update(frames=10))),
+                           "times cpu frames")
+        self.assertRefused(self.run_gate(mutate=perf(lambda p: p["gpu"].update(p95Ms=1.0))),
+                           "not finite, positive and ordered")
+        self.assertRefused(self.run_gate(mutate=perf(lambda p: p["cpu"].update(meanMs=float("nan")))),
+                           "not finite, positive and ordered")
+        self.assertRefused(self.run_gate(mutate=perf(lambda p: p["gpuSpanMeanMs"].pop("cull"))),
+                           "not one mean per span")
 
     def test_the_scene_subdivides_at_voxys_configured_size(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(subdivisionPx=128.0)),

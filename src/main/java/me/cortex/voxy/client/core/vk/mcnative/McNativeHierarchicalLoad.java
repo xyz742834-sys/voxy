@@ -301,6 +301,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      * whichever path (hand-off or every-frame) submits next.
      */
     private boolean requestsUnread;
+    /** The scene's GPU timer holds this probe's last every-frame submission (read after the fence). */
+    private boolean timedFrame;
 
     private McNativeHierarchicalLoad(VulkanDevice device, long ownerDevice, VkRenderTarget target,
                                      me.cortex.voxy.client.core.vk.VkTexture mcDepth,
@@ -542,6 +544,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         }
 
         // ---- the hierarchical pipeline in Voxy's own submissions ----
+        probe.timedFrame = false;   // these submissions overwrite the timer's every-frame record
         var tracker = VkFrameTracker.get();
         int[] colours = null;
         float[] depths = null;
@@ -668,6 +671,13 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                                        GpuTextureView depth, int width, int height) {
         var tracker = VkFrameTracker.get();
         tracker.waitForFrame();
+        // performance evidence (round-27 item 7): the previous every-frame submission's GPU spans,
+        // complete after Voxy's own fence, and this frame's render-thread time from here
+        if (probe.timedFrame) {
+            Perf.gpu(probe.scene.timer().readMillis());
+            probe.timedFrame = false;
+        }
+        long cpuStart = System.nanoTime();
         if (probe.requestsUnread) {
             probe.scene.serviceRequests(MESHES_PER_PASS);
             probe.requestsUnread = false;
@@ -695,7 +705,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             VkFrameTracker.injectSubmitFailure(VK10.VK_ERROR_DEVICE_LOST);
         }
         tracker.endFrame();
+        Perf.cpu((System.nanoTime() - cpuStart) / 1e6);
         probe.requestsUnread = true;
+        probe.timedFrame = true;
         if (params[12] != 0) {
             // GL: fog covers all Voxy rendering, so its final blit is skipped and Voxy not shown
             FRAME_SKIPS.merge(FOG_COVERS_ALL, 1L, Long::sum);
@@ -859,6 +871,62 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             + " frame=" + (instance == null ? 0 : instance.width)
             + "x" + (instance == null ? 0 : instance.height)
             + (cycle.equals("1") ? "" : " cycle=" + cycle));
+    }
+
+    /**
+     * Normal-play performance evidence (round-27 item 7): every every-frame submission's GPU time
+     * (the scene's timestamp spans, read after Voxy's own fence) and render-thread time (after the
+     * fence wait to the submission). Recorded, not judged against a budget — none is set. Render
+     * thread only.
+     */
+    static final class Perf {
+        static final int CAP = 1 << 15;
+        static final float[] GPU = new float[CAP], CPU = new float[CAP];
+        static final double[] SPAN_SUM = new double[VkHierarchicalScene.SPANS.length];
+        static int gpuFrames, cpuFrames, gpuUnavailable;
+
+        static void gpu(double[] spans) {
+            if (spans == null) { gpuUnavailable++; return; }
+            double total = 0;
+            for (int i = 0; i < spans.length && i < SPAN_SUM.length; i++) {
+                total += spans[i];
+                SPAN_SUM[i] += spans[i];
+            }
+            if (gpuFrames < CAP) GPU[gpuFrames] = (float) total;
+            gpuFrames++;
+        }
+
+        static void cpu(double ms) {
+            if (cpuFrames < CAP) CPU[cpuFrames] = (float) ms;
+            cpuFrames++;
+        }
+
+        /** {"frames": n, "meanMs", "p50Ms", "p95Ms", "maxMs"} over the kept values. */
+        static String stats(float[] values, int frames) {
+            int n = Math.min(frames, CAP);
+            if (n == 0) return "{\"frames\": 0}";
+            float[] sorted = java.util.Arrays.copyOf(values, n);
+            java.util.Arrays.sort(sorted);
+            double sum = 0;
+            for (int i = 0; i < n; i++) sum += sorted[i];
+            return "{\"frames\": " + frames + ", \"meanMs\": " + (sum / n)
+                + ", \"p50Ms\": " + sorted[(n - 1) / 2]
+                + ", \"p95Ms\": " + sorted[(int) Math.ceil(0.95 * n) - 1]
+                + ", \"maxMs\": " + sorted[n - 1] + "}";
+        }
+
+        static String json() {
+            var sb = new StringBuilder("{\"gpu\": ").append(stats(GPU, gpuFrames))
+                .append(", \"gpuUnavailable\": ").append(gpuUnavailable)
+                .append(", \"cpu\": ").append(stats(CPU, cpuFrames))
+                .append(", \"gpuSpanMeanMs\": {");
+            for (int i = 0; i < SPAN_SUM.length; i++) {
+                if (i > 0) sb.append(", ");
+                sb.append('"').append(VkHierarchicalScene.SPANS[i]).append("\": ")
+                  .append(gpuFrames == 0 ? 0.0 : SPAN_SUM[i] / gpuFrames);
+            }
+            return sb.append("}}").toString();
+        }
     }
 
     private static void requestReadback(GpuTextureView colour, int width, int height, long at) {
@@ -1118,6 +1186,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"maxMeshed\": ").append(maxMeshed).append(",\n");
         sb.append("  \"geometryQuads\": ").append(geometryQuads()).append(",\n");
         sb.append("  \"subdivisionPx\": ").append(lastSubdivisionPx).append(",\n");
+        sb.append("  \"performance\": ").append(Perf.json()).append(",\n");
         sb.append("  \"maxGeometryUsedBytes\": ").append(maxGeometryUsed).append(",\n");
         sb.append("  \"geometryReclaimed\": ").append(reclaimedRetired + liveReclaimed()).append(",\n");
         sb.append("  \"geometryRejected\": ").append(rejectedRetired + liveRejected()).append(",\n");
