@@ -288,8 +288,11 @@ commit the report alone, then repair.
    (`f06a9fe4`, run `20261010T050124-126449Z`): the pressure launch repeats travel..reconnect for 4
    lifecycles — 21 builds, 4 resizes/reloads/nether trips/reconnects, 552707 sections reclaimed,
    bytes back exactly to the same value at each scene size; the gate holds bytes per size within 1 %
-   across lifecycles. Still open from round 27 item 6: failure injection (failed submit/wait, device
-   changes). Next: failure injection, gate-coverage residuals and far-world evidence, then
+   across lifecycles. Failure injection (`860ad7dd`): one failed submit used to leave Voxy's frame
+   tracker unusable for the session (recording window left open, a reset fence waited on forever);
+   fixed, with real-Vulkan injection tests (`VkFrameTrackerTest`) for a failed submit and a failed
+   wait; run `20261010T052418-163141Z` passes on it. Still open from round 27 item 6: device changes
+   and live (in-Minecraft) failure injection. Next: failure injection, gate-coverage residuals and far-world evidence, then
    default-on. Default-on (the kill switch `voxy.native.disable` exists) waits for those and for
    an independent review of everything since `10856154`. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
