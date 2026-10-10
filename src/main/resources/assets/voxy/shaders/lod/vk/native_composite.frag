@@ -4,12 +4,13 @@
 // colour from VkHierarchicalScene, depth reprojected into Minecraft's depth space by the
 // reprojecting VkDepthResolve — written into a pass that LOADs Minecraft's colour and depth.
 //
-// Voxy's GL composition rule: Voxy's terrain appears only where Minecraft drew nothing. The GL
-// path builds a stencil from Minecraft's depth (setup_stencil_depth.frag: pixels whose depth is not
-// the clear value are excluded) and draws Voxy only inside it. Here the depth test does the same:
-// the fragment's depth is the clear value 0 and the pipeline compares with Voxy's GREATER_OR_EQUAL,
-// so it passes exactly where Minecraft's stored depth is still 0 (reverse-Z, nothing nearer can be
-// stored below 0). Depth writes are off: Minecraft's depth is left as it was.
+// Voxy's GL composition: drawn at GL Voxy's point (Sodium's cutout pass, McNativeFrameHooks), with
+// the vanilla depth bound (the near cut) already discarding Voxy's terrain inside Minecraft's loaded
+// terrain, it writes Voxy's colour and its reprojected depth with Voxy's GREATER_OR_EQUAL, as GL's
+// final blit does, so Minecraft's later cutout/translucent/entity draws test against Voxy. GL also
+// confines Voxy to pixels where Minecraft's depth is still clear (a stencil from Minecraft's depth);
+// with the near cut that holds wherever the bound covers Minecraft's terrain, and the judged samples
+// still require it pixel by pixel (Voxy only on the ladder's CLEAR pixels).
 //
 // texelFetch at the fragment's own pixel: both images are this frame's extent, so pixel i is
 // pixel i; no filtering.
@@ -25,5 +26,5 @@ void main() {
     // reverse-Z clear is 0.0: no Voxy geometry at this pixel, leave Minecraft's untouched
     if (!(d > 0.0)) discard;
     outColour = texelFetch(srcColour, p, 0);
-    gl_FragDepth = 0.0;
+    gl_FragDepth = d;
 }

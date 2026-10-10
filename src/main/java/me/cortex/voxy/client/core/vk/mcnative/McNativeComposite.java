@@ -57,8 +57,9 @@ final class McNativeComposite {
         this.pipeline = VkGraphicsPipeline.builder(this.shader)
             .colorFormat(VkRenderTarget.FORMAT_COLOR)
             .depthFormat(VkRenderTarget.FORMAT_DEPTH)
-            // Voxy's GL rule: only where Minecraft's depth is still clear (native_composite.frag)
-            .depthTest(true).depthWrite(false)
+            // at GL's point (Sodium's cutout pass) with the near cut: Voxy's depth test and depth
+            // writes, as GL's final blit, so Minecraft's later draws test against Voxy
+            .depthTest(true).depthWrite(true)
             .depthCompare(VkDepth.COMPARE_OP)
             .cullMode(VK_CULL_MODE_NONE)
             .build();

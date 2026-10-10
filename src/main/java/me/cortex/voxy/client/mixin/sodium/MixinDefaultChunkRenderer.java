@@ -61,6 +61,8 @@ public abstract class MixinDefaultChunkRenderer extends ShaderChunkRenderer {
                         .gameRenderState().levelRenderState.cameraRenderState.projectionMatrix,
                     matrices.modelView(), camera.x, camera.y, camera.z,
                     target.width, target.height);
+                // and draw here, at GL Voxy's point: no render pass is open before Sodium's end()
+                me.cortex.voxy.client.core.vk.mcnative.McNativeFrameHooks.atCutout();
                 return;
             }
             if (renderer == null && VoxyClient.backend() == VoxyClient.Backend.VULKAN) {

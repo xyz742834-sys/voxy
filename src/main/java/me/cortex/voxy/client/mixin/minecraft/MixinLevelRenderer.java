@@ -60,17 +60,9 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
         // ⚠ 深度の梯子は MC のシーン深度に対して<b>テストだけ</b>する (深度は書かない)。
         // terrain probe より先に呼ぶ: あちらは有効なとき MC の深度をクリアするので、
         // 後に呼ぶと測る対象が消える。既定ではどちらも何もしない。
-        me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.renderIfEnabled();
-        // ⚠ terrain-LOAD は梯子の<b>後</b>: 梯子が同じフレームで読み戻しを要求した後に、
-        // 梯子の帯へ Voxy の地形を LOAD パスで描いて深度も書く (梯子自身は決して書かない)。
-        // 既定では何もしない。
-        me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainLoad.renderIfEnabled();
-        // ⚠ real-LOAD も梯子の後 (梯子は標本を terrain-LOAD と交互に渡す)。毎フレーム呼ぶ:
-        // MC の行列がこのフレームに捕捉されたかを数えるため。既定では何もしない。
-        me.cortex.voxy.client.core.vk.mcnative.McNativeRealLoad.renderIfEnabled();
-        // ⚠ hierarchical-LOAD: Voxy's whole pipeline, composited into MC's LOADed frame on the
-        // frames the ladder hands it. Default off.
-        me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.renderIfEnabled();
+        // (2026-10-10) The ladder, terrain-LOAD, real-LOAD and the hierarchical composite moved to
+        // GL Voxy's point, Sodium's cutout pass: McNativeFrameHooks.atCutout, called from
+        // MixinDefaultChunkRenderer. Only the environment launch's probes stay here.
         me.cortex.voxy.client.core.vk.mcnative.McNativeTerrainProbe.renderIfEnabled();
         // ⚠ instance mode の観測。GPU には触らない。既定では何もしない。
         me.cortex.voxy.client.core.vk.mcnative.McNativeInstanceProbe.sampleIfEnabled();
