@@ -2850,9 +2850,10 @@ RENDER_STAGE_LOG = re.compile(r"hier frames entering stage (\w+): composited=(\d
 # where they started, and within each run of snapshots at one frame size the buffer bytes may not
 # grow more than this fraction (a leak across rebuilds multiplies).
 RENDER_ALLOCATION_SLACK = 0.05
-# Across a frame-size change the bytes may move by this many RGBA8 buffers of the pixel difference
-# (measured, run 20261010T030832-711352Z: 1708x960 -> 1920x1080 grew exactly 2 x 433920 x 4 bytes,
-# the post pass's and the render target's readbacks).
+# Across a change of the live scene's frame size (a rebuild after a resize) the bytes may move by
+# this many RGBA8 buffers of the pixel difference (measured, run 20261010T030832-711352Z:
+# 1708x960 -> 1920x1080 grew exactly 2 x 433920 x 4 bytes, the post pass's and Minecraft depth's
+# readbacks).
 RENDER_FRAME_SIZED_BUFFERS = 2
 RENDER_SKIPS = tuple(r for r in REAL_LOAD_SKIPS if r != "build-budget-spent") + ("rebuild-wait",
                                                                                  "rendering-disabled",
@@ -3048,17 +3049,22 @@ def native_render_result(output, log_text, expected_device=None, command=None,
                                   f" build(s); {why}")
             if allocated[-1][4] > allocated[0][4] or allocated[-1][6] > allocated[0][6]:
                 raise grew(allocated[0], allocated[-1], "retired scenes are not freed")
-            runs = [[allocated[0]]]
+            # each run's size is that of its first snapshot with a live scene; a snapshot without
+            # one (0x0) stays in the current run, so it can neither start a run nor excuse bytes
+            runs, sizes = [[allocated[0]]], [allocated[0][7:9]]
             for line in allocated[1:]:
-                if line[7:9] == runs[-1][-1][7:9]:
+                if sizes[-1] == (0, 0):
+                    sizes[-1] = line[7:9]
+                if line[7:9] in (sizes[-1], (0, 0)):
                     runs[-1].append(line)
                     continue
                 before = runs[-1][-1]
-                pixels = abs(line[7] * line[8] - before[7] * before[8])
+                pixels = abs(line[7] * line[8] - sizes[-1][0] * sizes[-1][1])
                 if line[5] - before[5] > RENDER_FRAME_SIZED_BUFFERS * pixels * 4:
                     raise grew(before, line, f"more than {RENDER_FRAME_SIZED_BUFFERS} RGBA8"
                                              f" buffer(s) of the frame-size change")
                 runs.append([line])
+                sizes.append(line[7:9])
             for run in runs:
                 first, last = run[0], run[-1]
                 if last[4] > first[4] or last[6] > first[6] \

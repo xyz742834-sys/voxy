@@ -183,6 +183,13 @@ class RenderGateTest(unittest.TestCase):
             return text.replace("entering stage resize: composited=700 skipped=6 builds=1 vkBuffers=40 vkBufferBytes=80961384",
                                 "entering stage resize: composited=700 skipped=6 builds=1 vkBuffers=40 vkBufferBytes=90000000")
         self.assertRefused(self.run_gate(log=early), "retired scenes are not freed")
+        # a snapshot without a live scene (0x0) stays in its run: it cannot start one that excuses bytes
+        def sceneless(text):
+            return text.replace("vkBuffers=40 vkBufferBytes=84432744 vkTextures=10 frame=1920x1080\n[voxy-harness] stage=disconnect",
+                                "vkBuffers=40 vkBufferBytes=84432744 vkTextures=10 frame=1920x1080\n[voxy-harness] stage=disconnect").replace(
+                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=84432744 vkTextures=10 frame=1920x1080",
+                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=90000000 vkTextures=10 frame=0x0")
+        self.assertRefused(self.run_gate(log=sceneless), "retired scenes are not freed")
 
     def test_the_product_scene_runs_at_the_default_capacity(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(sectionCapacity=4096)),

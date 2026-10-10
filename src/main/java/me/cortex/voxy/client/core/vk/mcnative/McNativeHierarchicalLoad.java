@@ -802,9 +802,11 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             + " vkBuffers=" + me.cortex.voxy.client.core.vk.VkBuffer.getCount()
             + " vkBufferBytes=" + me.cortex.voxy.client.core.vk.VkBuffer.getTotalSize()
             + " vkTextures=" + me.cortex.voxy.client.core.vk.VkTexture.getCount()
-            // and the frame size: the readback buffers are sized to it, so a resize moves the bytes
-            + " frame=" + net.minecraft.client.Minecraft.getInstance().getWindow().getWidth()
-            + "x" + net.minecraft.client.Minecraft.getInstance().getWindow().getHeight());
+            // and the frame size the live scene was built at (0x0 without one): its readbacks are
+            // sized to it, so a rebuild at a new size moves the bytes. ⚠ Not the window's size — a
+            // resize is seen at once but the scene is rebuilt at it later
+            + " frame=" + (instance == null ? 0 : instance.width)
+            + "x" + (instance == null ? 0 : instance.height));
     }
 
     private static void requestReadback(GpuTextureView colour, int width, int height, long at) {
