@@ -1,0 +1,20 @@
+{
+  "deviceName": "Apple M4 Pro",
+  "zZeroToOne": true,
+  "queueFamilies": {"graphics": 0, "compute": 3, "transfer": 3},
+  "features": [
+    {"name": "multiDrawIndirect", "supported": true, "enabledByMinecraft": true},
+    {"name": "drawIndirectFirstInstance", "supported": true, "enabledByMinecraft": false},
+    {"name": "shaderInt64", "supported": true, "enabledByMinecraft": false},
+    {"name": "fragmentStoresAndAtomics", "supported": true, "enabledByMinecraft": false},
+    {"name": "vertexPipelineStoresAndAtomics", "supported": true, "enabledByMinecraft": false},
+    {"name": "shaderDrawParameters", "supported": true, "enabledByMinecraft": true},
+    {"name": "synchronization2", "supported": true, "enabledByMinecraft": true},
+    {"name": "dynamicRendering", "supported": true, "enabledByMinecraft": true}
+  ],
+  "supportedButNotEnabledByMinecraft": ["drawIndirectFirstInstance", "shaderInt64", "fragmentStoresAndAtomics", "vertexPipelineStoresAndAtomics"],
+  "unsupportedByTheDevice": [],
+  "minecraftEnabledFeatureNames": ["vertexAttributeInstanceRateDivisor", "samplerAnisotropy", "fillModeNonSolid", "hostQueryReset", "shaderDrawParameters", "multiDrawIndirect", "synchronization2", "dynamicRendering", "timelineSemaphore"],
+  "underlyingExtensions": ["VK_KHR_swapchain (D)", "VK_KHR_dynamic_rendering (D)", "VK_KHR_portability_subset (D)", "VK_KHR_synchronization2 (D)", "VK_EXT_vertex_attribute_divisor (D)", "VK_KHR_portability_enumeration (I)", "VK_KHR_push_descriptor (D)", "VK_EXT_metal_surface (I)", "VK_EXT_debug_utils (I)", "VK_KHR_surface (I)"],
+  "notes": ["DeviceInfo.features.shaderDrawParameters=true", "DeviceInfo.features.multiDrawIndirect=true", "DeviceInfo.features.nonZeroFirstInstance=true", "DeviceInfo.features.drawIndirect=true"]
+}
