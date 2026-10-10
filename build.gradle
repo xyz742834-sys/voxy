@@ -643,6 +643,10 @@ loom {
                 vmArg '-Dvoxy.native.render=true'
             }
             // The failure-injection launch: one every-frame submission fails after this many frames
+            // The synchronization-validation positive control (the injection launch sets it)
+            if (project.hasProperty('harnessNativeSyncControl')) {
+                vmArg '-Dvoxy.native.syncControl=true'
+            }
             if (project.hasProperty('harnessNativeInjectSubmitFailureAt')) {
                 vmArg '-Dvoxy.native.injectSubmitFailureAt=' + project.property('harnessNativeInjectSubmitFailureAt')
             }

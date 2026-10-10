@@ -23,5 +23,6 @@ public final class McNativeFrameHooks {
         McNativeTerrainLoad.renderIfEnabled();
         McNativeRealLoad.renderIfEnabled();
         McNativeHierarchicalLoad.renderIfEnabled();
+        McNativeSyncControl.runOnceIfEnabled();
     }
 }

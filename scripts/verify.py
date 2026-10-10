@@ -2874,7 +2874,10 @@ RENDER_FORBIDDEN_LAUNCH = ("harnessNativeDepthLadder", "harnessNativeCoexist",
                            "harnessNativeHierLoad", "harnessNativeHierFrames",
                            "harnessNativeInstance", "harnessNativeMarker", "harnessNativeTerrain",
                            "harnessNativeDepth", "harnessNativeProbe", "harnessNativeFeatures",
-                           "harnessNativeAdopt", "harnessNativeInjectSubmitFailureAt")
+                           "harnessNativeAdopt", "harnessNativeInjectSubmitFailureAt",
+                           "harnessNativeSyncControl")
+# what the injection launch alone may set beyond the product switch
+INJECT_ALLOWED_LAUNCH = ("harnessNativeInjectSubmitFailureAt", "harnessNativeSyncControl")
 # An off diagnostic's shutdown report may state these descriptors; every other field must be
 # false, zero, empty or null.
 RENDER_OFF_DESCRIPTORS = {"buildBudget", "level", "radius", "declaredDepthState", "instanceMode",
@@ -2945,7 +2948,8 @@ def native_pressure_result(output, log_text, expected_device=None, command=None)
 # Failure injection (round-27 item 6): a fifth launch, the product switch with one every-frame
 # submission failing (VK_ERROR_DEVICE_LOST, not submitted) once this many frames are composited.
 INJECT_AT_FRAME = 1000
-INJECT_LAUNCH_FLAGS = RENDER_LAUNCH_FLAGS + (f"-PharnessNativeInjectSubmitFailureAt={INJECT_AT_FRAME}",)
+INJECT_LAUNCH_FLAGS = RENDER_LAUNCH_FLAGS + (f"-PharnessNativeInjectSubmitFailureAt={INJECT_AT_FRAME}",
+                                             "-PharnessNativeSyncControl=true")
 INJECTED_FAILURE = ("the hierarchical-LOAD experiment failed: java.lang.IllegalStateException:"
                     " vkQueueSubmit -> VkResult -4")
 # after the injected failure Voxy must keep compositing at least this many frames
@@ -2999,7 +3003,7 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         if not isinstance(command, list) or any(f not in command for f in RENDER_LAUNCH_FLAGS):
             raise ValueError(f"the {L} launch command {command!r} lacks the product switch")
         enabling = [prop for prop in RENDER_FORBIDDEN_LAUNCH if launch_enables(command, prop)
-                    and not (injected and prop == "harnessNativeInjectSubmitFailureAt")]
+                    and not (injected and prop in INJECT_ALLOWED_LAUNCH)]
         if enabling:
             raise ValueError(f"the {L} launch command enables diagnostics: {enabling}")
         # its own scenario: complete, every lifecycle checkpoint, one device (the screenshots are
@@ -3070,6 +3074,14 @@ def native_render_result(output, log_text, expected_device=None, command=None,
                 raise ValueError(f"the {L} log shows {len(failed)} failed frame error(s), not the"
                                  f" one injected")
             log_text = log_text.replace(failed[0], "")
+            # the synchronization control: recorded once, and reported once — the proof that this
+            # launch's (and so every launch's) validation setup has synchronization validation on
+            hazards = sync_control_lines(log_text)
+            if len(hazards) != 1 or log_text.count(SYNC_CONTROL_RECORDED) != 1:
+                raise ValueError(f"the {L} log shows {len(hazards)} synchronization control hazard(s)"
+                                 f" and {log_text.count(SYNC_CONTROL_RECORDED)} control record(s),"
+                                 f" not one of each: synchronization validation is not shown active")
+            log_text = log_text.replace(hazards[0], "")
         log_problems = native_log_problems(log_text)
         if log_problems:
             raise ValueError(f"the {L} launch's log: {log_problems}")
@@ -4299,11 +4311,28 @@ NATIVE_EXPECTED_ERRORS = ("Minecraft is not using the OpenGL backend; Voxy's Vul
                           "Voxy is unsupported on your system.")
 
 
+# A validation message in a native launch's log. Voxy's own context tags its messages; Minecraft's
+# debug callback logs the bare text, "vkCmdFillBuffer(): WRITE_AFTER_WRITE hazard detected. ...",
+# with neither SYNC-HAZARD- nor (for hazards) a VUID — measured with the synchronization control,
+# which the earlier pattern did not see.
+NATIVE_VALIDATION_LINE = re.compile(r"\[vk-validation\]|Validation (Error|Warning)|SYNC-HAZARD-|VUID-"
+                                    r"|\(Minecraft\) vk[A-Za-z0-9]+\(\)|hazard detected")
+# The synchronization-validation positive control (McNativeSyncControl), in the injection launch:
+# exactly this one hazard must be reported there.
+SYNC_CONTROL_HAZARD = "(Minecraft) vkCmdFillBuffer(): WRITE_AFTER_WRITE hazard detected."
+SYNC_CONTROL_RECORDED = "[native-vk] synchronization validation control recorded"
+
+
+def sync_control_lines(text):
+    """The control's hazard report(s) in a log."""
+    return [line.strip() for line in text.splitlines() if SYNC_CONTROL_HAZARD in line]
+
+
 def native_log_problems(text):
     """What native_log_checks refuses in a launch log, as text (empty: none)."""
     problems = []
     diagnostics = [line.strip() for line in text.splitlines()
-                   if re.search(r"\[vk-validation\]|Validation (Error|Warning)|SYNC-HAZARD-|VUID-", line)]
+                   if NATIVE_VALIDATION_LINE.search(line)]
     if diagnostics:
         problems.append(f"validation output: {diagnostics[:3]}")
     if not any("VK_LAYER_KHRONOS_validation" in line and "Insert" in line for line in text.splitlines()):
@@ -4320,7 +4349,15 @@ def native_log_checks(result, logfile, injected=False):
     """Judge a native launch's log: validation output, loader evidence, application errors."""
     text = logfile.read_text(errors="replace")
     result["diagnostics"] = [line.strip() for line in text.splitlines()
-        if re.search(r"\[vk-validation\]|Validation (Error|Warning)|SYNC-HAZARD-|VUID-", line)]
+        if NATIVE_VALIDATION_LINE.search(line)]
+    # the injection launch's synchronization control: exactly its one hazard is expected there
+    control = [line for line in result["diagnostics"] if SYNC_CONTROL_HAZARD in line]
+    if injected and len(control) == 1:
+        result["diagnostics"].remove(control[0])
+        result["sync_control_hazard"] = control[0]
+    elif injected:
+        result["success"] = False
+        result["sync_control_failure"] = f"{len(control)} control hazard report(s), not 1"
     result["success"] &= not result["diagnostics"]
     result["validation_layer_loader_evidence"] = [line.strip() for line in text.splitlines()
         if "VK_LAYER_KHRONOS_validation" in line and "Insert" in line]

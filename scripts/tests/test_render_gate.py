@@ -279,7 +279,13 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(run(log=leak), "across lifecycles")
 
     def test_the_injection_launch_carries_on_after_one_failed_submission(self):
-        inject = COMMAND + [f"-PharnessNativeInjectSubmitFailureAt={verify.INJECT_AT_FRAME}"]
+        inject = COMMAND + [f"-PharnessNativeInjectSubmitFailureAt={verify.INJECT_AT_FRAME}",
+                            "-PharnessNativeSyncControl=true"]
+        HAZARD = ("[12:00:00] [Render thread/ERROR] (Minecraft) vkCmdFillBuffer(): WRITE_AFTER_WRITE hazard"
+                  " detected. vkCmdFillBuffer writes to dstBuffer VkBuffer 0x3aa2, which was previously"
+                  " written by another vkCmdFillBuffer command.\n")
+        RECORDED = ("[12:00:00] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeSyncControl]:"
+                    " [native-vk] synchronization validation control recorded: two unsynchronised fills\n")
         ERROR = ("[12:00:00] [Render thread/ERROR] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]:"
                  " [native-vk] the hierarchical-LOAD experiment failed\n")
         def injected(b):
@@ -288,9 +294,11 @@ class RenderGateTest(unittest.TestCase):
                      notes=[verify.INJECTED_FAILURE], renderCalls=b["renderCalls"] + 1001,
                      frameSkips={"atlas-pending": 6, "frame-failed": 1},
                      framesComposited=b["framesComposited"] + 1000)
+        def control(text):
+            return text.replace("[voxy-harness] stage=turn\n", HAZARD + RECORDED + "[voxy-harness] stage=turn\n")
         def log(text):
             text = text.replace("[voxy-harness] stage=reload\n", ERROR + "[voxy-harness] stage=reload\n")
-            return text
+            return control(text)
         def run(**kw):
             kw.setdefault("command", inject)
             kw.setdefault("mutate", injected)
@@ -303,7 +311,15 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(command=inject), "enables diagnostics")
         self.assertRefused(self.run_gate(mutate=injected, log=log), "problems=1")
         # exactly one failure: a second error line, a second failed frame, no failed frame
-        self.assertRefused(run(log=lambda t: log(log(t))), "not the one injected")
+        self.assertRefused(run(log=lambda t: log(log(t).replace(HAZARD + RECORDED, ""))), "not the one injected")
+        # the synchronization control: reported exactly once, recorded exactly once
+        self.assertRefused(run(log=lambda t: log(t).replace(HAZARD, "")), "synchronization validation is not shown active")
+        self.assertRefused(run(log=lambda t: control(log(t))), "synchronization validation is not shown active")
+        self.assertRefused(run(log=lambda t: log(t).replace(RECORDED, "")), "synchronization validation is not shown active")
+        # the product launch refuses the control's flag and its hazard
+        self.assertRefused(self.run_gate(command=COMMAND + ["-PharnessNativeSyncControl=true"]),
+                           "enables diagnostics")
+        self.assertRefused(self.run_gate(log=control), "validation output")
         self.assertRefused(run(mutate=lambda b: injected(b) or b.update(
             frameSkips={"atlas-pending": 6, "frame-failed": 2}, renderCalls=b["renderCalls"] + 1)),
             "skips 2 frame(s)")
@@ -318,6 +334,17 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(run(mutate=lambda b: injected(b) or b.update(firstProblem="x")),
                            "firstProblem")
         self.assertRefused(run(command=COMMAND), "lacks")
+
+    def test_minecraft_logged_validation_is_validation_output(self):
+        # Minecraft's debug callback logs the bare text: no SYNC-HAZARD-, no VUID for a hazard
+        for line in ("[12:00:00] [Render thread/ERROR] (Minecraft) vkCmdDraw(): READ_AFTER_WRITE hazard"
+                     " detected. vkCmdDraw reads VkImage 0x1\n",
+                     "[12:00:00] [Render thread/ERROR] (Minecraft) vkQueueSubmit(): pSubmits[0] is bad\n"):
+            self.assertRefused(self.run_gate(log=lambda t, l=line: l + t), "validation output")
+        # Minecraft's ordinary offline error is not validation output
+        offline = "[12:00:00] [Download-3/ERROR] (Minecraft) Failed to retrieve profile key pair\n"
+        result = self.run_gate(log=lambda t: offline + t)
+        self.assertTrue(result["success"], result["failures"])
 
     def test_the_log_does_not_say_voxy_is_off(self):
         for message in ("Minecraft is not using the OpenGL backend; Voxy's Vulkan path still needs a"
@@ -405,3 +432,36 @@ class RenderGateTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NativeLogChecksTest(unittest.TestCase):
+    """The runner's per-launch log check: validation output, loader evidence, Voxy errors, and in
+    the injection launch exactly one synchronization-control hazard."""
+
+    HAZARD = ("[12:00:00] [Render thread/ERROR] (Minecraft) vkCmdFillBuffer(): WRITE_AFTER_WRITE hazard"
+              " detected. vkCmdFillBuffer writes to dstBuffer VkBuffer 0x3aa2.\n")
+
+    def check(self, text, injected=False):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "launch.log"
+            path.write_text(LOADER + text)
+            result = {"success": True}
+            verify.native_log_checks(result, path, injected=injected)
+            return result
+
+    def test_a_clean_log_passes(self):
+        self.assertTrue(self.check("[12:00:00] [Render thread/INFO] (Voxy) fine\n")["success"])
+
+    def test_a_minecraft_logged_hazard_fails_an_ordinary_launch(self):
+        result = self.check(self.HAZARD)
+        self.assertFalse(result["success"])
+        self.assertEqual(len(result["diagnostics"]), 1)
+
+    def test_the_injection_launch_needs_exactly_its_control_hazard(self):
+        ok = self.check(self.HAZARD, injected=True)
+        self.assertTrue(ok["success"], ok)
+        self.assertEqual(ok["diagnostics"], [])
+        self.assertFalse(self.check("", injected=True)["success"])
+        self.assertFalse(self.check(self.HAZARD * 2, injected=True)["success"])
+        other = "[12:00:00] [Render thread/ERROR] (Minecraft) vkCmdDraw(): READ_AFTER_WRITE hazard detected.\n"
+        self.assertFalse(self.check(self.HAZARD + other, injected=True)["success"])
