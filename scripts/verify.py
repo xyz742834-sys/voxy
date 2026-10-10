@@ -2530,6 +2530,11 @@ def hier_stream_problem(report):
             or report["maxBoundSections"] < 1:
         return (f"says vanillaBound={report.get('vanillaBound')!r} with"
                 f" {report.get('maxBoundSections')!r} vanilla section(s) in the bound; no near cut")
+    # Minecraft's own lightmap (GL Voxy samples it directly), not the synthetic uniform one
+    if report.get("lightmapFailure") is not None or not finite_int(report.get("lightmapsApplied")) \
+            or report["lightmapsApplied"] < 1:
+        return (f"applied {report.get('lightmapsApplied')!r} Minecraft lightmap(s)"
+                f" (failure {report.get('lightmapFailure')!r}); Voxy kept the synthetic lighting")
     return None
 
 

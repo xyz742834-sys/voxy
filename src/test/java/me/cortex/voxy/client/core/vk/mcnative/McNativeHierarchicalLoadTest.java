@@ -33,6 +33,7 @@ public class McNativeHierarchicalLoadTest {
         assertTrue(json.contains("\"maxTopLevels\": 0"), json);
         assertTrue(json.contains("\"vanillaBound\": true"), json);
         assertTrue(json.contains("\"maxBoundSections\": 0"), json);
+        assertTrue(json.contains("\"lightmapsApplied\": 0"), json);
         assertFalse(McNativeBounds.collecting(), "nothing feeds the native bound with native rendering off");
         assertTrue(json.contains("\"buildBudget\": 6"), json);
         assertTrue(json.contains("\"declaredDepthState\": [6, 1, 1]"), json);

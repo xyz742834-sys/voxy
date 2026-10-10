@@ -759,6 +759,12 @@ public final class VkHierarchicalScene {
         // visible section boxes into each terrain pass's depth bound, so Voxy draws only beyond
         // vanilla's loaded terrain. The renderers' one-time uploads (which fill the bound with the
         // neutral value) go first, so they cannot overwrite it.
+        // Minecraft's lightmap, when one was set since the last frame (after the renderers' one-time
+        // uploads, which carry the synthetic one)
+        for (var r : new VkTerrainRenderer[] {this.renderer, this.temporalRenderer, this.translucentRenderer}) {
+            r.recordUploads(cmd);
+        }
+        this.res.recordLightmapUpload(cmd);
         if (this.vanillaBound != null) {
             for (var r : new VkTerrainRenderer[] {this.renderer, this.temporalRenderer, this.translucentRenderer}) {
                 r.recordUploads(cmd);

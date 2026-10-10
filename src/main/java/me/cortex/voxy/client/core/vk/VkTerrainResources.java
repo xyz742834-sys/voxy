@@ -333,6 +333,25 @@ public class VkTerrainResources {
         };
     }
 
+    private boolean lightmapDirty;
+
+    /**
+     * Minecraft's own lightmap (16x16 RGBA8, as read back on the native path). Host side: write
+     * after the previous submission completed; {@link #recordLightmapUpload} uploads it.
+     */
+    public void setLightmap(byte[] rgba) {
+        if (rgba.length != 16 * 16 * 4) throw new IllegalArgumentException("a lightmap is 16x16 RGBA8");
+        MemoryUtil.memByteBuffer(this.lightmapStaging.addr(), rgba.length).put(0, rgba);
+        this.lightmapDirty = true;
+    }
+
+    /** Upload a lightmap set since the last upload (Voxy's submission, outside rendering). */
+    public void recordLightmapUpload(VkCommandBuffer cmd) {
+        if (!this.lightmapDirty) return;
+        this.lightmapDirty = false;
+        this.uploadImage(cmd, this.lightmapStaging, this.lightmap, 16, 16);
+    }
+
     /** ライトマップは一様な明るさにする (照明差で絵が変わらないように)。 */
     private void fillSyntheticLightmap() {
         long addr = this.lightmapStaging.addr();

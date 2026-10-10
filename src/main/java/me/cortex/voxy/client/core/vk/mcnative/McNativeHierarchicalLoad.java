@@ -134,8 +134,20 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private static int maxBoundSections;
     private static int[] boundScratch;
 
+    private static long lightmapSeen;
+    /** Minecraft lightmaps applied to the scene. */
+    private static long lightmapsApplied;
+
     /** This frame's vanilla sections into the scene's bound. Host side, after the fence wait. */
     private static void feedBound(McNativeHierarchicalLoad probe) {
+        // and Minecraft's newest lightmap (GL Voxy samples Minecraft's lightmap texture directly)
+        McNativeLightmap.request();
+        byte[] lm = McNativeLightmap.newerThan(lightmapSeen);
+        if (lm != null) {
+            lightmapSeen = McNativeLightmap.sequence();
+            probe.scene.res.setLightmap(lm);
+            lightmapsApplied++;
+        }
         Object[] snap = McNativeBounds.snapshot(boundScratch);
         boundScratch = (int[]) snap[0];
         int n = (Integer) snap[1];
@@ -972,6 +984,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"streaming\": true,\n");
         sb.append("  \"maxTopLevels\": ").append(maxTopLevels).append(",\n");
         sb.append("  \"vanillaBound\": true,\n");
+        sb.append("  \"lightmapsApplied\": ").append(lightmapsApplied).append(",\n");
+        sb.append("  \"lightmapReads\": ").append(McNativeLightmap.reads()).append(",\n");
+        sb.append("  \"lightmapFailure\": ").append(McNativeVulkanProbe.quote(McNativeLightmap.failure())).append(",\n");
         sb.append("  \"maxBoundSections\": ").append(maxBoundSections).append(",\n");
         sb.append("  \"sectionRenderDistance\": ").append(
             me.cortex.voxy.client.config.VoxyConfig.CONFIG.sectionRenderDistance).append(",\n");
