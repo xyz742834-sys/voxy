@@ -484,7 +484,8 @@ of the point — and the replay status of each is:
 | [20261010T001738-021106Z](runs/native-evidence/20261010T001738-021106Z/MANIFEST.json) | no — composited at the level-render tail |
 | [20261010T004433-359709Z](runs/native-evidence/20261010T004433-359709Z/MANIFEST.json) | no — the synthetic lightmap |
 | [20261010T011555-864761Z](runs/native-evidence/20261010T011555-864761Z/MANIFEST.json) | no — before fog and fade |
-| [20261010T013220-754860Z](runs/native-evidence/20261010T013220-754860Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, GL's point, Minecraft's lightmap, GL's fog and fade |
+| [20261010T013220-754860Z](runs/native-evidence/20261010T013220-754860Z/MANIFEST.json) | no — before the pressure launch |
+| [20261010T015936-831549Z](runs/native-evidence/20261010T015936-831549Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; four launches: environment, ladder, product switch, pressure |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -2070,11 +2071,29 @@ captured at the cutout hook (`McNativeFog`, Sodium's `FogParameters`, as GL's vi
 When fog covers all Voxy rendering the every-frame path skips the composite (`fog-covers-all`). Both
 gates require the post pass and a valid fog mode. GL's SSAO is not ported.
 
-**Measured** (run [20261010T013220-754860Z](runs/native-evidence/20261010T013220-754860Z/MANIFEST.json), replay 0 in this checkout): fog mode
+**Measured** (run [20261010T013220-754860Z](runs/native-evidence/20261010T013220-754860Z/MANIFEST.json), which replayed 0 in the checkout it was built from): fog mode
 FOG_AND_FADE; 8 judged hierarchical samples by the strict rule against the fogged reference, zero
 violations, none undetermined; the product switch alone composited 5 319 frames, every overworld stage,
 and skipped the 287 nether frames because the nether's fog covers all Voxy rendering (GL skips its
 blit there too). The horizon thumbnail shows far terrain fading into the sky colour.
+
+### Geometry pressure (2026-10-10)
+
+**What changed** (`24a84f6e`, `8202e26b`). Part of round 27's pressure item. The probe publishes its
+scenes' geometry pressure: capacity (sections, quads), peak geometry use, cumulative meshed sections,
+sections reclaimed by Voxy's `GeometryReclaimer`, builds the admission turned away
+(`VkGeometryAdmission`) and whether it was ever exhausted. A fourth gated launch runs the product
+switch with a small scene — 4 096 sections and **500 000 quads (4 MB of geometry)** instead of
+8 192 / 4 000 000 (32 MB) — and `native_pressure_result` requires every product-launch check at that
+capacity plus reclaim having run (the product launch must run at the default capacity). Retained
+under `pressure/` and replayed like `render/`. The first attempt lowered only the section count and
+reclaimed nothing: the admission limit is geometry bytes.
+
+**Measured** (run [20261010T015936-831549Z](runs/native-evidence/20261010T015936-831549Z/MANIFEST.json), replay 0 in this checkout): default
+launches peak at about 8.8 MB of 32 MB; the pressure launch reclaimed **219 789 sections**, turned
+3 365 builds away when even reclaim could not make room (exhausted at times), peaked at 3.97 MB of
+4 MB, and composited 5 337 frames in every required stage with no problem, leak or validation
+message. This is pressure within one ~15-minute lifecycle, not a long-session allocation plateau.
 
 ## What is NOT answered yet, and must be measured on hardware
 

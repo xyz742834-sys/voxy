@@ -89,6 +89,7 @@ report separately from any repair.
 | **Product switch `voxy.native.render`** + third gated launch (`345ebde7`, `c4ddb119`) | measured (5 235 frames composited with the switch alone, every required stage, clean); **unreviewed** |
 | **R26 findings** | PROJECTION-EQUIVALENCE, COMPOSITE-DOC-SCOPE closed by r27; LADDER-GUARD-COVERAGE completed after r27 |
 | **R27 findings** (EMPTY-REBUILD, RENDER-DISABLE, RENDER-GATE, CONTEXT-DRIFT) | repaired in `8d241b40`; **round 28 reviews `10856154`** |
+| **Geometry pressure launch** (`24a84f6e`, `8202e26b`) | measured (4 MB scene: 219 789 reclaimed, every stage composited, clean); **unreviewed** |
 | **GL's fog and fade** (`2fb1737a`) | measured (FOG_AND_FADE, 8 judged zero violations, nether skipped as GL); **unreviewed** |
 | **Minecraft's own lightmap** (`9be59d81`, `40e38c9c`) | measured (about 2 800 applied per launch, validation clean); **unreviewed** |
 | **GL's composite point + depth writes** (`24d3f23b`, `e748a2f0`) | measured (7 judged by the strict clear-only rule, zero violations, with depth writes); **unreviewed** |
@@ -228,7 +229,7 @@ Gate/test counts at this HEAD: JUnit 354 (1 documented skip, 0 failures; 8 for t
 terrain-LOAD probe, one of them a GPU render of the reference scene, 2 for instance mode,
 4 for real-LOAD);
 Python 318 cases;
-native stage green as `docs/ai/runs/native-evidence/20261010T013220-754860Z` (replay 0 **in this
+native stage green as `docs/ai/runs/native-evidence/20261010T015936-831549Z` (replay 0 **in this
 checkout** — replay requires the retained source fingerprint to equal the tree's source
 inventory, so only a run built from HEAD's sources replays; `20261009T063708-667962Z`, which
 round 17 judged, replayed 0 in the checkout it was built from). The lifecycle now has fourteen
@@ -278,7 +279,8 @@ commit the report alone, then repair.
    the survey. Done in round 27's readiness order: the scene streamed at Voxy's configured radius
    (`155673fb`), the native near cut (`afc61e91`), the composite at GL's point writing Voxy's depth
    (`24d3f23b`, `e748a2f0`), Minecraft's lightmap (`9be59d81`), GL's fog and fade (`2fb1737a`).
-   Next: pressure and long sessions, repeated lifecycle transitions, then default-on. Default-on (the kill switch
+   Geometry pressure (`8202e26b`). Next: long sessions (allocation plateau), repeated lifecycle
+   transitions, then default-on. Default-on (the kill switch
    `voxy.native.disable` exists) waits for those. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
    whole hierarchical pipeline natively, the step from "real sections at one level" to Voxy's LoD:
