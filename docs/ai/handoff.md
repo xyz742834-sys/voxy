@@ -289,10 +289,9 @@ commit the report alone, then repair.
    lifecycles — 21 builds, 4 resizes/reloads/nether trips/reconnects, 552707 sections reclaimed,
    bytes back exactly to the same value at each scene size; the gate holds bytes per size within 1 %
    across lifecycles. Still open from round 27 item 6: failure injection (failed submit/wait, device
-   changes). Was next: a
-   long-session soak with repeated lifecycle transitions (needs a
-   harness repeat and its own gate), then default-on. Default-on (the kill switch
-   `voxy.native.disable` exists) waits for those. The original design notes follow.
+   changes). Next: failure injection, gate-coverage residuals and far-world evidence, then
+   default-on. Default-on (the kill switch `voxy.native.disable` exists) waits for those and for
+   an independent review of everything since `10856154`. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
    whole hierarchical pipeline natively, the step from "real sections at one level" to Voxy's LoD:
    `VkHierarchicalScene` (real world mapper/bakery, `NodeManager`, HiZ, traversal, prep/cull,
