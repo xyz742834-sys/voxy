@@ -317,9 +317,10 @@ commit the report alone, then repair.
    detected, 27 still only by real-LOAD tests (shared helpers `real_load_skip_provenance`,
    `load_judged_entry_checks`, `judge_load_sample`) — deferred, non-blocking. Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
-   here) and it is 0: the horizon band's rays (4–10° below horizontal from y 160) meet the ground
-   within ~1300 blocks. Evidence needs a new look from y ≥ ~215 onto terrain ingested at x ≈ 2560,
-   and the gate then requiring beyondMinecraftFar ≥ 1. Next: failure injection, gate-coverage residuals and far-world evidence, then
+   here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
+   terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the
+   gate requires judged far pixels beyond the far plane. Run `20261010T100424-805829Z`: 3325 such
+   pixels in the far look (5820 in all), judged per pixel. Next: failure injection, gate-coverage residuals and far-world evidence, then
    default-on. Default-on (the kill switch `voxy.native.disable` exists) waits for those and for
    an independent review of everything since `10856154`. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
