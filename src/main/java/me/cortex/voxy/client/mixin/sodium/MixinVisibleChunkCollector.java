@@ -32,6 +32,9 @@ public class MixinVisibleChunkCollector {
         VoxyRenderSystem vrs;
         if (!IrisUtil.irisShadowActive() && (vrs = IVoxyRenderSystemHolder.getNullable()) != null && vrs.visbleSectionStream != null && voxy$shouldUseForChunkBound(region, LocalSectionIndex.pack(x, y, z))) {
             vrs.visbleSectionStream.put(SectionPos.asLong(x,y,z));
+        } else if (!IrisUtil.irisShadowActive() && me.cortex.voxy.client.core.vk.mcnative.McNativeBounds.collecting()
+                && voxy$shouldUseForChunkBound(region, LocalSectionIndex.pack(x, y, z))) {
+            me.cortex.voxy.client.core.vk.mcnative.McNativeBounds.put(SectionPos.asLong(x, y, z));
         }
         return region;
     }

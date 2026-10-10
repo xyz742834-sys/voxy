@@ -2525,6 +2525,11 @@ def hier_stream_problem(report):
                 f" ceil({distance} + 1)")
     if not finite_int(report.get("maxTopLevels")) or report["maxTopLevels"] < 1:
         return f"held {report.get('maxTopLevels')!r} top-level node(s); nothing was streamed in"
+    # the near cut (GL's BoundRenderer): Minecraft's built, visible sections bound Voxy's depth
+    if report.get("vanillaBound") is not True or not finite_int(report.get("maxBoundSections")) \
+            or report["maxBoundSections"] < 1:
+        return (f"says vanillaBound={report.get('vanillaBound')!r} with"
+                f" {report.get('maxBoundSections')!r} vanilla section(s) in the bound; no near cut")
     return None
 
 

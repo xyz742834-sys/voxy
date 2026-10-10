@@ -33,6 +33,9 @@ public class MixinFallbackVisibleChunkCollector {
         if (!IrisUtil.irisShadowActive() && (vrs = IVoxyRenderSystemHolder.getNullable()) != null && voxy$shouldUseForChunkBound(section, LocalSectionIndex.pack(x, y, z))) {
             if (vrs.visbleSectionStream != null)
                 vrs.visbleSectionStream.put(SectionPos.asLong(x,y,z));
+        } else if (!IrisUtil.irisShadowActive() && me.cortex.voxy.client.core.vk.mcnative.McNativeBounds.collecting()
+                && voxy$shouldUseForChunkBound(section, LocalSectionIndex.pack(x, y, z))) {
+            me.cortex.voxy.client.core.vk.mcnative.McNativeBounds.put(SectionPos.asLong(x, y, z));
         }
         return section;
     }

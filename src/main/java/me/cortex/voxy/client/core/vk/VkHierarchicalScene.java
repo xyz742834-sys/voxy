@@ -712,6 +712,12 @@ public final class VkHierarchicalScene {
         // populate() 由来の初期確保だけは 0 のまま (既定値) だが、それは
         // <b>最初に確保された = 最も古い</b>という意味でむしろ正しい
         this.reclaimer.setCurrentFrame(frameId);
+        // the bound pass draws with this frame's matrix and camera
+        this.boundMvp.set(mvp);
+        this.boundAnchorBlock[0] = camSection[0] << 5;
+        this.boundAnchorBlock[1] = camSection[1] << 5;
+        this.boundAnchorBlock[2] = camSection[2] << 5;
+        System.arraycopy(camSubPos, 0, this.boundCameraRel, 0, 3);
         this.nodes.writeChanges(this.nodeTarget);
         var flushed = VkGeometryFlush.flush(this.geometry, this.res.geometry, this.res.sectionMetadata);
         this.traversal.writeUniform(mvp, camSection, camSubPos, this.hiz.packedSize(),
@@ -748,6 +754,18 @@ public final class VkHierarchicalScene {
         // `useExternalAtlasContent()` で合成の中身も止めているので
         // **アトラスが未初期化のまま**になる。落ちないし絵も出る — 一色になるだけである
         this.bakery.recordUploads(cmd);
+
+        // The native vanilla bound (VkBoundRenderer, GL's BoundRenderer): Minecraft's built,
+        // visible section boxes into each terrain pass's depth bound, so Voxy draws only beyond
+        // vanilla's loaded terrain. The renderers' one-time uploads (which fill the bound with the
+        // neutral value) go first, so they cannot overwrite it.
+        if (this.vanillaBound != null) {
+            for (var r : new VkTerrainRenderer[] {this.renderer, this.temporalRenderer, this.translucentRenderer}) {
+                r.recordUploads(cmd);
+                this.vanillaBound.record(cmd, r.depthBoundTexture(), this.boundMvp, this.boundAnchorBlock,
+                    this.boundCameraRel, this.boundRenderDistance);
+            }
+        }
 
         // ① 不透明。**前フレームのテーブル**で描き、深度を書く
         this.renderer.record(cmd, target, this.maxDraws, clearColour);
@@ -1296,6 +1314,32 @@ public final class VkHierarchicalScene {
     public int topLevelRequested() { return this.topLevelRequested; }
     public int meshedSections() { return this.meshedSections; }
 
+    // ---------------- the vanilla bound (GL's BoundRenderer) ----------------
+
+    private VkBoundRenderer vanillaBound;
+    private final org.joml.Matrix4f boundMvp = new org.joml.Matrix4f();
+    private final int[] boundAnchorBlock = new int[3];
+    private final float[] boundCameraRel = new float[3];
+    private float boundRenderDistance;
+
+    /** Turn the native vanilla bound on (off: the neutral bound, nothing discarded). */
+    public void enableVanillaBound(int width, int height) {
+        if (this.vanillaBound == null) this.vanillaBound = new VkBoundRenderer(width, height);
+    }
+
+    /**
+     * This frame's built, visible vanilla sections (chunk-section coordinates, 3 ints each) and
+     * Minecraft's render distance in blocks. Host side: call after the previous submission completed.
+     */
+    public void setVanillaBound(int[] xyz, int count, float renderDistanceBlocks) {
+        if (this.vanillaBound == null) return;
+        this.vanillaBound.setSections(xyz, count);
+        this.boundRenderDistance = renderDistanceBlocks;
+    }
+
+    public int vanillaBoundSections() { return this.vanillaBound == null ? 0 : this.vanillaBound.count(); }
+    public long vanillaBoundDropped() { return this.vanillaBound == null ? 0 : this.vanillaBound.dropped(); }
+
     // ---------------- streaming (GL's RenderDistanceTracker) ----------------
 
     /**
@@ -1359,6 +1403,7 @@ public final class VkHierarchicalScene {
         if (this.freed) return;
         this.freed = true;
         this.world.clearDirtyCallbackIf(this.dirtyCallback);
+        if (this.vanillaBound != null) this.vanillaBound.free();
         this.timer.free();
         this.cull.free();
         this.uniformEcho.free();

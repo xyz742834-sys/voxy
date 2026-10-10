@@ -233,8 +233,10 @@ public class VkTerrainRenderer {
             .alphaBlend(pass == Pass.TRANSLUCENT)
             .build();
 
+        // attachment too: the native vanilla bound (VkBoundRenderer) draws into it
         this.depthBound = new VkTexture(DEPTH_BOUND_FORMAT, 1, width, height,
-            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT).name("depthBound");
+            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT).name("depthBound");
 
         this.bindDescriptors();
     }
@@ -358,6 +360,9 @@ public class VkTerrainRenderer {
     }
 
     public float depthBoundValue() { return this.depthBoundValue; }
+
+    /** The depth-bound texture this renderer's fragment shader samples (binding 2). */
+    public VkTexture depthBoundTexture() { return this.depthBound; }
 
     public void record(VkCommandBuffer cmd, VkRenderTarget target, int drawCount,
                        float[] clearColour, Float clearDepth) {

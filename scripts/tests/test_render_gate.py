@@ -40,6 +40,7 @@ def report(**overrides):
             "renderCalls": 0, "framesComposited": 0, "frameSkips": {"atlas-pending": 6},
             "builds": 2, "buildBudget": 6, "iterations": 3, "streaming": True,
             "sectionRenderDistance": 16.0, "streamRenderDistance": 17, "maxTopLevels": 34,
+            "vanillaBound": True, "maxBoundSections": 210,
             "voxyNear": 16.0, "voxyFar": 48000.0, "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True, "results": [], "problems": 0,
             "firstProblem": None, "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
@@ -131,6 +132,9 @@ class RenderGateTest(unittest.TestCase):
     def test_the_product_scene_streams(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(maxTopLevels=0)), "nothing was streamed in")
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(streamRenderDistance=5)), "streams at 5 columns")
+        # the near cut
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(maxBoundSections=0)), "no near cut")
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(vanillaBound=False)), "no near cut")
 
     def test_every_frame_is_accounted_for(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(renderCalls=b["renderCalls"] + 1)),

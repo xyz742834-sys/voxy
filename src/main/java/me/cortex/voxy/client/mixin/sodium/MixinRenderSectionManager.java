@@ -45,6 +45,9 @@ public class MixinRenderSectionManager {
         var vrs = IVoxyRenderSystemHolder.getNullable();
         if (vrs != null && !IrisUtil.irisShadowActive() && vrs.visbleSectionStream != null) {
             vrs.visbleSectionStream.reset();
+        } else if (vrs == null && !IrisUtil.irisShadowActive()
+                && me.cortex.voxy.client.core.vk.mcnative.McNativeBounds.collecting()) {
+            me.cortex.voxy.client.core.vk.mcnative.McNativeBounds.reset();
         }
     }
 
@@ -53,6 +56,9 @@ public class MixinRenderSectionManager {
         var vrs = IVoxyRenderSystemHolder.getNullable();
         if (vrs != null && !IrisUtil.irisShadowActive() && vrs.visbleSectionStream != null) {
             vrs.visbleSectionStream.reset();
+        } else if (vrs == null && !IrisUtil.irisShadowActive()
+                && me.cortex.voxy.client.core.vk.mcnative.McNativeBounds.collecting()) {
+            me.cortex.voxy.client.core.vk.mcnative.McNativeBounds.reset();
         }
     }
 
