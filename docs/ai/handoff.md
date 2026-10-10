@@ -331,7 +331,9 @@ commit the report alone, then repair.
    resize/reload/dimension change/reconnect) is the opaque terrain shader's first descriptor-set
    update — with or without validation (`-PharnessNoValidation`) — likely the per-scene real-scale
    model atlas (12288x8192 + mips, ~0.5 GB, not counted in the buffer-byte figures), which GL reuses
-   across rebuilds (RenderResourceReuse). Next: reuse it across scenes. Far-world: the gate
+   across rebuilds (RenderResourceReuse). Fixed (`d2047de0`): one atlas lent to one scene at a
+   time, kept across rebuilds; run `20261010T155229-691613Z`: render-thread max 28 ms (product),
+   27 ms over the 4-lifecycle soak (was 115), frames over 16 ms 1/3/1 (product/pressure/injection). Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
    here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
    terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the

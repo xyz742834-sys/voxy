@@ -27,7 +27,7 @@ What changed since 10856154, grouped by the round-27 readiness list:
   positive control; Minecraft logs hazards as bare text, which the native gates did not see before),
   6326c429 (depth recount quantisation), 545d2b2a/5fcaaf97 (no "Voxy will disable itself" lines when
   the native path runs; gated), 2a8ad4ff (R24 hierarchical guard coverage; thumbnail size refusal),
-  16f1b496 (a hierarchical camera-extent-mismatch skip carries its extents, so the gate can corroborate it), 906ddbab (normal-play GPU and render-thread timing, required complete; no budget judged).
+  16f1b496 (a hierarchical camera-extent-mismatch skip carries its extents, so the gate can corroborate it), 906ddbab (normal-play GPU and render-thread timing, required complete; no budget judged), a2a3f5dd (worker-thread meshing as GL; results dropped for positions edited in flight; workers stopped at retire), d2047de0 (the real-scale atlas lent to one scene at a time, kept across rebuilds).
 - Far-world: 1376d11f (travel to x 2560 and a `far` look; the gate requires judged Voxy pixels beyond
   Minecraft's far plane).
 Latest evidence: docs/ai/runs/native-evidence/{EVIDENCE_RUN} (built from {EVIDENCE_SHA}); five launches.
@@ -41,7 +41,9 @@ REFUTED with file/line or command:
    0x0 handling, the soak's cycle rules, the frame tracker's unsubmitted-fence logic, the injection
    launch's exemptions (exactly one problem, one frame-failed frame, one error line, one control
    hazard) and whether any of them could hide a real failure, the broadened validation-line pattern,
-   the render-queue capacity against the shaders' indexing, the far stage's routing and requirement.
+   the render-queue capacity against the shaders' indexing, the far stage's routing and requirement,
+   the worker meshing's concurrency (world/model-factory reads, stale results, shutdown and retire
+   ordering) and the atlas pool's exclusivity and GPU lifetime.
 3. Guard-removal audit of the changed gate code (verify.py), including the new injection, soak,
    plateau and far-world predicates; R24 with your r24_guards.py (36/37 claimed, the last unreachable).
 4. Recount one hierarchical sample including the far look; check several render/ thumbnails.
