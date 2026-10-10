@@ -265,6 +265,12 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                          float[] voxyProjection, String voxyDepthFile, float[] rawProjection,
                          float voxyNear, float vanillaRenderDistance, boolean sodiumChunkRenderDisabled) {}
 
+    /**
+     * A camera-extent-mismatch skip's two extents ({camera, frame}), as real-LOAD's skip carries
+     * them: the gate corroborates the skip against the ladder sample's frame. Guarded by NOTES.
+     */
+    private static final java.util.Map<Long, int[][]> EXTENT_SKIPS = new java.util.HashMap<>();
+
     private record Pending(int[][] rects, int[][] colour, float[][] depth, float[][] rawDepth,
                            Result partial) {}
 
@@ -430,6 +436,11 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             return;
         }
         if (view.width() != width || view.height() != height) {
+            if (at >= 0) {
+                synchronized (NOTES) {
+                    EXTENT_SKIPS.put(at, new int[][] {{view.width(), view.height()}, {width, height}});
+                }
+            }
             skip(at, stage, EXTENT, capture, previousCapture, -1);
             return;
         }
@@ -1074,8 +1085,10 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     static String json() {
         List<Result> results = results();
         List<String> notes;
+        java.util.Map<Long, int[][]> extentSkips;
         synchronized (NOTES) {
             notes = List.copyOf(NOTES);
+            extentSkips = new java.util.HashMap<>(EXTENT_SKIPS);
         }
         var sb = new StringBuilder("{\n");
         sb.append("  \"enabled\": ").append(enabled()).append(",\n");
@@ -1167,6 +1180,13 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 sb.append(", \"iterationsRun\": ").append(r.iterations());
             } else {
                 sb.append(", \"atlasState\": ").append(r.atlasState());
+                int[][] extents = extentSkips.get(r.at());
+                if (extents != null) {
+                    sb.append(", \"cameraExtent\": [").append(extents[0][0]).append(", ")
+                      .append(extents[0][1]).append("]");
+                    sb.append(", \"frameExtent\": [").append(extents[1][0]).append(", ")
+                      .append(extents[1][1]).append("]");
+                }
             }
             sb.append('}');
         }

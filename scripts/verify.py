@@ -2515,6 +2515,7 @@ def hier_reprojection_checks(output, entry, at, recount, ladder_sample):
     return beyond, name
 HIER_LOAD_SKIP_KEYS = {"at", "status", "stage", "cameraCapture", "previousCapture", "buildsSoFar",
                        "atlasState"}
+HIER_LOAD_EXTENT_KEYS = {"cameraExtent", "frameExtent"}
 
 
 VOXY_FOG_MODES = ("FOG_AND_FADE", "FOG", "FADE", "OFF")   # NormalRenderPipeline.FogMode
@@ -2773,7 +2774,10 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
             if status not in REAL_LOAD_SKIPS:
                 raise ValueError(f"{L} at draw {at} has status {status!r}, not 'judged' nor a"
                                  f" reason from {REAL_LOAD_SKIPS}")
-            extra = sorted(set(entry) - HIER_LOAD_SKIP_KEYS)
+            # a camera-extent-mismatch skip carries its two extents, as real-LOAD's does
+            allowed = HIER_LOAD_SKIP_KEYS | (HIER_LOAD_EXTENT_KEYS if status == "camera-extent-mismatch"
+                                             else set())
+            extra = sorted(set(entry) - allowed)
             if extra:
                 raise ValueError(f"{L} skip at draw {at} carries {extra}, which a skip never has")
             real_load_skip_provenance(entry, recount, log_text, ladder_samples_by_at.get(at, {}),

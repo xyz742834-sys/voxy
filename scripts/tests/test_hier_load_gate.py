@@ -324,6 +324,19 @@ class HierLoadGateTest(unittest.TestCase):
                            "show a capture every frame")
         self.assertRefused(self.run_gate(hier_status={0: "camera-extent-mismatch"}),
                            "which the ladder sample does not support")
+        # a resize-stage extent skip that carries its extents is corroborated (it used to be refused
+        # whatever it carried: the hierarchical skip could not record them)
+        import test_ladder_gate as tlg
+        resize_pairs = ([sample(at=2900, kind="clouds", stage="resize")] + direction_samples()
+                        + [sample(at=3480, kind="clouds", stage="reconnect"), far_sample()])
+        def extents(cam):
+            return lambda r: r["results"][0].update(cameraExtent=cam, frameExtent=[tlg.FULL_W, tlg.FULL_H])
+        ok = self.run_gate(pairs=resize_pairs, hier_status={0: "camera-extent-mismatch"},
+                           mutate_hier=extents([tlg.FULL_W - 8, tlg.FULL_H]))
+        self.assertTrue(ok["success"], ok["failures"])
+        self.assertRefused(self.run_gate(pairs=resize_pairs, hier_status={0: "camera-extent-mismatch"},
+                                         mutate_hier=extents([tlg.FULL_W, tlg.FULL_H])),
+                           "which the ladder sample does not support")
         def live_engine(text):
             line = next(l for l in text.splitlines(keepends=True) if "hier load at draw 3000 " in l)
             inst = ("[native-vk] native instance at frame 60 stage=descend factory=true instance=true"
