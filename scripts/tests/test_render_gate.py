@@ -7,6 +7,7 @@ required stage.
 """
 from pathlib import Path
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -53,7 +54,7 @@ def report(**overrides):
     return body
 
 
-def log_for(stages=verify.LIFECYCLE_STAGES, per_stage=100, start=0):
+def log_for(stages=verify.LIFECYCLE_STAGES, per_stage=100, start=0, cycles=1):
     lines = [LOADER, "[native-vk] requested the block atlas (2048x2048) through Blaze3D\n",
              "[native-vk] block atlas read through Blaze3D: 2048x2048\n",
              "[native-vk] hier-LOAD scene #1: streaming render distance 17, sections -1..0\n"]
@@ -67,14 +68,25 @@ def log_for(stages=verify.LIFECYCLE_STAGES, per_stage=100, start=0):
         if i == 9:
             lines.append("[native-vk] hier-LOAD scene #2: streaming render distance 17, sections -1..0\n")
         composited += per_stage
+    # the soak's repeats: the resize alternates the scene between the two sizes
+    for c in range(2, cycles + 1):
+        for stage in verify.SOAK_STAGES:
+            after = verify.LIFECYCLE_STAGES.index(stage) > verify.LIFECYCLE_STAGES.index("resize")
+            large = (c % 2 == 1) == after
+            lines.append(f"[voxy-harness] stage={stage} cycle={c}\n")
+            lines.append(f"[native-vk] hier frames entering stage {stage}: composited={composited}"
+                         f" skipped=6 builds=2 vkBuffers=40"
+                         f" vkBufferBytes={80961384 + (3471360 if large else 0)} vkTextures=10"
+                         f" frame={'1920x1080' if large else '1708x960'} cycle={c}\n")
+            composited += per_stage
     return "".join(lines), composited
 
 
 class RenderGateTest(unittest.TestCase):
 
     def run_gate(self, mutate=None, log=None, files=(), device=DEVICE, command=None, env=None,
-                 gate=None):
-        text, total = log_for()
+                 gate=None, cycles=1):
+        text, total = log_for(cycles=cycles)
         body = report(framesComposited=total, renderCalls=total + 6)
         if mutate:
             mutate(body)
@@ -82,6 +94,7 @@ class RenderGateTest(unittest.TestCase):
             out = Path(tmp)
             (out / "native-hier-load.json").write_text(json.dumps(body))
             e = environment()
+            e.update(cycles=cycles, cycle=cycles)
             if env:
                 env(e)
             (out / "native-result.json").write_text(json.dumps(e))
@@ -199,20 +212,70 @@ class RenderGateTest(unittest.TestCase):
 
     def test_the_pressure_launch_reclaims(self):
         pressure = COMMAND + [f"-PharnessNativeSectionCapacity={verify.PRESSURE_CAPACITY}",
-                              f"-PharnessNativeGeometryQuads={verify.PRESSURE_QUADS}"]
+                              f"-PharnessNativeGeometryQuads={verify.PRESSURE_QUADS}",
+                              f"-PharnessCycles={verify.SOAK_CYCLES}"]
         def under(b):
             b.update(sectionCapacity=verify.PRESSURE_CAPACITY, geometryQuads=verify.PRESSURE_QUADS,
                      geometryReclaimed=900)
-        ok = self.run_gate(mutate=under, command=pressure, gate=verify.native_pressure_result)
+        def run(**kw):
+            kw.setdefault("cycles", verify.SOAK_CYCLES)
+            kw.setdefault("command", pressure)
+            kw.setdefault("mutate", under)
+            return self.run_gate(gate=verify.native_pressure_result, **kw)
+        ok = run()
         self.assertTrue(ok["success"], ok["failures"])
         self.assertEqual(ok["reclaimed"], 900)
-        self.assertRefused(self.run_gate(mutate=lambda b: under(b) or b.update(geometryReclaimed=0),
-                                         command=pressure, gate=verify.native_pressure_result),
+        self.assertEqual(ok["cycles"], verify.SOAK_CYCLES)
+        self.assertRefused(run(mutate=lambda b: under(b) or b.update(geometryReclaimed=0)),
                            "put no pressure on the scene")
-        self.assertRefused(self.run_gate(mutate=under, gate=verify.native_pressure_result),
-                           "lacks")
-        self.assertRefused(self.run_gate(command=pressure, gate=verify.native_pressure_result),
-                           "not 4096 and 500000")
+        self.assertRefused(run(command=COMMAND), "lacks")
+        self.assertRefused(run(command=pressure[:-1]), "lacks")
+        self.assertRefused(run(mutate=None), "not 4096 and 500000")
+
+    def test_the_soak_repeats_every_lifecycle(self):
+        pressure = COMMAND + [f"-PharnessNativeSectionCapacity={verify.PRESSURE_CAPACITY}",
+                              f"-PharnessNativeGeometryQuads={verify.PRESSURE_QUADS}",
+                              f"-PharnessCycles={verify.SOAK_CYCLES}"]
+        def under(b):
+            b.update(sectionCapacity=verify.PRESSURE_CAPACITY, geometryQuads=verify.PRESSURE_QUADS,
+                     geometryReclaimed=900)
+        def run(**kw):
+            kw.setdefault("cycles", verify.SOAK_CYCLES)
+            return self.run_gate(gate=verify.native_pressure_result, command=pressure, mutate=under, **kw)
+        # one lifecycle is not a soak
+        self.assertRefused(run(cycles=1), "not 1..4")
+        # the harness must say it ran them all
+        self.assertRefused(run(env=lambda e: e.update(cycle=3)), "not 4 of 4")
+        # a repeat that skips a stage
+        def drop_nether(text):
+            out, skip = [], False
+            for line in text.splitlines(keepends=True):
+                if line == "[voxy-harness] stage=nether cycle=3\n":
+                    skip = True
+                    continue
+                if skip:
+                    skip = False
+                    continue
+                out.append(line)
+            return "".join(out)
+        self.assertRefused(run(log=drop_nether), "cycle 3 enters")
+        # a stage entered twice in one cycle
+        def twice(text):
+            i = text.index("[voxy-harness] stage=reload cycle=2\n")
+            j = text.index("[voxy-harness] stage=nether cycle=2\n")
+            return text[:j] + text[i:j] + text[j:]
+        self.assertRefused(run(log=twice), "twice in one cycle")
+        # a leak of 1 MB per lifecycle: under the 5 % within a cycle, over it across four
+        def leak(text):
+            out = []
+            for line in text.splitlines(keepends=True):
+                m = re.search(r"vkBufferBytes=(\d+)(.*) cycle=(\d)", line)
+                if m:
+                    line = line.replace(f"vkBufferBytes={m.group(1)}",
+                                        f"vkBufferBytes={int(m.group(1)) + 1_000_000 * (int(m.group(3)) - 1)}")
+                out.append(line)
+            return "".join(out)
+        self.assertRefused(run(log=leak), "across lifecycles")
 
     def test_every_frame_is_accounted_for(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(renderCalls=b["renderCalls"] + 1)),

@@ -792,8 +792,10 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      */
     private static void logStageChange() {
         String stage = System.getProperty("voxy.harness.stage");
-        if (stage == null || stage.equals(lastStageLogged) || !everyFrame()) return;
-        lastStageLogged = stage;
+        // the soak repeats stages: a stage is entered once per lifecycle cycle
+        String cycle = System.getProperty("voxy.harness.cycle", "1");
+        if (stage == null || (stage + "#" + cycle).equals(lastStageLogged) || !everyFrame()) return;
+        lastStageLogged = stage + "#" + cycle;
         long skipped = 0;
         for (long n : FRAME_SKIPS.values()) skipped += n;
         // and Voxy's live Vulkan allocations, so repeated rebuilds/retirements can be seen to return
@@ -806,7 +808,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             // sized to it, so a rebuild at a new size moves the bytes. ⚠ Not the window's size — a
             // resize is seen at once but the scene is rebuilt at it later
             + " frame=" + (instance == null ? 0 : instance.width)
-            + "x" + (instance == null ? 0 : instance.height));
+            + "x" + (instance == null ? 0 : instance.height)
+            + (cycle.equals("1") ? "" : " cycle=" + cycle));
     }
 
     private static void requestReadback(GpuTextureView colour, int width, int height, long at) {

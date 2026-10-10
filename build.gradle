@@ -549,6 +549,8 @@ loom {
             vmArg '-Dvoxy.5c4.clearsweep=false'
             vmArg '-Dvoxy.harness.output=' + file(project.findProperty('harnessOutput') ?: 'build/harness/manual').absolutePath
             vmArg '-Dvoxy.harness.seconds=' + (project.findProperty('harnessSeconds') ?: '10')
+            // the soak: repeat travel..reconnect this many lifecycles in total
+            vmArg '-Dvoxy.harness.cycles=' + (project.findProperty('harnessCycles') ?: '1')
             if (project.hasProperty('vkLibname')) {
                 vmArg '-Dorg.lwjgl.vulkan.libname=' + project.property('vkLibname')
             }

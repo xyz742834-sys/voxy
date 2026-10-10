@@ -53,6 +53,14 @@ public final class LiveWorldHarness implements ClientModInitializer {
     private long frameStart;
     private final java.util.concurrent.atomic.AtomicInteger screenshotsPending = new java.util.concurrent.atomic.AtomicInteger();
     private double dwell;
+    /**
+     * The soak (round-27 item 6): after `reconnect`, run `travel`..`reconnect` again until this many
+     * lifecycles are done — fast travel, edits, a resize (alternating sizes), a reload, both
+     * dimension changes, the looks down, disconnect and reconnect, each repeated. Repeats take no
+     * checkpoints; Voxy's per-stage snapshots carry the cycle.
+     */
+    private int cycles, cycle = 1;
+    private static final int CYCLE_FROM = 3;
     private CompletableFuture<Void> reload;
     private long editVersion;
     private static final String WORLD = "voxy-harness";
@@ -79,6 +87,8 @@ public final class LiveWorldHarness implements ClientModInitializer {
         if (!FabricLoader.getInstance().isDevelopmentEnvironment() || !Boolean.getBoolean("voxy.harness")) return;
         output = Path.of(System.getProperty("voxy.harness.output")).toAbsolutePath();
         dwell = Double.parseDouble(System.getProperty("voxy.harness.seconds", "10"));
+        cycles = Integer.getInteger("voxy.harness.cycles", 1);
+        if (cycles < 1) throw new IllegalArgumentException("harness.cycles must be >= 1");
         if (!Double.isFinite(dwell) || dwell < 1) throw new IllegalArgumentException("harness.seconds must be >= 1");
         try {
             Files.createDirectories(output);
@@ -169,7 +179,11 @@ public final class LiveWorldHarness implements ClientModInitializer {
             if (nativeMode) nativeCheckpoint(mc); else checkpoint(mc);
             if (stage == STAGES.length - 1) {
                 if (screenshotsPending.get() != 0) return;
-                finish(mc);
+                if (cycle < cycles) {
+                    cycle++;
+                    stage = CYCLE_FROM - 1;
+                    advance();
+                } else finish(mc);
             } else advance();
         } catch (Throwable t) {
             t.printStackTrace();
@@ -179,9 +193,10 @@ public final class LiveWorldHarness implements ClientModInitializer {
     }
 
     private void enter(Minecraft mc) {
-        System.out.println("[voxy-harness] stage=" + STAGES[stage]);
+        System.out.println("[voxy-harness] stage=" + STAGES[stage] + (cycle > 1 ? " cycle=" + cycle : ""));
         // Diagnostics that sample during the run (the depth ladder) read this to label
         // their samples with the lifecycle stage they were taken in.
+        System.setProperty("voxy.harness.cycle", Integer.toString(cycle));
         System.setProperty("voxy.harness.stage", STAGES[stage]);
         switch (stage) {
             case 0 -> {
@@ -234,7 +249,7 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 if (!nativeMode) editVersion = VkInteropProbe.meshVersionAt(0, 104, 24);
                 command(mc, "fill -8 100 20 8 108 28 minecraft:air");
             }
-            case 8 -> mc.getWindow().setWindowed(960, 540);
+            case 8 -> mc.getWindow().setWindowed(resizeWidth(), resizeHeight());
             case 9 -> reload = mc.reloadResourcePacks();
             case 10 -> command(mc, "execute in minecraft:the_nether run tp @s 0 100 0 0 30");
             case 11 -> command(mc, "execute in minecraft:overworld run tp @s 0 120 0 0 30");
@@ -251,6 +266,10 @@ public final class LiveWorldHarness implements ClientModInitializer {
         }
     }
 
+    /** Odd cycles grow the window to 960x540, even ones return it to the default 854x480. */
+    private int resizeWidth() { return cycle % 2 == 1 ? 960 : 854; }
+    private int resizeHeight() { return cycle % 2 == 1 ? 540 : 480; }
+
     private boolean ready(Minecraft mc) {
         return switch (stage) {
             case 1, 4, 11 -> mc.level.dimension() == Level.OVERWORLD && near(mc, 0, 120, 0);
@@ -261,7 +280,8 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 && (nativeMode || VkInteropProbe.meshVersionAt(0, 104, 24) > editVersion);
             case 7 -> mc.level.getBlockState(new BlockPos(0, 104, 24)).isAir()
                 && (nativeMode || VkInteropProbe.meshVersionAt(0, 104, 24) > editVersion);
-            case 8 -> mc.getWindow().getScreenWidth() == 960 && mc.getWindow().getScreenHeight() == 540;
+            case 8 -> mc.getWindow().getScreenWidth() == resizeWidth()
+                && mc.getWindow().getScreenHeight() == resizeHeight();
             case 9 -> {
                 if (reload.isCompletedExceptionally()) reload.join();
                 yield reload.isDone();
@@ -362,6 +382,8 @@ public final class LiveWorldHarness implements ClientModInitializer {
             result.put("complete", complete);
             result.put("success", complete && failures.isEmpty());
             result.put("stage", STAGES[stage]);
+            result.put("cycles", cycles);
+            result.put("cycle", cycle);
             result.put("checkpoints", nativeMode ? nativeCheckpoints : checkpoints);
             result.put("failures", List.copyOf(failures));
             result.put("scope", nativeMode ? "Minecraft-native Vulkan environment and lifecycle observations; Voxy LoD integration is not implemented"

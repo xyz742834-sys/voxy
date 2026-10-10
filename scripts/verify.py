@@ -2839,13 +2839,18 @@ PRESSURE_CAPACITY = 4096
 # the admission limit is geometry bytes: an eighth of the default 4 000 000 quads (measured 2026-10-10:
 # a 4096-section scene with the default quads reclaimed nothing)
 PRESSURE_QUADS = 500_000
+# The soak (round-27 item 6): the pressure launch repeats LiveWorldHarness's travel..reconnect this
+# many lifecycles in total (-PharnessCycles); every repeat must enter each of these stages again.
+SOAK_CYCLES = 4
+SOAK_STAGES = LIFECYCLE_STAGES[LIFECYCLE_STAGES.index("travel"):]
 PRESSURE_LAUNCH_FLAGS = RENDER_LAUNCH_FLAGS + (f"-PharnessNativeSectionCapacity={PRESSURE_CAPACITY}",
-                                               f"-PharnessNativeGeometryQuads={PRESSURE_QUADS}")
+                                               f"-PharnessNativeGeometryQuads={PRESSURE_QUADS}",
+                                               f"-PharnessCycles={SOAK_CYCLES}")
 DEFAULT_SECTION_CAPACITY = 8192
 DEFAULT_GEOMETRY_QUADS = 4_000_000
 RENDER_STAGE_LOG = re.compile(r"hier frames entering stage (\w+): composited=(\d+) skipped=(\d+)"
                               r" builds=(\d+)(?: vkBuffers=(\d+) vkBufferBytes=(\d+) vkTextures=(\d+))?"
-                              r"(?: frame=(\d+)x(\d+))?")
+                              r"(?: frame=(\d+)x(\d+))?(?: cycle=(\d+))?")
 # Allocation plateau: after the first scene build, the live buffer/texture counts may not end above
 # where they started, and within each run of snapshots at one frame size the buffer bytes may not
 # grow more than this fraction (a leak across rebuilds multiplies).
@@ -2855,6 +2860,10 @@ RENDER_ALLOCATION_SLACK = 0.05
 # 1708x960 -> 1920x1080 grew exactly 2 x 433920 x 4 bytes, the post pass's and Minecraft depth's
 # readbacks).
 RENDER_FRAME_SIZED_BUFFERS = 2
+# Across lifecycles at one size the bytes may grow at most this fraction (measured: exactly 0 at
+# each size across five builds); tighter than RENDER_ALLOCATION_SLACK so that a leak of ~1 MB per
+# lifecycle adds up past it within the soak
+RENDER_SOAK_SLACK = 0.01
 RENDER_SKIPS = tuple(r for r in REAL_LOAD_SKIPS if r != "build-budget-spent") + ("rebuild-wait",
                                                                                  "rendering-disabled",
                                                                                  "fog-covers-all")
@@ -2906,19 +2915,24 @@ def native_pressure_result(output, log_text, expected_device=None, command=None)
     reclaim must have run (sections evicted to admit new ones) while every required stage kept
     compositing."""
     result = native_render_result(output, log_text, expected_device, command,
-                                  capacity=PRESSURE_CAPACITY, quads=PRESSURE_QUADS)
-    result["scope"] = "the product switch with a small scene capacity: Voxy's geometry reclaim under pressure"
+                                  capacity=PRESSURE_CAPACITY, quads=PRESSURE_QUADS, cycles=SOAK_CYCLES)
+    result["scope"] = ("the product switch with a small scene capacity: Voxy's geometry reclaim under"
+                       f" pressure, through {SOAK_CYCLES} lifecycles (the soak)")
     if not result["success"]:
         return result
     try:
         report = json.loads((output / "native-hier-load.json").read_text())
         if not isinstance(command, list) or any(f not in command for f in PRESSURE_LAUNCH_FLAGS):
             raise ValueError(f"the pressure launch command {command!r} lacks {PRESSURE_LAUNCH_FLAGS}")
+        harness = json.loads((output / "native-result.json").read_text())
+        if harness.get("cycles") != SOAK_CYCLES or harness.get("cycle") != SOAK_CYCLES:
+            raise ValueError(f"the pressure launch's harness ran cycle {harness.get('cycle')!r} of"
+                             f" {harness.get('cycles')!r}, not {SOAK_CYCLES} of {SOAK_CYCLES}")
         reclaimed = report.get("geometryReclaimed")
         if not finite_int(reclaimed) or reclaimed < 1:
             raise ValueError(f"the pressure launch reclaimed {reclaimed!r} section(s); the capacity"
                              f" {PRESSURE_CAPACITY} put no pressure on the scene")
-        result.update(reclaimed=reclaimed, maxMeshed=report.get("maxMeshed"),
+        result.update(cycles=SOAK_CYCLES, reclaimed=reclaimed, maxMeshed=report.get("maxMeshed"),
                       maxGeometryUsedBytes=report.get("maxGeometryUsedBytes"),
                       rejected=report.get("geometryRejected"),
                       exhausted=report.get("geometryEverExhausted"))
@@ -2929,7 +2943,7 @@ def native_pressure_result(output, log_text, expected_device=None, command=None)
 
 
 def native_render_result(output, log_text, expected_device=None, command=None,
-                         capacity=DEFAULT_SECTION_CAPACITY, quads=DEFAULT_GEOMETRY_QUADS):
+                         capacity=DEFAULT_SECTION_CAPACITY, quads=DEFAULT_GEOMETRY_QUADS, cycles=1):
     """The product launch: Voxy on Minecraft's Vulkan backend with only voxy.native.render — its
     device features, adoption, instance and every-frame hierarchical composite (Voxy's GL rule),
     no ladder, no judged samples. Not judged per pixel (the ladder launch judges the same path);
@@ -3011,34 +3025,48 @@ def native_render_result(output, log_text, expected_device=None, command=None,
             raise ValueError(f"the {L} probe reports {report.get('atlasReads')!r} atlas read(s)"
                              f" but the log shows {reads}")
         lines, current = [], None
-        for m in re.finditer(r"\[voxy-harness\] stage=(\w+)|" + RENDER_STAGE_LOG.pattern, log_text):
+        for m in re.finditer(r"\[voxy-harness\] stage=(\w+)(?: cycle=(\d+))?|"
+                             + RENDER_STAGE_LOG.pattern, log_text):
             if m.group(1):
-                current = m.group(1)
+                current = (m.group(1), int(m.group(2) or 1))
                 continue
-            if m.group(6) is None:
-                raise ValueError(f"the {L} log's snapshot for stage {m.group(2)!r} states no"
+            if m.group(7) is None:
+                raise ValueError(f"the {L} log's snapshot for stage {m.group(3)!r} states no"
                                  f" allocations")
-            if m.group(9) is None:
-                raise ValueError(f"the {L} log's snapshot for stage {m.group(2)!r} states no"
+            if m.group(10) is None:
+                raise ValueError(f"the {L} log's snapshot for stage {m.group(3)!r} states no"
                                  f" frame size")
-            line = (m.group(2), int(m.group(3)), int(m.group(4)), int(m.group(5)),
-                    int(m.group(6)), int(m.group(7)), int(m.group(8)), int(m.group(9)),
-                    int(m.group(10)))
-            # round-27: a snapshot belongs to the harness stage current when it was written
-            if line[0] != current:
-                raise ValueError(f"the {L} log's snapshot for stage {line[0]!r} was written during"
-                                 f" harness stage {current!r}")
+            line = (m.group(3), int(m.group(4)), int(m.group(5)), int(m.group(6)),
+                    int(m.group(7)), int(m.group(8)), int(m.group(9)), int(m.group(10)),
+                    int(m.group(11)), int(m.group(12) or 1))
+            # round-27: a snapshot belongs to the harness stage (and soak cycle) current when it
+            # was written
+            if (line[0], line[9]) != current:
+                raise ValueError(f"the {L} log's snapshot for stage {line[0]!r} (cycle {line[9]})"
+                                 f" was written during harness stage"
+                                 f" {current and current[0]!r} (cycle {current and current[1]})")
             lines.append(line)
+        entered = [(line[0], line[9]) for line in lines]
+        if len(entered) != len(set(entered)):
+            raise ValueError(f"the {L} log enters a stage twice in one cycle: {entered}")
         stages = [line[0] for line in lines]
-        if len(stages) != len(set(stages)):
-            raise ValueError(f"the {L} log enters a stage twice: {stages}")
+        # the soak: every repeated lifecycle enters each of its stages, in order, and no more
+        seen = sorted({line[9] for line in lines})
+        if seen != list(range(1, cycles + 1)):
+            raise ValueError(f"the {L} log shows lifecycle cycle(s) {seen}, not 1..{cycles}")
+        for c in range(2, cycles + 1):
+            repeated = tuple(line[0] for line in lines if line[9] == c)
+            if repeated != SOAK_STAGES:
+                raise ValueError(f"the {L} log's cycle {c} enters {repeated}, not {SOAK_STAGES}")
         # (each snapshot lies inside its own harness stage, so they follow the harness's order)
         totals = [line[1] for line in lines] + [composited]
         skipped = [line[2] for line in lines] + [sum(skips.values())]
         built = [line[3] for line in lines] + [report["builds"]]
         if totals != sorted(totals) or skipped != sorted(skipped) or built != sorted(built):
             raise ValueError(f"the {L} log's running totals fall or exceed the final report: {lines}")
-        growth = {stage: totals[i + 1] - totals[i] for i, stage in enumerate(stages)}
+        growth = {}
+        for i, stage in enumerate(stages):
+            growth[stage] = growth.get(stage, 0) + totals[i + 1] - totals[i]
         allocated = [l for l in lines if l[4] > 0]
         if allocated:
             def grew(first, last, why):
@@ -3070,6 +3098,14 @@ def native_render_result(output, log_text, expected_device=None, command=None,
                 if last[4] > first[4] or last[6] > first[6] \
                         or last[5] > first[5] * (1 + RENDER_ALLOCATION_SLACK):
                     raise grew(first, last, "retired scenes are not freed")
+            # and across runs at the same size (the soak returns to each size every cycle): a
+            # small leak per lifecycle adds up against the first run at that size
+            for size in set(sizes):
+                at = [run for run, key in zip(runs, sizes) if key == size]
+                first, last = at[0][0], at[-1][-1]
+                if last[4] > first[4] or last[6] > first[6] \
+                        or last[5] > first[5] * (1 + RENDER_SOAK_SLACK):
+                    raise grew(first, last, "retired scenes are not freed across lifecycles")
         missing = [st for st in RENDER_REQUIRED_STAGES if growth.get(st, 0) < 1]
         if missing:
             raise ValueError(f"the {L} launch composited no frame in stage(s) {missing}"
@@ -5145,7 +5181,7 @@ def main():
                      " the native path as normal play runs it"),
                     ("native-pressure", "pressure_run", PRESSURE_LAUNCH_FLAGS, native_pressure_result,
                      f"a fourth launch: the product switch with a {PRESSURE_CAPACITY}-section scene,"
-                     f" so Voxy's geometry reclaim runs")):
+                     f" so Voxy's geometry reclaim runs, through {SOAK_CYCLES} lifecycles (the soak)")):
                 launch_output = output / stage_name
                 launch_output.mkdir()
                 launch_game = launch_output / "game"
