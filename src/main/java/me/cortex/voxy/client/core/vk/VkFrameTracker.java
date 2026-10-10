@@ -71,6 +71,31 @@ public final class VkFrameTracker {
     }
 
     private boolean recording;
+    /**
+     * フェンスをリセットしたのにサブミットが通らなかった (vkEndCommandBuffer/vkQueueSubmit の失敗)。
+     * ⚠ このフェンスを signal するものは<b>もう無い</b>ので、次の待ちは飛ばす — 待てば
+     * {@code Long.MAX_VALUE} の待ちで Minecraft ごと止まる (round-27 item 6 の故障注入で確認)。
+     * 実行中のものも無いので飛ばしてよい。
+     */
+    private boolean unsubmitted;
+
+    /** テスト用の故障注入: 次の vkQueueSubmit / フェンス待ちをこの VkResult で失敗させる (0 = なし)。 */
+    private static volatile int injectSubmitResult, injectWaitResult;
+
+    /** 次のサブミットを {@code vkResult} で失敗したことにする。<b>実際にはサブミットしない</b>。 */
+    public static void injectSubmitFailure(int vkResult) { injectSubmitResult = vkResult; }
+
+    /** 次のフェンス待ちを {@code vkResult} で失敗したことにする。フェンスには触れない。 */
+    public static void injectWaitFailure(int vkResult) { injectWaitResult = vkResult; }
+
+    private int waitFence(VkContext ctx) {
+        int injected = injectWaitResult;
+        if (injected != 0) {
+            injectWaitResult = 0;
+            return injected;
+        }
+        return vkWaitForFences(ctx.device, this.fence, true, Long.MAX_VALUE);
+    }
 
     private VkFrameTracker() {
         var ctx = VkContext.get();
@@ -116,8 +141,8 @@ public final class VkFrameTracker {
         if (this.recording) throw new IllegalStateException("beginFrame() called twice without endFrame()");
         var ctx = VkContext.get();
 
-        // 前フレームの完了待ち
-        check(vkWaitForFences(ctx.device, this.fence, true, Long.MAX_VALUE), "vkWaitForFences");
+        // 前フレームの完了待ち (サブミットされなかったなら待つものは無い)
+        if (!this.unsubmitted) check(this.waitFence(ctx), "vkWaitForFences");
         this.completed = this.current;
 
         // ここで GPU はアイドル。前フレームの結果配送と解放を行う
@@ -131,6 +156,8 @@ public final class VkFrameTracker {
         this.drainPendingFree();
 
         check(vkResetFences(ctx.device, this.fence), "vkResetFences");
+        // リセットした時点から、サブミットが通るまでこのフェンスを signal するものは無い
+        this.unsubmitted = true;
         this.current++;
 
         check(vkResetCommandBuffer(this.commandBuffer, 0), "vkResetCommandBuffer");
@@ -147,13 +174,18 @@ public final class VkFrameTracker {
     public void endFrame() {
         if (!this.recording) throw new IllegalStateException("endFrame() without beginFrame()");
         var ctx = VkContext.get();
+        // ⚠ 失敗しても記録窓は閉じる。開いたままだと以後の beginFrame が全部
+        // "called twice" で落ち、Voxy は二度と描けない
+        this.recording = false;
         check(vkEndCommandBuffer(this.commandBuffer), "vkEndCommandBuffer");
         try (MemoryStack stack = stackPush()) {
             var si = VkSubmitInfo.calloc(stack).sType$Default()
                 .pCommandBuffers(stack.pointers(this.commandBuffer));
-            check(vkQueueSubmit(ctx.queue, si, this.fence), "vkQueueSubmit");
+            int injected = injectSubmitResult;
+            if (injected != 0) injectSubmitResult = 0;
+            check(injected != 0 ? injected : vkQueueSubmit(ctx.queue, si, this.fence), "vkQueueSubmit");
         }
-        this.recording = false;
+        this.unsubmitted = false;
     }
 
     /**
@@ -162,7 +194,7 @@ public final class VkFrameTracker {
      */
     public void waitForFrame() {
         var ctx = VkContext.get();
-        check(vkWaitForFences(ctx.device, this.fence, true, Long.MAX_VALUE), "vkWaitForFences");
+        if (!this.unsubmitted) check(this.waitFence(ctx), "vkWaitForFences");
         this.completed = this.current;
     }
 

@@ -114,6 +114,61 @@ public class VkFrameTrackerTest {
         t.waitIdle();
     }
 
+    /**
+     * round-27 item 6, 故障注入: サブミットが失敗したフレーム。リセット済みのフェンスを signal
+     * するものは無いので、以前は次の待ちが {@code Long.MAX_VALUE} で戻らなかった。
+     * 失敗したフレームの記録は実行されず、次のフレームは普通に走ること。
+     */
+    @Test
+    void aFailedSubmitDoesNotHangTheNextFrame() {
+        var t = VkFrameTracker.get();
+        var buf = new VkBuffer(256);
+        try {
+            t.waitIdle();
+            org.lwjgl.system.MemoryUtil.memPutInt(buf.addr(), 0);
+
+            var cmd = t.beginFrame();
+            org.lwjgl.vulkan.VK10.vkCmdFillBuffer(cmd, buf.handle, 0, 4, 0x1111);
+            VkFrameTracker.injectSubmitFailure(org.lwjgl.vulkan.VK10.VK_ERROR_DEVICE_LOST);
+            var e = assertThrows(IllegalStateException.class, t::endFrame);
+            assertTrue(e.getMessage().contains("vkQueueSubmit"), e.getMessage());
+            assertFalse(t.isRecording(), "a failed submit closes the recording window");
+
+            assertTimeoutPreemptively(java.time.Duration.ofSeconds(10), () -> {
+                t.waitForFrame();
+                var next = t.beginFrame();
+                org.lwjgl.vulkan.VK10.vkCmdFillBuffer(next, buf.handle, 4, 4, 0x5555);
+                t.endFrame();
+                t.waitForFrame();
+            }, "the frame after a failed submit must not wait on a fence nothing will signal");
+            assertEquals(t.current(), t.completed());
+            assertEquals(0, org.lwjgl.system.MemoryUtil.memGetInt(buf.addr()),
+                "the failed frame's commands never ran");
+            assertEquals(0x5555, org.lwjgl.system.MemoryUtil.memGetInt(buf.addr() + 4),
+                "the next frame ran");
+        } finally {
+            t.waitIdle();
+            buf.free();
+        }
+    }
+
+    /** 待ちが失敗しても状態は壊れず、次の待ちで本物のフェンスを待てること。 */
+    @Test
+    void aFailedWaitLeavesTheFrameUsable() {
+        var t = VkFrameTracker.get();
+        t.beginFrame();
+        t.endFrame();
+        VkFrameTracker.injectWaitFailure(org.lwjgl.vulkan.VK10.VK_ERROR_DEVICE_LOST);
+        var e = assertThrows(IllegalStateException.class, t::waitForFrame);
+        assertTrue(e.getMessage().contains("vkWaitForFences"), e.getMessage());
+        assertTrue(t.inFlight(t.current()), "a failed wait does not mark the frame complete");
+        assertTimeoutPreemptively(java.time.Duration.ofSeconds(10), t::waitForFrame);
+        assertEquals(t.current(), t.completed());
+        t.beginFrame();
+        t.endFrame();
+        t.waitIdle();
+    }
+
     /** in-flight 検出は残してある (将来多重化したときの防波堤)。 */
     @Test
     void inFlightDetectionStillWorks() {
