@@ -242,7 +242,7 @@ class RenderGateTest(unittest.TestCase):
                            if "entering stage resize" not in l)
         self.assertRefused(self.run_gate(log=drop), "['resize']")
         def twice(text):
-            return text + "[voxy-harness] stage=warmup\n[native-vk] hier frames entering stage warmup: composited=1400 skipped=6 builds=2\n"
+            return text + "[voxy-harness] stage=warmup\n[native-vk] hier frames entering stage warmup: composited=1400 skipped=6 builds=2 vkBuffers=41 vkBufferBytes=619206504 vkTextures=10\n"
         self.assertRefused(self.run_gate(log=twice), "enters a stage twice")
         # round-27: a snapshot belongs to the harness stage current when it was written
         def early(text):
