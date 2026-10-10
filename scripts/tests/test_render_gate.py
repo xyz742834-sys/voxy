@@ -319,6 +319,13 @@ class RenderGateTest(unittest.TestCase):
                            "firstProblem")
         self.assertRefused(run(command=COMMAND), "lacks")
 
+    def test_the_log_does_not_say_voxy_is_off(self):
+        for message in ("Minecraft is not using the OpenGL backend; Voxy's Vulkan path still needs a"
+                        " GL context to composite through. Voxy will disable itself.",
+                        "Voxy is unsupported on your system."):
+            line = f"[12:00:00] [Render thread/ERROR] (Voxy) [me.cx.vy.ct.VoxyClient]: {message}\n"
+            self.assertRefused(self.run_gate(log=lambda t: line + t), "says Voxy is off while it runs")
+
     def test_every_frame_is_accounted_for(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(renderCalls=b["renderCalls"] + 1)),
                            "accounts for")

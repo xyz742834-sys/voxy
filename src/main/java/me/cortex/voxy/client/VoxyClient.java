@@ -104,7 +104,11 @@ public class VoxyClient implements ClientModInitializer {
         // **描画フレームでクラッシュする** [確認済 — 実機で発生させた。
         // docs/phase5c-mc-vulkan-survey.md 4.2b]。
         boolean mcIsOnOpenGl = Capabilities.INSTANCE.glAvailable;
-        if (!mcIsOnOpenGl) {
+        // Minecraft on Vulkan with the native path asked for: Voxy runs natively (below), so the
+        // GL path's "disabled"/"unsupported" errors would tell the player the opposite of what happens
+        boolean nativeRequested = !mcIsOnOpenGl && (Boolean.getBoolean(NATIVE_INSTANCE_FLAG)
+            || me.cortex.voxy.client.core.vk.mcnative.McNativeRender.on());
+        if (!mcIsOnOpenGl && !nativeRequested) {
             Logger.error("Minecraft is not using the OpenGL backend; Voxy's Vulkan path still "
                 + "needs a GL context to composite through. Voxy will disable itself. "
                 + "(set preferredGraphicsBackend to \"default\" in options.txt)");
@@ -122,7 +126,7 @@ public class VoxyClient implements ClientModInitializer {
         }
 
         boolean systemSupported = BACKEND != null;
-        if (!systemSupported) {
+        if (!systemSupported && !nativeRequested) {
              Logger.error("Voxy is unsupported on your system.");
         }
 
@@ -143,8 +147,7 @@ public class VoxyClient implements ClientModInitializer {
 
         }
 
-        if (!systemSupported && !mcIsOnOpenGl && (Boolean.getBoolean(NATIVE_INSTANCE_FLAG)
-                || me.cortex.voxy.client.core.vk.mcnative.McNativeRender.on())) {
+        if (!systemSupported && nativeRequested) {
             // ⚠ native instance mode: the instance factory only. No backend, no renderer.
             nativeInstanceMode = true;
             Logger.info("[native-vk] native instance mode: Minecraft is on Vulkan and "

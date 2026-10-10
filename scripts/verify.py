@@ -3073,6 +3073,13 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         log_problems = native_log_problems(log_text)
         if log_problems:
             raise ValueError(f"the {L} launch's log: {log_problems}")
+        # the GL path's "disabled"/"unsupported" errors are expected elsewhere, never here: the
+        # native path runs, so they would tell the player the opposite of what happens
+        misleading = [line.strip() for line in log_text.splitlines() if "(Voxy)" in line
+                      and ("Voxy will disable itself" in line
+                           or "Voxy is unsupported on your system" in line)]
+        if misleading:
+            raise ValueError(f"the {L} launch's log says Voxy is off while it runs: {misleading[:2]}")
         attempts = hier_load_build_attempts(log_text)
         if not attempts or attempts != list(range(1, len(attempts) + 1)) \
                 or report.get("builds") != len(attempts):
