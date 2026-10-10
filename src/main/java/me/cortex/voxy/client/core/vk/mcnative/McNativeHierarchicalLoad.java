@@ -139,8 +139,12 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         Object[] snap = McNativeBounds.snapshot(boundScratch);
         boundScratch = (int[]) snap[0];
         int n = (Integer) snap[1];
-        probe.scene.setVanillaBound(boundScratch, n,
-            me.cortex.voxy.client.core.VoxyRenderSystem.getVanillaRenderDistance());
+        // no distance filter: Sodium's list holds exactly the built, visible sections it draws, and
+        // it draws some beyond the effective render distance (measured: Minecraft terrain past
+        // 128 blocks in front of which Voxy showed, run 20261010T003329-967151Z). GL filters at the
+        // render distance and hides that gap with its stencil from Minecraft's depth; natively the
+        // bound itself must cover everything Minecraft draws.
+        probe.scene.setVanillaBound(boundScratch, n, Float.POSITIVE_INFINITY);
         maxBoundSections = Math.max(maxBoundSections, probe.scene.vanillaBoundSections());
     }
     /** Calls of {@link #renderIfEnabled} that ran (the frame clock of the rebuild rate limit). */
