@@ -2844,7 +2844,11 @@ PRESSURE_LAUNCH_FLAGS = RENDER_LAUNCH_FLAGS + (f"-PharnessNativeSectionCapacity=
 DEFAULT_SECTION_CAPACITY = 8192
 DEFAULT_GEOMETRY_QUADS = 4_000_000
 RENDER_STAGE_LOG = re.compile(r"hier frames entering stage (\w+): composited=(\d+) skipped=(\d+)"
-                              r" builds=(\d+)")
+                              r" builds=(\d+)(?: vkBuffers=(\d+) vkBufferBytes=(\d+) vkTextures=(\d+))?")
+# Allocation plateau: after the first scene build, the live buffer/texture counts may not end above
+# where they started and the buffer bytes may not grow more than this fraction (measured: 0.6 % at
+# the resize stage, whose size-dependent buffers are rebuilt; a leak across rebuilds multiplies).
+RENDER_ALLOCATION_SLACK = 0.05
 RENDER_SKIPS = tuple(r for r in REAL_LOAD_SKIPS if r != "build-budget-spent") + ("rebuild-wait",
                                                                                  "rendering-disabled",
                                                                                  "fog-covers-all")
@@ -3005,7 +3009,11 @@ def native_render_result(output, log_text, expected_device=None, command=None,
             if m.group(1):
                 current = m.group(1)
                 continue
-            line = (m.group(2), int(m.group(3)), int(m.group(4)), int(m.group(5)))
+            if m.group(6) is None:
+                raise ValueError(f"the {L} log's snapshot for stage {m.group(2)!r} states no"
+                                 f" allocations")
+            line = (m.group(2), int(m.group(3)), int(m.group(4)), int(m.group(5)),
+                    int(m.group(6)), int(m.group(7)), int(m.group(8)))
             # round-27: a snapshot belongs to the harness stage current when it was written
             if line[0] != current:
                 raise ValueError(f"the {L} log's snapshot for stage {line[0]!r} was written during"
@@ -3021,6 +3029,15 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         if totals != sorted(totals) or skipped != sorted(skipped) or built != sorted(built):
             raise ValueError(f"the {L} log's running totals fall or exceed the final report: {lines}")
         growth = {stage: totals[i + 1] - totals[i] for i, stage in enumerate(stages)}
+        allocated = [l for l in lines if l[4] > 0]
+        if allocated:
+            first, last = allocated[0], allocated[-1]
+            if last[4] > first[4] or last[6] > first[6] \
+                    or last[5] > first[5] * (1 + RENDER_ALLOCATION_SLACK):
+                raise ValueError(f"the {L} launch's live Vulkan allocations grew from {first[4]}"
+                                 f" buffers / {first[5]} bytes / {first[6]} textures ({first[0]}) to"
+                                 f" {last[4]} / {last[5]} / {last[6]} ({last[0]}) over"
+                                 f" {report['builds']} build(s); retired scenes are not freed")
         missing = [st for st in RENDER_REQUIRED_STAGES if growth.get(st, 0) < 1]
         if missing:
             raise ValueError(f"the {L} launch composited no frame in stage(s) {missing}"

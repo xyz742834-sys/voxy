@@ -61,7 +61,9 @@ def log_for(stages=verify.LIFECYCLE_STAGES, per_stage=100, start=0):
     for i, stage in enumerate(stages):
         lines.append(f"[voxy-harness] stage={stage}\n")
         lines.append(f"[native-vk] hier frames entering stage {stage}: composited={composited}"
-                     f" skipped=6 builds={1 if i < 9 else 2}\n")
+                     f" skipped=6 builds={1 if i < 9 else 2}"
+                     f" vkBuffers={0 if i < 1 else 41} vkBufferBytes={0 if i < 1 else 615735144 + (0 if i < 8 else 3471360)}"
+                     f" vkTextures={0 if i < 1 else 10}\n")
         if i == 9:
             lines.append("[native-vk] hier-LOAD scene #2: streaming render distance 17, sections -1..0\n")
         composited += per_stage
@@ -146,6 +148,27 @@ class RenderGateTest(unittest.TestCase):
         # fog and fade (GL's final blit)
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(postPass=False)), "fog and fade are not applied")
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(fogMode="sometimes")), "fog and fade are not applied")
+
+    def test_retired_scenes_return_their_allocations(self):
+        def leak(text):
+            return text.replace("entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=41",
+                                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=82")
+        self.assertRefused(self.run_gate(log=leak), "retired scenes are not freed")
+        def bytes_(text):
+            return text.replace("vkBufferBytes=619206504 vkTextures=10\n[voxy-harness] stage=reconnect",
+                                "vkBufferBytes=619206504 vkTextures=10\n[voxy-harness] stage=reconnect").replace(
+                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=41 vkBufferBytes=619206504",
+                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=41 vkBufferBytes=700000000")
+        self.assertRefused(self.run_gate(log=bytes_), "retired scenes are not freed")
+        def textures(text):
+            return text.replace("builds=2 vkBuffers=41 vkBufferBytes=619206504 vkTextures=10\n[voxy-harness] stage=reconnect",
+                                "builds=2 vkBuffers=41 vkBufferBytes=619206504 vkTextures=10\n[voxy-harness] stage=reconnect").replace(
+                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=41 vkBufferBytes=619206504 vkTextures=10",
+                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=41 vkBufferBytes=619206504 vkTextures=20")
+        self.assertRefused(self.run_gate(log=textures), "retired scenes are not freed")
+        def silent(text):
+            return text.replace(" vkBuffers=41 vkBufferBytes=615735144 vkTextures=10\n", "\n", 1)
+        self.assertRefused(self.run_gate(log=silent), "states no allocations")
 
     def test_the_product_scene_runs_at_the_default_capacity(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(sectionCapacity=4096)),
