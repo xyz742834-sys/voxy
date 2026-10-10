@@ -311,7 +311,15 @@ commit the report alone, then repair.
    macOS:** GL's formula on this M4 Pro means ~4 GB of unified memory (zeroed); measured buffers:
    81 MB now (8192 sections, 32 MB geometry), 730 MB at GL's capacities with its 512 MB minimum,
    ~4.2 GB literal. The default stays 81 MB until decided; recommended: GL's capacities with 512 MB,
-   plus GL's `voxy.geometryBufferSizeOverrideMB`. Next: failure injection, gate-coverage residuals and far-world evidence, then
+   plus GL's `voxy.geometryBufferSizeOverrideMB`. Gate coverage: R26's two ladder predicates are
+   covered (`test_ladder_coverage.py`); R24 re-audited 2026-10-10 with the round-27 tool
+   (`native-review-r27/.agent-run/r27/r24_guards.py`, ROOT pointed at this checkout): 37/37
+   detected, 27 still only by real-LOAD tests (shared helpers `real_load_skip_provenance`,
+   `load_judged_entry_checks`, `judge_load_sample`) — deferred, non-blocking. Far-world: the gate
+   already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
+   here) and it is 0: the horizon band's rays (4–10° below horizontal from y 160) meet the ground
+   within ~1300 blocks. Evidence needs a new look from y ≥ ~215 onto terrain ingested at x ≈ 2560,
+   and the gate then requiring beyondMinecraftFar ≥ 1. Next: failure injection, gate-coverage residuals and far-world evidence, then
    default-on. Default-on (the kill switch `voxy.native.disable` exists) waits for those and for
    an independent review of everything since `10856154`. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
