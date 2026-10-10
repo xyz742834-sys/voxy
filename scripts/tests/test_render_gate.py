@@ -246,7 +246,7 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(log=twice), "enters a stage twice")
         # round-27: a snapshot belongs to the harness stage current when it was written
         def early(text):
-            line = "[native-vk] hier frames entering stage edit: composited=500 skipped=6 builds=1\n"
+            line = next(l for l in text.splitlines(keepends=True) if "entering stage edit:" in l)
             return text.replace(line, "").replace("[voxy-harness] stage=edit\n", line + "[voxy-harness] stage=edit\n")
         self.assertRefused(self.run_gate(log=early), "was written during harness stage 'horizon'")
         def skipped(text):
@@ -257,8 +257,8 @@ class RenderGateTest(unittest.TestCase):
                                 "entering stage reconnect: composited=1300 skipped=6 builds=9")
         self.assertRefused(self.run_gate(log=built), "exceed the final report")
         def order(text):
-            a = "[native-vk] hier frames entering stage turn: composited=100 skipped=6 builds=1\n"
-            b = "[native-vk] hier frames entering stage travel: composited=200 skipped=6 builds=1\n"
+            a = next(l for l in text.splitlines(keepends=True) if "entering stage turn:" in l)
+            b = next(l for l in text.splitlines(keepends=True) if "entering stage travel:" in l)
             return text.replace(a, "@@").replace(b, a).replace("@@", b)
         self.assertRefused(self.run_gate(log=order), "was written during harness stage")
         def fall(text):
