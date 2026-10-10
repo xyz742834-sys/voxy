@@ -62,8 +62,8 @@ def log_for(stages=verify.LIFECYCLE_STAGES, per_stage=100, start=0):
         lines.append(f"[voxy-harness] stage={stage}\n")
         lines.append(f"[native-vk] hier frames entering stage {stage}: composited={composited}"
                      f" skipped=6 builds={1 if i < 9 else 2}"
-                     f" vkBuffers={0 if i < 1 else 41} vkBufferBytes={0 if i < 1 else 615735144 + (0 if i < 8 else 3471360)}"
-                     f" vkTextures={0 if i < 1 else 10}\n")
+                     f" vkBuffers={0 if i < 1 else 40} vkBufferBytes={0 if i < 1 else 80961384 + (0 if i < 8 else 3471360)}"
+                     f" vkTextures={0 if i < 1 else 10} frame={'1708x960' if i < 8 else '1920x1080'}\n")
         if i == 9:
             lines.append("[native-vk] hier-LOAD scene #2: streaming render distance 17, sections -1..0\n")
         composited += per_stage
@@ -150,25 +150,39 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(fogMode="sometimes")), "fog and fade are not applied")
 
     def test_retired_scenes_return_their_allocations(self):
-        def leak(text):
-            return text.replace("entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=41",
-                                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=82")
-        self.assertRefused(self.run_gate(log=leak), "retired scenes are not freed")
-        def bytes_(text):
-            return text.replace("vkBufferBytes=619206504 vkTextures=10\n[voxy-harness] stage=reconnect",
-                                "vkBufferBytes=619206504 vkTextures=10\n[voxy-harness] stage=reconnect").replace(
-                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=41 vkBufferBytes=619206504",
-                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=41 vkBufferBytes=700000000")
-        self.assertRefused(self.run_gate(log=bytes_), "retired scenes are not freed")
-        def textures(text):
-            return text.replace("builds=2 vkBuffers=41 vkBufferBytes=619206504 vkTextures=10\n[voxy-harness] stage=reconnect",
-                                "builds=2 vkBuffers=41 vkBufferBytes=619206504 vkTextures=10\n[voxy-harness] stage=reconnect").replace(
-                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=41 vkBufferBytes=619206504 vkTextures=10",
-                "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=41 vkBufferBytes=619206504 vkTextures=20")
-        self.assertRefused(self.run_gate(log=textures), "retired scenes are not freed")
+        RECONNECT = "entering stage reconnect: composited=1300 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=84432744 vkTextures=10"
+        def at_reconnect(new):
+            return lambda text: text.replace(RECONNECT, new)
+        # the fixture itself grows by exactly two readbacks' worth at the resize, and passes
+        result = self.run_gate()
+        self.assertTrue(result["success"], result["failures"])
+        self.assertRefused(self.run_gate(log=at_reconnect(RECONNECT.replace("vkBuffers=40", "vkBuffers=80"))),
+                           "retired scenes are not freed")
+        self.assertRefused(self.run_gate(log=at_reconnect(RECONNECT.replace("84432744", "90000000"))),
+                           "retired scenes are not freed")
+        self.assertRefused(self.run_gate(log=at_reconnect(RECONNECT.replace("vkTextures=10", "vkTextures=20"))),
+                           "retired scenes are not freed")
         def silent(text):
-            return text.replace(" vkBuffers=41 vkBufferBytes=615735144 vkTextures=10\n", "\n", 1)
+            return text.replace(" vkBuffers=40 vkBufferBytes=80961384 vkTextures=10 frame=1708x960\n", "\n", 1)
         self.assertRefused(self.run_gate(log=silent), "states no allocations")
+        def sizeless(text):
+            return text.replace(" frame=1708x960\n", "\n", 1)
+        self.assertRefused(self.run_gate(log=sizeless), "states no frame size")
+
+    def test_a_resize_excuses_only_its_frame_sized_buffers(self):
+        # one byte more than two RGBA8 buffers of the 433920 added pixels
+        def over(text):
+            return text.replace("vkBufferBytes=84432744", "vkBufferBytes=84432745")
+        self.assertRefused(self.run_gate(log=over), "RGBA8 buffer(s) of the frame-size change")
+        # a buffer added across the resize is still a count increase
+        def counted(text):
+            return text.replace("vkBuffers=40 vkBufferBytes=84432744", "vkBuffers=41 vkBufferBytes=84432744")
+        self.assertRefused(self.run_gate(log=counted), "retired scenes are not freed")
+        # growth before the resize is judged against its own run, not hidden behind the resize
+        def early(text):
+            return text.replace("entering stage resize: composited=700 skipped=6 builds=1 vkBuffers=40 vkBufferBytes=80961384",
+                                "entering stage resize: composited=700 skipped=6 builds=1 vkBuffers=40 vkBufferBytes=90000000")
+        self.assertRefused(self.run_gate(log=early), "retired scenes are not freed")
 
     def test_the_product_scene_runs_at_the_default_capacity(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(sectionCapacity=4096)),
@@ -242,7 +256,7 @@ class RenderGateTest(unittest.TestCase):
                            if "entering stage resize" not in l)
         self.assertRefused(self.run_gate(log=drop), "['resize']")
         def twice(text):
-            return text + "[voxy-harness] stage=warmup\n[native-vk] hier frames entering stage warmup: composited=1400 skipped=6 builds=2 vkBuffers=41 vkBufferBytes=619206504 vkTextures=10\n"
+            return text + "[voxy-harness] stage=warmup\n[native-vk] hier frames entering stage warmup: composited=1400 skipped=6 builds=2 vkBuffers=40 vkBufferBytes=84432744 vkTextures=10 frame=1920x1080\n"
         self.assertRefused(self.run_gate(log=twice), "enters a stage twice")
         # round-27: a snapshot belongs to the harness stage current when it was written
         def early(text):

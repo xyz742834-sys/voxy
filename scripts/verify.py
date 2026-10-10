@@ -2844,11 +2844,16 @@ PRESSURE_LAUNCH_FLAGS = RENDER_LAUNCH_FLAGS + (f"-PharnessNativeSectionCapacity=
 DEFAULT_SECTION_CAPACITY = 8192
 DEFAULT_GEOMETRY_QUADS = 4_000_000
 RENDER_STAGE_LOG = re.compile(r"hier frames entering stage (\w+): composited=(\d+) skipped=(\d+)"
-                              r" builds=(\d+)(?: vkBuffers=(\d+) vkBufferBytes=(\d+) vkTextures=(\d+))?")
+                              r" builds=(\d+)(?: vkBuffers=(\d+) vkBufferBytes=(\d+) vkTextures=(\d+))?"
+                              r"(?: frame=(\d+)x(\d+))?")
 # Allocation plateau: after the first scene build, the live buffer/texture counts may not end above
-# where they started and the buffer bytes may not grow more than this fraction (measured: 0.6 % at
-# the resize stage, whose size-dependent buffers are rebuilt; a leak across rebuilds multiplies).
+# where they started, and within each run of snapshots at one frame size the buffer bytes may not
+# grow more than this fraction (a leak across rebuilds multiplies).
 RENDER_ALLOCATION_SLACK = 0.05
+# Across a frame-size change the bytes may move by this many RGBA8 buffers of the pixel difference
+# (measured, run 20261010T030832-711352Z: 1708x960 -> 1920x1080 grew exactly 2 x 433920 x 4 bytes,
+# the post pass's and the render target's readbacks).
+RENDER_FRAME_SIZED_BUFFERS = 2
 RENDER_SKIPS = tuple(r for r in REAL_LOAD_SKIPS if r != "build-budget-spent") + ("rebuild-wait",
                                                                                  "rendering-disabled",
                                                                                  "fog-covers-all")
@@ -3012,8 +3017,12 @@ def native_render_result(output, log_text, expected_device=None, command=None,
             if m.group(6) is None:
                 raise ValueError(f"the {L} log's snapshot for stage {m.group(2)!r} states no"
                                  f" allocations")
+            if m.group(9) is None:
+                raise ValueError(f"the {L} log's snapshot for stage {m.group(2)!r} states no"
+                                 f" frame size")
             line = (m.group(2), int(m.group(3)), int(m.group(4)), int(m.group(5)),
-                    int(m.group(6)), int(m.group(7)), int(m.group(8)))
+                    int(m.group(6)), int(m.group(7)), int(m.group(8)), int(m.group(9)),
+                    int(m.group(10)))
             # round-27: a snapshot belongs to the harness stage current when it was written
             if line[0] != current:
                 raise ValueError(f"the {L} log's snapshot for stage {line[0]!r} was written during"
@@ -3031,13 +3040,30 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         growth = {stage: totals[i + 1] - totals[i] for i, stage in enumerate(stages)}
         allocated = [l for l in lines if l[4] > 0]
         if allocated:
-            first, last = allocated[0], allocated[-1]
-            if last[4] > first[4] or last[6] > first[6] \
-                    or last[5] > first[5] * (1 + RENDER_ALLOCATION_SLACK):
-                raise ValueError(f"the {L} launch's live Vulkan allocations grew from {first[4]}"
-                                 f" buffers / {first[5]} bytes / {first[6]} textures ({first[0]}) to"
-                                 f" {last[4]} / {last[5]} / {last[6]} ({last[0]}) over"
-                                 f" {report['builds']} build(s); retired scenes are not freed")
+            def grew(first, last, why):
+                return ValueError(f"the {L} launch's live Vulkan allocations grew from {first[4]}"
+                                  f" buffers / {first[5]} bytes / {first[6]} textures ({first[0]},"
+                                  f" {first[7]}x{first[8]}) to {last[4]} / {last[5]} / {last[6]}"
+                                  f" ({last[0]}, {last[7]}x{last[8]}) over {report['builds']}"
+                                  f" build(s); {why}")
+            if allocated[-1][4] > allocated[0][4] or allocated[-1][6] > allocated[0][6]:
+                raise grew(allocated[0], allocated[-1], "retired scenes are not freed")
+            runs = [[allocated[0]]]
+            for line in allocated[1:]:
+                if line[7:9] == runs[-1][-1][7:9]:
+                    runs[-1].append(line)
+                    continue
+                before = runs[-1][-1]
+                pixels = abs(line[7] * line[8] - before[7] * before[8])
+                if line[5] - before[5] > RENDER_FRAME_SIZED_BUFFERS * pixels * 4:
+                    raise grew(before, line, f"more than {RENDER_FRAME_SIZED_BUFFERS} RGBA8"
+                                             f" buffer(s) of the frame-size change")
+                runs.append([line])
+            for run in runs:
+                first, last = run[0], run[-1]
+                if last[4] > first[4] or last[6] > first[6] \
+                        or last[5] > first[5] * (1 + RENDER_ALLOCATION_SLACK):
+                    raise grew(first, last, "retired scenes are not freed")
         missing = [st for st in RENDER_REQUIRED_STAGES if growth.get(st, 0) < 1]
         if missing:
             raise ValueError(f"the {L} launch composited no frame in stage(s) {missing}"

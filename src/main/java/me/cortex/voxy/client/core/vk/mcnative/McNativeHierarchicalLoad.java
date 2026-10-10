@@ -801,7 +801,10 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             + framesComposited + " skipped=" + skipped + " builds=" + builds
             + " vkBuffers=" + me.cortex.voxy.client.core.vk.VkBuffer.getCount()
             + " vkBufferBytes=" + me.cortex.voxy.client.core.vk.VkBuffer.getTotalSize()
-            + " vkTextures=" + me.cortex.voxy.client.core.vk.VkTexture.getCount());
+            + " vkTextures=" + me.cortex.voxy.client.core.vk.VkTexture.getCount()
+            // and the frame size: the readback buffers are sized to it, so a resize moves the bytes
+            + " frame=" + net.minecraft.client.Minecraft.getInstance().getWindow().getWidth()
+            + "x" + net.minecraft.client.Minecraft.getInstance().getWindow().getHeight());
     }
 
     private static void requestReadback(GpuTextureView colour, int width, int height, long at) {
