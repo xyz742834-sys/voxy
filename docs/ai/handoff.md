@@ -89,7 +89,7 @@ report separately from any repair.
 | **Product switch `voxy.native.render`** + third gated launch (`345ebde7`, `c4ddb119`) | measured (5 235 frames composited with the switch alone, every required stage, clean); **unreviewed** |
 | **R26 findings** | PROJECTION-EQUIVALENCE, COMPOSITE-DOC-SCOPE closed by r27; LADDER-GUARD-COVERAGE completed after r27 |
 | **R27 findings** (EMPTY-REBUILD, RENDER-DISABLE, RENDER-GATE, CONTEXT-DRIFT) | repaired in `8d241b40`; **round 28 reviews `10856154`** |
-| **Allocation plateau** (`f5c1cfa6`, `92001fdc`) | measured (41 buffers / 10 textures across five builds; ~616 MB buffers — to be broken down); **unreviewed** |
+| **Allocation plateau** (`f5c1cfa6`, `92001fdc`, `a568e664`, `990d68e7`) | measured, run `20261010T043121-449461Z` (`487fb4d8`): 40 buffers / 10 textures across five builds; 81 MB buffers (product), 51 MB (pressure) after the ~400 MB synthetic atlas staging became lazy (`f037e152`); judged per live-scene size (a rebuild at a new size may add 2 RGBA8 readbacks of the pixel difference); **unreviewed** |
 | **Geometry pressure launch** (`24a84f6e`, `8202e26b`) | measured (4 MB scene: 219 789 reclaimed, every stage composited, clean); **unreviewed** |
 | **GL's fog and fade** (`2fb1737a`) | measured (FOG_AND_FADE, 8 judged zero violations, nether skipped as GL); **unreviewed** |
 | **Minecraft's own lightmap** (`9be59d81`, `40e38c9c`) | measured (about 2 800 applied per launch, validation clean); **unreviewed** |
@@ -280,8 +280,11 @@ commit the report alone, then repair.
    the survey. Done in round 27's readiness order: the scene streamed at Voxy's configured radius
    (`155673fb`), the native near cut (`afc61e91`), the composite at GL's point writing Voxy's depth
    (`24d3f23b`, `e748a2f0`), Minecraft's lightmap (`9be59d81`), GL's fog and fade (`2fb1737a`).
-   Geometry pressure (`8202e26b`), an allocation plateau within a lifecycle (`92001fdc`). Next: break
-   down the ~616 MB of buffers, a long-session soak with repeated lifecycle transitions (needs a
+   Geometry pressure (`8202e26b`), an allocation plateau within a lifecycle (`92001fdc`), judged per
+   live-scene size (`990d68e7`); buffers down from ~616 MB to 81 MB by a lazy synthetic atlas staging
+   (`f037e152`). Sodium's zero-size `vkCmdCopyBuffer` (VUID-VkBufferCopy-size-01988, run
+   `20261010T023920-410812Z`) appeared once and did not recur; the gate still refuses it. Next: a
+   long-session soak with repeated lifecycle transitions (needs a
    harness repeat and its own gate), then default-on. Default-on (the kill switch
    `voxy.native.disable` exists) waits for those. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
