@@ -304,7 +304,14 @@ commit the report alone, then repair.
    the hazard as bare text with neither SYNC-HAZARD- nor a VUID, which the native gates did not see
    before (so earlier native passes did not cover synchronization hazards). The gates now treat
    Minecraft-logged `vkXxx():` messages as validation output; run `20261010T073717-488727Z` shows
-   the control's hazard and no other. Next: failure injection, gate-coverage residuals and far-world evidence, then
+   the control's hazard and no other. Scene budgets (round-27 item 3): subdivision follows
+   `VoxyConfig.subDivisionSize` every frame as GL (`6a671f65`); draw buffers and traversal queues are
+   sized by the render queue, min(sections, GL's MAX_QUEUE_SIZE), nodes twice the sections
+   (`d9ef4af8`, run `20261010T084558-353771Z`). **Owner decision pending — default geometry size on
+   macOS:** GL's formula on this M4 Pro means ~4 GB of unified memory (zeroed); measured buffers:
+   81 MB now (8192 sections, 32 MB geometry), 730 MB at GL's capacities with its 512 MB minimum,
+   ~4.2 GB literal. The default stays 81 MB until decided; recommended: GL's capacities with 512 MB,
+   plus GL's `voxy.geometryBufferSizeOverrideMB`. Next: failure injection, gate-coverage residuals and far-world evidence, then
    default-on. Default-on (the kill switch `voxy.native.disable` exists) waits for those and for
    an independent review of everything since `10856154`. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
