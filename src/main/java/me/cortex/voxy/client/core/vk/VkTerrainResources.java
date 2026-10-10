@@ -181,7 +181,13 @@ public class VkTerrainResources {
     /** モデルバッファに入るモデル数。stateId がこれを超えると範囲外読みになる。 */
     public final int maxModels;
 
-    private final VkBuffer atlasStaging;
+    /**
+     * 合成アトラスの staging。⚠ <b>合成の中身を流すときだけ</b>作る
+     * ({@link #uploadAtlas})。実寸 × 1<<16 モデルで約 400MB あり、
+     * 実データ経路 ({@link #useExternalAtlasContent}) では一度も読まれない
+     * [確認済 — 2c3c0cce の割り当て記録で Vulkan バッファの 2/3 を占めていた]。
+     */
+    private VkBuffer atlasStaging;
     private final VkBuffer lightmapStaging;
 
     public VkTerrainResources(int maxSections, int maxQuads, int maxDrawCommands) {
@@ -267,10 +273,7 @@ public class VkTerrainResources {
         // 全面の staging を持つと host 側にもう 1 枚抱えることになる。
         // 本番も **モデル単位でアップロードしている** [確認済 — ModelFactory の
         // nglTextureSubImage2D] ので、こちらのほうが経路としても近い
-        this.atlasStaging = new VkBuffer(Math.max(4096L, atlasScale.bytesPerModel() * maxModels))
-            .name("atlasStaging");
         this.lightmapStaging = new VkBuffer(16L * 16 * 4).name("lightmapStaging");
-        this.fillSyntheticAtlas();
         this.fillSyntheticLightmap();
     }
 
@@ -398,6 +401,11 @@ public class VkTerrainResources {
      * (バリデーションは捕まえない — 5c-3 の不変条件検査で見る)。
      */
     private void uploadAtlas(VkCommandBuffer cmd) {
+        if (this.atlasStaging == null) {
+            this.atlasStaging = new VkBuffer(Math.max(4096L, this.atlasScale.bytesPerModel() * this.maxModels))
+                .name("atlasStaging");
+            this.fillSyntheticAtlas();
+        }
         this.atlas.barrierAll(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             VK_PIPELINE_STAGE_HOST_BIT, VK_ACCESS_HOST_WRITE_BIT,
             VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT);
@@ -548,7 +556,7 @@ public class VkTerrainResources {
         this.translucentStats.free();
         this.atlas.free();
         this.lightmap.free();
-        this.atlasStaging.free();
+        if (this.atlasStaging != null) this.atlasStaging.free();
         this.lightmapStaging.free();
     }
 }
