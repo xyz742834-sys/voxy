@@ -291,8 +291,12 @@ commit the report alone, then repair.
    across lifecycles. Failure injection (`860ad7dd`): one failed submit used to leave Voxy's frame
    tracker unusable for the session (recording window left open, a reset fence waited on forever);
    fixed, with real-Vulkan injection tests (`VkFrameTrackerTest`) for a failed submit and a failed
-   wait; run `20261010T052418-163141Z` passes on it. Still open from round 27 item 6: device changes
-   and live (in-Minecraft) failure injection. Next: failure injection, gate-coverage residuals and far-world evidence, then
+   wait; run `20261010T052418-163141Z` passes on it. Live injection (`8f59c3ab`): a fifth launch
+   fails one every-frame submission after 1000 frames; Voxy composites 4350 more through every
+   stage (run `20261010T055934-778167Z`). On Vulkan with the native path Voxy no longer logs that it
+   is disabled/unsupported (`545d2b2a`, `5fcaaf97`); the product gates refuse those lines (run
+   `20261010T065741-230625Z`). Still open from round 27 item 6: device changes (Minecraft cannot
+   change its device without a restart; each launch is its own device). Next: failure injection, gate-coverage residuals and far-world evidence, then
    default-on. Default-on (the kill switch `voxy.native.disable` exists) waits for those and for
    an independent review of everything since `10856154`. The original design notes follow.
    **Designed 2026-10-09: `McNativeHierarchicalLoad`** — Voxy's
