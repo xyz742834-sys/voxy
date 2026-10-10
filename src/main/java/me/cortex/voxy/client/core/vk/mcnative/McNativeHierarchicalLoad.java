@@ -679,19 +679,30 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         }
         long cpuStart = System.nanoTime();
         if (probe.requestsUnread) {
-            probe.scene.serviceRequests(MESHES_PER_PASS);
+            // normal play meshes on worker threads, as GL; the judged hand-off stays synchronous
+            probe.scene.serviceRequestsAsync(MESHES_PER_PASS);
             probe.requestsUnread = false;
         }
+        long serviced = System.nanoTime();
         // after Voxy's own fence: removing a top-level column frees geometry its submission read
         probe.scene.stream(camX, camZ, streamRenderDistance());
         maxTopLevels = Math.max(maxTopLevels, probe.scene.topLevelCount());
+        long streamed = System.nanoTime();
         feedBound(probe);
         notePressure(probe);
+        long bounded = System.nanoTime();
         int frame = frameId++;
         VkSceneUniform.write(probe.scene.res.uniform, mvp, anchor, frame, sub);
         probe.scene.prepare(new org.joml.Matrix4f().set(mvp), anchor, sub, minSSS, frame, -1.0f);
+        long prepared = System.nanoTime();
+        Perf.phase(0, (serviced - cpuStart) / 1e6);
+        Perf.phase(1, (streamed - serviced) / 1e6);
+        Perf.phase(2, (bounded - streamed) / 1e6);
+        Perf.phase(3, (prepared - bounded) / 1e6);
         var cmd = tracker.beginFrame();
+        long begun = System.nanoTime();
         probe.scene.record(cmd, probe.target, CLEAR, null);
+        long sceneRecorded = System.nanoTime();
         probe.recordResolve(cmd, mvp, mcMvp, false);
         float[] params = postParameters();
         probe.post.record(cmd, probe.target.color, probe.target.depth,
@@ -705,7 +716,22 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             VkFrameTracker.injectSubmitFailure(VK10.VK_ERROR_DEVICE_LOST);
         }
         tracker.endFrame();
-        Perf.cpu((System.nanoTime() - cpuStart) / 1e6);
+        long submitted = System.nanoTime();
+        Perf.phase(4, (begun - prepared) / 1e6);
+        Perf.phase(5, (sceneRecorded - begun) / 1e6);
+        Perf.phase(6, (submitted - sceneRecorded) / 1e6);
+        Perf.cpu((submitted - cpuStart) / 1e6);
+        if (submitted - cpuStart > 16_000_000L && Perf.slowLogged < 100) {
+            // a frame over budget at 60 FPS: where its render-thread time went (first 100 only)
+            Perf.slowLogged++;
+            Logger.info("[native-vk] slow native frame " + framesComposited + " stage="
+                + System.getProperty("voxy.harness.stage", "") + ": total="
+                + (submitted - cpuStart) / 1e6 + " service=" + (serviced - cpuStart) / 1e6
+                + " stream=" + (streamed - serviced) / 1e6 + " bound=" + (bounded - streamed) / 1e6
+                + " prepare=" + (prepared - bounded) / 1e6 + " begin=" + (begun - prepared) / 1e6
+                + " record=" + (sceneRecorded - begun) / 1e6 + " postSubmit=" + (submitted - sceneRecorded) / 1e6
+                + " ms");
+        }
         probe.requestsUnread = true;
         probe.timedFrame = true;
         if (params[12] != 0) {
@@ -883,7 +909,18 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         static final int CAP = 1 << 15;
         static final float[] GPU = new float[CAP], CPU = new float[CAP];
         static final double[] SPAN_SUM = new double[VkHierarchicalScene.SPANS.length];
-        static int gpuFrames, cpuFrames, gpuUnavailable;
+        static int gpuFrames, cpuFrames, gpuUnavailable, slowLogged;
+        /**
+         * Render-thread phases: mesh service, streaming, the vanilla bound/pressure, prepare, frame
+         * begin, the scene's recording, the resolve/post/composite recording and the submission.
+         */
+        static final String[] PHASES = {"service", "stream", "bound", "prepare", "begin", "record", "postSubmit"};
+        static final double[] PHASE_SUM = new double[PHASES.length], PHASE_MAX = new double[PHASES.length];
+
+        static void phase(int i, double ms) {
+            PHASE_SUM[i] += ms;
+            PHASE_MAX[i] = Math.max(PHASE_MAX[i], ms);
+        }
 
         static void gpu(double[] spans) {
             if (spans == null) { gpuUnavailable++; return; }
@@ -924,6 +961,16 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 if (i > 0) sb.append(", ");
                 sb.append('"').append(VkHierarchicalScene.SPANS[i]).append("\": ")
                   .append(gpuFrames == 0 ? 0.0 : SPAN_SUM[i] / gpuFrames);
+            }
+            sb.append("}, \"cpuPhaseMeanMs\": {");
+            for (int i = 0; i < PHASES.length; i++) {
+                if (i > 0) sb.append(", ");
+                sb.append('"').append(PHASES[i]).append("\": ").append(cpuFrames == 0 ? 0.0 : PHASE_SUM[i] / cpuFrames);
+            }
+            sb.append("}, \"cpuPhaseMaxMs\": {");
+            for (int i = 0; i < PHASES.length; i++) {
+                if (i > 0) sb.append(", ");
+                sb.append('"').append(PHASES[i]).append("\": ").append(PHASE_MAX[i]);
             }
             return sb.append("}}").toString();
         }
@@ -1088,6 +1135,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         if (probe == null || probe.destroyed) return;
         reclaimedRetired += probe.scene.totalReclaimed();
         rejectedRetired += probe.scene.geometryRejected();
+        // the mesher's workers read the world, which may close before the destroy queue runs
+        // (a disconnect): stop them now, on the render thread
+        try { probe.scene.stopMeshing(); } catch (Throwable t) { closeFailures++; }
         try {
             McNativeVulkan.encoder(probe.device).queueForDestroy(probe);
             QUEUED.add(probe);

@@ -71,6 +71,12 @@ public final class VkRealMesher {
         this.bakery = bakery;
         // ⚠ RenderGenerationService を通さない (ModelBakerySubsystem = ModelStore = DSA)
         this.factory = new RenderDataFactory(world, bakery.factory(), false);
+        // one factory per worker thread, as GL's service (a factory is not shared across threads)
+        this.workerFactory = ThreadLocal.withInitial(() -> {
+            var f = new RenderDataFactory(world, bakery.factory(), false);
+            this.workerFactories.add(f);
+            return f;
+        });
     }
 
     /**
@@ -168,8 +174,131 @@ public final class VkRealMesher {
 
     public int meshedCount() { return this.meshed; }
 
+    // ---------------- asynchronous meshing (normal play) ----------------
+
+    /**
+     * What a worker made of one position. {@code built} for a mesh (null when the world holds
+     * nothing there); {@code wantedModels} when models were missing — the render thread bakes them
+     * and resubmits, as GL's service requests a bake and retries.
+     */
+    public record AsyncResult(long position, me.cortex.voxy.client.core.rendering.building.BuiltSection built,
+                              IntOpenHashSet wantedModels) {}
+
+    /**
+     * GL meshes on worker threads (RenderGenerationService on Voxy's service threads, a
+     * RenderDataFactory per thread) and only uploads on the render thread; the synchronous
+     * {@link #meshOne} put 16–50 ms of meshing on the render thread whenever terrain arrived
+     * (measured 2026-10-10). Workers here only read the world and the model factory
+     * ({@code hasModelForBlockId}, as GL's workers do); baking stays on the render thread.
+     */
+    private java.util.concurrent.ExecutorService workers;
+    private final java.util.concurrent.ConcurrentLinkedQueue<AsyncResult> results =
+        new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private final List<RenderDataFactory> workerFactories =
+        java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+    private final ThreadLocal<RenderDataFactory> workerFactory;
+
+    /** Mesh {@code position} on a worker; its result arrives through {@link #pollResult}. */
+    public void submit(long position) {
+        if (this.freed || this.workersStopped) throw new IllegalStateException("mesher stopped");
+        if (this.workers == null) {
+            int threads = Math.max(1, Math.min(4,
+                me.cortex.voxy.client.config.VoxyConfig.CONFIG.serviceThreads));
+            var counter = new java.util.concurrent.atomic.AtomicInteger();
+            this.workers = java.util.concurrent.Executors.newFixedThreadPool(threads, r -> {
+                var t = new Thread(r, "Voxy native mesher " + counter.incrementAndGet());
+                t.setDaemon(true);
+                return t;
+            });
+        }
+        this.workers.execute(() -> this.results.add(this.meshAsync(position)));
+    }
+
+    public AsyncResult pollResult() { return this.results.poll(); }
+
+    private AsyncResult meshAsync(long position) {
+        if (!this.world.isLive() || Thread.currentThread().isInterrupted()) {
+            return new AsyncResult(position, null, null);
+        }
+        WorldSection section = this.world.acquireIfExists(position);
+        if (section == null) return new AsyncResult(position, null, null);
+        try {
+            // the models this section needs and the factory lacks (GL: computeAndRequestRequiredModels)
+            var missing = new IntOpenHashSet();
+            var models = this.bakery.factory();
+            for (long state : section._unsafeGetRawDataArray()) {
+                int id = Mapper.getBlockId(state);
+                if (id != 0 && !models.hasModelForBlockId(id)) missing.add(id);
+            }
+            if (!missing.isEmpty()) return new AsyncResult(position, null, missing);
+            try {
+                return new AsyncResult(position, this.workerFactory.get().generateMesh(section), null);
+            } catch (IdNotYetComputedException e) {
+                // a neighbour's block, outside this section
+                var wanted = new IntOpenHashSet();
+                if (e.isIdBlockId) wanted.add(e.id);
+                if (e.auxData != null) {
+                    for (long state : e.auxData) wanted.add(Mapper.getBlockId(state));
+                }
+                wanted.remove(0);
+                return new AsyncResult(position, null, wanted.isEmpty() ? null : wanted);
+            }
+        } catch (Throwable t) {
+            Logger.error("[native-vk] meshing " + WorldEngine.pprintPos(position) + " failed", t);
+            return new AsyncResult(position, null, null);
+        } finally {
+            section.release();
+        }
+    }
+
+    /**
+     * Bake models a worker found missing (render thread), one at a time until {@code deadlineNanos}
+     * ({@link System#nanoTime}); GL bakes off the render thread and spreads uploads over frames.
+     * @return whether every one is baked (false: the deadline passed first; resubmit later)
+     */
+    public boolean bakeModels(IntOpenHashSet ids, long deadlineNanos) {
+        var one = new IntOpenHashSet(1);
+        for (int id : ids) {
+            if (System.nanoTime() >= deadlineNanos) return false;
+            one.clear();
+            one.add(id);
+            this.modelsBaked += this.bakery.ensureModels(one);
+        }
+        return true;
+    }
+
+    private boolean workersStopped, workersLeaked;
+
+    /**
+     * Stop the workers and wait for them; free their factories and any undelivered meshes.
+     * Idempotent. If they do not stop in time, their factories are leaked rather than freed under
+     * them.
+     */
+    public void stopWorkers() {
+        if (this.workersStopped) return;
+        this.workersStopped = true;
+        if (this.workers == null) return;
+        this.workers.shutdownNow();
+        try {
+            if (!this.workers.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                this.workersLeaked = true;
+                Logger.warn("[native-vk] mesher workers did not stop within 10 s; leaking their factories");
+                return;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            this.workersLeaked = true;
+            return;
+        }
+        for (AsyncResult r; (r = this.results.poll()) != null; ) {
+            if (r.built() != null) r.built().free();
+        }
+        for (var f : this.workerFactories) f.free();
+    }
+
     public void free() {
         if (this.freed) return;
+        this.stopWorkers();
         this.freed = true;
         this.factory.free();
     }

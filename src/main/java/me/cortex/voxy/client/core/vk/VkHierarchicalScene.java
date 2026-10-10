@@ -1013,6 +1013,99 @@ public final class VkHierarchicalScene {
     public long geometryUsedBytes() { return this.geometry.getGeometryUsedBytes(); }
     public long geometryCapacityBytes() { return this.geometryCapacityBytes; }
 
+    /** Positions a mesher worker holds; at most {@link #MAX_IN_FLIGHT}. Render thread only. */
+    private final it.unimi.dsi.fastutil.longs.LongOpenHashSet inFlight = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+    /** In-flight positions edited meanwhile: their result is stale and is dropped. */
+    private final it.unimi.dsi.fastutil.longs.LongOpenHashSet staleInFlight = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+    /** Model-bake retries per position (gives up after the synchronous path's attempts). */
+    private final it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap modelRetries = new it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap();
+    private static final int MAX_IN_FLIGHT = 512, MAX_MODEL_RETRIES = 8;
+    /** Render-thread time per frame for baking models workers found missing. */
+    private static final long BAKE_BUDGET_NANOS = 4_000_000L;
+
+    /**
+     * Normal play: {@link #serviceRequests}'s work with the meshing on worker threads, as GL's
+     * RenderGenerationService. The render thread processes requests and child changes, accepts
+     * finished meshes (at most {@code maxAcceptedPerCall}), bakes models a worker found missing and
+     * resubmits, and submits newly watched positions. A position edited while in flight has its
+     * result dropped and is meshed again. Call after the previous GPU frame completed (acceptance
+     * uploads geometry and may reclaim).
+     */
+    public int serviceRequestsAsync(int maxAcceptedPerCall) {
+        if (!this.world.isLive()) return 0;
+        this.processChildChangesAndRequests();
+        for (int i = 0; i < 4096; i++) {
+            Long pos = this.meshUpdates.poll();
+            if (pos == null) break;
+            this.pendingMesh.remove(pos);
+            if (this.inFlight.contains(pos.longValue())) this.staleInFlight.add(pos.longValue());
+        }
+        int accepted = 0;
+        long bakeDeadline = System.nanoTime() + BAKE_BUDGET_NANOS;
+        while (accepted < maxAcceptedPerCall) {
+            var r = this.mesher.pollResult();
+            if (r == null) break;
+            long pos = r.position();
+            this.inFlight.remove(pos);
+            boolean stale = this.staleInFlight.remove(pos);
+            boolean watched = (this.watcher.get(pos) & WorldEngine.UPDATE_TYPE_BLOCK_BIT) != 0;
+            if (stale || !watched || this.pendingMesh.contains(pos)) {
+                if (r.built() != null) r.built().free();
+                continue;   // meshed again below if still wanted
+            }
+            if (r.wantedModels() != null) {
+                // a bake cut short by the frame's budget is not a failed attempt
+                if (this.mesher.bakeModels(r.wantedModels(), bakeDeadline)) this.modelRetries.addTo(pos, 1);
+                continue;   // resubmitted below (or given up after MAX_MODEL_RETRIES)
+            }
+            if (r.built() == null) continue;   // nothing there (yet)
+            this.modelRetries.remove(pos);
+            if (!this.acceptGeometry(r.built())) break;   // the admission freed it
+            this.pendingMesh.add(pos);
+            this.meshVersions.put(pos, ++this.meshVersion);
+            this.meshedSections++;
+            accepted++;
+        }
+        for (long pos : this.watcher.watched.keySet().toLongArray()) {
+            if (this.inFlight.size() >= MAX_IN_FLIGHT) break;
+            if ((this.watcher.get(pos) & WorldEngine.UPDATE_TYPE_BLOCK_BIT) == 0) continue;
+            if (this.pendingMesh.contains(pos) || this.inFlight.contains(pos)) continue;
+            if (this.modelRetries.get(pos) > MAX_MODEL_RETRIES) continue;
+            this.inFlight.add(pos);
+            this.mesher.submit(pos);
+        }
+        return accepted;
+    }
+
+    /** Child-existence changes and the traversal's requests (both paths, render thread). */
+    private void processChildChangesAndRequests() {
+        for (int i = 0; i < 4096; i++) {
+            Long pos = this.childUpdates.poll();
+            if (pos == null) break;
+            if ((this.watcher.get(pos) & WorldEngine.UPDATE_TYPE_CHILD_EXISTENCE_BIT) == 0) continue;
+            var section = this.world.acquireIfExists(pos);
+            if (section != null) {
+                try { this.nodes.processChildChange(pos, section.getNonEmptyChildren()); }
+                finally { section.release(); }
+            }
+        }
+        int count = Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.traversal.request.addr()),
+            4096);
+        for (int i = 0; i < count; i++) {
+            long e = this.traversal.request.addr() + 8L + (long) i * 8L;
+            int px = org.lwjgl.system.MemoryUtil.memGetInt(e);
+            int py = org.lwjgl.system.MemoryUtil.memGetInt(e + 4);
+            // ⚠ ワールドのキーは px が上位ワード
+            long key = (Integer.toUnsignedLong(px) << 32) | Integer.toUnsignedLong(py);
+            try {
+                this.nodes.processRequest(key);
+            } catch (RuntimeException ex) {
+                Logger.warn("[5c-4c] request for " + WorldEngine.pprintPos(key)
+                    + " was rejected: " + ex);
+            }
+        }
+    }
+
     public int serviceRequests(int maxMeshesPerCall) {
         if (!this.world.isLive()) return 0;
         for (int i = 0; i < 4096; i++) {
@@ -1029,6 +1122,8 @@ public final class VkHierarchicalScene {
             Long pos = this.meshUpdates.poll();
             if (pos == null) break;
             this.pendingMesh.remove(pos);
+            // an asynchronous result for it, still in flight, is stale now
+            if (this.inFlight.contains(pos.longValue())) this.staleInFlight.add(pos.longValue());
         }
         int count = Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.traversal.request.addr()),
             4096);
@@ -1421,6 +1516,9 @@ public final class VkHierarchicalScene {
         }
         return version;
     }
+
+    /** Stop the mesher's workers (a retired scene; its world may be closing). Idempotent. */
+    public void stopMeshing() { this.mesher.stopWorkers(); }
 
     public void free() {
         if (this.freed) return;
