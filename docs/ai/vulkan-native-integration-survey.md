@@ -482,7 +482,8 @@ of the point — and the replay status of each is:
 | [20261009T224733-249406Z](runs/native-evidence/20261009T224733-249406Z/MANIFEST.json) | no — predates streaming (round 28 judges its repairs) |
 | [20261009T232453-026460Z](runs/native-evidence/20261009T232453-026460Z/MANIFEST.json) | no — predates the near cut |
 | [20261010T001738-021106Z](runs/native-evidence/20261010T001738-021106Z/MANIFEST.json) | no — composited at the level-render tail |
-| [20261010T004433-359709Z](runs/native-evidence/20261010T004433-359709Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, composited at GL Voxy's point with depth writes |
+| [20261010T004433-359709Z](runs/native-evidence/20261010T004433-359709Z/MANIFEST.json) | no — the synthetic lightmap |
+| [20261010T011555-864761Z](runs/native-evidence/20261010T011555-864761Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, at GL Voxy's point, Minecraft's own lightmap |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -2026,7 +2027,7 @@ bound filtered boxes at that distance, as GL's `outline.vsh` does; GL hides the 
 from Minecraft's depth. The native bound now covers every section in Sodium's list (no distance
 filter) — the list holds exactly what Sodium draws.
 
-**Measured** (run [20261010T004433-359709Z](runs/native-evidence/20261010T004433-359709Z/MANIFEST.json), replay 0 in this checkout): 7 judged
+**Measured** (run [20261010T004433-359709Z](runs/native-evidence/20261010T004433-359709Z/MANIFEST.json), which replayed 0 in the checkout it was built from): 7 judged
 hierarchical samples by the strict clear-only rule, **zero violations** with the composite writing
 depth (12 695 must-show shown, 126 048 kept Minecraft's, none undetermined); real-LOAD 7 judged, zero
 violations; the Z direction reads as before; the product switch alone composited 5 612 frames in every
@@ -2035,6 +2036,25 @@ stage.
 **Remaining differences from GL here.** GL confines Voxy with a stencil from Minecraft's depth as well
 as the bound; natively the bound alone does it (the judged samples check the result pixel by pixel).
 Minecraft's terrain does not occlude Voxy's own HiZ (Voxy's submission precedes Minecraft's frame).
+
+### Minecraft's own lightmap (2026-10-10)
+
+**What changed** (`9be59d81`, `40e38c9c`). The first part of round 27's lighting item. GL Voxy samples
+Minecraft's lightmap texture directly (`LightMapHelper`, `gameRenderer.levelLightmap()`); the native
+scene had a uniform synthetic one. `McNativeLightmap` copies Minecraft's 16x16 RGBA8 lightmap out
+through Blaze3D (`copyTextureToBuffer`, one copy in flight) and the newest pixels are uploaded into
+the scene's lightmap (`VkTerrainResources.setLightmap`/`recordLightmapUpload`) in Voxy's submission
+after the fence wait. Minecraft creates the lightmap without copy-src usage (26.2 `Lightmap.<init>`,
+usage 13); `MixinLightmap` adds it when a native flag is set — the first run without it reported
+VUID-vkCmdCopyImageToBuffer-srcImage-00186 on every copy. Both gates require at least one
+lightmap applied and no lightmap failure.
+
+**Measured** (run [20261010T011555-864761Z](runs/native-evidence/20261010T011555-864761Z/MANIFEST.json), replay 0 in this checkout): about
+2 800 lightmaps applied per launch, validation clean; 8 judged hierarchical samples by the strict
+clear-only rule, zero violations, none undetermined; the product switch alone composited 5 608 frames
+in every stage. The judged rule is per-pixel presence, not colour, so this establishes that the
+lightmap is applied, not that Voxy's lighting matches GL's image (no visual reference yet). Fog,
+fade and SSAO from GL's post-processing are not ported.
 
 ## What is NOT answered yet, and must be measured on hardware
 
