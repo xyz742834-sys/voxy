@@ -320,7 +320,12 @@ commit the report alone, then repair.
    now sizes the native geometry too (`b72a0e02`; default unchanged). A hierarchical
    camera-extent-mismatch skip now carries its extents (`16f1b496`), so the gate corroborates it
    instead of refusing every one. The round-28 prompt (`docs/ai/runs/native-review-prompt-r28.txt`)
-   covers everything since `10856154`; fill {CANDIDATE_SHA}/{EVIDENCE_RUN}/{EVIDENCE_SHA} at dispatch. Far-world: the gate
+   covers everything since `10856154`; fill {CANDIDATE_SHA}/{EVIDENCE_RUN}/{EVIDENCE_SHA} at dispatch.
+   Performance evidence (`906ddbab`, round-27 item 7; run `20261010T134027-205020Z`, M4 Pro,
+   1708x960→1920x1080, 60 FPS cap): Voxy GPU per frame mean 2.8 ms, p95 3.5 ms, max 5.4 ms (opaque
+   1.7); render-thread mean 2.1 ms, p50 1.3, p95 7.1, max 56 ms (pressure/soak: p95 7.2, max 79).
+   No budget is set (an owner call); the render-thread spikes are the next thing to look at
+   (meshing/streaming on the render thread is the likely cause, unmeasured). Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
    here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
    terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the
