@@ -481,7 +481,8 @@ of the point — and the replay status of each is:
 | [20261009T213621-341358Z](runs/native-evidence/20261009T213621-341358Z/MANIFEST.json) | no — predates the round-27 repairs |
 | [20261009T224733-249406Z](runs/native-evidence/20261009T224733-249406Z/MANIFEST.json) | no — predates streaming (round 28 judges its repairs) |
 | [20261009T232453-026460Z](runs/native-evidence/20261009T232453-026460Z/MANIFEST.json) | no — predates the near cut |
-| [20261010T001738-021106Z](runs/native-evidence/20261010T001738-021106Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, streaming and the native near cut |
+| [20261010T001738-021106Z](runs/native-evidence/20261010T001738-021106Z/MANIFEST.json) | no — composited at the level-render tail |
+| [20261010T004433-359709Z](runs/native-evidence/20261010T004433-359709Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, composited at GL Voxy's point with depth writes |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1992,7 +1993,7 @@ scene's anchor and Minecraft's render distance as the box filter. The section li
 after the fence wait. Both gates require `vanillaBound` with at least one section drawn
 (`maxBoundSections`).
 
-**Measured** (run [20261010T001738-021106Z](runs/native-evidence/20261010T001738-021106Z/MANIFEST.json), replay 0 in this checkout): up to
+**Measured** (run [20261010T001738-021106Z](runs/native-evidence/20261010T001738-021106Z/MANIFEST.json), which replayed 0 in the checkout it was built from): up to
 1 926 vanilla sections in the bound; Voxy geometry in the 8 judged bands fell from 407 561 to
 134 884 pixels — no longer inside vanilla terrain — and the horizon sample (all beyond it) is
 unchanged (2 605 shown, 3 962 hidden); zero violations, nothing undetermined. Must-show pixels fell
@@ -2004,6 +2005,36 @@ included.
 to GL's point (Sodium's cutout pass, where no render pass is open — `ShaderChunkRenderer.end` runs
 before Sodium opens its pass) and write Voxy's depth again, as GL does, so Minecraft's later
 cutout/translucent/entity draws test against it.
+
+### At GL Voxy's point, writing Voxy's depth (2026-10-10)
+
+**What changed** (`24d3f23b`, `e748a2f0`). The rest of round 27's composite item. The ladder, the
+coexist quad, terrain-LOAD, real-LOAD and the hierarchical composite run at GL Voxy's point,
+Sodium's cutout terrain pass (`McNativeFrameHooks.atCutout`, called from
+`MixinDefaultChunkRenderer` right after the camera capture): Sodium fills its command data and
+calls `ShaderChunkRenderer.end` before it opens its Blaze3D pass for that terrain pass (26.2
+bytecode), so no render pass is open there. Minecraft's solid terrain is drawn; its cutout and
+translucent terrain, entities, particles and weather come after. The readbacks happen there too, so
+each measurement and its judgement see the frame at Voxy's composite point. The environment
+launch's probes stay at the level-render tail. The composite writes Voxy's reprojected depth with
+Voxy's GREATER_OR_EQUAL, as GL's final blit, so Minecraft's later draws test against Voxy.
+
+**Found on the way.** The first run at the new point failed the strict clear-only judgement: 1 062
+pixels per sample showed Voxy (117–156 blocks away) where Minecraft had drawn terrain farther away
+(ladder rung 2, 51–205 blocks). Sodium draws sections past the effective render distance, and the
+bound filtered boxes at that distance, as GL's `outline.vsh` does; GL hides the gap with its stencil
+from Minecraft's depth. The native bound now covers every section in Sodium's list (no distance
+filter) — the list holds exactly what Sodium draws.
+
+**Measured** (run [20261010T004433-359709Z](runs/native-evidence/20261010T004433-359709Z/MANIFEST.json), replay 0 in this checkout): 7 judged
+hierarchical samples by the strict clear-only rule, **zero violations** with the composite writing
+depth (12 695 must-show shown, 126 048 kept Minecraft's, none undetermined); real-LOAD 7 judged, zero
+violations; the Z direction reads as before; the product switch alone composited 5 612 frames in every
+stage.
+
+**Remaining differences from GL here.** GL confines Voxy with a stencil from Minecraft's depth as well
+as the bound; natively the bound alone does it (the judged samples check the result pixel by pixel).
+Minecraft's terrain does not occlude Voxy's own HiZ (Voxy's submission precedes Minecraft's frame).
 
 ## What is NOT answered yet, and must be measured on hardware
 

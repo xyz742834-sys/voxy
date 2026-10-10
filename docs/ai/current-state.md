@@ -99,8 +99,9 @@ Voxy's GL rule, only where MC's depth is still clear; since `345ebde7` one produ
 (`voxy.native.render`) runs the whole native path without diagnostics; since `4518eabd` its projection is GL's
 `computeProjectionMat` in full; since `8d241b40` it honours Voxy's rendering setting and the kill switch
 `voxy.native.disable`; since `155673fb` the scene streams at Voxy's configured distance like the GL renderer —
-since `afc61e91` Voxy's vanilla depth bound (near cut) is native — run `20261010T001738-021106Z`: 1 802 top-level nodes,
-up to 1 926 vanilla sections in the bound, 5 594 frames composited in every
+since `afc61e91` Voxy's vanilla depth bound (near cut) is native, and since `24d3f23b` it composites at GL's point
+(Sodium's cutout pass) writing Voxy's depth — run `20261010T004433-359709Z`: 1 802 top-level nodes,
+up to 1 920 vanilla sections in the bound, 5 612 frames composited in every
 required stage with the switch alone, and in its ladder launch 8 judged, every Voxy pixel decided, zero
 violations). The probe itself still asserts no convention and the
 gate forbids claiming it. See the survey sections "Minecraft's depth at the level-render tail,
