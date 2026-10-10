@@ -1149,6 +1149,18 @@ class DepthProbeGateTest(unittest.TestCase):
         self.assertIn("not measured by this path", result["answer"])
         self.assertFalse(result["z_convention_measured"])
 
+    def test_a_range_below_the_samples_quantisation_is_not_a_contradiction(self):
+        """Run 20261010T040411-974077Z: the probe saw 0..3.8e-7, every retained 16-bit pixel is 0."""
+        result = self.run_gate({"uniform": False, "min": 0.0, "max": 3.8089212e-07,
+                                "bottomMean": 1.4964163e-08})
+        self.assertTrue(result["success"], result["failures"])
+        self.assertIn("not measured by this path", result["answer"])
+
+    def test_a_resolvable_range_over_uniform_pixels_fails(self):
+        result = self.run_gate({"uniform": False, "min": 0.0, "max": 1e-3})
+        self.assertFalse(result["success"])
+        self.assertIn("retained pixels say", " ".join(result["failures"]))
+
     def test_claiming_to_have_measured_the_convention_fails(self):
         result = self.run_gate({"zConventionMeasuredHere": True})
         self.assertFalse(result["success"])

@@ -3783,7 +3783,11 @@ def recount_depth_sample(output, report):
         if abs(theirs - ours) > tolerance:
             raise ValueError(f"the probe reports {field}={theirs} but the retained pixels say"
                              f" {ours}")
-    if (low == high) != report["uniform"]:
+    # ⚠ the retained copy cannot resolve a range below its quantisation: a probe that saw
+    # 0..3.8e-7 (run 20261010T040411-974077Z) is rightly non-uniform while every retained pixel is 0
+    unresolved = low == high and not report["uniform"] \
+        and report["max"] - report["min"] <= tolerance
+    if (low == high) != report["uniform"] and not unresolved:
         raise ValueError(f"the retained pixels are{'' if low == high else ' not'} uniform but"
                          f" the probe says uniform={report['uniform']}")
     return out
