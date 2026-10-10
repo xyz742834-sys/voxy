@@ -213,6 +213,19 @@ public class VkTerrainResources {
      */
     public VkTerrainResources(int maxSections, int maxQuads, int maxDrawCommands,
                               int maxModels, int indexQuadCapacity, AtlasScale atlasScale) {
+        this(maxSections, maxQuads, maxDrawCommands, maxModels, indexQuadCapacity, atlasScale, maxSections);
+    }
+
+    /**
+     * @param renderQueueCapacity 1 フレームで描くセクション数の上限 (描画キュー = indirectLookup の容量)。
+     *        ⚠ <b>描画単位のバッファ (エントリ・前置和・半透明) はこれで決まる</b> — シェーダは
+     *        {@code face * sectionCount + i} (i は描画キュー内の添字) で引く [確認済 — cmdgen.comp,
+     *        merged_prefix.comp]。セクション id で引くのは sectionMeta と visibility だけ。
+     *        GL は描画キューを {@code HierarchicalOcclusionTraverser.MAX_QUEUE_SIZE} で打ち切る
+     */
+    public VkTerrainResources(int maxSections, int maxQuads, int maxDrawCommands,
+                              int maxModels, int indexQuadCapacity, AtlasScale atlasScale,
+                              int renderQueueCapacity) {
         this.atlasScale      = atlasScale;
         this.maxModels       = maxModels;
         this.indexQuadCapacity = indexQuadCapacity;
@@ -225,12 +238,12 @@ public class VkTerrainResources {
         // DrawCommand は 5 uint = 20 バイト [確認済 — bindings.glsl の struct]
         this.drawCall        = new VkBuffer(Math.max(4096L, (long) maxDrawCommands * 20)).zero().name("drawCall");
         this.drawCount       = new VkBuffer(1024).zero().name("drawCount");
-        this.indirectLookup  = new VkBuffer(Math.max(4096L, (long) maxSections * 4 + 4)).zero().name("indirectLookup");
+        this.indirectLookup  = new VkBuffer(Math.max(4096L, (long) renderQueueCapacity * 4 + 4)).zero().name("indirectLookup");
         this.visibility      = new VkBuffer(Math.max(4096L, (long) maxSections * 4)).zero().name("visibility");
         this.index           = VkQuadIndexBuffer.of(indexQuadCapacity);
 
         // エントリ数の上限はランの本数 = セクション数 x 7 面
-        long maxEntries = Math.max(1L, (long) maxSections * 7);
+        long maxEntries = Math.max(1L, (long) renderQueueCapacity * 7);
         this.mergedEntry  = new VkBuffer(Math.max(4096L, maxEntries * 8)).zero().name("mergedEntry");
         this.mergedPrefix = new VkBuffer(Math.max(4096L, 4L + (maxEntries + 1) * 4)).zero().name("mergedPrefix");
         // 面 7 つ + 分割ぶん。上限は 7 + 総quad/T [SyntheticTerrain.maxFaceDrawCount と同じ式]
@@ -248,7 +261,7 @@ public class VkTerrainResources {
         this.temporalDraw   = new VkBuffer(Math.max(4096L, maxFaceDraws * 20)).zero().name("temporalDraw");
 
         // 半透明: セクションごとに最大 1 エントリ
-        long maxT = Math.max(1L, maxSections);
+        long maxT = Math.max(1L, renderQueueCapacity);
         this.translucentBucket = new VkBuffer(TRANSLUCENT_BUCKETS * 4L).zero().name("tBucket");
         this.translucentList   = new VkBuffer(Math.max(4096L, 4L + maxT * 4)).zero().name("tList");
         this.translucentEntry  = new VkBuffer(Math.max(4096L, maxT * 8)).zero().name("tEntry");

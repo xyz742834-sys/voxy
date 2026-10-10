@@ -41,8 +41,9 @@ import java.util.function.BooleanSupplier;
  * 同じバッファを使えば<b>写す手が要らない</b>。
  *
  * <p>⚠ 密テーブルは {@code sectionCount * 7} で確保される。
- * <b>トラバーサルが選んだ数</b>でスケールするので、
- * {@code maxSections} を描画キューの容量以上にしておくこと。
+ * <b>トラバーサルが選んだ数</b>でスケールするので、描画キューの容量
+ * ({@code renderQueueCapacity} = min(セクション容量, GL の MAX_QUEUE_SIZE)) で確保する。
+ * トラバーサルは描画キューをその容量で打ち切る。
  */
 public final class VkHierarchicalScene {
     /** Render-thread watch enumeration backed by the shared, thread-safe update router. */
@@ -385,6 +386,10 @@ public final class VkHierarchicalScene {
      * エントリ数を渡すと <b>{@code mergedDraw} を溢れさせる</b> — 最初そう書いた。
      */
     final int maxDraws;
+    /** Sections drawn per frame at most, and the traversal's queue size (GL: MAX_QUEUE_SIZE). */
+    final int renderQueueCapacity;
+    /** Nodes the hierarchy holds (GL: twice the geometry sections). */
+    final int nodeCapacity;
     private boolean freed;
 
     /**
@@ -448,8 +453,15 @@ public final class VkHierarchicalScene {
         this.maxSections = maxSections;
         this.maxDraws = SyntheticTerrain.maxFaceDrawCount(maxQuads,
             VkQuadIndexBuffer.DEFAULT_QUAD_CAPACITY);
-        this.res = new VkTerrainResources(maxSections, maxQuads, maxSections * 7, 1 << 16,
-            VkQuadIndexBuffer.DEFAULT_QUAD_CAPACITY, VkTerrainResources.AtlasScale.REAL);
+        // GL's capacities: the render and work queues stop at MAX_QUEUE_SIZE whatever the section
+        // capacity (HierarchicalOcclusionTraverser), and the node store holds twice the sections
+        // (VoxyRenderSystem: AsyncNodeManager(1 << 21) over BasicSectionGeometryData(1 << 20))
+        this.renderQueueCapacity = Math.min(maxSections,
+            me.cortex.voxy.client.core.rendering.hierachical.HierarchicalOcclusionTraverser.MAX_QUEUE_SIZE);
+        this.nodeCapacity = maxSections * 2;
+        this.res = new VkTerrainResources(maxSections, maxQuads, this.renderQueueCapacity * 7, 1 << 16,
+            VkQuadIndexBuffer.DEFAULT_QUAD_CAPACITY, VkTerrainResources.AtlasScale.REAL,
+            this.renderQueueCapacity);
         this.res.useExternalAtlasContent();
 
         this.modelTarget = new VkModelUploadTarget(this.res);
@@ -462,7 +474,7 @@ public final class VkHierarchicalScene {
         this.geometry = new BasicAsyncGeometryManager(maxSections, this.geometryCapacityBytes);
         this.watcher.router.setCallbacks(this.meshUpdates::add, this.meshUpdates::add,
             section -> this.childUpdates.add(section.key));
-        this.nodes = new NodeManager(maxSections, this.geometry, this.watcher);
+        this.nodes = new NodeManager(this.nodeCapacity, this.geometry, this.watcher);
 
         // ⚠⚠ **HiZ は Voxy 自身の深度アタッチメントを読む** [確認済 — 上流
         // {@code NormalRenderPipeline.setup} が {@code fb.getDepthTex()} を返し、
@@ -474,8 +486,8 @@ public final class VkHierarchicalScene {
         // しかも 1 フレーム古い。絵は出るので気付けない型の誤りだった
         this.hiz = new VkHiZ(target.depth, width, height);
         // ⚠ 描画キューに indirectLookup をそのまま渡す。cmdgen が直接読む
-        this.traversal = new VkTraversal(this.hiz.texture(), maxSections, maxSections,
-            (int) ((this.res.indirectLookup.size() - 4) / 4), 4096, this.res.indirectLookup);
+        this.traversal = new VkTraversal(this.hiz.texture(), this.nodeCapacity, this.renderQueueCapacity,
+            this.renderQueueCapacity, 4096, this.res.indirectLookup);
         this.nodeTarget = new VkNodeUploadTarget(this.traversal.nodeData);
 
         // ⚠ **トラバーサルの入口を繋ぐ。** GL 版は addTLN/remTLN で同じことをしている
@@ -1310,7 +1322,7 @@ public final class VkHierarchicalScene {
     /** トラバーサルが選んだセクション数 (= {@code indirectLookup} の先頭)。 */
     public int drawnSectionCount() {
         return Math.min(org.lwjgl.system.MemoryUtil.memGetInt(this.res.indirectLookup.addr()),
-            this.maxSections);
+            this.renderQueueCapacity);
     }
 
     /** Previous-frame selection count, retained for diagnostics; GPU sizing does not use it. */
