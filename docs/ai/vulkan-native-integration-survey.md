@@ -2095,6 +2095,22 @@ launches peak at about 8.8 MB of 32 MB; the pressure launch reclaimed **219 789 
 4 MB, and composited 5 337 frames in every required stage with no problem, leak or validation
 message. This is pressure within one ~15-minute lifecycle, not a long-session allocation plateau.
 
+### Allocation plateau within a lifecycle (2026-10-10)
+
+**What changed** (`f5c1cfa6`, gate `92001fdc`/`8fc735c7`). Each stage snapshot of the product and
+pressure launches states Voxy's live Vulkan buffers, buffer bytes and textures (`VkBuffer`/`VkTexture`
+counters). Their gates require, after the first scene build, that the final counts are not above the
+first and the bytes within 5 % (`RENDER_ALLOCATION_SLACK`; measured 0.6 % at the resize stage, whose
+size-dependent buffers are rebuilt) — a scene not freed on retirement would multiply them across the
+lifecycle's five builds.
+
+**Measured** (run [20261010T022510-232403Z](runs/native-evidence/20261010T022510-232403Z/MANIFEST.json),
+built before the gate check, which passes on its logs): 41 buffers and 10 textures from the first build
+to the end in both launches; bytes ~616 MB (product) and ~586 MB (pressure: its 28 MB smaller geometry),
++3.5 MB once at resize, then flat. **Finding:** ~616 MB of Vulkan buffers per scene is large for a
+default-on renderer (the geometry arena is 32 MB of it); the rest has not been broken down yet. One
+lifecycle (~15 minutes, five rebuilds) is not a long-session soak.
+
 ## What is NOT answered yet, and must be measured on hardware
 
 1. **Image-state ownership** — partly answered. Opening the pass through Minecraft's
