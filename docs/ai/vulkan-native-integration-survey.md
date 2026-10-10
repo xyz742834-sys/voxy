@@ -480,7 +480,8 @@ of the point — and the replay status of each is:
 | [20261009T203836-462316Z](runs/native-evidence/20261009T203836-462316Z/MANIFEST.json) | no — predates the round-26 repairs |
 | [20261009T213621-341358Z](runs/native-evidence/20261009T213621-341358Z/MANIFEST.json) | no — predates the round-27 repairs |
 | [20261009T224733-249406Z](runs/native-evidence/20261009T224733-249406Z/MANIFEST.json) | no — predates streaming (round 28 judges its repairs) |
-| [20261009T232453-026460Z](runs/native-evidence/20261009T232453-026460Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, the scene streaming like Voxy's GL renderer |
+| [20261009T232453-026460Z](runs/native-evidence/20261009T232453-026460Z/MANIFEST.json) | no — predates the near cut |
+| [20261010T001738-021106Z](runs/native-evidence/20261010T001738-021106Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, streaming and the native near cut |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -1969,11 +1970,40 @@ dereferences. `startStreaming` now replays them first, as `VoxyRenderSystem` fee
 failure. (After that exception a frame was left mid-recording and validation reported a descriptor
 layout mismatch in the next composite; that only follows a failed experiment, which fails the gate.)
 
-**Measured** (run [20261009T232453-026460Z](runs/native-evidence/20261009T232453-026460Z/MANIFEST.json), replay 0 in this checkout): up to
+**Measured** (run [20261009T232453-026460Z](runs/native-evidence/20261009T232453-026460Z/MANIFEST.json), which replayed 0 in the checkout it was built from): up to
 **1 802 top-level nodes** held at the default distance (17 columns), up to 7 291 sections meshed by a
 judged sample; the product switch alone composited **5 609 frames, the nether included (288)**, with
 no skip but the atlas wait; the ladder judged 8 samples by Voxy's GL rule, zero violations, nothing
 undetermined, 32 244 must-show pixels shown (21 204 with the fixed region).
+
+### The near cut: Voxy's vanilla depth bound natively (2026-10-10)
+
+**What changed** (`afc61e91`). The second part of round 27's composite item. GL Voxy discards its
+terrain inside Minecraft's loaded terrain with a per-pixel depth bound: `BoundRenderer` draws the
+boxes of Minecraft's built, visible chunk sections (collected by the Sodium mixins into
+`StreamedBoundStore`) into a depth texture, farther depth kept over a NEAR clear, and
+`lod/gl46/quads.frag` discards fragments nearer than it. Natively: `McNativeBounds` is fed by the
+same mixins at the same points (reset in `RenderSectionManager`, a put per built visible section,
+only while native rendering runs and no GL renderer exists); `VkBoundRenderer` (shaders
+`lod/vk/bound.vert/.frag`, a port of `chunkoutline/outline.vsh`: non-indexed, 36 vertices per box,
+one box per instance, faces not culled since the farther depth is kept) draws them into each
+terrain pass's existing depth-bound texture before the opaque pass, with Voxy's MVP relative to the
+scene's anchor and Minecraft's render distance as the box filter. The section list is copied in
+after the fence wait. Both gates require `vanillaBound` with at least one section drawn
+(`maxBoundSections`).
+
+**Measured** (run [20261010T001738-021106Z](runs/native-evidence/20261010T001738-021106Z/MANIFEST.json), replay 0 in this checkout): up to
+1 926 vanilla sections in the bound; Voxy geometry in the 8 judged bands fell from 407 561 to
+134 884 pixels — no longer inside vanilla terrain — and the horizon sample (all beyond it) is
+unchanged (2 605 shown, 3 962 hidden); zero violations, nothing undetermined. Must-show pixels fell
+slightly (32 244 → 20 669) because built section boxes also cover sky, and the bound discards Voxy
+there as on GL. The product switch alone composited 5 594 frames in every stage, the nether
+included.
+
+**Next.** With the near cut, Voxy no longer lies inside vanilla terrain, so the composite can move
+to GL's point (Sodium's cutout pass, where no render pass is open — `ShaderChunkRenderer.end` runs
+before Sodium opens its pass) and write Voxy's depth again, as GL does, so Minecraft's later
+cutout/translucent/entity draws test against it.
 
 ## What is NOT answered yet, and must be measured on hardware
 
