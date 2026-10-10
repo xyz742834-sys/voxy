@@ -796,8 +796,12 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         lastStageLogged = stage;
         long skipped = 0;
         for (long n : FRAME_SKIPS.values()) skipped += n;
+        // and Voxy's live Vulkan allocations, so repeated rebuilds/retirements can be seen to return
         Logger.info("[native-vk] hier frames entering stage " + stage + ": composited="
-            + framesComposited + " skipped=" + skipped + " builds=" + builds);
+            + framesComposited + " skipped=" + skipped + " builds=" + builds
+            + " vkBuffers=" + me.cortex.voxy.client.core.vk.VkBuffer.getCount()
+            + " vkBufferBytes=" + me.cortex.voxy.client.core.vk.VkBuffer.getTotalSize()
+            + " vkTextures=" + me.cortex.voxy.client.core.vk.VkTexture.getCount());
     }
 
     private static void requestReadback(GpuTextureView colour, int width, int height, long at) {
