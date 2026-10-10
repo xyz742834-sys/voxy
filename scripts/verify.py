@@ -2870,7 +2870,7 @@ DEFAULT_SECTION_CAPACITY = 8192
 DEFAULT_GEOMETRY_QUADS = 4_000_000
 RENDER_STAGE_LOG = re.compile(r"hier frames entering stage (\w+): composited=(\d+) skipped=(\d+)"
                               r" builds=(\d+)(?: vkBuffers=(\d+) vkBufferBytes=(\d+) vkTextures=(\d+))?"
-                              r"(?: frame=(\d+)x(\d+))?(?: cycle=(\d+))?")
+                              r"(?: vkTextureBytes=(\d+))?(?: frame=(\d+)x(\d+))?(?: cycle=(\d+))?")
 # Allocation plateau: after the first scene build, the live buffer/texture counts may not end above
 # where they started, and within each run of snapshots at one frame size the buffer bytes may not
 # grow more than this fraction (a leak across rebuilds multiplies).
@@ -3169,10 +3169,15 @@ def native_render_result(output, log_text, expected_device=None, command=None,
                                  f" allocations")
             if m.group(10) is None:
                 raise ValueError(f"the {L} log's snapshot for stage {m.group(3)!r} states no"
+                                 f" texture bytes")
+            if m.group(11) is None:
+                raise ValueError(f"the {L} log's snapshot for stage {m.group(3)!r} states no"
                                  f" frame size")
+            # (stage, composited, skipped, builds, buffers, bufferBytes, textures, frame w, frame h,
+            #  cycle, textureBytes)
             line = (m.group(3), int(m.group(4)), int(m.group(5)), int(m.group(6)),
-                    int(m.group(7)), int(m.group(8)), int(m.group(9)), int(m.group(10)),
-                    int(m.group(11)), int(m.group(12) or 1))
+                    int(m.group(7)), int(m.group(8)), int(m.group(9)), int(m.group(11)),
+                    int(m.group(12)), int(m.group(13) or 1), int(m.group(10)))
             # round-27: a snapshot belongs to the harness stage (and soak cycle) current when it
             # was written
             if (line[0], line[9]) != current:
@@ -3205,8 +3210,10 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         if allocated:
             def grew(first, last, why):
                 return ValueError(f"the {L} launch's live Vulkan allocations grew from {first[4]}"
-                                  f" buffers / {first[5]} bytes / {first[6]} textures ({first[0]},"
-                                  f" {first[7]}x{first[8]}) to {last[4]} / {last[5]} / {last[6]}"
+                                  f" buffers / {first[5]} bytes / {first[6]} textures /"
+                                  f" {first[10]} texture bytes ({first[0]},"
+                                  f" {first[7]}x{first[8]}) to {last[4]} / {last[5]} / {last[6]} /"
+                                  f" {last[10]}"
                                   f" ({last[0]}, {last[7]}x{last[8]}) over {report['builds']}"
                                   f" build(s); {why}")
             if allocated[-1][4] > allocated[0][4] or allocated[-1][6] > allocated[0][6]:
@@ -3230,7 +3237,8 @@ def native_render_result(output, log_text, expected_device=None, command=None,
             for run in runs:
                 first, last = run[0], run[-1]
                 if last[4] > first[4] or last[6] > first[6] \
-                        or last[5] > first[5] * (1 + RENDER_ALLOCATION_SLACK):
+                        or last[5] > first[5] * (1 + RENDER_ALLOCATION_SLACK) \
+                        or last[10] > first[10] * (1 + RENDER_ALLOCATION_SLACK):
                     raise grew(first, last, "retired scenes are not freed")
             # and across runs at the same size (the soak returns to each size every cycle): a
             # small leak per lifecycle adds up against the first run at that size
@@ -3238,7 +3246,8 @@ def native_render_result(output, log_text, expected_device=None, command=None,
                 at = [run for run, key in zip(runs, sizes) if key == size]
                 first, last = at[0][0], at[-1][-1]
                 if last[4] > first[4] or last[6] > first[6] \
-                        or last[5] > first[5] * (1 + RENDER_SOAK_SLACK):
+                        or last[5] > first[5] * (1 + RENDER_SOAK_SLACK) \
+                        or last[10] > first[10] * (1 + RENDER_SOAK_SLACK):
                     raise grew(first, last, "retired scenes are not freed across lifecycles")
         missing = [st for st in RENDER_REQUIRED_STAGES if growth.get(st, 0) < 1]
         if missing:
@@ -3246,6 +3255,8 @@ def native_render_result(output, log_text, expected_device=None, command=None,
                              f" (per stage: {growth})")
         result.update(success=True, framesComposited=composited, frameSkips=dict(skips),
                       performance=report.get("performance"),
+                      memory=({"bufferBytes": lines[-1][5], "textureBytes": lines[-1][10]}
+                              if lines else None),
                       builds=report["builds"], perStage=growth,
                       answer=f"the product switch alone ran Voxy's hierarchical scene on Minecraft's"
                              f" Vulkan backend and composited {composited} frame(s), in every"

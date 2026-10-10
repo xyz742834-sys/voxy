@@ -56,6 +56,10 @@ public class VkTexture extends TrackedObject {
     private final long[] viewPerLevel;
 
     private static int COUNT;
+    /** Device memory allocated for owned images (their VkMemoryRequirements sizes). */
+    private static long TOTAL_SIZE;
+    /** This image's allocation; 0 for a wrapped external image. */
+    private long allocatedBytes;
 
     public VkTexture(int format, int levels, int width, int height, int usage) {
         var ctx = VkContext.get();
@@ -90,6 +94,8 @@ public class VkTexture extends TrackedObject {
                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT));
             VkContext.check(vkAllocateMemory(ctx.device, mai, null, p), "vkAllocateMemory");
             this.memory = p[0];
+            this.allocatedBytes = req.size();
+            TOTAL_SIZE += this.allocatedBytes;
             VkContext.check(vkBindImageMemory(ctx.device, this.image, this.memory, 0),
                 "vkBindImageMemory");
         }
@@ -234,6 +240,7 @@ public class VkTexture extends TrackedObject {
             vkDestroyImage(dev, this.image, null);
             if (this.memory != VK_NULL_HANDLE) vkFreeMemory(dev, this.memory, null);
         }
+        TOTAL_SIZE -= this.allocatedBytes;
         COUNT--;
     }
 
@@ -245,4 +252,5 @@ public class VkTexture extends TrackedObject {
     }
 
     public static int getCount() { return COUNT; }
+    public static long getTotalSize() { return TOTAL_SIZE; }
 }
