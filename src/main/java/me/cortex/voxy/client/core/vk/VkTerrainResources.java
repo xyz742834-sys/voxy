@@ -173,6 +173,20 @@ public class VkTerrainResources {
     public static final int TRANSLUCENT_BUCKETS = 1024;
 
     public final VkTexture atlas;
+    /** False when the atlas was lent ({@code sharedAtlas}): its lender frees it. */
+    private final boolean ownsAtlas;
+
+    // TRANSFER_SRC は読み戻し検証のために要る。これが無いと
+    // vkCmdCopyImageToBuffer と TRANSFER_SRC_OPTIMAL への遷移が仕様違反になる
+    // (MoltenVK は動いてしまうが、バリデーションが指摘する)。
+    private static final int TEXTURE_USAGE = VK_IMAGE_USAGE_SAMPLED_BIT
+        | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+    /** An atlas of {@code scale}, as these resources make one (to lend through {@code sharedAtlas}). */
+    public static VkTexture createAtlas(AtlasScale scale) {
+        return new VkTexture(VK_FORMAT_R8G8B8A8_UNORM, scale.mipLevels, scale.width(), scale.height(),
+            TEXTURE_USAGE).name("blockAtlas");
+    }
     /** アトラスの倍率。{@link AtlasScale}。 */
     public final AtlasScale atlasScale;
     /** ライトマップ。GL 側は Minecraft のものを借りるので、ここでは合成する。 */
@@ -226,6 +240,19 @@ public class VkTerrainResources {
     public VkTerrainResources(int maxSections, int maxQuads, int maxDrawCommands,
                               int maxModels, int indexQuadCapacity, AtlasScale atlasScale,
                               int renderQueueCapacity) {
+        this(maxSections, maxQuads, maxDrawCommands, maxModels, indexQuadCapacity, atlasScale,
+            renderQueueCapacity, null);
+    }
+
+    /**
+     * @param sharedAtlas an atlas of {@code atlasScale} this instance uses but does not own (not
+     *        freed with it) — GL keeps its model texture across renderer rebuilds
+     *        ({@code RenderResourceReuse}); a fresh real-scale atlas made each new scene's first
+     *        frame 11–90 ms (measured 2026-10-11). {@code null}: create and own one
+     */
+    public VkTerrainResources(int maxSections, int maxQuads, int maxDrawCommands,
+                              int maxModels, int indexQuadCapacity, AtlasScale atlasScale,
+                              int renderQueueCapacity, VkTexture sharedAtlas) {
         this.atlasScale      = atlasScale;
         this.maxModels       = maxModels;
         this.indexQuadCapacity = indexQuadCapacity;
@@ -272,11 +299,13 @@ public class VkTerrainResources {
         // TRANSFER_SRC は読み戻し検証のために要る。これが無いと
         // vkCmdCopyImageToBuffer と TRANSFER_SRC_OPTIMAL への遷移が仕様違反になる
         // (MoltenVK は動いてしまうが、バリデーションが指摘する)。
-        int texUsage = VK_IMAGE_USAGE_SAMPLED_BIT
-                     | VK_IMAGE_USAGE_TRANSFER_DST_BIT
-                     | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-        this.atlas = new VkTexture(VK_FORMAT_R8G8B8A8_UNORM, atlasScale.mipLevels,
-            atlasScale.width(), atlasScale.height(), texUsage).name("blockAtlas");
+        int texUsage = TEXTURE_USAGE;
+        if (sharedAtlas != null && (sharedAtlas.width != atlasScale.width()
+                || sharedAtlas.height != atlasScale.height() || sharedAtlas.levels != atlasScale.mipLevels)) {
+            throw new IllegalArgumentException("the shared atlas is not of scale " + atlasScale);
+        }
+        this.ownsAtlas = sharedAtlas == null;
+        this.atlas = sharedAtlas != null ? sharedAtlas : createAtlas(atlasScale);
         this.lightmap = new VkTexture(VK_FORMAT_R8G8B8A8_UNORM, 1, 16, 16, texUsage)
             .name("lightmap");
 
@@ -567,7 +596,7 @@ public class VkTerrainResources {
         this.translucentPrefix.free();
         this.translucentDraw.free();
         this.translucentStats.free();
-        this.atlas.free();
+        if (this.ownsAtlas) this.atlas.free();
         this.lightmap.free();
         if (this.atlasStaging != null) this.atlasStaging.free();
         this.lightmapStaging.free();

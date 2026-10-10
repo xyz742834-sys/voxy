@@ -301,6 +301,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      * whichever path (hand-off or every-frame) submits next.
      */
     private boolean requestsUnread;
+    /** This scene holds the pooled atlas (until it is retired, or destroyed at shutdown). */
+    private boolean atlasLent;
     /** The scene's GPU timer holds this probe's last every-frame submission (read after the fence). */
     private boolean timedFrame;
 
@@ -796,6 +798,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                                                   McNativeCamera.View view, int width, int height) {
         VkRenderTarget target = null;
         VkHierarchicalScene scene = null;
+        me.cortex.voxy.client.core.vk.VkTexture atlas = null;
         McNativeComposite composite = null;
         McNativePost post = null;
         me.cortex.voxy.client.core.vk.VkTexture mcDepth = null;
@@ -803,8 +806,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         me.cortex.voxy.client.core.vk.VkBuffer mcDepthReadback = null;
         try {
             target = new VkRenderTarget(width, height);
+            atlas = AtlasPool.take();
             scene = new VkHierarchicalScene(world, target, width, height, sectionCapacity(), geometryQuads(),
-                VkRenderTarget.FORMAT_COLOR);
+                VkRenderTarget.FORMAT_COLOR, atlas);
             // round-24 R24-HIER-CULL: Voxy's production mode — the raster cull writes visibility,
             // so the temporal pass draws the newly visible subset (the default is a test mode)
             scene.setVisibility(VISIBILITY);
@@ -830,13 +834,16 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 McNativeAtlas.generation(), builds, width, height, meshed);
             target = null; scene = null; composite = null;
             built.post = post;
+            built.atlasLent = true;
+            atlas = null;   // the built scene holds it now
             mcDepth = null; resolve = null; mcDepthReadback = null; post = null;
             return built;
         } catch (Throwable t) {
             fail("could not build the hierarchical scene: " + t);
             return null;
         } finally {
-            // nothing of these was submitted to Minecraft yet
+            // nothing of these was submitted to Minecraft yet; the scene does not own the atlas
+            if (atlas != null) AtlasPool.giveBack();
             if (composite != null) try { composite.free(); } catch (Throwable t) { closeFailures++; }
             if (post != null) try { post.free(); } catch (Throwable t) { closeFailures++; }
             if (resolve != null) try { resolve.free(); } catch (Throwable t) { closeFailures++; }
@@ -1138,6 +1145,12 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         // the mesher's workers read the world, which may close before the destroy queue runs
         // (a disconnect): stop them now, on the render thread
         try { probe.scene.stopMeshing(); } catch (Throwable t) { closeFailures++; }
+        // a retired scene records nothing more, and the next scene writes the atlas only after
+        // Voxy's own fence (its first frame waits for it), so the atlas can be lent again now
+        if (probe.atlasLent) {
+            probe.atlasLent = false;
+            AtlasPool.giveBack();
+        }
         try {
             McNativeVulkan.encoder(probe.device).queueForDestroy(probe);
             QUEUED.add(probe);
@@ -1177,9 +1190,46 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 continue;
             }
             probe.destroy();
+            if (probe.atlasLent) {
+                probe.atlasLent = false;
+                AtlasPool.giveBack();
+            }
         }
+        // after the idle wait and every scene's destruction; a leaked scene keeps it lent (leaked too)
+        try { AtlasPool.freeIfIdle(); } catch (Throwable t) { closeFailures++; }
         stopTracker();
         writeEvidence();
+    }
+
+    /**
+     * One real-scale model atlas lent to one hierarchical scene at a time, kept across scene
+     * rebuilds as GL keeps its model texture ({@code RenderResourceReuse}); a fresh one made each new
+     * scene's first frame 11–90 ms (measured 2026-10-11). Exclusive: scenes number their models
+     * independently, so two must never share it. Render thread only.
+     */
+    static final class AtlasPool {
+        private static me.cortex.voxy.client.core.vk.VkTexture atlas;
+        private static boolean lent;
+
+        static me.cortex.voxy.client.core.vk.VkTexture take() {
+            if (lent) throw new IllegalStateException("the model atlas is already lent to a live scene");
+            if (atlas == null) {
+                atlas = me.cortex.voxy.client.core.vk.VkTerrainResources.createAtlas(
+                    me.cortex.voxy.client.core.vk.VkTerrainResources.AtlasScale.REAL);
+            }
+            lent = true;
+            return atlas;
+        }
+
+        static void giveBack() { lent = false; }
+
+        static void freeIfIdle() {
+            if (lent || atlas == null) return;
+            atlas.free();
+            atlas = null;
+        }
+
+        static boolean lent() { return lent; }
     }
 
     public static void shutdown() {

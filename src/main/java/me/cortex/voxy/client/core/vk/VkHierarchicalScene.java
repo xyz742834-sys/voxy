@@ -442,6 +442,13 @@ public final class VkHierarchicalScene {
     public VkHierarchicalScene(WorldEngine world, VkRenderTarget target,
                                int width, int height, int requestedSections, int maxQuads,
                                int colourFormat) {
+        this(world, target, width, height, requestedSections, maxQuads, colourFormat, null);
+    }
+
+    /** @param sharedAtlas a real-scale atlas lent to this scene (see {@link VkTerrainResources}), or null */
+    public VkHierarchicalScene(WorldEngine world, VkRenderTarget target,
+                               int width, int height, int requestedSections, int maxQuads,
+                               int colourFormat, VkTexture sharedAtlas) {
         // ⚠ {@code NodeManager} も {@code AbstractSectionGeometryManager} も
         // **2 の冪を要求する** [確認済 — どちらもコンストラクタで弾く]。
         // 呼び出し側に押し付けず、ここで切り上げる
@@ -461,7 +468,7 @@ public final class VkHierarchicalScene {
         this.nodeCapacity = maxSections * 2;
         this.res = new VkTerrainResources(maxSections, maxQuads, this.renderQueueCapacity * 7, 1 << 16,
             VkQuadIndexBuffer.DEFAULT_QUAD_CAPACITY, VkTerrainResources.AtlasScale.REAL,
-            this.renderQueueCapacity);
+            this.renderQueueCapacity, sharedAtlas);
         this.res.useExternalAtlasContent();
 
         this.modelTarget = new VkModelUploadTarget(this.res);
