@@ -1,43 +1,56 @@
 You are an INDEPENDENT reviewer, round 28. Do not fix anything; judge it.
 
-Candidate: this checkout's HEAD (1085615492e502b52778c8a5199d4039c5624f1d). Round 27 returned REDESIGN against 9cfd9c01: DELIVERY-BOUNDARY
-plus blocking R27-EMPTY-REBUILD, R27-RENDER-DISABLE, R27-RENDER-GATE; non-blocking R26-LADDER-GUARD-
-COVERAGE, R24-HIER-GUARD-COVERAGE, R27-CONTEXT-DRIFT; default-on judged not ready. Report:
-docs/ai/runs/native-integration-review-r27.md (machine verdict ...-r27.json, with its readiness list).
+Candidate: this checkout's HEAD ({CANDIDATE_SHA}). Round 27 returned REDESIGN against 9cfd9c01:
+DELIVERY-BOUNDARY plus blocking R27-EMPTY-REBUILD, R27-RENDER-DISABLE, R27-RENDER-GATE; non-blocking
+R26-LADDER-GUARD-COVERAGE, R24-HIER-GUARD-COVERAGE, R27-CONTEXT-DRIFT; default-on judged not ready.
+Report: docs/ai/runs/native-integration-review-r27.md (machine verdict ...-r27.json, with its readiness
+list). Round 28 was never run; everything since 10856154 is unreviewed. docs/ai/handoff.md holds the
+running record; each commit message states what it claims and the run that measured it.
 
-8d241b40 repairs them:
-- R27-EMPTY-REBUILD: McNativeHierarchicalLoad.emptySuppressed — key adds frame extent and atlas
-  generation; in normal play the suppression expires after EMPTY_RETRY_FRAMES (600); under the ladder
-  it holds while the key does.
-- R27-RENDER-DISABLE: the native path honours VoxyConfig.isRenderingEnabled() (scene retired, frame
-  skipped "rendering-disabled"); kill switch voxy.native.disable (McNativeRender.DISABLE_FLAG).
-- R27-RENDER-GATE: native_render_result (stage and replay) requires the switch alone in the command
-  (RENDER_FORBIDDEN_LAUNCH), inert off-reports (render_off_report_problems), the launch's own complete
-  scenario (native_environment_result without screenshots), a clean log (native_log_problems),
-  snapshots inside their own harness stage and within the final totals; retention/replay require all
-  14 render thumbnails.
-- R26-LADDER-GUARD-COVERAGE: the two predicates are tested (test_ladder_coverage.py).
-- R27-CONTEXT-DRIFT: project-goal/current-state/architecture corrected.
-Run docs/ai/runs/native-evidence/20261009T224733-249406Z (built from 8d241b40): all three launches pass; product switch
-alone 5301 frames in every required stage; ladder 8 judged, zero violations.
+What changed since 10856154, grouped by the round-27 readiness list:
+- R27 repairs (8d241b40): empty-rebuild retry, rendering-off/kill switch, the product render gate,
+  R26 guard tests, context drift.
+- Item 1/3, streaming and budgets: 155673fb (RenderDistanceTracker streaming), 6a15b446 (biome replay),
+  6a671f65 (subdivision from VoxyConfig.subDivisionSize every frame), d9ef4af8 (draw buffers and
+  traversal queues sized by min(sections, GL MAX_QUEUE_SIZE); nodes twice the sections), b72a0e02
+  (GL's voxy.geometryBufferSizeOverrideMB). The DEFAULT geometry size is an open owner decision
+  (81 MB now; GL capacities with 512 MB measured at 730 MB; GL's formula ~4.2 GB on this Mac).
+- Item 4, composite point and near cut: afc61e91 (VkBoundRenderer), 24d3f23b/e748a2f0 (composite at
+  GL's cutout point, writing Voxy's depth, bound over every section Sodium draws).
+- Item 5, lighting/fog: 9be59d81/40e38c9c (Minecraft's lightmap), 2fb1737a (GL's fog and fade).
+- Item 6, pressure/lifetime/failure: 24a84f6e/8202e26b (geometry pressure), f5c1cfa6/92001fdc/
+  a568e664/990d68e7 (allocation plateau, per live-scene size), f037e152 (lazy atlas staging, 616→81 MB),
+  f06a9fe4 (soak: 4 lifecycles in the pressure launch), 860ad7dd (a failed submit no longer breaks the
+  frame tracker; real-Vulkan injection tests), 8f59c3ab (fifth launch: live injected submit failure).
+  Device change: Minecraft 26.2 sets its device once per process (javap of RenderSystem.initRenderer).
+- Item 7, gates and evidence: 87578942 (synchronization validation shown active inside Minecraft by a
+  positive control; Minecraft logs hazards as bare text, which the native gates did not see before),
+  6326c429 (depth recount quantisation), 545d2b2a/5fcaaf97 (no "Voxy will disable itself" lines when
+  the native path runs; gated), 2a8ad4ff (R24 hierarchical guard coverage; thumbnail size refusal),
+  16f1b496 (a hierarchical camera-extent-mismatch skip carries its extents, so the gate can corroborate it).
+- Far-world: 1376d11f (travel to x 2560 and a `far` look; the gate requires judged Voxy pixels beyond
+  Minecraft's far plane).
+Latest evidence: docs/ai/runs/native-evidence/{EVIDENCE_RUN} (built from {EVIDENCE_SHA}); five launches.
 
 The boundary from rounds 4-27 still governs and the candidate accepts it. Judge, CONFIRMED or
 REFUTED with file/line or command:
-1. Each R27 finding closed? Re-run your EmptyBuildProbe (stationary recovery, resize, atlas), your
-   rendering-off reasoning (including turning rendering back on, and the kill switch at startup vs at
-   runtime), and every R27-RENDER-GATE counterexample (render_review.py, render-probes) against this
-   HEAD; name any survivor. Guard-removal audit of the changed gate code.
-2. Any new defect in the repairs (e.g. the rendering-disabled path's retirement and accounting, the
-   empty-retry cadence's cost, the environment check without screenshots, the in-stage snapshot rule
-   against the harness's print-then-set order).
-3. R26-LADDER-GUARD-COVERAGE and R27-CONTEXT-DRIFT closed?
-4. Recount one hierarchical sample; check several render/ thumbnails.
-5. Update your default-on readiness list against this HEAD.
+1. Each R27 finding closed? Re-run your EmptyBuildProbe, rendering-off reasoning and R27-RENDER-GATE
+   counterexamples (render_review.py, render-probes) against this HEAD; name any survivor.
+2. Any defect in the changes above — especially: the composite at the cutout hook (state, ordering,
+   depth writes), the lightmap copy and fog post pass, the allocation plateau's per-size rule and its
+   0x0 handling, the soak's cycle rules, the frame tracker's unsubmitted-fence logic, the injection
+   launch's exemptions (exactly one problem, one frame-failed frame, one error line, one control
+   hazard) and whether any of them could hide a real failure, the broadened validation-line pattern,
+   the render-queue capacity against the shaders' indexing, the far stage's routing and requirement.
+3. Guard-removal audit of the changed gate code (verify.py), including the new injection, soak,
+   plateau and far-world predicates; R24 with your r24_guards.py (36/37 claimed, the last unreachable).
+4. Recount one hierarchical sample including the far look; check several render/ thumbnails.
+5. Update your default-on readiness list against this HEAD; say what still blocks default-on.
 6. Safety with every voxy.native.* flag unset on GL and Minecraft Vulkan.
 
 Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
 -PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
-python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261009T224733-249406Z
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/{EVIDENCE_RUN}
 Do NOT run scripts/verify.py --only native or --only live; judge the committed evidence.
 
 Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on the
@@ -45,4 +58,5 @@ first line, then per-item findings, then what you could not check and why. Write
 .agent-run/native-integration-review.json with final_verdict, reviewed_commit, blocking_findings,
 non_blocking_findings, safe_for_normal_play, round27_findings_closed (mapping each R27 id and the
 carried residuals to true/false), default_on_readiness (with the concrete remaining list),
-render_gate_judgment, product_switch_judgment.
+render_gate_judgment, product_switch_judgment, failure_injection_judgment, soak_judgment,
+far_world_judgment.
