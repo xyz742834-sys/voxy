@@ -483,7 +483,8 @@ of the point — and the replay status of each is:
 | [20261009T232453-026460Z](runs/native-evidence/20261009T232453-026460Z/MANIFEST.json) | no — predates the near cut |
 | [20261010T001738-021106Z](runs/native-evidence/20261010T001738-021106Z/MANIFEST.json) | no — composited at the level-render tail |
 | [20261010T004433-359709Z](runs/native-evidence/20261010T004433-359709Z/MANIFEST.json) | no — the synthetic lightmap |
-| [20261010T011555-864761Z](runs/native-evidence/20261010T011555-864761Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, at GL Voxy's point, Minecraft's own lightmap |
+| [20261010T011555-864761Z](runs/native-evidence/20261010T011555-864761Z/MANIFEST.json) | no — before fog and fade |
+| [20261010T013220-754860Z](runs/native-evidence/20261010T013220-754860Z/MANIFEST.json) | **yes** — the only run built from this checkout's sources; three launches, GL's point, Minecraft's lightmap, GL's fog and fade |
 
 **Any figure from a run whose evidence directory is not in the repository is narrative, not
 proof.** Round 5 made this explicit: it could confirm the mechanisms and the figures of the
@@ -2049,12 +2050,31 @@ usage 13); `MixinLightmap` adds it when a native flag is set — the first run w
 VUID-vkCmdCopyImageToBuffer-srcImage-00186 on every copy. Both gates require at least one
 lightmap applied and no lightmap failure.
 
-**Measured** (run [20261010T011555-864761Z](runs/native-evidence/20261010T011555-864761Z/MANIFEST.json), replay 0 in this checkout): about
+**Measured** (run [20261010T011555-864761Z](runs/native-evidence/20261010T011555-864761Z/MANIFEST.json), which replayed 0 in the checkout it was built from): about
 2 800 lightmaps applied per launch, validation clean; 8 judged hierarchical samples by the strict
 clear-only rule, zero violations, none undetermined; the product switch alone composited 5 608 frames
 in every stage. The judged rule is per-pixel presence, not colour, so this establishes that the
-lightmap is applied, not that Voxy's lighting matches GL's image (no visual reference yet). Fog,
-fade and SSAO from GL's post-processing are not ported.
+lightmap is applied, not that Voxy's lighting matches GL's image (no visual reference yet).
+
+### GL's fog and fade (2026-10-10)
+
+**What changed** (`2fb1737a`). The second part of round 27's lighting item. GL's final blit
+(`NormalRenderPipeline.finish` with `post/blit_texture_depth_cutout.frag`, defines HAS_FOG/HAS_FADE
+from Voxy's fog mode, default FOG_AND_FADE) mixes Minecraft's environmental fog into Voxy's colour by
+distance and fades Voxy's edge into alpha, blended SRC_ALPHA/ONE_MINUS_SRC_ALPHA; when the fog ends
+before the vanilla render distance it skips the blit, so Voxy is not shown. Natively `McNativePost`
+(shader `lod/vk/voxy_post.frag`, the same math; uniforms from `McNativePost.parameters`, a copy of
+`finish`'s) runs in Voxy's submission after the depth resolve into its own image; the composite blends
+that image with GL's blend, and the judged sample reads it back as its reference. Minecraft's fog is
+captured at the cutout hook (`McNativeFog`, Sodium's `FogParameters`, as GL's viewport keeps them).
+When fog covers all Voxy rendering the every-frame path skips the composite (`fog-covers-all`). Both
+gates require the post pass and a valid fog mode. GL's SSAO is not ported.
+
+**Measured** (run [20261010T013220-754860Z](runs/native-evidence/20261010T013220-754860Z/MANIFEST.json), replay 0 in this checkout): fog mode
+FOG_AND_FADE; 8 judged hierarchical samples by the strict rule against the fogged reference, zero
+violations, none undetermined; the product switch alone composited 5 319 frames, every overworld stage,
+and skipped the 287 nether frames because the nether's fog covers all Voxy rendering (GL skips its
+blit there too). The horizon thumbnail shows far terrain fading into the sky colour.
 
 ## What is NOT answered yet, and must be measured on hardware
 
