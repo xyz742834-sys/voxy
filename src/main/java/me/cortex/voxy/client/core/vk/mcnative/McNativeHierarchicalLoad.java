@@ -96,6 +96,11 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     static final double SUBDIVISION_PX = 128.0;
     static final int MESHES_PER_PASS = 64;
     static final int SECTIONS = 8192;
+    /**
+     * The scene's section capacity: {@link #SECTIONS}, or {@code voxy.native.sectionCapacity} — the
+     * pressure launch sets it low to force Voxy's geometry reclaim during travel and streaming.
+     */
+    static int sectionCapacity() { return Integer.getInteger("voxy.native.sectionCapacity", SECTIONS); }
     static final int MAX_QUADS = 4_000_000;
     static final int BUILD_BUDGET = 6;
     static final float[] CLEAR = {0.05f, 0.05f, 0.10f, 1.0f};
@@ -132,11 +137,30 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private static long framesComposited;
     /** The most top-level nodes a streaming scene held (their geometry arrived) at any frame. */
     private static int maxTopLevels;
+    /** Geometry pressure, summed over every scene (retired ones at retirement, the live one now). */
+    private static long reclaimedRetired, rejectedRetired;
+    private static int maxMeshed;
+    private static boolean everExhausted;
     /** The most vanilla sections the native bound drew in one frame; sections dropped over capacity. */
     private static int maxBoundSections;
     private static int[] boundScratch;
 
     private static float[] lastPost;
+
+    private static void notePressure(McNativeHierarchicalLoad probe) {
+        maxMeshed = Math.max(maxMeshed, probe.scene.meshedSections());
+        everExhausted |= probe.scene.geometryExhausted();
+    }
+
+    private static long liveReclaimed() {
+        var p = instance;
+        return p == null || p.destroyed ? 0 : p.scene.totalReclaimed();
+    }
+
+    private static long liveRejected() {
+        var p = instance;
+        return p == null || p.destroyed ? 0 : p.scene.geometryRejected();
+    }
 
     /** {@code NormalRenderPipeline.finish}'s fog and fade uniforms for this frame (and fog-covers-all). */
     static float[] postParameters() {
@@ -487,6 +511,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             probe.scene.stream(view.x(), view.z(), streamRenderDistance());
             maxTopLevels = Math.max(maxTopLevels, probe.scene.topLevelCount());
             feedBound(probe);
+            notePressure(probe);
             int frame = frameId++;
             VkSceneUniform.write(probe.scene.res.uniform, mvp, anchor, frame, sub);
             probe.scene.prepare(new org.joml.Matrix4f().set(mvp), anchor, sub, minSSS, frame, -1.0f);
@@ -602,6 +627,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         probe.scene.stream(camX, camZ, streamRenderDistance());
         maxTopLevels = Math.max(maxTopLevels, probe.scene.topLevelCount());
         feedBound(probe);
+        notePressure(probe);
         int frame = frameId++;
         VkSceneUniform.write(probe.scene.res.uniform, mvp, anchor, frame, sub);
         probe.scene.prepare(new org.joml.Matrix4f().set(mvp), anchor, sub, minSSS, frame, -1.0f);
@@ -683,7 +709,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         me.cortex.voxy.client.core.vk.VkBuffer mcDepthReadback = null;
         try {
             target = new VkRenderTarget(width, height);
-            scene = new VkHierarchicalScene(world, target, width, height, SECTIONS, MAX_QUADS,
+            scene = new VkHierarchicalScene(world, target, width, height, sectionCapacity(), MAX_QUADS,
                 VkRenderTarget.FORMAT_COLOR);
             // round-24 R24-HIER-CULL: Voxy's production mode — the raster cull writes visibility,
             // so the temporal pass draws the newly visible subset (the default is a test mode)
@@ -924,6 +950,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private static void retire(McNativeHierarchicalLoad probe) {
         if (instance == probe) instance = null;
         if (probe == null || probe.destroyed) return;
+        reclaimedRetired += probe.scene.totalReclaimed();
+        rejectedRetired += probe.scene.geometryRejected();
         try {
             McNativeVulkan.encoder(probe.device).queueForDestroy(probe);
             QUEUED.add(probe);
@@ -1016,6 +1044,11 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"maxTopLevels\": ").append(maxTopLevels).append(",\n");
         sb.append("  \"vanillaBound\": true,\n");
         sb.append("  \"postPass\": true,\n");
+        sb.append("  \"sectionCapacity\": ").append(sectionCapacity()).append(",\n");
+        sb.append("  \"maxMeshed\": ").append(maxMeshed).append(",\n");
+        sb.append("  \"geometryReclaimed\": ").append(reclaimedRetired + liveReclaimed()).append(",\n");
+        sb.append("  \"geometryRejected\": ").append(rejectedRetired + liveRejected()).append(",\n");
+        sb.append("  \"geometryEverExhausted\": ").append(everExhausted).append(",\n");
         sb.append("  \"fogMode\": ").append(McNativeVulkanProbe.quote(
             me.cortex.voxy.client.config.VoxyConfig.CONFIG.getFogMode().name())).append(",\n");
         sb.append("  \"lightmapsApplied\": ").append(lightmapsApplied).append(",\n");

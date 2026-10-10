@@ -2832,6 +2832,12 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
 # The product launch (voxy.native.render): the native path as normal play would run it, without
 # the ladder or any other diagnostic.
 RENDER_LAUNCH_FLAGS = ("-PharnessNativeRender=true",)
+# The pressure launch: the product switch with a small scene capacity (sections), so Voxy's geometry
+# reclaim must run. Above the ~1 800 top-level nodes the default distance streams (the reclaimer never
+# evicts top-level nodes), well under the ~7 300 sections a default run meshes.
+PRESSURE_CAPACITY = 4096
+PRESSURE_LAUNCH_FLAGS = RENDER_LAUNCH_FLAGS + (f"-PharnessNativeSectionCapacity={PRESSURE_CAPACITY}",)
+DEFAULT_SECTION_CAPACITY = 8192
 RENDER_STAGE_LOG = re.compile(r"hier frames entering stage (\w+): composited=(\d+) skipped=(\d+)"
                               r" builds=(\d+)")
 RENDER_SKIPS = tuple(r for r in REAL_LOAD_SKIPS if r != "build-budget-spent") + ("rebuild-wait",
@@ -2880,7 +2886,34 @@ def render_off_report_problems(name, body, product):
     return problems
 
 
-def native_render_result(output, log_text, expected_device=None, command=None):
+def native_pressure_result(output, log_text, expected_device=None, command=None):
+    """The pressure launch: every product-launch check, at the pressure capacity, and Voxy's geometry
+    reclaim must have run (sections evicted to admit new ones) while every required stage kept
+    compositing."""
+    result = native_render_result(output, log_text, expected_device, command,
+                                  capacity=PRESSURE_CAPACITY)
+    result["scope"] = "the product switch with a small scene capacity: Voxy's geometry reclaim under pressure"
+    if not result["success"]:
+        return result
+    try:
+        report = json.loads((output / "native-hier-load.json").read_text())
+        if not isinstance(command, list) or any(f not in command for f in PRESSURE_LAUNCH_FLAGS):
+            raise ValueError(f"the pressure launch command {command!r} lacks {PRESSURE_LAUNCH_FLAGS}")
+        reclaimed = report.get("geometryReclaimed")
+        if not finite_int(reclaimed) or reclaimed < 1:
+            raise ValueError(f"the pressure launch reclaimed {reclaimed!r} section(s); the capacity"
+                             f" {PRESSURE_CAPACITY} put no pressure on the scene")
+        result.update(reclaimed=reclaimed, maxMeshed=report.get("maxMeshed"),
+                      rejected=report.get("geometryRejected"),
+                      exhausted=report.get("geometryEverExhausted"))
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        result["success"] = False
+        result["failures"].append(f"{type(exc).__name__}: {exc}")
+    return result
+
+
+def native_render_result(output, log_text, expected_device=None, command=None,
+                         capacity=DEFAULT_SECTION_CAPACITY):
     """The product launch: Voxy on Minecraft's Vulkan backend with only voxy.native.render — its
     device features, adoption, instance and every-frame hierarchical composite (Voxy's GL rule),
     no ladder, no judged samples. Not judged per pixel (the ladder launch judges the same path);
@@ -2933,6 +2966,9 @@ def native_render_result(output, log_text, expected_device=None, command=None):
                                  f" reason from {RENDER_SKIPS}")
         if composited < 1:
             raise ValueError(f"the {L} launch composited no frame")
+        if report.get("sectionCapacity") != capacity:
+            raise ValueError(f"the {L} scene ran at a capacity of {report.get('sectionCapacity')!r}"
+                             f" sections, not {capacity}")
         stream_problem = hier_stream_problem(report)
         if stream_problem:
             raise ValueError(f"the {L} probe {stream_problem}")
@@ -4305,31 +4341,33 @@ def retain_native_evidence(output, native_output, timestamp, summary):
                               "band_crops": sorted(crops), "band_crop_origins": crop_origins}
         # The product launch: its probe report, its own checkpoints, its log, and a quarter-scale
         # thumbnail of every checkpoint frame — what normal play looked like in each stage.
-        render_output = native_output.parent / "native-render"
-        kept["render"] = None
-        if render_output.is_dir():
-            render_target = target / "render"
-            render_target.mkdir(exist_ok=True)
-            render_kept = {}
-            for path in sorted(render_output.glob("*.json")):
-                shutil.copyfile(path, render_target / path.name)
-                render_kept["render/" + path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
-            log = output / "native-render.log"
+        for launch, sub in (("native-render", "render"), ("native-pressure", "pressure")):
+            launch_output = native_output.parent / launch
+            kept[sub] = None
+            if not launch_output.is_dir():
+                continue
+            sub_target = target / sub
+            sub_target.mkdir(exist_ok=True)
+            sub_kept = {}
+            for path in sorted(launch_output.glob("*.json")):
+                shutil.copyfile(path, sub_target / path.name)
+                sub_kept[sub + "/" + path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+            log = output / (launch + ".log")
             if log.is_file():
-                shutil.copyfile(log, render_target / log.name)
-                render_kept["render/" + log.name] = hashlib.sha256(log.read_bytes()).hexdigest()
-            if "render/native-hier-load.json" not in render_kept:
-                raise ValueError("the product launch wrote no native-hier-load.json, so it cannot"
-                                 " be retained")
-            thumbs = retain_render_thumbnails(render_output, render_target)
-            missing = [st for st in LIFECYCLE_STAGES if f"render/frame-{st}.png" not in thumbs]
+                shutil.copyfile(log, sub_target / log.name)
+                sub_kept[sub + "/" + log.name] = hashlib.sha256(log.read_bytes()).hexdigest()
+            if sub + "/native-hier-load.json" not in sub_kept:
+                raise ValueError(f"the {launch} launch wrote no native-hier-load.json, so it cannot"
+                                 f" be retained")
+            thumbs = retain_render_thumbnails(launch_output, sub_target, sub)
+            missing = [st for st in LIFECYCLE_STAGES if f"{sub}/frame-{st}.png" not in thumbs]
             if missing:
-                raise ValueError(f"the product launch's checkpoint thumbnails for {missing} could"
+                raise ValueError(f"the {launch} launch's checkpoint thumbnails for {missing} could"
                                  f" not be retained")
-            render_kept.update(thumbs)
-            kept["files"].update(render_kept)
-            kept["render"] = {"path": "render", "files": sorted(render_kept),
-                              "thumbnails": sorted(thumbs), "thumbnailScale": RENDER_THUMB_SCALE}
+            sub_kept.update(thumbs)
+            kept["files"].update(sub_kept)
+            kept[sub] = {"path": sub, "files": sorted(sub_kept),
+                         "thumbnails": sorted(thumbs), "thumbnailScale": RENDER_THUMB_SCALE}
         (target / "MANIFEST.json").write_text(json.dumps(kept, indent=2) + "\n")
         kept["path"] = str(target.relative_to(ROOT))
     except (OSError, ValueError) as exc:
@@ -4371,7 +4409,7 @@ def retain_ladder_band_crops(ladder_output, target):
 RENDER_THUMB_SCALE = 4
 
 
-def retain_render_thumbnails(render_output, target):
+def retain_render_thumbnails(render_output, target, prefix="render"):
     """A RENDER_THUMB_SCALE-times smaller copy (block means) of every checkpoint frame of the
     product launch. Visual record only: the gate does not read these."""
     kept = {}
@@ -4398,7 +4436,7 @@ def retain_render_thumbnails(render_output, target):
             continue
         name = f"frame-{png.stem}.png"
         write_rgb_png(target / name, thumb)
-        kept["render/" + name] = hashlib.sha256((target / name).read_bytes()).hexdigest()
+        kept[prefix + "/" + name] = hashlib.sha256((target / name).read_bytes()).hexdigest()
     return kept
 
 
@@ -4767,42 +4805,50 @@ def replay_evidence(directory):
             outcome["not_replayed"].append("the depth ladder: this run retained no ladder"
                                            " launch, so no bound on Minecraft's depth is"
                                            " replayed from it")
-        # The product launch (voxy.native.render alone): same gate, its own checkpoints.
-        render_dir = directory / "render"
-        render_report = render_dir / "native-hier-load.json"
-        if (stage or {}).get("render_run") and not render_report.is_file():
-            raise ValueError("the retained summary records a product launch but"
-                             " render/native-hier-load.json is not retained")
-        if render_report.is_file():
-            render_stage = (stage or {}).get("render_run") or {}
-            render_checkpoints = ((render_stage.get("environment") or {}).get("checkpoints") or [])
-            own_path = render_dir / "native-result.json"
+        # The product launch (voxy.native.render alone) and the pressure launch (the same with a
+        # small scene capacity): the same gates, each launch's own checkpoints.
+        for sub, key, launch, flags, gate, label in (
+                ("render", "render_run", "native-render", RENDER_LAUNCH_FLAGS, native_render_result,
+                 "product launch acceptance checks (voxy.native.render alone; its own checkpoints)"),
+                ("pressure", "pressure_run", "native-pressure", PRESSURE_LAUNCH_FLAGS,
+                 native_pressure_result,
+                 "pressure launch acceptance checks (the product switch with a small scene capacity;"
+                 " Voxy's geometry reclaim ran)")):
+            sub_dir = directory / sub
+            sub_report = sub_dir / "native-hier-load.json"
+            if (stage or {}).get(key) and not sub_report.is_file():
+                raise ValueError(f"the retained summary records a {launch} launch but"
+                                 f" {sub}/native-hier-load.json is not retained")
+            if not sub_report.is_file():
+                outcome["not_replayed"].append(f"the {launch} launch: this run retained none")
+                continue
+            sub_stage = (stage or {}).get(key) or {}
+            sub_checkpoints = ((sub_stage.get("environment") or {}).get("checkpoints") or [])
+            own_path = sub_dir / "native-result.json"
             if not own_path.is_file():
-                raise ValueError("the product launch's own native-result.json is not retained")
-            if (json.loads(own_path.read_text()).get("checkpoints") or []) != render_checkpoints:
-                raise ValueError("the product launch's own checkpoints differ from the summary's"
-                                 " copy, so its identity is not established")
-            command = render_stage.get("command")
-            if not isinstance(command, list) or any(f not in command for f in RENDER_LAUNCH_FLAGS):
-                raise ValueError("the retained product launch command lacks the product switch")
-            render_log = render_dir / "native-render.log"
-            if not render_log.is_file():
-                raise ValueError("the product launch's log is not retained")
-            render_result = native_render_result(render_dir, render_log.read_text(errors="replace"),
-                                                 single_checkpoint_device(render_checkpoints),
-                                                 command)
-            if not render_result["success"]:
-                raise ValueError(f"product render gate: {render_result['failures']}")
-            outcome["render"] = {"framesComposited": render_result["framesComposited"],
-                                 "perStage": render_result["perStage"]}
+                raise ValueError(f"the {launch} launch's own native-result.json is not retained")
+            if (json.loads(own_path.read_text()).get("checkpoints") or []) != sub_checkpoints:
+                raise ValueError(f"the {launch} launch's own checkpoints differ from the summary's"
+                                 f" copy, so its identity is not established")
+            command = sub_stage.get("command")
+            if not isinstance(command, list) or any(f not in command for f in flags):
+                raise ValueError(f"the retained {launch} launch command lacks {flags}")
+            sub_log = sub_dir / (launch + ".log")
+            if not sub_log.is_file():
+                raise ValueError(f"the {launch} launch's log is not retained")
+            sub_result = gate(sub_dir, sub_log.read_text(errors="replace"),
+                              single_checkpoint_device(sub_checkpoints), command)
+            if not sub_result["success"]:
+                raise ValueError(f"{launch} gate: {sub_result['failures']}")
+            outcome[sub] = {"framesComposited": sub_result["framesComposited"],
+                            "perStage": sub_result["perStage"]}
+            if sub == "pressure":
+                outcome[sub]["reclaimed"] = sub_result.get("reclaimed")
             # round-27: every lifecycle checkpoint's thumbnail is part of the claim
-            ladder_refs += ["render/native-hier-load.json", "render/native-result.json",
-                            "render/native-render.log"] + [f"render/frame-{stage_}.png"
-                                                           for stage_ in LIFECYCLE_STAGES]
-            outcome["replayed"].append("product launch acceptance checks (voxy.native.render"
-                                       " alone; its own checkpoints)")
-        else:
-            outcome["not_replayed"].append("the product launch: this run retained none")
+            ladder_refs += [f"{sub}/native-hier-load.json", f"{sub}/native-result.json",
+                            f"{sub}/{launch}.log"] + [f"{sub}/frame-{stage_}.png"
+                                                      for stage_ in LIFECYCLE_STAGES]
+            outcome["replayed"].append(label)
         # ⚠ Round-6 review R6-TERRAIN-GATE: manifest success is not provenance. Require the
         # samples the reports reference to be manifest MEMBERS, so a file dropped in beside
         # the evidence cannot stand in for one the run produced.
@@ -5031,36 +5077,41 @@ def main():
             result["ladder_run"] = ladder_run
             result["success"] &= ladder_run["success"]
             # The product launch: the native path under the product switch alone, as normal play
-            # would run it — no ladder, no other diagnostic. Its own process and device.
-            render_output = output / "native-render"
-            render_output.mkdir()
-            render_game = render_output / "game"
-            render_game.mkdir()
-            (render_game / ".voxy-harness").write_text(timestamp)
-            (render_game / "options.txt").write_text((game / "options.txt").read_text())
-            render_run = run_stage("native-render", ["runHarnessClient", *native_common,
-                f"-PharnessOutput={render_output}", f"-PharnessRunDir={render_game}",
-                f"-PharnessSeconds={args.seconds}", "-PharnessNative=true",
-                "-PharnessGraphicsBackend=vulkan", *RENDER_LAUNCH_FLAGS], output, args.timeout)
-            render_run["environment"] = native_environment_result(render_output)
-            render_run["success"] &= render_run["environment"]["success"]
-            render_device = None
-            try:
-                render_device = single_checkpoint_device(
-                    render_run["environment"].get("checkpoints") or [])
-            except ValueError as exc:
-                render_run["device_error"] = str(exc)
-                render_run["success"] = False
-            render_log = output / "native-render.log"
-            render_run["render"] = native_render_result(
-                render_output, render_log.read_text(errors="replace") if render_log.is_file()
-                else None, render_device, render_run["command"])
-            render_run["success"] &= render_run["render"]["success"]
-            native_log_checks(render_run, render_log)
-            render_run["scope"] = ("a third Minecraft launch with only the product switch"
-                                   " (voxy.native.render): the native path as normal play runs it")
-            result["render_run"] = render_run
-            result["success"] &= render_run["success"]
+            # would run it — no ladder, no other diagnostic. Its own process and device. Then the
+            # pressure launch: the same with a small scene capacity, so Voxy's reclaim must run.
+            for stage_name, key, flags, gate, scope in (
+                    ("native-render", "render_run", RENDER_LAUNCH_FLAGS, native_render_result,
+                     "a third Minecraft launch with only the product switch (voxy.native.render):"
+                     " the native path as normal play runs it"),
+                    ("native-pressure", "pressure_run", PRESSURE_LAUNCH_FLAGS, native_pressure_result,
+                     f"a fourth launch: the product switch with a {PRESSURE_CAPACITY}-section scene,"
+                     f" so Voxy's geometry reclaim runs")):
+                launch_output = output / stage_name
+                launch_output.mkdir()
+                launch_game = launch_output / "game"
+                launch_game.mkdir()
+                (launch_game / ".voxy-harness").write_text(timestamp)
+                (launch_game / "options.txt").write_text((game / "options.txt").read_text())
+                run = run_stage(stage_name, ["runHarnessClient", *native_common,
+                    f"-PharnessOutput={launch_output}", f"-PharnessRunDir={launch_game}",
+                    f"-PharnessSeconds={args.seconds}", "-PharnessNative=true",
+                    "-PharnessGraphicsBackend=vulkan", *flags], output, args.timeout)
+                run["environment"] = native_environment_result(launch_output)
+                run["success"] &= run["environment"]["success"]
+                device = None
+                try:
+                    device = single_checkpoint_device(run["environment"].get("checkpoints") or [])
+                except ValueError as exc:
+                    run["device_error"] = str(exc)
+                    run["success"] = False
+                log_path = output / (stage_name + ".log")
+                run["render"] = gate(launch_output, log_path.read_text(errors="replace")
+                                     if log_path.is_file() else None, device, run["command"])
+                run["success"] &= run["render"]["success"]
+                native_log_checks(run, log_path)
+                run["scope"] = scope
+                result[key] = run
+                result["success"] &= run["success"]
             summary["stages"]["native_environment"] = result
             save()
             # Retained after the summary is written, so the evidence includes the finished

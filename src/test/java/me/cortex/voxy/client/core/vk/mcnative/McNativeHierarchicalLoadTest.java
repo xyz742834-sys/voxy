@@ -35,6 +35,8 @@ public class McNativeHierarchicalLoadTest {
         assertTrue(json.contains("\"maxBoundSections\": 0"), json);
         assertTrue(json.contains("\"lightmapsApplied\": 0"), json);
         assertTrue(json.contains("\"postPass\": true"), json);
+        assertTrue(json.contains("\"sectionCapacity\": 8192"), json);
+        assertTrue(json.contains("\"geometryReclaimed\": 0"), json);
         // NormalRenderPipeline.finish's fog/fade uniforms, ported
         float[] p = McNativePost.parameters(new float[] {0.5f, 0.6f, 0.7f, 1f, 100f, 200f}, true, true, 128f, 16f);
         assertEquals(1f / 100f, p[0], 1e-9f);

@@ -42,6 +42,8 @@ def report(**overrides):
             "sectionRenderDistance": 16.0, "streamRenderDistance": 17, "maxTopLevels": 34,
             "vanillaBound": True, "maxBoundSections": 210, "lightmapsApplied": 480,
             "lightmapReads": 481, "lightmapFailure": None, "postPass": True, "fogMode": "FOG_AND_FADE",
+            "sectionCapacity": 8192, "maxMeshed": 7000, "geometryReclaimed": 0, "geometryRejected": 0,
+            "geometryEverExhausted": False,
             "voxyNear": 16.0, "voxyFar": 48000.0, "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True, "results": [], "problems": 0,
             "firstProblem": None, "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
@@ -67,7 +69,8 @@ def log_for(stages=verify.LIFECYCLE_STAGES, per_stage=100, start=0):
 
 class RenderGateTest(unittest.TestCase):
 
-    def run_gate(self, mutate=None, log=None, files=(), device=DEVICE, command=None, env=None):
+    def run_gate(self, mutate=None, log=None, files=(), device=DEVICE, command=None, env=None,
+                 gate=None):
         text, total = log_for()
         body = report(framesComposited=total, renderCalls=total + 6)
         if mutate:
@@ -82,8 +85,8 @@ class RenderGateTest(unittest.TestCase):
             for name, body in (files.items() if isinstance(files, dict) else
                                ((n, {"enabled": True}) for n in files)):
                 (out / name).write_text(json.dumps(body))
-            return verify.native_render_result(out, text if log is None else log(text), device,
-                                               COMMAND if command is None else command)
+            return (gate or verify.native_render_result)(out, text if log is None else log(text), device,
+                                                         COMMAND if command is None else command)
 
     def assertRefused(self, result, fragment):
         self.assertFalse(result["success"], "passed although: " + fragment)
@@ -142,6 +145,25 @@ class RenderGateTest(unittest.TestCase):
         # fog and fade (GL's final blit)
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(postPass=False)), "fog and fade are not applied")
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(fogMode="sometimes")), "fog and fade are not applied")
+
+    def test_the_product_scene_runs_at_the_default_capacity(self):
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(sectionCapacity=4096)),
+                           "capacity of 4096 sections, not 8192")
+
+    def test_the_pressure_launch_reclaims(self):
+        pressure = COMMAND + [f"-PharnessNativeSectionCapacity={verify.PRESSURE_CAPACITY}"]
+        def under(b):
+            b.update(sectionCapacity=verify.PRESSURE_CAPACITY, geometryReclaimed=900)
+        ok = self.run_gate(mutate=under, command=pressure, gate=verify.native_pressure_result)
+        self.assertTrue(ok["success"], ok["failures"])
+        self.assertEqual(ok["reclaimed"], 900)
+        self.assertRefused(self.run_gate(mutate=lambda b: under(b) or b.update(geometryReclaimed=0),
+                                         command=pressure, gate=verify.native_pressure_result),
+                           "put no pressure on the scene")
+        self.assertRefused(self.run_gate(mutate=under, gate=verify.native_pressure_result),
+                           "lacks")
+        self.assertRefused(self.run_gate(command=pressure, gate=verify.native_pressure_result),
+                           "not 4096")
 
     def test_every_frame_is_accounted_for(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(renderCalls=b["renderCalls"] + 1)),

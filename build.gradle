@@ -640,6 +640,11 @@ loom {
             if (project.hasProperty('harnessNativeRender')) {
                 vmArg '-Dvoxy.native.render=true'
             }
+            // The pressure launch: the product switch with a small scene capacity, so Voxy's geometry
+            // reclaim has to run during travel and streaming.
+            if (project.hasProperty('harnessNativeSectionCapacity')) {
+                vmArg '-Dvoxy.native.sectionCapacity=' + project.property('harnessNativeSectionCapacity')
+            }
             if (project.hasProperty('harnessGraphicsBackend')) {
                 programArg '--graphicsBackend'
                 programArg project.property('harnessGraphicsBackend')

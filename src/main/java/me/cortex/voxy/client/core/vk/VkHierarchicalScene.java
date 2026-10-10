@@ -995,6 +995,9 @@ public final class VkHierarchicalScene {
 
     /** ⚠ ジオメトリ領域を使い切ってメッシュ化を止めたか。<b>絵の穴の説明になる</b>。 */
     public boolean geometryExhausted() { return this.admission.exhausted(); }
+    /** Built sections the admission turned away (the geometry region was full and reclaim did not help). */
+    public long geometryRejected() { return this.admission.rejected(); }
+    public int sectionCapacity() { return this.maxSections; }
 
     public int serviceRequests(int maxMeshesPerCall) {
         if (!this.world.isLive()) return 0;
