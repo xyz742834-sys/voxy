@@ -314,8 +314,12 @@ commit the report alone, then repair.
    plus GL's `voxy.geometryBufferSizeOverrideMB`. Gate coverage: R26's two ladder predicates are
    covered (`test_ladder_coverage.py`); R24 re-audited 2026-10-10 with the round-27 tool
    (`native-review-r27/.agent-run/r27/r24_guards.py`, ROOT pointed at this checkout): 37/37
-   detected, 27 still only by real-LOAD tests (shared helpers `real_load_skip_provenance`,
-   `load_judged_entry_checks`, `judge_load_sample`) — deferred, non-blocking. Far-world: the gate
+   detected, 27 only by real-LOAD tests; closed in `2a8ad4ff`: 36/37 now detected by hierarchy
+   tests, the last unreachable there by design (the hierarchical gate refuses first against a
+   subset of real-LOAD's skip keys, pinned by a test). GL's `voxy.geometryBufferSizeOverrideMB`
+   now sizes the native geometry too (`b72a0e02`; default unchanged). Latent: a hierarchical
+   camera-extent-mismatch skip cannot carry the extents, so the gate always refuses one (fails
+   closed; never seen in a run). Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
    here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
    terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the
