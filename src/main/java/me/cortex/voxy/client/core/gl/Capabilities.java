@@ -87,9 +87,10 @@ public class Capabilities {
         try {
             cap = GL.getCapabilities();
         } catch (IllegalStateException | NullPointerException e) {
-            // GL コンテキストが無い。MC が Vulkan など別のバックエンドを選んでいる
-            Logger.warn("No OpenGL context on this thread (" + e.getClass().getSimpleName()
-                + "); Minecraft is probably not using the OpenGL backend. Voxy will disable itself.");
+            // GL コンテキストが無い。MC が Vulkan など別のバックエンドを選んでいる。
+            // ⚠ 無効化するかどうかはここでは決めない — native 経路なら Voxy は動く (VoxyClient が判断して記録する)
+            Logger.info("No OpenGL context on this thread (" + e.getClass().getSimpleName()
+                + "); Minecraft is probably not using the OpenGL backend.");
             return new Capabilities();
         }
         return new Capabilities(cap);
