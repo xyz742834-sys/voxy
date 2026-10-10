@@ -241,7 +241,12 @@ R27-RENDER-DISABLE, R27-RENDER-GATE, and judged default-on not ready (report
 `docs/ai/runs/native-integration-review-r27.md`, its readiness list in the JSON); repaired in
 `8d241b40` (survey "Round-27 repairs"). Round 28 was dispatched 2026-10-10 against `10856154`
 (`1085615492e502b52778c8a5199d4039c5624f1d`) with `docs/ai/runs/native-review-prompt-r28.txt`
-(worktree `native-review-r28`, terminal `term_771f42df-7ce0-4d08-97ea-56c453082d7d`). When its report lands: copy it to `docs/ai/runs/native-integration-review-r28.{md,json}`,
+(worktree `native-review-r28`, terminal `term_771f42df-7ce0-4d08-97ea-56c453082d7d`). **It did not run:** the
+reviewer hit its usage limit right after the prompt was accepted ("You've hit your usage limit …
+try again at Oct 14th, 2026 12:30 PM"; it offers a cheaper model, which is the owner's call, not
+this session's). No round-28 report exists. Re-send the same prompt to that terminal (or a fresh
+worktree on `10856154` — or on the latest HEAD, adding the streaming milestone) once the limit
+resets or the owner chooses otherwise. When its report lands: copy it to `docs/ai/runs/native-integration-review-r28.{md,json}`,
 commit the report alone, then repair.
 
 ### Next steps, in order
