@@ -621,7 +621,7 @@ def hier_entry(sample, field, before, depth, after):
                  rawProjection=list(HIER_MC_PROJECTION), voxyNear=16.0,
                  vanillaRenderDistance=128.0, sodiumChunkRenderDisabled=False,
                  voxyDepthFile=f"native-hier-load-voxydepth-{at}.f32.gz",
-                 previousCapture=at - 1, buildsSoFar=1)
+                 previousCapture=at - 1, buildsSoFar=1, fadePixels=0)
     return entry
 
 

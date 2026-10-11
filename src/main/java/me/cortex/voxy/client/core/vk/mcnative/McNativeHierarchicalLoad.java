@@ -279,6 +279,12 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      * them: the gate corroborates the skip against the ladder sample's frame. Guarded by NOTES.
      */
     private static final java.util.Map<Long, int[][]> EXTENT_SKIPS = new java.util.HashMap<>();
+    /**
+     * Per handed sample, the band's geometry pixels with alpha below 1 in each orientation: the
+     * composite blends those (GL's fade), which the exact-colour judge does not model. Guarded by
+     * NOTES; the judged entry reports the selected orientation's count.
+     */
+    private static final java.util.Map<Long, int[]> FADE_PIXELS = new java.util.HashMap<>();
 
     private record Pending(int[][] rects, int[][] colour, float[][] depth, float[][] rawDepth,
                            Result partial) {}
@@ -603,8 +609,11 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         long rbase = probe.target.depthReadbackBuffer().addr();
         float[] rawDepths = new float[width * height];
         int clearRgb = McNativeTerrainScene.packRgb(CLEAR);
+        int[] alphas = new int[n];
         for (int i = 0; i < n; i++) {
-            colours[i] = MemoryUtil.memGetInt(base + (long) i * 4) & 0x00FFFFFF;
+            int rgba = MemoryUtil.memGetInt(base + (long) i * 4);
+            colours[i] = rgba & 0x00FFFFFF;
+            alphas[i] = rgba >>> 24;
             depths[i] = MemoryUtil.memGetFloat(dbase + (long) i * 4);
             rawDepths[i] = MemoryUtil.memGetFloat(rbase + (long) i * 4);
         }
@@ -630,6 +639,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         int[][] bandColour = new int[2][];
         float[][] bandDepth = new float[2][];
         float[][] bandRaw = new float[2][];
+        int[] bandFade = new int[2];
         for (int o = 0; o < 2; o++) {
             int[] q = rects[o];
             int w = q[2] - q[0], h = q[3] - q[1];
@@ -642,8 +652,14 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                     bandColour[o][i] = colours[y * width + x];
                     bandDepth[o][i] = depths[y * width + x];
                     bandRaw[o][i] = rawDepths[y * width + x];
+                    // a geometry pixel the composite blends (Voxy's fade): its result is not the
+                    // reference colour, so the exact-colour judge cannot check it
+                    if (depths[y * width + x] > 0f && alphas[y * width + x] < 255) bandFade[o]++;
                 }
             }
+        }
+        synchronized (NOTES) {
+            FADE_PIXELS.put(at, bandFade);
         }
         float[] mcProjection = new float[16], usedProjection = new float[16];
         view.projection().get(mcProjection);
@@ -1264,9 +1280,11 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         List<Result> results = results();
         List<String> notes;
         java.util.Map<Long, int[][]> extentSkips;
+        java.util.Map<Long, int[]> fadePixels;
         synchronized (NOTES) {
             notes = List.copyOf(NOTES);
             extentSkips = new java.util.HashMap<>(EXTENT_SKIPS);
+            fadePixels = new java.util.HashMap<>(FADE_PIXELS);
         }
         var sb = new StringBuilder("{\n");
         sb.append("  \"enabled\": ").append(enabled()).append(",\n");
@@ -1357,6 +1375,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 sb.append(", \"vanillaRenderDistance\": ").append(r.vanillaRenderDistance());
                 sb.append(", \"sodiumChunkRenderDisabled\": ").append(r.sodiumChunkRenderDisabled());
                 sb.append(", \"iterationsRun\": ").append(r.iterations());
+                // either orientation's count, conservatively (the gate decides the orientation)
+                int[] fade = fadePixels.get(r.at());
+                sb.append(", \"fadePixels\": ").append(fade == null ? -1 : Math.max(fade[0], fade[1]));
             } else {
                 sb.append(", \"atlasState\": ").append(r.atlasState());
                 int[][] extents = extentSkips.get(r.at());

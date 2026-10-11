@@ -173,6 +173,8 @@ public class VkTerrainResources {
     public static final int TRANSLUCENT_BUCKETS = 1024;
 
     public final VkTexture atlas;
+    /** Sections drawn per frame at most; every per-draw table is sized by it (prep/cmdgen clamp to it). */
+    public final int renderQueueCapacity;
     /** False when the atlas was lent ({@code sharedAtlas}): its lender frees it. */
     private final boolean ownsAtlas;
 
@@ -254,6 +256,7 @@ public class VkTerrainResources {
                               int maxModels, int indexQuadCapacity, AtlasScale atlasScale,
                               int renderQueueCapacity, VkTexture sharedAtlas) {
         this.atlasScale      = atlasScale;
+        this.renderQueueCapacity = renderQueueCapacity;
         this.maxModels       = maxModels;
         this.indexQuadCapacity = indexQuadCapacity;
         this.uniform         = new VkBuffer(1024).zero().name("uniform");

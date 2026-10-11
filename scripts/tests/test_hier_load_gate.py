@@ -415,6 +415,14 @@ class HierLoadGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(depth_kind="none", mutate_hier=R(0, minDepth=0.5)),
                            "reports minDepth=0.5 with no geometry")
 
+    def test_blended_fade_pixels_are_refused_not_misjudged(self):
+        R = lambda **kw: (lambda r: r["results"][0].update(**kw))
+        self.assertRefused(self.run_gate(mutate_hier=R(fadePixels=12)),
+                           "holds 12 blended (fade-zone) pixel(s)")
+        self.assertRefused(self.run_gate(mutate_hier=R(fadePixels=-1)), "states fadePixels=-1")
+        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].pop("fadePixels")),
+                           "states fadePixels=None")
+
     def test_voxys_own_projection_and_the_reprojection_are_rederived(self):
         from test_ladder_gate import write_gz_f32
         def first_judged(o):

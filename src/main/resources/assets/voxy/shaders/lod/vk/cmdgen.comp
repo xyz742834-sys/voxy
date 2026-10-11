@@ -34,6 +34,8 @@ layout(local_size_x = 128) in;
 
 #import <voxy:lod/section.glsl>
 #import <voxy:lod/gl46/bindings.glsl>
+// round-28 R28-QUEUE-OVERFLOW: the selected count clamped to the render queue's capacity, as prep
+#define QUEUED_SECTIONS min(sectionCount, uint(RENDER_QUEUE_CAPACITY))
 
 layout(binding = MERGED_ENTRY_BINDING, std430) writeonly restrict buffer MergedEntryBuffer {
     uvec2 mergedEntries[];
@@ -75,7 +77,7 @@ layout(binding = TRANSLUCENT_LIST_BINDING, std430) restrict buffer TranslucentLi
 bool renderTemporally = false;
 
 void writeEntry(uint face, uint slotIndex, uint quadStart, uint count) {
-    uint slot = face * sectionCount + slotIndex;
+    uint slot = face * QUEUED_SECTIONS + slotIndex;
     mergedEntries[slot] = uvec2(quadStart, slotIndex);
     mergedCounts[slot] = count;
     temporalCounts[slot] = renderTemporally ? count : 0u;
@@ -83,7 +85,7 @@ void writeEntry(uint face, uint slotIndex, uint quadStart, uint count) {
 
 void main() {
     uint i = gl_GlobalInvocationID.x;
-    if (i >= sectionCount) {
+    if (i >= QUEUED_SECTIONS) {
         return;
     }
 

@@ -2797,6 +2797,15 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         if entry.get("iterationsRun") != HIER_LOAD_ITERATIONS:
             raise ValueError(f"{L} at draw {at} ran {entry.get('iterationsRun')!r} iteration(s), not"
                              f" {HIER_LOAD_ITERATIONS}")
+        # round-28 R28-FADE-BLEND: the composite blends Voxy's fade as GL does; the per-pixel judge
+        # compares exact colours and does not model the blend, so a sample holding blended
+        # (alpha < 1) geometry pixels is refused, not misjudged
+        fade = entry.get("fadePixels")
+        if not finite_int(fade) or fade < 0:
+            raise ValueError(f"{L} at draw {at} states fadePixels={fade!r}")
+        if fade:
+            raise ValueError(f"{L} at draw {at} holds {fade} blended (fade-zone) pixel(s), which the"
+                             f" exact-colour judge cannot check")
         # a streaming scene starts empty (meshedAtBuild, normally 0) and serviceRequests meshes
         # what the traversal asks for, so `meshed` (now) can only be at least that
         if not finite_int(entry.get("meshedAtBuild")) or not finite_int(entry.get("meshed")) \

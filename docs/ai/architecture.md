@@ -14,8 +14,12 @@ macOS. Integrate with Minecraft's Vulkan device, render targets and submission/
 resource lifetimes; no GL context, GL texture IDs or GL composition may be required.
 See [project-goal.md](project-goal.md) for scope and completion evidence.
 
-That connection is not implemented. The backend selection, frame sequence and
-IOSurface/GL composition described below document the current diagnostic path.
+That connection exists as an opt-in native path (`voxy.native.render`, default off;
+`McNativeHierarchicalLoad`, see the survey and handoff): Voxy adopts Minecraft's own
+VkDevice, draws its hierarchical scene in its own submissions and composites at GL
+Voxy's point (Sodium's cutout pass). It is not yet accepted for default-on. The backend
+selection, frame sequence and IOSurface/GL composition described below document the
+GL-hosted diagnostic path.
 Preserve them as evidence while directing new integration work toward the target;
 do not expand that GL-hosted path as the delivery milestone.
 
@@ -66,9 +70,10 @@ its own synthetic content.
    succeeds (capability *and* real device-creation check) → **Vulkan**.
 3. Else → Voxy disables itself for this session.
 
-If Minecraft is running its own native Vulkan backend, Voxy's Vulkan path is *not*
-selected — it does not borrow Minecraft's device, and previously crashed trying to cast
-a Vulkan texture view to a GL one before this was guarded.
+If Minecraft is running its own native Vulkan backend, the GL-hosted Vulkan path above is
+*not* selected (it previously crashed casting a Vulkan texture view to a GL one before this
+was guarded). With the native switch, Voxy instead adopts Minecraft's device and runs the
+native path (`McNativeVkContext`, `McNativeHierarchicalLoad`).
 
 ## OpenGL path
 

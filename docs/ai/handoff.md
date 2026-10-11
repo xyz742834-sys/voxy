@@ -1,7 +1,7 @@
 # Handoff — Voxy native Vulkan / macOS work
 
 Written 2026-10-07 for a **fresh session with no conversation context**. Branch
-`vulkan-macos`, round-28 candidate **10856154** (dispatched 2026-10-10, worktree `native-review-r28`): the
+`vulkan-macos`, round 28 (Claude reviewer, owner-scheduled) reviewed **a68cf90a** → REDESIGN (`docs/ai/runs/native-integration-review-r28-claude.md`); Codex is the later round of record. Earlier note: the
 round-27 repairs. Round 27 judged `9cfd9c01`: REDESIGN (DELIVERY-BOUNDARY + three defects, repaired; default-on not ready). Round 26 judged `460602ab`: REDESIGN on DELIVERY-BOUNDARY only. Round 25 judged `043aa11f`: REDESIGN on DELIVERY-BOUNDARY only.
 Round 24 judged `03461cea`: REDESIGN (DELIVERY-BOUNDARY + four defects, repaired). Round 23 judged `14743bf4`: REDESIGN on DELIVERY-BOUNDARY
 only; no open code or gate finding; its wording residuals fixed in `32de53c2`. Round 22 judged `8ba67fc5`: REDESIGN on DELIVERY-BOUNDARY only; occlusion CONFIRMED;

@@ -76,6 +76,7 @@ public class VkMergedTableBuilder {
         this.barriers = barriers;
 
         this.prepShader = VkShader.makeAuto().name("vk-merged-prep")
+            .define("RENDER_QUEUE_CAPACITY", res.renderQueueCapacity)
             .define("MERGED_PREFIX_BINDING", VkTerrainRenderer.MERGED_PREFIX_BINDING)
             .define("MERGED_DISPATCH_BINDING", MERGED_DISPATCH_BINDING)
             .define("CULL_DRAW_BINDING", CULL_DRAW_BINDING)
@@ -84,6 +85,7 @@ public class VkMergedTableBuilder {
             .compile();
 
         this.cmdgenShader = VkShader.makeAuto().name("vk-merged-cmdgen")
+            .define("RENDER_QUEUE_CAPACITY", res.renderQueueCapacity)
             .define("MERGED_ENTRY_BINDING", VkTerrainRenderer.MERGED_ENTRY_BINDING)
             .define("MERGED_PREFIX_BINDING", VkTerrainRenderer.MERGED_PREFIX_BINDING)
             .apply(VkMergedTableBuilder::translucentDefines)

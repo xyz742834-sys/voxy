@@ -62,6 +62,10 @@ final class McNativeComposite {
             .depthTest(true).depthWrite(true)
             .depthCompare(VkDepth.COMPARE_OP)
             .cullMode(VK_CULL_MODE_NONE)
+            // GL's final blit blends Voxy's fogged/faded colour into Minecraft's:
+            // glBlendFuncSeparate(SRC_ALPHA, ONE_MINUS_SRC_ALPHA, ONE, ONE_MINUS_SRC_ALPHA)
+            // (NormalRenderPipeline). Round-28 R28-FADE-BLEND: it was never enabled here
+            .alphaBlend(true)
             .build();
     }
 
