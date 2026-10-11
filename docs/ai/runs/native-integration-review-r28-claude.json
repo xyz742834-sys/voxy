@@ -1,0 +1,149 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "a68cf90ac34e6bce6af9b63946ce7d93b2f56488",
+  "round": 28,
+  "reviewer": "Claude (independent; Codex round of record scheduled later by the owner)",
+  "evidence_run": "docs/ai/runs/native-evidence/20261011T163645-918547Z",
+  "evidence_built_from": "08a9501d6a6f3b151056033f5b3d6160e3b4ee74",
+  "initial_tree_clean": true,
+  "required_commands": {
+    "gradle_test": {
+      "exit": 0,
+      "tests": 357,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    "python_unittest": {
+      "exit": 0,
+      "tests": 335,
+      "seconds": 998.6
+    },
+    "replay_evidence": {
+      "exit": 0
+    }
+  },
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "message": "The native renderer is an opt-in switch (voxy.native.render default false); normally enabled native LoD and normal-play acceptance remain undelivered.",
+      "evidence": [
+        "docs/ai/project-goal.md",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeRender.java:26"
+      ]
+    },
+    {
+      "id": "R28-QUEUE-OVERFLOW",
+      "judgment": "CONFIRMED (source; reachability argued, not observed)",
+      "message": "The traversal's renderQueueIndex is incremented unconditionally past renderQueueMaxSize, and prep/cmdgen/cull use it unclamped as sectionCount, indexing buffers sized by renderQueueCapacity=min(sections,200000): out-of-bounds GPU reads/writes once more than 200000 meshed nodes are selected, which the 1<<20-section default (08a9501d, d9ef4af8) makes reachable.",
+      "evidence": [
+        "src/main/resources/assets/voxy/shaders/lod/hierarchical/traversal_dev.comp:79",
+        "src/main/resources/assets/voxy/shaders/lod/vk/prep.comp:64",
+        "src/main/resources/assets/voxy/shaders/lod/vk/cmdgen.comp:78",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkHierarchicalScene.java:464",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkTraversal.java:226"
+      ]
+    },
+    {
+      "id": "R28-FADE-BLEND",
+      "judgment": "CONFIRMED (source)",
+      "message": "GL's final blit blends SRC_ALPHA/ONE_MINUS_SRC_ALPHA; the native composite pipeline never enables blending, so Voxy's fade is a hard edge and its alpha is written into Minecraft's colour; the judge's exact-RGB rule would refuse the GL-faithful blend. Commit 2fb1737a and the survey claim the blend exists.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeComposite.java:57",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkGraphicsPipeline.java:58",
+        "src/main/java/me/cortex/voxy/client/core/NormalRenderPipeline.java:130",
+        "docs/ai/vulkan-native-integration-survey.md:2068"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R28-FAILED-FRAME-STATE",
+      "judgment": "CONFIRMED (recording-window exception) / PLAUSIBLE (dropped uploads)",
+      "message": "An exception between beginFrame and endFrame leaves the tracker recording, so the path stops after three problems; after a failed submit the scene is kept although bakery tile/lightmap uploads drained into the dropped command buffer are lost. The injection launch proves continuation, not correct content.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/VkFrameTracker.java:145",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:713",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkHierarchicalScene.java:779"
+      ]
+    },
+    {
+      "id": "R28-WORKER-LIFETIME",
+      "judgment": "PLAUSIBLE",
+      "message": "Mesher workers are stopped only by retire(), which no disconnect/level-change path calls; queued tasks can run while the world engine shuts down; stopWorkers can block the render thread up to 10 s.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:460",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:1157"
+      ]
+    },
+    {
+      "id": "R28-LIGHTMAP-FIRST-FRAMES",
+      "judgment": "CONFIRMED (source)",
+      "message": "Static lightmapSeen with per-scene synthetic lightmaps: every rebuilt scene renders its first frames full-bright until the next readback.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeHierarchicalLoad.java:217"
+      ]
+    },
+    {
+      "id": "R28-GATE-RESIDUALS",
+      "judgment": "CONFIRMED (replay counterexamples)",
+      "message": "Replay accepts 5000 unexplained rendering-disabled skips and a soak cycle whose stage composited zero frames (growth summed across cycles); within-run growth predicate verify.py:3240 and hier_stream_problem:2531 have no detecting test; far requirement floor is one pixel; streaming/vanillaBound/postPass are constant self-reports.",
+      "evidence": [
+        ".agent-run/r28/render/row-render_rendering_disabled_skips.json",
+        ".agent-run/r28/render/row-pressure_cycle3_reconnect_composites_nothing.json",
+        ".agent-run/r28/guards28-product.json"
+      ]
+    },
+    {
+      "id": "R27-CONTEXT-DRIFT",
+      "judgment": "CONFIRMED residual",
+      "message": "architecture.md:17 and :69-71 still say the native connection is not implemented / does not borrow Minecraft's device; survey claims the composite blends.",
+      "evidence": [
+        "docs/ai/architecture.md:17",
+        "docs/ai/architecture.md:69"
+      ]
+    },
+    {
+      "id": "R28-FLOATING-PIECES",
+      "judgment": "OBSERVED",
+      "message": "Reload/reconnect thumbnails still show floating rock pillars in the sky, unexplained.",
+      "evidence": [
+        "docs/ai/runs/native-evidence/20261011T163645-918547Z/render/frame-reload.png",
+        "docs/ai/runs/native-evidence/20261011T163645-918547Z/inject/frame-reconnect.png"
+      ]
+    }
+  ],
+  "safe_for_normal_play": true,
+  "safe_for_normal_play_scope": "All voxy.native.* flags unset, GL and Minecraft Vulkan, source/offline review; native switch on or default-on: false.",
+  "round27_findings_closed": {
+    "DELIVERY-BOUNDARY": false,
+    "R27-EMPTY-REBUILD": true,
+    "R27-RENDER-DISABLE": true,
+    "R27-RENDER-GATE": true,
+    "R26-LADDER-GUARD-COVERAGE": true,
+    "R24-HIER-GUARD-COVERAGE": true,
+    "R27-CONTEXT-DRIFT": false
+  },
+  "default_on_readiness": {
+    "ready": false,
+    "remaining": [
+      "Clamp the render-queue count to its capacity (R28-QUEUE-OVERFLOW)",
+      "Blend the composite as GL does, adapt the judge, retain a fade-zone sample (R28-FADE-BLEND)",
+      "Recover from recording-time exceptions; retire the scene after a failed frame; judge content after injection",
+      "Stop mesher workers on disconnect/level change without a long render-thread block",
+      "Resize only size-dependent resources instead of rebuilding the scene; no full-bright first frames",
+      "Explain floating terrain pieces; fade, SSAO (not ported), translucency, night, water, sky references",
+      "Gate: reconcile rendering-disabled skips, per-cycle per-stage compositing, test within-run growth, stronger far floor",
+      "Fail closed against the physical device's supported features before default-on (not established)",
+      "Soak at the product capacity (1<<20 sections, ~1.34 GB footprint); time-based rate limits",
+      "DELIVERY-BOUNDARY: normally enabled native LoD with independent round-of-record acceptance"
+    ]
+  },
+  "render_gate_judgment": "All nine round-27 counterexamples refused at HEAD (exit 1); 57/61 product/pressure/injection/log guards detected (2 equivalent mutants, 2 real untested); two new acceptances: unexplained rendering-disabled skips and zero-composite soak cycle stage.",
+  "product_switch_judgment": "Switch alone ran 5959 composited frames through every required stage, kill switch and rendering setting honoured (source); remains opt-in; not safe to default on.",
+  "failure_injection_judgment": "Exemptions are exact and could not hide a second failure (all five probes refused); Voxy keeps compositing 4963 frames after the injected submit failure; content correctness after failure is not judged, recording-window exceptions still disable the path, dropped uploads plausible.",
+  "soak_judgment": "Four lifecycles, 21 builds, bytes exactly flat per size; gate refuses 2% growth, a missing cycle and 0x0 masking, but accepts a stage that composited nothing in one cycle; run at pressure capacity, not product capacity.",
+  "far_world_judgment": "Far look draw 3602 independently recounted: 3328 Voxy pixels beyond Minecraft's 2048-block far plane over CLEAR band, all shown, zero violations, reprojection clamped; requirement detected by tests but its floor is one pixel; fade zone never reached.",
+  "report": "docs/ai/runs/native-integration-review.md"
+}
