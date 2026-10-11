@@ -1,6 +1,6 @@
 You are an INDEPENDENT reviewer, round 28. Do not fix anything; judge it.
 
-Candidate: this checkout's HEAD ({CANDIDATE_SHA}). Round 27 returned REDESIGN against 9cfd9c01:
+Candidate: this checkout's HEAD (docs-only commits after dd2a64c7, which retains the latest evidence). Round 27 returned REDESIGN against 9cfd9c01:
 DELIVERY-BOUNDARY plus blocking R27-EMPTY-REBUILD, R27-RENDER-DISABLE, R27-RENDER-GATE; non-blocking
 R26-LADDER-GUARD-COVERAGE, R24-HIER-GUARD-COVERAGE, R27-CONTEXT-DRIFT; default-on judged not ready.
 Report: docs/ai/runs/native-integration-review-r27.md (machine verdict ...-r27.json, with its readiness
@@ -13,8 +13,8 @@ What changed since 10856154, grouped by the round-27 readiness list:
 - Item 1/3, streaming and budgets: 155673fb (RenderDistanceTracker streaming), 6a15b446 (biome replay),
   6a671f65 (subdivision from VoxyConfig.subDivisionSize every frame), d9ef4af8 (draw buffers and
   traversal queues sized by min(sections, GL MAX_QUEUE_SIZE); nodes twice the sections), b72a0e02
-  (GL's voxy.geometryBufferSizeOverrideMB). The DEFAULT geometry size is an open owner decision
-  (81 MB now; GL capacities with 512 MB measured at 730 MB; GL's formula ~4.2 GB on this Mac).
+  (GL's voxy.geometryBufferSizeOverrideMB), 08a9501d (owner decision 2026-10-12: GL's capacities
+  with GL's minimum 512 MiB geometry; GL's device-sized formula, ~4 GB of unified memory, declined).
 - Item 4, composite point and near cut: afc61e91 (VkBoundRenderer), 24d3f23b/e748a2f0 (composite at
   GL's cutout point, writing Voxy's depth, bound over every section Sodium draws).
 - Item 5, lighting/fog: 9be59d81/40e38c9c (Minecraft's lightmap), 2fb1737a (GL's fog and fade).
@@ -27,10 +27,10 @@ What changed since 10856154, grouped by the round-27 readiness list:
   positive control; Minecraft logs hazards as bare text, which the native gates did not see before),
   6326c429 (depth recount quantisation), 545d2b2a/5fcaaf97 (no "Voxy will disable itself" lines when
   the native path runs; gated), 2a8ad4ff (R24 hierarchical guard coverage; thumbnail size refusal),
-  16f1b496 (a hierarchical camera-extent-mismatch skip carries its extents, so the gate can corroborate it), 906ddbab (normal-play GPU and render-thread timing, required complete; no budget judged), a2a3f5dd (worker-thread meshing as GL; results dropped for positions edited in flight; workers stopped at retire), d2047de0 (the real-scale atlas lent to one scene at a time, kept across rebuilds).
+  16f1b496 (a hierarchical camera-extent-mismatch skip carries its extents, so the gate can corroborate it), 906ddbab (normal-play GPU and render-thread timing, required complete; no budget judged), a2a3f5dd (worker-thread meshing as GL; results dropped for positions edited in flight; workers stopped at retire), d2047de0 (the real-scale atlas lent to one scene at a time, kept across rebuilds), 7dad2148 (texture memory measured and judged), 08a9501d (owner decision: GL's capacities, 1 << 20 sections and 512 MiB geometry).
 - Far-world: 1376d11f (travel to x 2560 and a `far` look; the gate requires judged Voxy pixels beyond
   Minecraft's far plane).
-Latest evidence: docs/ai/runs/native-evidence/{EVIDENCE_RUN} (built from {EVIDENCE_SHA}); five launches.
+Latest evidence: docs/ai/runs/native-evidence/20261011T163645-918547Z (built from 08a9501d); five launches.
 
 The boundary from rounds 4-27 still governs and the candidate accepts it. Judge, CONFIRMED or
 REFUTED with file/line or command:
@@ -52,7 +52,7 @@ REFUTED with file/line or command:
 
 Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
 -PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
-python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/{EVIDENCE_RUN}
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261011T163645-918547Z
 Do NOT run scripts/verify.py --only native or --only live; judge the committed evidence.
 
 Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on the

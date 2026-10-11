@@ -337,7 +337,11 @@ commit the report alone, then repair.
    Texture memory is now measured and judged (`7dad2148`): Voxy's whole footprint is ~85 MB of
    buffers + ~608 MB of textures (the real-scale atlas dominates) ≈ 0.69 GB at 1920x1080 (run
    `20261010T165411-462290Z`). For the pending geometry decision, totals are therefore: (C) keep
-   ≈ 0.69 GB; (B) GL capacities with 512 MB geometry ≈ 1.3 GB; (A) GL's formula ≈ 4.9 GB. Far-world: the gate
+   ≈ 0.69 GB; (B) GL capacities with 512 MB geometry ≈ 1.3 GB; (A) GL's formula ≈ 4.9 GB.
+   **Owner decision 2026-10-12: option B** (`08a9501d`): 1 << 20 sections, 512 MiB geometry; run
+   `20261011T163645-918547Z`: 733.8 MB buffers + 607.5 MB textures. Residual: atlas uploads of
+   already-baked tiles are not budgeted (one 66 ms frame in the nether). **Owner decision: review by
+   both** — an independent Claude reviewer now, Codex after 2026-10-14 12:30 as the round of record. Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
    here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
    terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the
