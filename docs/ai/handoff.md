@@ -341,7 +341,15 @@ commit the report alone, then repair.
    **Owner decision 2026-10-12: option B** (`08a9501d`): 1 << 20 sections, 512 MiB geometry; run
    `20261011T163645-918547Z`: 733.8 MB buffers + 607.5 MB textures. Residual: atlas uploads of
    already-baked tiles are not budgeted (one 66 ms frame in the nether). **Owner decision: review by
-   both** — an independent Claude reviewer now, Codex after 2026-10-14 12:30 as the round of record. Far-world: the gate
+   both** — an independent Claude reviewer now, Codex after 2026-10-14 12:30 as the round of record.
+   Round 28 (Claude, `a68cf90a`): REDESIGN; repaired in `6a6ff092` (queue clamp, composite blend
+   + fade-pixel refusal, context drift) and `9cb2435d` (workers retired on level change, per-scene
+   lightmap, abandoned frames, gate residuals); GPU tests and the native gate pending the MC26.3
+   window. R28-FLOATING-PIECES, CPU analysis (heightmaps of the run's save): the pieces are real
+   terrain — peaks up to y 142 at 158–164 blocks, ~22° right of the warmup look, beyond vanilla's
+   128 blocks (so Voxy's). Unexplained: the missing lower slope (sky beneath). Candidates: the near
+   cut from Minecraft's empty-but-visible sections, or Voxy's fog reaching the sky colour. Test
+   with an exploratory launch each way once the GPU is free. Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
    here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
    terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the
