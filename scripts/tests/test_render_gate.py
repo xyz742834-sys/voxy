@@ -43,7 +43,7 @@ def report(**overrides):
             "sectionRenderDistance": 16.0, "streamRenderDistance": 17, "maxTopLevels": 34,
             "vanillaBound": True, "maxBoundSections": 210, "lightmapsApplied": 480,
             "lightmapReads": 481, "lightmapFailure": None, "postPass": True, "fogMode": "FOG_AND_FADE",
-            "sectionCapacity": 8192, "geometryQuads": 4000000, "maxGeometryUsedBytes": 9000000,
+            "sectionCapacity": verify.DEFAULT_SECTION_CAPACITY, "geometryQuads": verify.DEFAULT_GEOMETRY_QUADS, "maxGeometryUsedBytes": 9000000,
             "maxMeshed": 7000, "geometryReclaimed": 0, "geometryRejected": 0,
             "geometryEverExhausted": False,
             "injectSubmitFailureAt": -1, "injectedFailures": 0, "compositedAtInjection": -1,

@@ -101,7 +101,11 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     static double subdivisionPx() { return me.cortex.voxy.client.config.VoxyConfig.CONFIG.subDivisionSize; }
     private static double lastSubdivisionPx = -1;
     static final int MESHES_PER_PASS = 64;
-    static final int SECTIONS = 8192;
+    /**
+     * GL's capacities (owner decision 2026-10-12, option B): VoxyRenderSystem's
+     * BasicSectionGeometryData(1 << 20) geometry sections (nodes twice that, in the scene)...
+     */
+    static final int SECTIONS = 1 << 20;
     /**
      * The scene's section capacity: {@link #SECTIONS}, or {@code voxy.native.sectionCapacity} — the
      * pressure launch sets it low to force Voxy's geometry reclaim during travel and streaming.
@@ -124,7 +128,12 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         return MAX_QUADS;
     }
     static final String GL_GEOMETRY_OVERRIDE_MB = "voxy.geometryBufferSizeOverrideMB";
-    static final int MAX_QUADS = 4_000_000;
+    /**
+     * ...with GL's minimum geometry buffer, 512 MiB (RenderResourceReuse.getGeometryBufferSize's floor;
+     * its device-sized formula would be ~4 GB of unified memory here). 8-byte quads.
+     * voxy.geometryBufferSizeOverrideMB overrides it, as on GL.
+     */
+    static final int MAX_QUADS = (512 * 1024 * 1024) / 8;
     static final int BUILD_BUDGET = 6;
     static final float[] CLEAR = {0.05f, 0.05f, 0.10f, 1.0f};
     static final VkHierarchicalScene.Visibility VISIBILITY = VkHierarchicalScene.Visibility.CULL;

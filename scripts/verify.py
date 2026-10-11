@@ -2866,8 +2866,9 @@ SOAK_STAGES = LIFECYCLE_STAGES[LIFECYCLE_STAGES.index("travel"):]
 PRESSURE_LAUNCH_FLAGS = RENDER_LAUNCH_FLAGS + (f"-PharnessNativeSectionCapacity={PRESSURE_CAPACITY}",
                                                f"-PharnessNativeGeometryQuads={PRESSURE_QUADS}",
                                                f"-PharnessCycles={SOAK_CYCLES}")
-DEFAULT_SECTION_CAPACITY = 8192
-DEFAULT_GEOMETRY_QUADS = 4_000_000
+# GL's capacities with GL's minimum 512 MiB geometry buffer (owner decision 2026-10-12, option B)
+DEFAULT_SECTION_CAPACITY = 1 << 20
+DEFAULT_GEOMETRY_QUADS = (512 * 1024 * 1024) // 8
 RENDER_STAGE_LOG = re.compile(r"hier frames entering stage (\w+): composited=(\d+) skipped=(\d+)"
                               r" builds=(\d+)(?: vkBuffers=(\d+) vkBufferBytes=(\d+) vkTextures=(\d+))?"
                               r"(?: vkTextureBytes=(\d+))?(?: frame=(\d+)x(\d+))?(?: cycle=(\d+))?")
