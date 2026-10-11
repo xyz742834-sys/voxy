@@ -89,6 +89,9 @@ public abstract class MixinLevelRenderer implements IVoxyRenderSystemHolder {
         WorldIdentifier identifier = level==null?null:WorldIdentifier.of(level);
         if (Objects.equals(this.identifier, identifier)) return;
         this.voxy$shutdownRenderer();
+        // the native scene too, as GL's renderer on a level change: retiring it stops its mesher
+        // workers before the old world can close (round-28 R28-WORKER-LIFETIME)
+        me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.shutdown();
         this.identifier = identifier;
     }
 

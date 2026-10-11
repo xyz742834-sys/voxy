@@ -189,6 +189,19 @@ public final class VkFrameTracker {
     }
 
     /**
+     * 記録中のフレームを<b>サブミットせずに捨てる</b> (記録中に例外が出たとき)。
+     * 記録窓を閉じ、リセット済みのフェンスは {@link #unsubmitted} として扱う —
+     * 次の待ちは飛ばす。記録中でなければ何もしない。round-28 R28-FAILED-FRAME-STATE。
+     */
+    public void abandonFrame() {
+        if (!this.recording) return;
+        this.recording = false;
+        this.unsubmitted = true;
+        // 失敗しても構わない: 次の beginFrame が vkResetCommandBuffer で記録を捨てる
+        vkEndCommandBuffer(this.commandBuffer);
+    }
+
+    /**
      * GL 側が結果を読む直前に呼ぶ。in-flight = 1 の要。
      * interop の合成は GL が行うため、ここで完了を保証しないと GL が古い内容を読む。
      */

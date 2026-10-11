@@ -214,7 +214,12 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             me.cortex.voxy.client.config.VoxyConfig.CONFIG.sectionRenderDistance);
     }
 
-    private static long lightmapSeen;
+    /**
+     * The newest Minecraft lightmap this scene applied. Per scene (round-28 R28-LIGHTMAP-FIRST-FRAMES):
+     * a static one left every rebuilt scene on its synthetic full-bright lightmap until the next
+     * readback; a new scene starts at 0 and takes the latest one already read on its first frame.
+     */
+    private long lightmapSeen;
     /** Minecraft lightmaps applied to the scene. */
     private static long lightmapsApplied;
 
@@ -222,9 +227,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private static void feedBound(McNativeHierarchicalLoad probe) {
         // and Minecraft's newest lightmap (GL Voxy samples Minecraft's lightmap texture directly)
         McNativeLightmap.request();
-        byte[] lm = McNativeLightmap.newerThan(lightmapSeen);
+        byte[] lm = McNativeLightmap.newerThan(probe.lightmapSeen);
         if (lm != null) {
-            lightmapSeen = McNativeLightmap.sequence();
+            probe.lightmapSeen = McNativeLightmap.sequence();
             probe.scene.res.setLightmap(lm);
             lightmapsApplied++;
         }
@@ -394,6 +399,14 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             Logger.error("[native-vk] the hierarchical-LOAD experiment failed", t);
             if (everyFrame()) FRAME_SKIPS.merge(FRAME_FAILED, 1L, Long::sum);
             fail("the hierarchical-LOAD experiment failed: " + t);
+            // round-28 R28-FAILED-FRAME-STATE: close a recording the exception left open (nothing
+            // of it was submitted), and retire the scene — the frame's uploads (baked tiles) never
+            // reached the GPU, so the next frame starts from a rebuilt scene
+            try {
+                if (VkFrameTracker.isRecordingFrame()) VkFrameTracker.get().abandonFrame();
+            } catch (Throwable u) { closeFailures++; }
+            var live = instance;
+            if (live != null) retire(live);
         }
     }
 

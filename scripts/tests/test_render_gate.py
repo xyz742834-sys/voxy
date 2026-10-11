@@ -318,6 +318,17 @@ class RenderGateTest(unittest.TestCase):
                 out.append(line)
             return "".join(out)
         self.assertRefused(run(log=leak), "across lifecycles")
+        # round-28: a cycle whose stage composited nothing (the sum across cycles hid it)
+        def idle(text):
+            i = text.index("[voxy-harness] stage=reconnect cycle=3\n")
+            line_end = text.index("\n", text.index("entering stage reconnect", i)) + 1
+            line = text[text.index("[native-vk] hier frames entering stage reconnect", i):line_end]
+            nxt = text.index("[native-vk] hier frames entering stage travel", line_end)
+            composited = int(line.split("composited=")[1].split()[0])
+            following = text[nxt:text.index("\n", nxt) + 1]
+            return text.replace(following, following.replace(
+                following.split("composited=")[1].split()[0], str(composited), 1), 1)
+        self.assertRefused(run(log=idle), "composited no frame in (stage, cycle)")
 
     def test_the_injection_launch_carries_on_after_one_failed_submission(self):
         inject = COMMAND + [f"-PharnessNativeInjectSubmitFailureAt={verify.INJECT_AT_FRAME}",
@@ -393,6 +404,11 @@ class RenderGateTest(unittest.TestCase):
                         "Voxy is unsupported on your system."):
             line = f"[12:00:00] [Render thread/ERROR] (Voxy) [me.cx.vy.ct.VoxyClient]: {message}\n"
             self.assertRefused(self.run_gate(log=lambda t: line + t), "says Voxy is off while it runs")
+
+    def test_rendering_disabled_skips_are_unexplained_in_a_gated_launch(self):
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(
+            frameSkips={"atlas-pending": 6, "rendering-disabled": 5000},
+            renderCalls=b["renderCalls"] + 5000)), "no gated launch turns Voxy's rendering off")
 
     def test_every_frame_is_accounted_for(self):
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(renderCalls=b["renderCalls"] + 1)),

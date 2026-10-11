@@ -169,6 +169,33 @@ public class VkFrameTrackerTest {
         t.waitIdle();
     }
 
+    /** 記録中の例外で捨てたフレーム: 何も実行されず、次のフレームは待たずに始まり、普通に走る。 */
+    @Test
+    void anAbandonedFrameRunsNothingAndTheNextFrameRuns() {
+        var t = VkFrameTracker.get();
+        var buf = new VkBuffer(256);
+        try {
+            t.waitIdle();
+            org.lwjgl.system.MemoryUtil.memPutInt(buf.addr(), 0);
+            var cmd = t.beginFrame();
+            org.lwjgl.vulkan.VK10.vkCmdFillBuffer(cmd, buf.handle, 0, 4, 0x1111);
+            t.abandonFrame();
+            assertFalse(t.isRecording());
+            assertDoesNotThrow(t::abandonFrame, "abandoning when not recording does nothing");
+            assertTimeoutPreemptively(java.time.Duration.ofSeconds(10), () -> {
+                var next = t.beginFrame();
+                org.lwjgl.vulkan.VK10.vkCmdFillBuffer(next, buf.handle, 4, 4, 0x5555);
+                t.endFrame();
+                t.waitForFrame();
+            });
+            assertEquals(0, org.lwjgl.system.MemoryUtil.memGetInt(buf.addr()));
+            assertEquals(0x5555, org.lwjgl.system.MemoryUtil.memGetInt(buf.addr() + 4));
+        } finally {
+            t.waitIdle();
+            buf.free();
+        }
+    }
+
     /** in-flight 検出は残してある (将来多重化したときの防波堤)。 */
     @Test
     void inFlightDetectionStillWorks() {

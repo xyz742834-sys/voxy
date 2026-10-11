@@ -3103,6 +3103,11 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         if not finite_int(composited) or not finite_int(calls) or not isinstance(skips, dict):
             raise ValueError(f"the {L} report states framesComposited={composited!r},"
                              f" renderCalls={calls!r}, frameSkips={skips!r}")
+        # round-28 R28-GATE-RESIDUALS: no gated launch turns Voxy's rendering setting off, so a
+        # rendering-disabled skip here is unexplained (the off path is covered by JUnit)
+        if skips.get("rendering-disabled"):
+            raise ValueError(f"the {L} report skips {skips['rendering-disabled']!r} frame(s) as"
+                             f" rendering-disabled, but no gated launch turns Voxy's rendering off")
         for reason, n in skips.items():
             if injected and reason == "frame-failed" and n == 1:
                 continue
@@ -3213,9 +3218,10 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         built = [line[3] for line in lines] + [report["builds"]]
         if totals != sorted(totals) or skipped != sorted(skipped) or built != sorted(built):
             raise ValueError(f"the {L} log's running totals fall or exceed the final report: {lines}")
-        growth = {}
+        growth, growth_by_cycle = {}, {}
         for i, stage in enumerate(stages):
             growth[stage] = growth.get(stage, 0) + totals[i + 1] - totals[i]
+            growth_by_cycle[(stage, lines[i][9])] = totals[i + 1] - totals[i]
         allocated = [l for l in lines if l[4] > 0]
         if allocated:
             def grew(first, last, why):
@@ -3263,6 +3269,12 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         if missing:
             raise ValueError(f"the {L} launch composited no frame in stage(s) {missing}"
                              f" (per stage: {growth})")
+        # round-28 R28-GATE-RESIDUALS: the soak composites in every required stage of every cycle,
+        # not only summed across cycles
+        idle = [(st, c) for c in range(2, cycles + 1) for st in SOAK_STAGES
+                if st in RENDER_REQUIRED_STAGES and growth_by_cycle.get((st, c), 0) < 1]
+        if idle:
+            raise ValueError(f"the {L} launch composited no frame in (stage, cycle) {idle[:6]}")
         result.update(success=True, framesComposited=composited, frameSkips=dict(skips),
                       performance=report.get("performance"),
                       memory=({"bufferBytes": lines[-1][5], "textureBytes": lines[-1][10]}
