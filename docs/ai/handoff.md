@@ -283,8 +283,13 @@ commit the report alone, then repair.
    (`24d3f23b`, `e748a2f0`), Minecraft's lightmap (`9be59d81`), GL's fog and fade (`2fb1737a`).
    Geometry pressure (`8202e26b`), an allocation plateau within a lifecycle (`92001fdc`), judged per
    live-scene size (`990d68e7`); buffers down from ~616 MB to 81 MB by a lazy synthetic atlas staging
-   (`f037e152`). Sodium's zero-size `vkCmdCopyBuffer` (VUID-VkBufferCopy-size-01988, run
-   `20261010T023920-410812Z`) appeared once and did not recur; the gate still refuses it. The soak
+   (`f037e152`). Sodium's zero-size `vkCmdCopyBuffer` (VUID-VkBufferCopy-size-01988, runs
+   `20261010T023920-410812Z` and, failing the night run, `20261012T105033-302901Z`): Sodium's staging
+   ring splits an upload at its end, and when the previous upload ended exactly there the first part
+   is empty. `MixinMappedStagingBuffer` drops the empty transfer (GL's no-op); the gate still refuses
+   any validation error. In that run the night look's marker screenshot is excused (Minecraft's
+   night vignette darkens the marker to ~100–140 per channel; the readback, taken before the GUI,
+   carries the proof) — with the nether, 2 of the 3 excusals the gate allows. The soak
    (`f06a9fe4`, run `20261010T050124-126449Z`): the pressure launch repeats travel..reconnect for 4
    lifecycles — 21 builds, 4 resizes/reloads/nether trips/reconnects, 552707 sections reclaimed,
    bytes back exactly to the same value at each scene size; the gate holds bytes per size within 1 %
