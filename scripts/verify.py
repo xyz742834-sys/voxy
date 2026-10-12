@@ -2943,6 +2943,41 @@ def render_off_report_problems(name, body, product):
     return problems
 
 
+# The product launch is a soak too (round-28 readiness: soak at the product capacity, 1 << 20
+# sections and 512 MiB geometry): the product switch alone, through SOAK_CYCLES lifecycles.
+PRODUCT_LAUNCH_FLAGS = RENDER_LAUNCH_FLAGS + (f"-PharnessCycles={SOAK_CYCLES}",)
+
+
+def soak_harness_problem(output, label):
+    """Why the launch's own harness record does not show every soak cycle run (None if it does)."""
+    harness = json.loads((output / "native-result.json").read_text())
+    if harness.get("cycles") != SOAK_CYCLES or harness.get("cycle") != SOAK_CYCLES:
+        return (f"the {label} launch's harness ran cycle {harness.get('cycle')!r} of"
+                f" {harness.get('cycles')!r}, not {SOAK_CYCLES} of {SOAK_CYCLES}")
+    return None
+
+
+def native_product_result(output, log_text, expected_device=None, command=None):
+    """The product launch: every product check (native_render_result) at the default capacity,
+    through SOAK_CYCLES lifecycles."""
+    result = native_render_result(output, log_text, expected_device, command, cycles=SOAK_CYCLES)
+    result["scope"] = (f"the product switch alone at the default capacity, through {SOAK_CYCLES}"
+                       f" lifecycles (the product soak)")
+    if not result["success"]:
+        return result
+    try:
+        if not isinstance(command, list) or any(f not in command for f in PRODUCT_LAUNCH_FLAGS):
+            raise ValueError(f"the product launch command {command!r} lacks {PRODUCT_LAUNCH_FLAGS}")
+        problem = soak_harness_problem(output, "product")
+        if problem:
+            raise ValueError(problem)
+        result["cycles"] = SOAK_CYCLES
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        result["success"] = False
+        result["failures"].append(f"{type(exc).__name__}: {exc}")
+    return result
+
+
 def native_pressure_result(output, log_text, expected_device=None, command=None):
     """The pressure launch: every product-launch check, at the pressure capacity, and Voxy's geometry
     reclaim must have run (sections evicted to admit new ones) while every required stage kept
@@ -2957,10 +2992,9 @@ def native_pressure_result(output, log_text, expected_device=None, command=None)
         report = json.loads((output / "native-hier-load.json").read_text())
         if not isinstance(command, list) or any(f not in command for f in PRESSURE_LAUNCH_FLAGS):
             raise ValueError(f"the pressure launch command {command!r} lacks {PRESSURE_LAUNCH_FLAGS}")
-        harness = json.loads((output / "native-result.json").read_text())
-        if harness.get("cycles") != SOAK_CYCLES or harness.get("cycle") != SOAK_CYCLES:
-            raise ValueError(f"the pressure launch's harness ran cycle {harness.get('cycle')!r} of"
-                             f" {harness.get('cycles')!r}, not {SOAK_CYCLES} of {SOAK_CYCLES}")
+        problem = soak_harness_problem(output, "pressure")
+        if problem:
+            raise ValueError(problem)
         reclaimed = report.get("geometryReclaimed")
         if not finite_int(reclaimed) or reclaimed < 1:
             raise ValueError(f"the pressure launch reclaimed {reclaimed!r} section(s); the capacity"
@@ -5110,7 +5144,7 @@ def replay_evidence(directory):
         # The product launch (voxy.native.render alone) and the pressure launch (the same with a
         # small scene capacity): the same gates, each launch's own checkpoints.
         for sub, key, launch, flags, gate, label in (
-                ("render", "render_run", "native-render", RENDER_LAUNCH_FLAGS, native_render_result,
+                ("render", "render_run", "native-render", PRODUCT_LAUNCH_FLAGS, native_product_result,
                  "product launch acceptance checks (voxy.native.render alone; its own checkpoints)"),
                 ("pressure", "pressure_run", "native-pressure", PRESSURE_LAUNCH_FLAGS,
                  native_pressure_result,
@@ -5387,8 +5421,8 @@ def main():
             # would run it — no ladder, no other diagnostic. Its own process and device. Then the
             # pressure launch: the same with a small scene capacity, so Voxy's reclaim must run.
             for stage_name, key, flags, gate, scope in (
-                    ("native-render", "render_run", RENDER_LAUNCH_FLAGS, native_render_result,
-                     "a third Minecraft launch with only the product switch (voxy.native.render):"
+                    ("native-render", "render_run", PRODUCT_LAUNCH_FLAGS, native_product_result,
+                     f"a third Minecraft launch with only the product switch (voxy.native.render), through {SOAK_CYCLES} lifecycles:"
                      " the native path as normal play runs it"),
                     ("native-pressure", "pressure_run", PRESSURE_LAUNCH_FLAGS, native_pressure_result,
                      f"a fourth launch: the product switch with a {PRESSURE_CAPACITY}-section scene,"

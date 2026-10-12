@@ -148,7 +148,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         FOG_COVERS_ALL = "fog-covers-all",
         /** Voxy's own setting says no rendering ({@code VoxyConfig.isRenderingEnabled}): nothing drawn. */
         RENDERING_DISABLED = "rendering-disabled",
-        /** Normal play (no ladder): the last build attempt was under REBUILD_INTERVAL_FRAMES ago. */
+        /** Normal play (no ladder): the last build attempt was under REBUILD_INTERVAL_MS ago. */
         REBUILD_WAIT = "rebuild-wait",
         /** The frame threw (a failed submit, say): nothing composited; counted as a problem too. */
         FRAME_FAILED = "frame-failed";
@@ -160,12 +160,17 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     static final String INJECT_FLAG = "voxy.native.injectSubmitFailureAt";
     private static final long INJECT_AT = Long.getLong(INJECT_FLAG, -1);
     private static long injectedFailures, compositedAtInjection = -1;
-    static final int REBUILD_INTERVAL_FRAMES = 60;
+    /**
+     * Normal play: at most one build attempt per this many milliseconds (round-28 readiness: the
+     * limits are wall-clock, not frame counts, so they do not stretch at low frame rates; 1 s is
+     * the former 60 frames at 60 FPS).
+     */
+    static final long REBUILD_INTERVAL_MS = 1000;
     /**
      * Normal play: an empty build's suppression lasts this many calls, then a (rate-limited) build is
      * tried again — terrain may have been ingested meanwhile (round-27 R27-EMPTY-REBUILD).
      */
-    static final int EMPTY_RETRY_FRAMES = 600;
+    static final long EMPTY_RETRY_MS = 10_000;
 
     private static final long READBACK_BUDGET_BYTES = 40L << 20;
     private static final int FAILURE_BUDGET = 3;
@@ -245,7 +250,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         maxBoundSections = Math.max(maxBoundSections, probe.scene.vanillaBoundSections());
     }
     /** Calls of {@link #renderIfEnabled} that ran (the frame clock of the rebuild rate limit). */
-    private static long renderCalls, lastBuildCall = Long.MIN_VALUE / 2;
+    private static long renderCalls;
+    /** System.nanoTime of the last build attempt (normal play's rate limit). */
+    private static long lastBuildNanos = Long.MIN_VALUE / 2;
     private static String lastStageLogged;
     /**
      * Where the last build meshed nothing (engine identity + camera section). The every-frame path
@@ -254,7 +261,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      */
     private static int emptyEngine, emptyExtent, emptyAtlas;
     private static int[] emptySection;
-    private static long emptyAtCall;
+    /** System.nanoTime of the last build that meshed nothing. */
+    private static long emptyAtNanos;
     /** Every-frame attempts that drew nothing, by the same reasons a handed sample would skip with. */
     private static final java.util.TreeMap<String, Long> FRAME_SKIPS = new java.util.TreeMap<>();
     private static int builds, problems, closeFailures, leakedScenes, readbacksInFlight, frameId = 1;
@@ -366,7 +374,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     /**
      * The build budget is a diagnostic bound: it applies under the ladder. In normal play a scene
      * is rebuilt whenever it no longer covers the camera, at most once per
-     * {@link #REBUILD_INTERVAL_FRAMES}.
+     * {@link #REBUILD_INTERVAL_MS}.
      */
     static boolean buildBudgetApplies() { return Boolean.getBoolean(McNativeDepthLadder.FLAG); }
 
@@ -374,11 +382,11 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      * Whether a frame skips building because the last build meshed nothing (round-27
      * R27-EMPTY-REBUILD). Only for the same engine, camera section, extent and atlas generation
      * ({@code sameKey}); under the ladder for as long as that holds (each build spends budget), in
-     * normal play for at most {@link #EMPTY_RETRY_FRAMES} calls, after which a build is tried again.
+     * normal play for at most {@link #EMPTY_RETRY_MS}, after which a build is tried again.
      */
-    static boolean emptySuppressed(boolean budgetApplies, long callsSinceEmpty, boolean sameKey) {
+    static boolean emptySuppressed(boolean budgetApplies, long millisSinceEmpty, boolean sameKey) {
         if (!sameKey) return false;
-        return budgetApplies || callsSinceEmpty < EMPTY_RETRY_FRAMES;
+        return budgetApplies || millisSinceEmpty < EMPTY_RETRY_MS;
     }
     public static long framesComposited() { return framesComposited; }
     public static long drawsRecorded() { return drawsRecorded; }
@@ -524,7 +532,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         int[] cameraSection = {VkHostViewport.sectionOf(view.x()), VkHostViewport.sectionOf(view.y()),
             VkHostViewport.sectionOf(view.z())};
         if (probe == null && at < 0 && emptySection != null && emptySuppressed(buildBudgetApplies(),
-                renderCalls - emptyAtCall, emptyEngine == System.identityHashCode(world)
+                (System.nanoTime() - emptyAtNanos) / 1_000_000L, emptyEngine == System.identityHashCode(world)
                     && java.util.Arrays.equals(emptySection, cameraSection)
                     && emptyExtent == width * 65536 + height && emptyAtlas == McNativeAtlas.generation())) {
             skip(at, stage, NOTHING_MESHED, capture, previousCapture, -1);
@@ -535,18 +543,18 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 skip(at, stage, BUILD_BUDGET_SPENT, capture, previousCapture, -1);
                 return;
             }
-            if (!buildBudgetApplies() && renderCalls - lastBuildCall < REBUILD_INTERVAL_FRAMES) {
+            if (!buildBudgetApplies() && (System.nanoTime() - lastBuildNanos) / 1_000_000L < REBUILD_INTERVAL_MS) {
                 skip(at, stage, REBUILD_WAIT, capture, previousCapture, -1);
                 return;
             }
-            lastBuildCall = renderCalls;
+            lastBuildNanos = System.nanoTime();
             builds++;
             probe = build(device, mcDevice, world, view, width, height);
             emptyEngine = probe == null ? System.identityHashCode(world) : 0;
             emptySection = probe == null ? cameraSection : null;
             emptyExtent = width * 65536 + height;
             emptyAtlas = McNativeAtlas.generation();
-            emptyAtCall = renderCalls;
+            emptyAtNanos = System.nanoTime();
             if (probe == null) {
                 skip(at, stage, NOTHING_MESHED, capture, previousCapture, -1);
                 return;
@@ -1331,7 +1339,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"everyFrame\": ").append(everyFrame()).append(",\n");
         sb.append("  \"product\": ").append(McNativeRender.on()).append(",\n");
         sb.append("  \"buildBudgetApplies\": ").append(buildBudgetApplies()).append(",\n");
-        sb.append("  \"rebuildIntervalFrames\": ").append(REBUILD_INTERVAL_FRAMES).append(",\n");
+        sb.append("  \"rebuildIntervalMs\": ").append(REBUILD_INTERVAL_MS).append(",\n");
         sb.append("  \"renderCalls\": ").append(renderCalls).append(",\n");
         sb.append("  \"framesComposited\": ").append(framesComposited).append(",\n");
         sb.append("  \"frameSkips\": {");

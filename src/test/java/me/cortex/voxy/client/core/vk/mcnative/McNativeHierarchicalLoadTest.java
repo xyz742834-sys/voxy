@@ -91,7 +91,7 @@ public class McNativeHierarchicalLoadTest {
     /** round-27 R27-EMPTY-REBUILD: an empty build's suppression ends; a stationary player recovers. */
     @Test
     void anEmptyBuildIsRetriedInNormalPlayButNotUnderTheLadder() {
-        int retry = McNativeHierarchicalLoad.EMPTY_RETRY_FRAMES;
+        long retry = McNativeHierarchicalLoad.EMPTY_RETRY_MS;
         // normal play, same place: suppressed for a while, then a build is tried again
         assertTrue(McNativeHierarchicalLoad.emptySuppressed(false, 0, true));
         assertTrue(McNativeHierarchicalLoad.emptySuppressed(false, retry - 1, true));

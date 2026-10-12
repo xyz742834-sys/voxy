@@ -37,7 +37,7 @@ DEVICE = 0x7a42970018
 
 def report(**overrides):
     body = {"enabled": True, "attempted": True, "drawsRecorded": 0, "everyFrame": True,
-            "product": True, "buildBudgetApplies": False, "rebuildIntervalFrames": 60,
+            "product": True, "buildBudgetApplies": False, "rebuildIntervalMs": 1000,
             "renderCalls": 0, "framesComposited": 0, "frameSkips": {"atlas-pending": 6},
             "builds": 2, "buildBudget": 6, "iterations": 3, "streaming": True,
             "sectionRenderDistance": 16.0, "streamRenderDistance": 17, "maxTopLevels": 34,
@@ -273,6 +273,21 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(run(command=COMMAND), "lacks")
         self.assertRefused(run(command=pressure[:-1]), "lacks")
         self.assertRefused(run(mutate=None), "not 4096 and 500000")
+
+    def test_the_product_launch_is_a_soak_at_the_default_capacity(self):
+        product = COMMAND + [f"-PharnessCycles={verify.SOAK_CYCLES}"]
+        def run(**kw):
+            kw.setdefault("cycles", verify.SOAK_CYCLES)
+            kw.setdefault("command", product)
+            return self.run_gate(gate=verify.native_product_result, **kw)
+        ok = run()
+        self.assertTrue(ok["success"], ok["failures"])
+        self.assertEqual(ok["cycles"], verify.SOAK_CYCLES)
+        self.assertRefused(run(cycles=1), "not 1..4")
+        self.assertRefused(run(command=COMMAND), "lacks")
+        self.assertRefused(run(env=lambda e: e.update(cycle=2)), "not 4 of 4")
+        # still the product: the default capacity, no diagnostics
+        self.assertRefused(run(mutate=lambda b: b.update(sectionCapacity=4096)), "capacity of 4096")
 
     def test_the_soak_repeats_every_lifecycle(self):
         pressure = COMMAND + [f"-PharnessNativeSectionCapacity={verify.PRESSURE_CAPACITY}",
