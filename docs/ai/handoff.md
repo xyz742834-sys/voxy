@@ -348,8 +348,14 @@ commit the report alone, then repair.
    window. R28-FLOATING-PIECES, CPU analysis (heightmaps of the run's save): the pieces are real
    terrain — peaks up to y 142 at 158–164 blocks, ~22° right of the warmup look, beyond vanilla's
    128 blocks (so Voxy's). Unexplained: the missing lower slope (sky beneath). Candidates: the near
-   cut from Minecraft's empty-but-visible sections, or Voxy's fog reaching the sky colour. Test
-   with an exploratory launch each way once the GPU is free. Far-world: the gate
+   cut from Minecraft's empty-but-visible sections, or Voxy's fog reaching the sky colour. Tested
+   2026-10-12: neither — GL's MixinFogRenderer removes Minecraft's render-distance fog only when
+   GL's render system exists, so on the native path Minecraft fogged its edge terrain to sky while
+   the near cut removed Voxy behind it; fixed in `bcd86b21` (run `20261012T023659-283754Z`). Also
+   found while verifying the blend: the scene's alpha carries quads.frag metadata that GL's SSAO
+   pass resets to 1; the native post pass now does too (`c00e2b1a`; SSAO itself is not ported).
+   All round-28 findings repaired and gated (runs `20261012T020352-075639Z`,
+   `20261012T023659-283754Z`); next: Codex round of record after 2026-10-14 12:30. Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
    here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
    terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the
