@@ -2798,6 +2798,7 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     out, visible_samples, hidden_samples, previous_judged = [], 0, 0, None
     beyond_far = 0
     far_samples = beyond_far_look = 0
+    fade_samples = blended_fade_look = blended_pixels = 0
     total = {name: 0 for name in TERRAIN_LOAD_COUNTS}
     for recount in recounts:
         at = recount["at"]
@@ -2863,6 +2864,10 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         if entry.get("stage") == LADDER_FAR_STAGE:
             far_samples += 1
             beyond_far_look += beyond
+        blended_pixels += entry.get("fadePixels") or 0
+        if entry.get("stage") == LADDER_FADE_STAGE:
+            fade_samples += 1
+            blended_fade_look += entry.get("fadePixels") or 0
         visible_samples += bool(counts["expectVisible"])
         hidden_samples += bool(counts["expectHidden"])
         for k in total:
@@ -2883,12 +2888,18 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         raise ValueError(f"{far_samples} judged {L} sample(s) in the far look hold"
                          f" {beyond_far_look} Voxy pixel(s) beyond Minecraft's far plane: Voxy's"
                          f" far-world terrain is not shown")
+    # round-28 R28-FADE-BLEND: the `fade` look shows Voxy's fade zone, and its blended pixels are
+    # judged against GL's blend (judge_load_sample, from the retained alpha)
+    if required and (not fade_samples or blended_fade_look < 1):
+        raise ValueError(f"{fade_samples} judged {L} sample(s) in the fade look hold"
+                         f" {blended_fade_look} blended pixel(s): Voxy's fade is not shown")
     return {"enabled": True, "samples": out, "judged": len(judged),
             "visibleSamples": visible_samples, "hiddenSamples": hidden_samples,
             "expectVisible": total["expectVisible"], "expectHidden": total["expectHidden"],
             "undetermined": total["undetermined"], "geometry": total["geometry"],
             "frames": frames, "beyondMinecraftFar": beyond_far, "farSamples": far_samples,
-            "beyondMinecraftFarInFarLook": beyond_far_look}
+            "beyondMinecraftFarInFarLook": beyond_far_look, "fadeSamples": fade_samples,
+            "blendedPixelsInFadeLook": blended_fade_look, "blendedPixels": blended_pixels}
 
 
 # The product launch (voxy.native.render): the native path as normal play would run it, without

@@ -526,13 +526,26 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
                 hier_violated = hier_violated or hier_violate is not None
             except StopIteration:
                 after = terrain_after(f, before, depth, None, expect=clear_expect)
+            fade_look = s["stage"] == verify.LADDER_FADE_STAGE
+            alpha = [[FADE_ALPHA if (fade_look and d > 0.0) else 255 for d in row] for row in depth]
+            if fade_look:
+                # the composite blends Voxy's faded colour over what was there, as GL's final blit
+                after = [[tuple(verify.blend_channel(TERRAIN_REF[ch], before[y][x][ch], alpha[y][x])
+                                for ch in range(3)) if px == TERRAIN_REF else px
+                          for x, px in enumerate(row)] for y, row in enumerate(after)]
             entry = hier_entry(s, f, before, depth, after)
+            if fade_look:
+                reference = [[TERRAIN_REF if d > 0.0 else (13, 13, 26) for d in row] for row in depth]
+                entry.update(verify.terrain_load_judge(before, crops(f, s["flipped"])[0], after, reference,
+                                                       depth, clear_only=True, alpha=alpha))
+                entry["fadePixels"] = sum(1 for y, row in enumerate(alpha) for x, a in enumerate(row)
+                                          if a < 255 and depth[y][x] > 0.0)
             write_real_files(out, s, f, after, depth, entry)
             true_depth = ([[far_true if d else 0.0 for d in row] for row in depth]
                           if far_look else depth)
             write_gz_f32(out / entry["voxyDepthFile"], hier_raw_depth(true_depth, entry, s))
-            # the reference's alpha: opaque (no fade) in these looks
-            write_gz_f32(out / entry["alphaFile"], [[1.0] * len(row) for row in depth])
+            # the reference's alpha: opaque, except the fade look's faded geometry
+            write_gz_f32(out / entry["alphaFile"], [[a / 255.0 for a in row] for row in alpha])
             hier_entries.append(entry)
             continue
         if consumer == verify.LADDER_REAL_LOAD:
@@ -639,6 +652,15 @@ HIER_MC_PROJECTION = verify._mat_perspective(math.radians(70), 16 / 9, 32.0, 204
 BEYOND_TRUE_DEPTH = verify.HIER_REPROJECT_EPS / 4
 # and its reference depth: clamped just inside the far plane
 BEYOND_REFERENCE_DEPTH = verify.HIER_REPROJECT_EPS
+
+
+# the fade look's alpha on Voxy's geometry (partway through the fade)
+FADE_ALPHA = 128
+
+
+def fade_sample(at=3960):
+    """The fade look (LiveWorldHarness `fade`): clear sky in the band, Voxy terrain in its fade."""
+    return sample(at=at, kind="clouds", stage=verify.LADDER_FADE_STAGE)
 
 
 def far_sample(at=3720):
@@ -1747,7 +1769,7 @@ class LadderRetentionTest(unittest.TestCase):
             # needs one to show anything
             horizon = [sample(at=2520, kind="clouds", stage="horizon"),
                        sample(at=2760, kind="clouds", stage="horizon")]
-            samples = list(samples) + horizon + direction_samples() + [far_sample()]
+            samples = list(samples) + horizon + direction_samples() + [far_sample(), fade_sample()]
             # the stage's ladder launch runs every experiment its command enables, including
             # instance mode and real-LOAD (alternating with terrain-LOAD)
             import test_instance_gate

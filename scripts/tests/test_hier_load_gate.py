@@ -19,7 +19,7 @@ import verify
 from verify import native_ladder_result
 from test_marker_gate import write_gz_ppm
 from test_ladder_gate import (DEVICE, EXTENTS, TERRAIN_REF, direction_checkpoints,
-                              direction_samples, far_sample, full_ladder_package, sample)
+                              direction_samples, fade_sample, far_sample, full_ladder_package, sample)
 
 
 def clear_ladder_px():
@@ -38,7 +38,8 @@ class HierLoadGateTest(unittest.TestCase):
         # the two straight-down ground looks hold no clear pixel; Voxy's GL rule shows it only on
         # clear pixels, so a later look with clear sky between clouds carries the must-show side
         if pairs is None:
-            pairs = direction_samples() + [sample(at=3480, kind="clouds", stage="reconnect"), far_sample()]
+            pairs = direction_samples() + [sample(at=3480, kind="clouds", stage="reconnect"), far_sample(),
+                                           fade_sample()]
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)
             body, tl, text = full_ladder_package(out, pairs, terrain=terrain, real=real, hier=True,
@@ -70,12 +71,18 @@ class HierLoadGateTest(unittest.TestCase):
         self.assertTrue(result["success"], result["failures"])
         hl = result["hier_load"]
         self.assertTrue(hl["enabled"])
-        self.assertEqual(hl["judged"], 4)
+        self.assertEqual(hl["judged"], 5)
+        self.assertEqual(hl["fadeSamples"], 1)
+        self.assertGreater(hl["blendedPixelsInFadeLook"], 0)
         self.assertEqual(hl["farSamples"], 1)
         self.assertGreater(hl["beyondMinecraftFarInFarLook"], 0)
         self.assertGreater(hl["expectVisible"], 0)
         self.assertGreater(hl["expectHidden"], 0)
         self.assertIn("hierarchical pipeline composited natively", result["answer"])
+
+    def test_the_fade_look_must_show_blended_pixels(self):
+        no_fade = direction_samples() + [sample(at=3480, kind="clouds", stage="reconnect"), far_sample()]
+        self.assertRefused(self.run_gate(pairs=no_fade), "0 judged hierarchical-LOAD sample(s) in the fade look")
 
     def test_the_far_look_must_show_terrain_beyond_minecrafts_far_plane(self):
         # no far look at all
@@ -177,8 +184,8 @@ class HierLoadGateTest(unittest.TestCase):
         ]
         for mutate, fragment in cases:
             self.assertRefused(self.run_gate(mutate_hier=mutate), fragment)
-        self.assertRefused(self.run_gate(mutate_ladder=lambda b: b.update(hierLoadDrawsRecorded=5)),
-                           "the ladder saw 5 hierarchical-LOAD pass(es)")
+        self.assertRefused(self.run_gate(mutate_ladder=lambda b: b.update(hierLoadDrawsRecorded=6)),
+                           "the ladder saw 6 hierarchical-LOAD pass(es)")
         self.assertRefused(self.run_gate(mutate_ladder=lambda b: b.pop("hierLoadEnabled")),
                            "does not state hierLoadEnabled")
 
@@ -220,7 +227,7 @@ class HierLoadGateTest(unittest.TestCase):
     def test_every_frame_rendering_is_reconciled_with_the_log(self):
         ok = self.run_gate(frames=True)
         self.assertTrue(ok["success"], ok["failures"])
-        self.assertEqual(ok["hier_load"]["frames"]["framesComposited"], 4996)   # 5000 draws, 4 handed
+        self.assertEqual(ok["hier_load"]["frames"]["framesComposited"], 4995)   # 5000 draws, 5 handed
         self.assertEqual(self.run_gate()["hier_load"]["frames"], {"everyFrame": False})
         self.assertRefused(self.run_gate(frames=False, require_frames=True),
                            "everyFrame=false")
@@ -336,7 +343,7 @@ class HierLoadGateTest(unittest.TestCase):
         # whatever it carried: the hierarchical skip could not record them)
         import test_ladder_gate as tlg
         resize_pairs = ([sample(at=2900, kind="clouds", stage="resize")] + direction_samples()
-                        + [sample(at=3480, kind="clouds", stage="reconnect"), far_sample()])
+                        + [sample(at=3480, kind="clouds", stage="reconnect"), far_sample(), fade_sample()])
         def extents(cam):
             return lambda r: r["results"][0].update(cameraExtent=cam, frameExtent=[tlg.FULL_W, tlg.FULL_H])
         ok = self.run_gate(pairs=resize_pairs, hier_status={0: "camera-extent-mismatch"},
