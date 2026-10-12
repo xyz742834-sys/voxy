@@ -331,6 +331,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      * whichever path (hand-off or every-frame) submits next.
      */
     private boolean requestsUnread;
+    /** A resize moved this probe's scene into its successor: retire and destroy leave the scene be. */
+    private boolean sceneMoved;
     /** This scene holds the pooled atlas (until it is retired, or destroyed at shutdown). */
     private boolean atlasLent;
     /** The scene's GPU timer holds this probe's last every-frame submission (read after the fence). */
@@ -522,6 +524,15 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             startedTracker = true;
         }
         var probe = instance;
+        // round-28 readiness: a size change alone resizes (GL resizes its framebuffers and keeps the
+        // geometry); rebuilding dropped every meshed section and re-meshed from nothing
+        if (probe != null && !probe.destroyed && (probe.width != width || probe.height != height)
+                && probe.engine.get() == world && probe.scene.worldIsLive()
+                && probe.scene.coversCamera(view.x(), view.y(), view.z())
+                && probe.atlasGeneration == McNativeAtlas.generation()) {
+            probe = resized(probe, device, mcDevice, world, width, height);
+            instance = probe;
+        }
         if (probe != null && (probe.destroyed || probe.width != width || probe.height != height
                 || probe.engine.get() != world || !probe.scene.worldIsLive()
                 || !probe.scene.coversCamera(view.x(), view.y(), view.z())
@@ -924,6 +935,68 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         }
     }
 
+    /**
+     * The probe at a new size with the same scene: new size-dependent resources (Voxy's target,
+     * Minecraft-space depth and its resolve and readback, SSAO, post, composite), the scene resized
+     * in place (VkHierarchicalScene.resize: HiZ, renderers, near-cut bound; the tree and its
+     * geometry kept), and the old probe retired through Minecraft's destroy queue — Minecraft's frame
+     * may still sample its composite sources — without its scene. On failure the old probe is
+     * returned unchanged (the caller then rebuilds, as before).
+     */
+    private static McNativeHierarchicalLoad resized(McNativeHierarchicalLoad old, VulkanDevice device,
+                                                    long mcDevice, me.cortex.voxy.common.world.WorldEngine world,
+                                                    int width, int height) {
+        VkRenderTarget target = null;
+        McNativeComposite composite = null;
+        McNativePost post = null;
+        McNativeSSAO ssao = null;
+        me.cortex.voxy.client.core.vk.VkTexture mcDepth = null;
+        me.cortex.voxy.client.core.vk.VkDepthResolve resolve = null;
+        me.cortex.voxy.client.core.vk.VkBuffer mcDepthReadback = null;
+        try {
+            // Voxy's previous submission has finished before the scene's resources are replaced
+            VkFrameTracker.get().waitForFrame();
+            target = new VkRenderTarget(width, height);
+            mcDepth = new me.cortex.voxy.client.core.vk.VkTexture(VK10.VK_FORMAT_R32_SFLOAT, 1, width,
+                height, VK10.VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK10.VK_IMAGE_USAGE_SAMPLED_BIT
+                    | VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+            resolve = new me.cortex.voxy.client.core.vk.VkDepthResolve(target.depth, width, height, true);
+            mcDepthReadback = new me.cortex.voxy.client.core.vk.VkBuffer((long) width * height * 4);
+            ssao = new McNativeSSAO(target.color, target.depth, width, height);
+            post = new McNativePost(ssao.output, target.depth, width, height);
+            composite = new McNativeComposite(post.output, mcDepth);
+            old.scene.resize(target, width, height, VkRenderTarget.FORMAT_COLOR);
+            var next = new McNativeHierarchicalLoad(device, mcDevice, target, mcDepth, resolve,
+                mcDepthReadback, old.scene, composite, world, old.atlasGeneration, old.buildOrdinal,
+                width, height, old.meshedAtBuild);
+            next.post = post;
+            next.ssao = ssao;
+            next.atlasLent = old.atlasLent;
+            next.requestsUnread = old.requestsUnread;
+            old.atlasLent = false;
+            old.sceneMoved = true;
+            target = null; composite = null; post = null; ssao = null;
+            mcDepth = null; resolve = null; mcDepthReadback = null;
+            retire(old);
+            resizes++;
+            Logger.info("[native-vk] resized the hierarchical scene to " + width + "x" + height
+                + " (its " + next.scene.meshedSections() + " meshed sections kept)");
+            return next;
+        } catch (Throwable t) {
+            note("could not resize the hierarchical scene (" + t + "); it is rebuilt instead");
+            return old;
+        } finally {
+            if (composite != null) try { composite.free(); } catch (Throwable t) { closeFailures++; }
+            if (post != null) try { post.free(); } catch (Throwable t) { closeFailures++; }
+            if (ssao != null) try { ssao.free(); } catch (Throwable t) { closeFailures++; }
+            if (resolve != null) try { resolve.free(); } catch (Throwable t) { closeFailures++; }
+            if (mcDepth != null) try { mcDepth.free(); } catch (Throwable t) { closeFailures++; }
+            if (mcDepthReadback != null) try { mcDepthReadback.free(); } catch (Throwable t) { closeFailures++; }
+            if (target != null) try { target.free(); } catch (Throwable t) { closeFailures++; }
+        }
+    }
+    private static long resizes;
+
     private static void skip(long at, String stage, String reason, long capture, long previousCapture,
                              int atlasState) {
         if (at < 0) {
@@ -1211,11 +1284,13 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private static void retire(McNativeHierarchicalLoad probe) {
         if (instance == probe) instance = null;
         if (probe == null || probe.destroyed) return;
-        reclaimedRetired += probe.scene.totalReclaimed();
-        rejectedRetired += probe.scene.geometryRejected();
-        // the mesher's workers read the world, which may close before the destroy queue runs
-        // (a disconnect): stop them now, on the render thread
-        try { probe.scene.stopMeshing(); } catch (Throwable t) { closeFailures++; }
+        if (!probe.sceneMoved) {
+            reclaimedRetired += probe.scene.totalReclaimed();
+            rejectedRetired += probe.scene.geometryRejected();
+            // the mesher's workers read the world, which may close before the destroy queue runs
+            // (a disconnect): stop them now, on the render thread
+            try { probe.scene.stopMeshing(); } catch (Throwable t) { closeFailures++; }
+        }
         // a retired scene records nothing more, and the next scene writes the atlas only after
         // Voxy's own fence (its first frame waits for it), so the atlas can be lent again now
         if (probe.atlasLent) {
@@ -1240,7 +1315,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         try { this.composite.free(); } catch (Throwable t) { closeFailures++; }
         if (this.post != null) try { this.post.free(); } catch (Throwable t) { closeFailures++; }
         if (this.ssao != null) try { this.ssao.free(); } catch (Throwable t) { closeFailures++; }
-        try { this.scene.free(); } catch (Throwable t) { closeFailures++; }
+        // a resize moved the scene into the next probe; only this probe's own resources go
+        if (!this.sceneMoved) try { this.scene.free(); } catch (Throwable t) { closeFailures++; }
         try { this.target.free(); } catch (Throwable t) { closeFailures++; }
         try { this.resolve.free(); } catch (Throwable t) { closeFailures++; }
         try { this.mcDepth.free(); } catch (Throwable t) { closeFailures++; }
@@ -1360,6 +1436,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"maxMeshed\": ").append(maxMeshed).append(",\n");
         sb.append("  \"geometryQuads\": ").append(geometryQuads()).append(",\n");
         sb.append("  \"subdivisionPx\": ").append(lastSubdivisionPx).append(",\n");
+        sb.append("  \"resizes\": ").append(resizes).append(",\n");
         sb.append("  \"performance\": ").append(Perf.json()).append(",\n");
         sb.append("  \"maxGeometryUsedBytes\": ").append(maxGeometryUsed).append(",\n");
         sb.append("  \"geometryReclaimed\": ").append(reclaimedRetired + liveReclaimed()).append(",\n");

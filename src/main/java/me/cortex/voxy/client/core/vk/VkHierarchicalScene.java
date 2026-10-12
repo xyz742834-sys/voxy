@@ -578,6 +578,11 @@ public final class VkHierarchicalScene {
         this.translucentRenderer = new VkTerrainRenderer(this.res, width, height,
             VkTerrainRenderer.Barriers.CONSERVATIVE, VkTerrainRenderer.Mode.MERGED,
             VkTerrainRenderer.Pass.TRANSLUCENT, colourFormat);
+        // the native near cut's bound is screen-sized too (its sections are fed every frame)
+        if (this.vanillaBound != null) {
+            this.vanillaBound.free();
+            this.vanillaBound = new VkBoundRenderer(width, height);
+        }
         Logger.info("[5c-5a] resized the size-dependent resources to " + width + "x" + height
             + " (the tree and its " + this.meshedSections + " meshed sections are kept)");
     }
