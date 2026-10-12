@@ -208,6 +208,8 @@ public final class McNativeDepthLadder implements Destroyable {
     public static final String FAR_STAGE = "far";
     /** The fade look (LiveWorldHarness.FADE_*): like the far look, every sample to hierarchical-LOAD. */
     public static final String FADE_STAGE = "fade";
+    /** The night look: likewise (Voxy under Minecraft's night lightmap and sky). */
+    public static final String NIGHT_STAGE = "night";
     private static int assigned, assignedHorizon;
     private static int problems;
     private static String firstProblem;
@@ -482,7 +484,8 @@ public final class McNativeDepthLadder implements Destroyable {
                 boolean real = McNativeRealLoad.enabled(), hier = McNativeHierarchicalLoad.enabled();
                 boolean horizonBranch = horizon && (real || hier);
                 String now = System.getProperty("voxy.harness.stage", "");
-                boolean far = hier && (FAR_STAGE.equals(now) || FADE_STAGE.equals(now));
+                boolean far = hier && (FAR_STAGE.equals(now) || FADE_STAGE.equals(now)
+                    || NIGHT_STAGE.equals(now));
                 String consumer = far ? EXPERIMENT_HIER_LOAD
                     : assignConsumer(McNativeTerrainLoad.enabled(), real, hier, horizon,
                         horizonBranch ? assignedHorizon : assigned);

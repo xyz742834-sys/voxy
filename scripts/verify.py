@@ -273,7 +273,7 @@ def run_stage(name, arguments, output, timeout):
 # The harness's checkpointed lifecycle stages (LiveWorldHarness.STAGES minus "create" and
 # "disconnect", which checkpoint nothing). "descend" and "ascend" are the Z-direction
 # experiment: the same ground looked at straight down from two heights above it.
-LIFECYCLE_STAGES = ("warmup", "turn", "travel", "return", "horizon", "far", "fade", "edit", "remove", "resize",
+LIFECYCLE_STAGES = ("warmup", "turn", "travel", "return", "horizon", "far", "fade", "night", "edit", "remove", "resize",
                     "reload", "nether", "overworld", "descend", "ascend", "reconnect")
 DESCEND_ABOVE_GROUND, ASCEND_ABOVE_GROUND = 12, 108   # LiveWorldHarness.*_ABOVE_GROUND
 PLAYER_EYE_HEIGHT = 1.62                              # Minecraft's standing eye height
@@ -934,6 +934,8 @@ LADDER_HORIZON_STAGE = "horizon"
 LADDER_FAR_STAGE = "far"
 # McNativeDepthLadder.FADE_STAGE: likewise (Voxy's fade zone)
 LADDER_FADE_STAGE = "fade"
+# McNativeDepthLadder.NIGHT_STAGE: likewise (Voxy at night)
+LADDER_NIGHT_STAGE = "night"
 
 
 def ladder_expected_consumer(terrain, real, index, hier=False, horizon=False):
@@ -953,7 +955,7 @@ def ladder_expected_consumers(terrain, real, hier, stages):
     """The hand-off for a whole sample list, from each sample's published stage."""
     out, general, horizon_count = [], 0, 0
     for stage in stages:
-        if stage in (LADDER_FAR_STAGE, LADDER_FADE_STAGE) and hier:
+        if stage in (LADDER_FAR_STAGE, LADDER_FADE_STAGE, LADDER_NIGHT_STAGE) and hier:
             out.append(LADDER_HIER_LOAD)
             continue
         horizon = stage == LADDER_HORIZON_STAGE and (real or hier)
@@ -2799,6 +2801,7 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     beyond_far = 0
     far_samples = beyond_far_look = 0
     fade_samples = blended_fade_look = blended_pixels = 0
+    night_samples = night_visible = 0
     total = {name: 0 for name in TERRAIN_LOAD_COUNTS}
     for recount in recounts:
         at = recount["at"]
@@ -2868,6 +2871,9 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         if entry.get("stage") == LADDER_FADE_STAGE:
             fade_samples += 1
             blended_fade_look += entry.get("fadePixels") or 0
+        if entry.get("stage") == LADDER_NIGHT_STAGE:
+            night_samples += 1
+            night_visible += counts["expectVisible"]
         visible_samples += bool(counts["expectVisible"])
         hidden_samples += bool(counts["expectHidden"])
         for k in total:
@@ -2893,13 +2899,18 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
     if required and (not fade_samples or blended_fade_look < 1):
         raise ValueError(f"{fade_samples} judged {L} sample(s) in the fade look hold"
                          f" {blended_fade_look} blended pixel(s): Voxy's fade is not shown")
+    # round-28 readiness references: Voxy at night, under Minecraft's night lightmap and sky
+    if required and (not night_samples or night_visible < 1):
+        raise ValueError(f"{night_samples} judged {L} sample(s) in the night look hold"
+                         f" {night_visible} pixel(s) where Voxy must appear: Voxy at night is not shown")
     return {"enabled": True, "samples": out, "judged": len(judged),
             "visibleSamples": visible_samples, "hiddenSamples": hidden_samples,
             "expectVisible": total["expectVisible"], "expectHidden": total["expectHidden"],
             "undetermined": total["undetermined"], "geometry": total["geometry"],
             "frames": frames, "beyondMinecraftFar": beyond_far, "farSamples": far_samples,
             "beyondMinecraftFarInFarLook": beyond_far_look, "fadeSamples": fade_samples,
-            "blendedPixelsInFadeLook": blended_fade_look, "blendedPixels": blended_pixels}
+            "blendedPixelsInFadeLook": blended_fade_look, "blendedPixels": blended_pixels,
+            "nightSamples": night_samples, "nightExpectVisible": night_visible}
 
 
 # The product launch (voxy.native.render): the native path as normal play would run it, without

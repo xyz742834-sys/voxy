@@ -663,6 +663,11 @@ def fade_sample(at=3960):
     return sample(at=at, kind="clouds", stage=verify.LADDER_FADE_STAGE)
 
 
+def night_sample(at=4200):
+    """The night look (LiveWorldHarness `night`): clear night sky in the band, Voxy terrain."""
+    return sample(at=at, kind="clouds", stage=verify.LADDER_NIGHT_STAGE)
+
+
 def far_sample(at=3720):
     """The far-world look (LiveWorldHarness `far`): clear sky in the band, Voxy terrain beyond
     Minecraft's far plane."""
@@ -1769,7 +1774,8 @@ class LadderRetentionTest(unittest.TestCase):
             # needs one to show anything
             horizon = [sample(at=2520, kind="clouds", stage="horizon"),
                        sample(at=2760, kind="clouds", stage="horizon")]
-            samples = list(samples) + horizon + direction_samples() + [far_sample(), fade_sample()]
+            samples = list(samples) + horizon + direction_samples() + [far_sample(), fade_sample(),
+                                                                       night_sample()]
             # the stage's ladder launch runs every experiment its command enables, including
             # instance mode and real-LOAD (alternating with terrain-LOAD)
             import test_instance_gate

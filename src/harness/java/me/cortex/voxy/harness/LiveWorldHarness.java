@@ -82,7 +82,7 @@ public final class LiveWorldHarness implements ClientModInitializer {
     private long editVersion;
     private static final String WORLD = "voxy-harness";
     private static final String[] STAGES = {"create", "warmup", "turn", "travel", "return",
-        "horizon", "far", "fade", "edit", "remove", "resize", "reload", "nether", "overworld", "descend",
+        "horizon", "far", "fade", "night", "edit", "remove", "resize", "reload", "nether", "overworld", "descend",
         "ascend", "disconnect", "reconnect"};
     /**
      * The `horizon` look: back at spawn after the travel to x = 768, facing +x (yaw -90) with
@@ -273,7 +273,13 @@ public final class LiveWorldHarness implements ClientModInitializer {
             }
             case "far" -> command(mc, "tp @s 0 " + FAR_Y + " 0 " + FAR_YAW + " " + FAR_PITCH);
             case "fade" -> command(mc, "tp @s 0 " + FAR_Y + " 0 " + FAR_YAW + " " + FADE_PITCH);
+            // the round-28 readiness references: Voxy at night (Minecraft's night lightmap, its sky)
+            case "night" -> {
+                command(mc, "time set midnight");
+                command(mc, "tp @s 0 120 0 0 30");
+            }
             case "edit" -> {
+                command(mc, "time set noon");   // back from the night look
                 command(mc, "fill " + HORIZON_WALL_X + " 150 0 " + HORIZON_WALL_X + " 165 12 minecraft:air");
                 // back to where `edit` always ran, so later stages see what they saw before `horizon`
                 command(mc, "tp @s 0 120 0 0 30");
@@ -305,11 +311,17 @@ public final class LiveWorldHarness implements ClientModInitializer {
     private int resizeWidth() { return cycle % 2 == 1 ? 960 : 854; }
     private int resizeHeight() { return cycle % 2 == 1 ? 540 : 480; }
 
+    private static boolean isNight(Minecraft mc) {
+        long t = mc.level.getDefaultClockTime() % 24000;
+        return t >= 13000 && t < 23000;
+    }
+
     private boolean ready(Minecraft mc) {
         return switch (name()) {
             case "warmup", "return", "overworld" -> mc.level.dimension() == Level.OVERWORLD && near(mc, 0, 120, 0);
             case "travel" -> near(mc, travelLeg == 0 ? 768 : travelLeg == 1 ? FAR_TRAVEL_X : FADE_TRAVEL_X, 120, 0);
             case "far", "fade" -> near(mc, 0, FAR_Y, 0);
+            case "night" -> near(mc, 0, 120, 0) && isNight(mc);
             case "horizon" -> near(mc, 0, HORIZON_Y, 0)
                 && mc.level.getBlockState(new BlockPos(HORIZON_WALL_X, 157, 6)).is(Blocks.STONE);
             case "edit" -> near(mc, 0, 120, 0) && mc.level.getBlockState(new BlockPos(0, 104, 24)).is(Blocks.GLASS)
