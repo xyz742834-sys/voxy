@@ -1,0 +1,1529 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.6.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :
+Fabric Loom: 1.16.3
+
+> Task :compileJava UP-TO-DATE
+> Task :processResources
+> Task :classes
+> Task :compileHarnessJava UP-TO-DATE
+> Task :generateLog4jConfig UP-TO-DATE
+> Task :generateDLIConfig UP-TO-DATE
+> Task :configureLaunch UP-TO-DATE
+> Task :downloadAssets UP-TO-DATE
+> Task :configureClientLaunch UP-TO-DATE
+> Task :processHarnessResources UP-TO-DATE
+> Task :harnessClasses UP-TO-DATE
+
+> Task :runHarnessClient
+[18:54:18] [main/INFO] (FabricLoader/GameProvider) Loading Minecraft 26.2 with Fabric Loader 0.19.3
+[18:54:18] [main/INFO] (FabricLoader/Mappings) Mappings not present!
+[18:54:19] [main/INFO] (FabricLoader) Loading 55 mods:
+	- fabric-api 0.152.2+26.2
+	- fabric-api-base 2.0.4+ece063239e
+	- fabric-api-lookup-api-v1 2.0.17+11e1c9a39e
+	- fabric-biome-api-v1 18.0.6+c7bd5b8e9e
+	- fabric-block-api-v1 3.0.3+ec56b6019e
+	- fabric-block-getter-api-v2 2.0.7+ec56b6019e
+	- fabric-client-gametest-api-v1 5.1.0+db5795489e
+	- fabric-command-api-v2 3.1.0+00cb03469e
+	- fabric-content-registries-v0 11.2.2+b7a678a99e
+	- fabric-convention-tags-v2 4.6.4+2aae60389e
+	- fabric-crash-report-info-v1 1.0.5+086d547a9e
+	- fabric-creative-tab-api-v1 5.0.14+d871b99e9e
+	- fabric-data-attachment-api-v1 2.2.16+aa0fd6fe9e
+	- fabric-data-generation-api-v1 25.4.2+5e56e5409e
+	- fabric-debug-api-v1 1.0.2+c792624d9e
+	- fabric-dimensions-v1 5.1.9+9cbf5da59e
+	- fabric-entity-events-v1 5.0.5+06488ac19e
+	- fabric-events-interaction-v0 5.2.6+8f57f7ee9e
+	- fabric-game-rule-api-v1 4.0.8+46a6d00c9e
+	- fabric-gametest-api-v1 4.0.21+4a7fa0819e
+	- fabric-item-api-v1 14.1.6+0ecb053f9e
+	- fabric-key-mapping-api-v1 2.0.5+e2bdee789e
+	- fabric-lifecycle-events-v1 4.1.3+4575b05f9e
+	- fabric-loot-api-v3 3.0.17+06488ac19e
+	- fabric-menu-api-v1 2.0.16+086d547a9e
+	- fabric-message-api-v1 7.0.7+086d547a9e
+	- fabric-model-loading-api-v1 8.0.12+c80601bb9e
+	- fabric-networking-api-v1 6.3.3+72073ef09e
+	- fabric-object-builder-api-v1 24.0.6+46a6d00c9e
+	- fabric-particles-v1 5.0.18+d1756aa99e
+	- fabric-permission-api-v1 1.0.2+7c33558a9e
+	- fabric-recipe-api-v1 9.0.20+11e1c9a39e
+	- fabric-registry-sync-v0 7.1.0+c7bd5b8e9e
+	- fabric-renderer-api-v1 14.0.2+93d3a2f59e
+	- fabric-renderer-indigo 9.0.2+e73ab60d9e
+	- fabric-rendering-fluids-v1 6.0.4+06488ac19e
+	- fabric-rendering-v1 25.1.6+46a6d00c9e
+	- fabric-resource-conditions-api-v1 6.1.0+10e9a28b9e
+	- fabric-resource-loader-v0 3.3.20+4fc5413f9e
+	- fabric-resource-loader-v1 2.0.13+9edec1269e
+	- fabric-screen-api-v1 5.0.3+086d547a9e
+	- fabric-serialization-api-v1 2.0.4+11a26f319e
+	- fabric-sound-api-v1 2.0.5+11a26f319e
+	- fabric-tag-api-v1 2.1.3+794df31d9e
+	- fabric-transfer-api-v1 8.0.11+39b5a3929e
+	- fabric-transitive-access-wideners-v1 8.1.3+e098252d9e
+	- fabricloader 0.19.3
+	- java 25
+	- lithium 0.25.1+mc26.2
+	- minecraft 26.2
+	- mixinextras 0.5.4
+	- modmenu 20.0.0
+	- sodium 0.9.2-alpha.3+mc26.2
+	- voxy 0.2.19-beta
+	- voxy_harness 1.0.0
+[18:54:19] [main/INFO] (FabricLoader/Mixin) SpongePowered MIXIN Subsystem Version=0.8.7 Source=file:/Users/xyz/.gradle/caches/modules-2/files-2.1/net.fabricmc/sponge-mixin/0.17.3+mixin.0.8.7/41c4a3984a80f4679e759fb9f495587acc5cdac7/sponge-mixin-0.17.3+mixin.0.8.7.jar Service=Knot/Fabric Env=CLIENT
+[18:54:19] [main/INFO] (FabricLoader/Mixin) Compatibility level set to JAVA_25
+[18:54:19] [main/INFO] (Sodium) Loaded configuration file for Sodium: 37 options available, 0 override(s) found
+[18:54:19] [main/INFO] (Lithium) Loaded configuration file for Lithium: 171 options available, 0 override(s) found.
+[18:54:19] [main/WARN] (FabricLoader/Mixin) Error loading class: net/minecraft/client/renderer/StagedVertexBuffer/GpuBufferPool (java.lang.ClassNotFoundException: net/minecraft/client/renderer/StagedVertexBuffer/GpuBufferPool)
+[18:54:19] [main/WARN] (FabricLoader/Mixin) @Mixin target net.minecraft.client.renderer.StagedVertexBuffer.GpuBufferPool was not found sodium-common.mixins.json:core.StagedVertexBufferMixin from mod sodium
+[18:54:19] [main/WARN] (FabricLoader/Mixin) Error loading class: com/moulberry/flashback/record/FlashbackMeta (java.lang.ClassNotFoundException: com/moulberry/flashback/record/FlashbackMeta)
+[18:54:19] [main/WARN] (FabricLoader/Mixin) @Mixin target com.moulberry.flashback.record.FlashbackMeta was not found client.voxy.mixins.json:flashback.MixinFlashbackMeta from mod voxy
+[18:54:19] [main/WARN] (FabricLoader/Mixin) Error loading class: com/moulberry/flashback/record/Recorder (java.lang.ClassNotFoundException: com/moulberry/flashback/record/Recorder)
+[18:54:19] [main/WARN] (FabricLoader/Mixin) @Mixin target com.moulberry.flashback.record.Recorder was not found client.voxy.mixins.json:flashback.MixinFlashbackRecorder from mod voxy
+[18:54:19] [main/WARN] (FabricLoader/Mixin) Error loading class: me/cortex/nvidium/RenderPipeline (java.lang.ClassNotFoundException: me/cortex/nvidium/RenderPipeline)
+[18:54:19] [main/WARN] (FabricLoader/Mixin) @Mixin target me.cortex.nvidium.RenderPipeline was not found client.voxy.mixins.json:nvidium.MixinRenderPipeline from mod voxy
+[18:54:19] [main/WARN] (FabricLoader/Mixin) Error loading class: org/popcraft/chunky/platform/FabricWorld (java.lang.ClassNotFoundException: org/popcraft/chunky/platform/FabricWorld)
+[18:54:19] [main/WARN] (FabricLoader/Mixin) @Mixin target org.popcraft.chunky.platform.FabricWorld was not found common.voxy.mixins.json:chunky.MixinFabricWorld from mod voxy
+[18:54:19] [main/INFO] (Sodium-GraphicsAdapterProbe) Searching for graphics cards...
+[18:54:19] [main/INFO] (FabricLoader/MixinExtras|Service) Initializing MixinExtras via com.llamalad7.mixinextras.service.MixinExtrasServiceImpl(version=0.5.4).
+[18:54:20] [Datafixer Bootstrap #0/INFO] (Minecraft) 295 Datafixer optimizations took 135 milliseconds
+[18:54:20] [main/WARN] (MacOperatingSystem) Unable to parse version 27.0 to a codename.
+[18:54:22] [Render thread/INFO] (Minecraft) Environment: Environment[sessionHost=https://sessionserver.mojang.com, servicesHost=https://api.minecraftservices.com, profilesHost=https://api.mojang.com, name=PROD]
+[18:54:22] [Render thread/INFO] (Minecraft) Setting user: Player574
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as Serializer for config type SectionStorageConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as RocksDB for config type StorageConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as Redis for config type StorageConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as FragmentationAdaptor for config type StorageConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config2 as AutoFragmentationAdaptor for config type StorageConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered ConditionalStorageBackendConfig as ConditionalConfig for config type StorageConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as CompressionAdaptor for config type StorageConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as ReadonlyCachingLayer for config type StorageConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered BasicPathInsertionConfig as BasicPathConfig for config type StorageConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as Memory for config type StorageConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as LMDB for config type StorageConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as LZ4 for config type CompressorConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered Config as ZSTD for config type CompressorConfig
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.cn.cg.Serialization]: Registered 13 config types
+[18:54:22] [Render thread/INFO] (Indigo) [Indigo] Different rendering plugin detected; not applying Indigo.
+[18:54:22] [Render thread/INFO] (Mod Menu/Update Checker) Checking mod updates...
+[18:54:22] [Render thread/INFO] (Sodium) Setting exclusive fullscreen to true by default, as the user is not on Windows and the language cannot be guessed.
+[18:54:22] [Render thread/INFO] (Minecraft) Backend library: LWJGL version 3.4.1-snapshot
+[18:54:22] [ModMenu/Update Checker/Fabric Loader/INFO] (Mod Menu/Update Checker) Update available for 'fabricloader@0.19.3'
+[18:54:22] [Render thread/WARN] (Minecraft) Graphics backend forced to vulkan by launch argument, in-game preferred graphics backend setting is ignored
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for explicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d
+[Vulkan Loader] LAYER:             Found the following files:
+[Vulkan Loader] LAYER:                /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for explicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d
+[Vulkan Loader] LAYER:             Found the following files:
+[18:54:22] [Render thread/WARN] (Minecraft) Enabling Vulkan validation layers
+[Vulkan Loader] LAYER:                /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[Vulkan Loader] LAYER:          Searching for explicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d
+[Vulkan Loader] LAYER:             Found the following files:
+[Vulkan Loader] LAYER:                /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json
+[Vulkan Loader] WARNING | LAYER: env var 'VK_INSTANCE_LAYERS' defined and adding layers "VK_LAYER_KHRONOS_validation"
+[Vulkan Loader] WARNING | LAYER: env var 'VK_INSTANCE_LAYERS' defined and adding layers "VK_LAYER_KHRONOS_validation"
+[Vulkan Loader] DEBUG | LAYER:  Loading layer library libVkLayer_khronos_validation.dylib
+[Vulkan Loader] INFO | LAYER:   Insert instance layer "VK_LAYER_KHRONOS_validation" (/opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib)
+[Vulkan Loader] LAYER:          vkCreateInstance layer callstack setup to:
+[Vulkan Loader] LAYER:             <Application>
+[Vulkan Loader] LAYER:               ||
+[Vulkan Loader] LAYER:             <Loader>
+[Vulkan Loader] LAYER:               ||
+[Vulkan Loader] LAYER:             VK_LAYER_KHRONOS_validation
+[Vulkan Loader] LAYER:                     Type: Explicit
+[Vulkan Loader] LAYER:                     Enabled By: Environment Variable VK_INSTANCE_LAYERS
+[Vulkan Loader] LAYER:                     Manifest: /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json
+[Vulkan Loader] LAYER:                     Library:  /opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib
+[Vulkan Loader] LAYER:               ||
+[Vulkan Loader] LAYER:             <Drivers>
+[18:54:22] [Render thread/WARN] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] drawIndirectFirstInstance: offset 40 verified by read-back
+[18:54:22] [Render thread/WARN] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] shaderInt64: offset 160 verified by read-back
+[18:54:22] [Render thread/WARN] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] fragmentStoresAndAtomics: offset 104 verified by read-back
+[18:54:22] [Render thread/WARN] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] vertexPipelineStoresAndAtomics: offset 100 verified by read-back
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] asked Minecraft's device for [drawIndirectFirstInstance, shaderInt64, fragmentStoresAndAtomics, vertexPipelineStoresAndAtomics] (supported by this device, not requested by Minecraft)
+[Vulkan Loader] INFO | LAYER:   Inserted device layer "VK_LAYER_KHRONOS_validation" (/opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib)
+[Vulkan Loader] DRIVER:         vkCreateDevice layer callstack setup to:
+[Vulkan Loader] DRIVER:            <Application>
+[Vulkan Loader] DRIVER:              ||
+[Vulkan Loader] DRIVER:            <Loader>
+[Vulkan Loader] DRIVER:              ||
+[Vulkan Loader] LAYER:             VK_LAYER_KHRONOS_validation
+[Vulkan Loader] LAYER:                     Type: Explicit
+[Vulkan Loader] LAYER:                     Enabled By: Environment Variable VK_INSTANCE_LAYERS
+[Vulkan Loader] LAYER:                     Manifest: /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d/VkLayer_khronos_validation.json
+[Vulkan Loader] LAYER:                     Library:  /opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib
+[Vulkan Loader] LAYER:               ||
+[Vulkan Loader] DRIVER:            <Device>
+[Vulkan Loader] DRIVER:                Using "Apple M4 Pro" with driver: "/opt/homebrew/Cellar/molten-vk/1.4.2/lib/libMoltenVK.dylib"
+[Vulkan Loader] LAYER:          Searching for implicit layer manifest files
+[Vulkan Loader] LAYER:             In following locations:
+[Vulkan Loader] LAYER:                /Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.config/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/xdg/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /opt/homebrew/etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /etc/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/local/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /usr/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /Users/xyz/.nix-profile/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:                /nix/var/nix/profiles/default/share/vulkan/implicit_layer.d
+[Vulkan Loader] LAYER:             Found no files
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkContext]: Vulkan (adopted from the host application): Apple M4 Pro api=1.2.357 driver=0.2.2210 vendorID=0x106b deviceID=0x1b000209 (adopted) queueFamily=0 subgroupSize=32 timestampBits=64 maxPushConstants=4096 minSsboOffsetAlign=16 unifiedMemType=1 metalObjects=false validation=true syncValidation=false
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeVkContext]: [native-vk] adopted Minecraft's Vulkan device into VkContext: true
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.gl.Capabilities]: No OpenGL context on this thread (IllegalStateException); Minecraft is probably not using the OpenGL backend.
+[18:54:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.VoxyClient]: [native-vk] native instance mode: Minecraft is on Vulkan and voxy.native.instance is set; starting Voxy's instance (world engine, storage, ingest) without a render path
+[18:54:22] [Render thread/INFO] (Minecraft) Using graphics backend Vulkan, using drivers: 1.2.357 MoltenVK 1.4.2
+[18:54:22] [Render thread/INFO] (Minecraft) Using graphics device: Apple M4 Pro (APPLE)
+[18:54:22] [Render thread/INFO] (Minecraft) Using graphics device extensions: VK_KHR_portability_subset (D), VK_KHR_synchronization2 (D), VK_EXT_metal_surface (I), VK_EXT_vertex_attribute_divisor (D), VK_KHR_portability_enumeration (I), VK_KHR_swapchain (D), VK_KHR_surface (I), VK_KHR_push_descriptor (D), VK_EXT_debug_utils (I), VK_KHR_dynamic_rendering (D)
+[18:54:22] [Download-3/INFO] (Mod Menu/Update Checker) Update available for 'lithium@0.25.1+mc26.2', (-> mc26.2-0.25.3-fabric)
+[18:54:22] [Download-3/INFO] (Mod Menu/Update Checker) Update available for 'fabric-api@0.152.2+26.2', (-> 0.161.0+26.2)
+[18:54:22] [Download-3/INFO] (Mod Menu/Update Checker) Update available for 'sodium@0.9.2-alpha.3+mc26.2', (-> mc26.2-0.9.2-fabric)
+[18:54:22] [Download-3/INFO] (Mod Menu/Update Checker) Update available for 'modmenu@20.0.0', (-> 20.0.3)
+[18:54:23] [Download-3/INFO] (Minecraft) Could not authorize you against Realms server: java.lang.RuntimeException: Failed to parse into SignedJWT: FabricMC
+[18:54:23] [Render thread/INFO] (Minecraft) Reloading ResourceManager: vanilla, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-getter-api-v2, fabric-client-gametest-api-v1, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-creative-tab-api-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-debug-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-gametest-api-v1, fabric-item-api-v1, fabric-key-mapping-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v3, fabric-menu-api-v1, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-permission-api-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, lithium, modmenu, sodium, voxy
+[18:54:23] [Worker-Main-7/INFO] (Minecraft) Found unifont_all_no_pua-17.0.01.hex, loading
+[18:54:23] [Worker-Main-8/INFO] (Minecraft) Found unifont_pua-17.0.01.hex, loading
+[18:54:23] [Worker-Main-5/INFO] (Minecraft) Found unifont_jp_patch-17.0.01.hex, loading
+[18:54:23] [Render thread/INFO] (Minecraft) OpenAL initialized on device MacBook Pro Speakers
+[18:54:23] [Render thread/INFO] (Minecraft) Sound engine started
+[18:54:23] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[18:54:23] [Render thread/INFO] (Minecraft) Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[18:54:23] [Render thread/INFO] (Minecraft) Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[18:54:24] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[18:54:24] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[18:54:24] [Render thread/INFO] (Minecraft) Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[18:54:24] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[18:54:24] [Render thread/INFO] (Minecraft) Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[18:54:24] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[18:54:24] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[18:54:24] [Render thread/INFO] (Minecraft) Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[18:54:24] [Render thread/INFO] (Minecraft) Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[18:54:24] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[18:54:24] [Render thread/INFO] (Voxy) [me.cx.vy.ct.cg.VoxyConfig]: Config file doesnt exist, creating new
+[18:54:24] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=create
+[18:54:24] [Download-3/INFO] (Minecraft) Could not authorize you against Realms server: java.lang.RuntimeException: Failed to parse into SignedJWT: FabricMC
+[18:54:24] [Render thread/INFO] (Minecraft) Found new data pack fabric-convention-tags-v2, loading it automatically
+[18:54:24] [Render thread/INFO] (Minecraft) Found new data pack fabric-gametest-api-v1, loading it automatically
+[18:54:25] [Render thread/INFO] (Minecraft) Loaded 1585 recipes
+[18:54:25] [Render thread/INFO] (Minecraft) Loaded 1688 advancements
+[18:54:25] [Render thread/INFO] (BiomeModificationImpl) Applied 0 biome modifications to 0 of 66 new biomes in 543.7 μs
+[18:54:25] [Server thread/INFO] (Minecraft) Starting integrated minecraft server version 26.2
+[18:54:25] [Server thread/INFO] (Minecraft) Generating keypair
+[18:54:25] [Server thread/INFO] (Minecraft) Selecting global world spawn...
+[18:54:26] [Server thread/INFO] (Minecraft) Loading 0 persistent chunks...
+[18:54:26] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[18:54:26] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[18:54:26] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[18:54:26] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[18:54:26] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[18:54:26] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[18:54:26] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[18:54:26] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[18:54:27] [Server thread/INFO] (Minecraft) Loading 47 chunks for player spawn...
+[18:54:27] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[18:54:27] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[18:54:27] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[18:54:27] [Server thread/INFO] (Minecraft) Preparing spawn area: 29%
+[18:54:28] [Server thread/INFO] (Minecraft) Time elapsed: 2484 ms
+[18:54:28] [Server thread/INFO] (Minecraft) Player574[local:E:c324cf30] logged in with entity id 5 at (-1.5, 70.0, 9.5)
+[18:54:28] [Server thread/INFO] (Minecraft) Player574 joined the game
+[18:54:28] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[18:54:28] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 9
+[18:54:28] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 7462760223788803275@1282552871
+[18:54:28] [Server thread/INFO] (Minecraft) Changing view distance to 8, from 10
+[18:54:28] [Server thread/INFO] (Minecraft) Changing simulation distance to 5, from 0
+[18:54:28] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[18:54:28] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:54:28] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 1
+[18:54:28] [Render thread/INFO] (Minecraft) Loaded 2 advancements
+[18:54:28] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:54:28] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:54:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage create: composited=0 skipped=0 builds=0 vkBuffers=0 vkBufferBytes=0 vkTextures=0 vkTextureBytes=0 frame=0x0
+[18:54:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] requested the block atlas (2048x2048) through Blaze3D
+[18:54:28] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 2 reached during a single frame. New capacity will be 4.
+[18:54:28] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=warmup
+[18:54:28] [Server thread/INFO] (Minecraft) [Player574: Set minecraft:overworld to time marker minecraft:noon]
+[18:54:28] [Server thread/INFO] (Minecraft) [Player574: Set the weather to clear]
+[18:54:28] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[18:54:28] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 4 reached during a single frame. New capacity will be 8.
+[18:54:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage warmup: composited=0 skipped=1 builds=0 vkBuffers=0 vkBufferBytes=0 vkTextures=0 vkTextureBytes=0 frame=0x0
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] block atlas read through Blaze3D: 2048x2048
+[18:54:29] [Render thread/INFO] (Minecraft) [System] [CHAT] Set minecraft:overworld to time marker minecraft:noon
+[18:54:29] [Render thread/INFO] (Minecraft) [System] [CHAT] Set the weather to clear
+[18:54:29] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:54:29] [Download-3/ERROR] (Minecraft) Failed to retrieve profile key pair
+
+MinecraftClientHttpException[type=HTTP_ERROR, status=401, response=ErrorResponse[path=/player/certificates, error=null, errorMessage=null, details=null]]
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.buildHttpException(MinecraftClient.java:170)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readServiceResponse(MinecraftClient.java:147)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.post(MinecraftClient.java:89)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilUserApiService.getKeyPair(YggdrasilUserApiService.java:62)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.fetchProfileKeyPair(AccountProfileKeyPairManager.java:128)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.lambda$readOrFetchProfileKeyPair$0(AccountProfileKeyPairManager.java:77)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 5 biomes already registered by the world
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #1: streaming render distance 17, sections -1..0
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkHierarchicalScene]: [native-vk] slow scene recording: total=17.505 echo=0.637041 bakeryUploads=0.242417 rendererUploads=0.391625 lightmap=0.001375 bound=0.339542 opaque=12.798083 hiz=0.489542 traversal=0.79875 prepCull=0.994458 table=0.3335 temporalTranslucent=0.478667 ms
+[18:54:29] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] slow native frame 0 stage=warmup: total=22.722084 service=3.75E-4 stream=0.495334 bound=0.259333 prepare=0.85125 begin=1.29 record=17.727667 postSubmit=2.098125 ms
+[18:54:30] [Chunk Render Task Executor #7/WARN] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to save queue, we lost
+[18:54:31] [Chunk Render Task Executor #6/WARN] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to save queue, we lost
+[18:54:33] [Chunk Render Task Executor #5/WARN] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to save queue, we lost
+[18:54:33] [Chunk Render Task Executor #2/WARN] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to save queue, we lost
+[18:54:33] [Chunk Render Task Executor #5/WARN] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to save queue, we lost
+[18:54:33] [Chunk Render Task Executor #0/WARN] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to save queue, we lost
+[18:54:39] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=turn
+[18:54:39] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage turn: composited=566 skipped=2 builds=1 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960
+[18:54:50] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=travel
+[18:54:50] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 768.500000, 120.000000, 0.500000]
+[18:54:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage travel: composited=1218 skipped=2 builds=1 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960
+[18:54:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 768.500000, 120.000000, 0.500000
+[18:54:52] [Chunk Render Task Executor #1/WARN] (Voxy) [me.cx.vy.cn.wd.ActiveSectionTracker]: section raced to save queue, we lost
+[18:55:00] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 2560.500000, 120.000000, 0.500000]
+[18:55:00] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 2560.500000, 120.000000, 0.500000
+[18:55:10] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 7800.500000, 120.000000, 0.500000]
+[18:55:10] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 7800.500000, 120.000000, 0.500000
+[18:55:20] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=return
+[18:55:20] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[18:55:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage return: composited=3001 skipped=2 builds=1 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960
+[18:55:20] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[18:55:30] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=horizon
+[18:55:30] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage horizon: composited=3363 skipped=2 builds=1 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960
+[18:55:30] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 208 block(s)]
+[18:55:30] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 160.000000, 0.500000]
+[18:55:30] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 208 block(s)
+[18:55:30] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 160.000000, 0.500000
+[18:55:40] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=far
+[18:55:40] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 185.000000, 0.500000]
+[18:55:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage far: composited=3660 skipped=2 builds=1 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960
+[18:55:40] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 185.000000, 0.500000
+[18:55:50] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=fade
+[18:55:50] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 185.000000, 0.500000]
+[18:55:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage fade: composited=3958 skipped=2 builds=1 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960
+[18:55:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 185.000000, 0.500000
+[18:56:00] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=edit
+[18:56:00] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage edit: composited=4257 skipped=2 builds=1 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960
+[18:56:00] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 208 block(s)]
+[18:56:00] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[18:56:00] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 1377 block(s)]
+[18:56:00] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 208 block(s)
+[18:56:00] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[18:56:00] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 1377 block(s)
+[18:56:10] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=remove
+[18:56:10] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage remove: composited=4556 skipped=2 builds=1 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960
+[18:56:10] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 1377 block(s)]
+[18:56:10] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 1377 block(s)
+[18:56:20] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=resize
+[18:56:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage resize: composited=4853 skipped=2 builds=1 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960
+[18:56:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:56:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[18:56:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:56:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[18:56:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkHierarchicalScene]: [5c-5a] resized the size-dependent resources to 1920x1080 (the tree and its 11550 meshed sections are kept)
+[18:56:20] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] resized the hierarchical scene to 1920x1080 (its 11550 meshed sections kept)
+[18:56:30] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=reload
+[18:56:30] [Render thread/INFO] (Minecraft) Reloading ResourceManager: vanilla, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-getter-api-v2, fabric-client-gametest-api-v1, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-creative-tab-api-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-debug-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-gametest-api-v1, fabric-item-api-v1, fabric-key-mapping-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v3, fabric-menu-api-v1, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-permission-api-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, lithium, modmenu, sodium, voxy
+[18:56:30] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage reload: composited=5149 skipped=2 builds=1 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080
+[18:56:30] [Server thread/INFO] (Minecraft) Saving and pausing game...
+[18:56:30] [Worker-Main-11/INFO] (Minecraft) Found unifont_all_no_pua-17.0.01.hex, loading
+[18:56:30] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[18:56:30] [Worker-Main-7/INFO] (Minecraft) Found unifont_pua-17.0.01.hex, loading
+[18:56:30] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[18:56:30] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[18:56:30] [Worker-Main-11/INFO] (Minecraft) Found unifont_jp_patch-17.0.01.hex, loading
+[18:56:31] [Render thread/INFO] (Minecraft) OpenAL initialized on device MacBook Pro Speakers
+[18:56:31] [Render thread/INFO] (Minecraft) Sound engine started
+[18:56:31] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[18:56:31] [Render thread/INFO] (Minecraft) Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[18:56:31] [Render thread/INFO] (Minecraft) Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[18:56:31] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[18:56:31] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[18:56:31] [Render thread/INFO] (Minecraft) Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[18:56:31] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[18:56:31] [Render thread/INFO] (Minecraft) Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[18:56:31] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[18:56:31] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[18:56:31] [Render thread/INFO] (Minecraft) Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[18:56:32] [Render thread/INFO] (Minecraft) Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[18:56:32] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] requested the block atlas (2048x2048) through Blaze3D
+[18:56:32] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[18:56:32] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:56:32] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] block atlas read through Blaze3D: 2048x2048
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 20 biomes already registered by the world
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #2: streaming render distance 17, sections -1..0
+[18:56:40] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=nether
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage nether: composited=5407 skipped=4 builds=2 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080
+[18:56:40] [Server thread/INFO] (Minecraft) Player574 has made the advancement [We Need to Go Deeper]
+[18:56:40] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 100.000000, 0.500000]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: -804933456715516506@1282552871
+[18:56:40] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[18:56:40] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:56:40] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:56:40] [Render thread/INFO] (Minecraft) [System] [CHAT] Player574 has made the advancement [We Need to Go Deeper]
+[18:56:40] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 100.000000, 0.500000
+[18:56:40] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:56:40] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 0 biomes already registered by the world
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:40] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #3: streaming render distance 17, sections 0..0
+[18:56:41] [Render thread/INFO] (Minecraft) Loaded 29 advancements
+[18:56:41] [Render thread/INFO] (Minecraft) Loaded 29 advancements
+[18:56:50] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=overworld
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage overworld: composited=5409 skipped=293 builds=3 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080
+[18:56:50] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[18:56:50] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[18:56:50] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:56:50] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:56:50] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[18:56:50] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:56:50] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 20 biomes already registered by the world
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:56:50] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #4: streaming render distance 17, sections -1..0
+[18:57:00] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=descend
+[18:57:00] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 79.000000, 0.500000]
+[18:57:00] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage descend: composited=5703 skipped=295 builds=4 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080
+[18:57:00] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 79.000000, 0.500000
+[18:57:01] [Active world cleaner/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down idle world: -804933456715516506
+[18:57:10] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=ascend
+[18:57:10] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 175.000000, 0.500000]
+[18:57:10] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage ascend: composited=5997 skipped=295 builds=4 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080
+[18:57:10] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 175.000000, 0.500000
+[18:57:20] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=disconnect
+[18:57:20] [Server thread/INFO] (Minecraft) Stopping server
+[18:57:20] [Server thread/INFO] (Minecraft) Saving players
+[18:57:20] [Server thread/INFO] (Minecraft) Saving worlds
+[18:57:20] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[18:57:20] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[18:57:20] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[18:57:20] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[18:57:20] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[18:57:20] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[18:57:20] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[18:57:20] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:57:20] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[18:57:21] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[18:57:21] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=reconnect
+[18:57:21] [Render thread/INFO] (Minecraft) Found new data pack fabric-convention-tags-v2, loading it automatically
+[18:57:21] [Render thread/INFO] (Minecraft) Found new data pack fabric-gametest-api-v1, loading it automatically
+[18:57:21] [Render thread/INFO] (Minecraft) Loaded 1585 recipes
+[18:57:21] [Render thread/INFO] (Minecraft) Loaded 1688 advancements
+[18:57:21] [Render thread/INFO] (BiomeModificationImpl) Applied 0 biome modifications to 0 of 66 new biomes in 196.4 μs
+[18:57:21] [Server thread/INFO] (Minecraft) Starting integrated minecraft server version 26.2
+[18:57:21] [Server thread/INFO] (Minecraft) Generating keypair
+[18:57:21] [Server thread/INFO] (Minecraft) Loading 0 persistent chunks...
+[18:57:21] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[18:57:21] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[18:57:21] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[18:57:21] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[18:57:21] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[18:57:21] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[18:57:21] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[18:57:22] [Server thread/INFO] (Minecraft) Loading 49 chunks for player spawn...
+[18:57:22] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[18:57:22] [Server thread/INFO] (Minecraft) Time elapsed: 282 ms
+[18:57:22] [Server thread/INFO] (Minecraft) Player574[local:E:965e6cc5] logged in with entity id 1201 at (0.5, 175.0, 0.5)
+[18:57:22] [Server thread/INFO] (Minecraft) Player574 joined the game
+[18:57:22] [Server thread/INFO] (Minecraft) Changing view distance to 8, from 10
+[18:57:22] [Server thread/INFO] (Minecraft) Changing simulation distance to 5, from 0
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 9
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 7462760223788803275@545624953
+[18:57:22] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[18:57:22] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 1
+[18:57:22] [Render thread/INFO] (Minecraft) Loaded 29 advancements
+[18:57:22] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:57:22] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage reconnect: composited=6293 skipped=295 builds=4 vkBuffers=2 vkBufferBytes=25165968 vkTextures=1 vkTextureBytes=542474624 frame=0x0
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] requested the block atlas (2048x2048) through Blaze3D
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] block atlas read through Blaze3D: 2048x2048
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 20 biomes already registered by the world
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:57:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #5: streaming render distance 17, sections -1..0
+[18:57:22] [Download-8/ERROR] (Minecraft) Failed to retrieve profile key pair
+
+MinecraftClientHttpException[type=HTTP_ERROR, status=401, response=ErrorResponse[path=/player/certificates, error=null, errorMessage=null, details=null]]
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.buildHttpException(MinecraftClient.java:170)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readServiceResponse(MinecraftClient.java:147)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.post(MinecraftClient.java:89)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilUserApiService.getKeyPair(YggdrasilUserApiService.java:62)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.fetchProfileKeyPair(AccountProfileKeyPairManager.java:128)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.lambda$readOrFetchProfileKeyPair$0(AccountProfileKeyPairManager.java:77)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[18:57:31] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=travel cycle=2
+[18:57:31] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 768.500000, 120.000000, 0.500000]
+[18:57:31] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage travel: composited=6565 skipped=297 builds=5 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=2
+[18:57:31] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 768.500000, 120.000000, 0.500000
+[18:57:41] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 2560.500000, 120.000000, 0.500000]
+[18:57:41] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 2560.500000, 120.000000, 0.500000
+[18:57:51] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 7800.500000, 120.000000, 0.500000]
+[18:57:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 7800.500000, 120.000000, 0.500000
+[18:58:01] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=return cycle=2
+[18:58:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage return: composited=7465 skipped=297 builds=5 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=2
+[18:58:01] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[18:58:01] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[18:58:11] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=horizon cycle=2
+[18:58:11] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage horizon: composited=7765 skipped=297 builds=5 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=2
+[18:58:11] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 208 block(s)]
+[18:58:11] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 160.000000, 0.500000]
+[18:58:11] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 208 block(s)
+[18:58:11] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 160.000000, 0.500000
+[18:58:21] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=far cycle=2
+[18:58:21] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage far: composited=8064 skipped=297 builds=5 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=2
+[18:58:21] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 185.000000, 0.500000]
+[18:58:21] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 185.000000, 0.500000
+[18:58:31] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=fade cycle=2
+[18:58:31] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage fade: composited=8362 skipped=297 builds=5 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=2
+[18:58:31] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 185.000000, 0.500000]
+[18:58:31] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 185.000000, 0.500000
+[18:58:41] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=edit cycle=2
+[18:58:41] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage edit: composited=8662 skipped=297 builds=5 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=2
+[18:58:41] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 208 block(s)]
+[18:58:41] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[18:58:41] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 1377 block(s)]
+[18:58:41] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 208 block(s)
+[18:58:41] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[18:58:41] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 1377 block(s)
+[18:58:51] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=remove cycle=2
+[18:58:51] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage remove: composited=8961 skipped=297 builds=5 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=2
+[18:58:51] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 1377 block(s)]
+[18:58:51] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 1377 block(s)
+[18:59:01] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=resize cycle=2
+[18:59:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage resize: composited=9261 skipped=297 builds=5 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=2
+[18:59:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:59:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[18:59:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:59:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[18:59:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkHierarchicalScene]: [5c-5a] resized the size-dependent resources to 1708x960 (the tree and its 5549 meshed sections are kept)
+[18:59:01] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] resized the hierarchical scene to 1708x960 (its 5549 meshed sections kept)
+[18:59:03] [Render thread/INFO] (Minecraft) Resizing Dynamic Transforms UBO, capacity limit of 8 reached during a single frame. New capacity will be 16.
+[18:59:12] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=reload cycle=2
+[18:59:12] [Render thread/INFO] (Minecraft) Reloading ResourceManager: vanilla, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-getter-api-v2, fabric-client-gametest-api-v1, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-creative-tab-api-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-debug-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-gametest-api-v1, fabric-item-api-v1, fabric-key-mapping-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v3, fabric-menu-api-v1, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-permission-api-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, lithium, modmenu, sodium, voxy
+[18:59:12] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage reload: composited=9561 skipped=297 builds=5 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=2
+[18:59:12] [Server thread/INFO] (Minecraft) Saving and pausing game...
+[18:59:12] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[18:59:12] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[18:59:12] [Worker-Main-13/INFO] (Minecraft) Found unifont_all_no_pua-17.0.01.hex, loading
+[18:59:12] [Worker-Main-12/INFO] (Minecraft) Found unifont_pua-17.0.01.hex, loading
+[18:59:12] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[18:59:12] [Worker-Main-13/INFO] (Minecraft) Found unifont_jp_patch-17.0.01.hex, loading
+[18:59:12] [Render thread/INFO] (Minecraft) OpenAL initialized on device MacBook Pro Speakers
+[18:59:12] [Render thread/INFO] (Minecraft) Sound engine started
+[18:59:12] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[18:59:12] [Render thread/INFO] (Minecraft) Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[18:59:12] [Render thread/INFO] (Minecraft) Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[18:59:12] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[18:59:12] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[18:59:12] [Render thread/INFO] (Minecraft) Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[18:59:13] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[18:59:13] [Render thread/INFO] (Minecraft) Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[18:59:13] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[18:59:13] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[18:59:13] [Render thread/INFO] (Minecraft) Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[18:59:13] [Render thread/INFO] (Minecraft) Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[18:59:13] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] requested the block atlas (2048x2048) through Blaze3D
+[18:59:13] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[18:59:13] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:59:13] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] block atlas read through Blaze3D: 2048x2048
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 20 biomes already registered by the world
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #6: streaming render distance 17, sections -1..0
+[18:59:22] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=nether cycle=2
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage nether: composited=9823 skipped=299 builds=6 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=2
+[18:59:22] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 100.000000, 0.500000]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: -804933456715516506@545624953
+[18:59:22] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[18:59:22] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:59:22] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:59:22] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 100.000000, 0.500000
+[18:59:22] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:59:22] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 2 biomes already registered by the world
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:22] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #7: streaming render distance 17, sections 0..0
+[18:59:32] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=overworld cycle=2
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage overworld: composited=9825 skipped=594 builds=7 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=2
+[18:59:32] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[18:59:32] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[18:59:32] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:59:32] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:59:32] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[18:59:32] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[18:59:32] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 20 biomes already registered by the world
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[18:59:32] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #8: streaming render distance 17, sections -1..0
+[18:59:42] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=descend cycle=2
+[18:59:42] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 79.000000, 0.500000]
+[18:59:42] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage descend: composited=10120 skipped=596 builds=8 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=2
+[18:59:42] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 79.000000, 0.500000
+[18:59:42] [Active world cleaner/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down idle world: -804933456715516506
+[18:59:52] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=ascend cycle=2
+[18:59:52] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 175.000000, 0.500000]
+[18:59:52] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage ascend: composited=10420 skipped=596 builds=8 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=2
+[18:59:52] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 175.000000, 0.500000
+[19:00:02] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=disconnect cycle=2
+[19:00:02] [Server thread/INFO] (Minecraft) Stopping server
+[19:00:02] [Server thread/INFO] (Minecraft) Saving players
+[19:00:02] [Server thread/INFO] (Minecraft) Saving worlds
+[19:00:02] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:00:02] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:00:02] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:00:02] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[19:00:02] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[19:00:02] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[19:00:02] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[19:00:02] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:00:02] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[19:00:03] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[19:00:03] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=reconnect cycle=2
+[19:00:03] [Render thread/INFO] (Minecraft) Loaded 1585 recipes
+[19:00:03] [Render thread/INFO] (Minecraft) Loaded 1688 advancements
+[19:00:03] [Render thread/INFO] (BiomeModificationImpl) Applied 0 biome modifications to 0 of 66 new biomes in 157.9 μs
+[19:00:03] [Server thread/INFO] (Minecraft) Starting integrated minecraft server version 26.2
+[19:00:03] [Server thread/INFO] (Minecraft) Generating keypair
+[19:00:03] [Server thread/INFO] (Minecraft) Loading 0 persistent chunks...
+[19:00:03] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:00:03] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:00:03] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:00:03] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[19:00:03] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[19:00:03] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[19:00:03] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[19:00:04] [Server thread/INFO] (Minecraft) Loading 49 chunks for player spawn...
+[19:00:04] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[19:00:04] [Server thread/INFO] (Minecraft) Time elapsed: 318 ms
+[19:00:04] [Server thread/INFO] (Minecraft) Player574[local:E:b233b3b1] logged in with entity id 2088 at (0.5, 175.0, 0.5)
+[19:00:04] [Server thread/INFO] (Minecraft) Player574 joined the game
+[19:00:04] [Server thread/INFO] (Minecraft) Changing view distance to 8, from 10
+[19:00:04] [Server thread/INFO] (Minecraft) Changing simulation distance to 5, from 0
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 9
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 7462760223788803275@1764130885
+[19:00:04] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:00:04] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 1
+[19:00:04] [Render thread/INFO] (Minecraft) Loaded 29 advancements
+[19:00:04] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:00:04] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage reconnect: composited=10721 skipped=596 builds=8 vkBuffers=2 vkBufferBytes=25165968 vkTextures=1 vkTextureBytes=542474624 frame=0x0 cycle=2
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] requested the block atlas (2048x2048) through Blaze3D
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] block atlas read through Blaze3D: 2048x2048
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 20 biomes already registered by the world
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:00:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #9: streaming render distance 17, sections -1..0
+[19:00:04] [Download-10/ERROR] (Minecraft) Failed to retrieve profile key pair
+
+MinecraftClientHttpException[type=HTTP_ERROR, status=401, response=ErrorResponse[path=/player/certificates, error=null, errorMessage=null, details=null]]
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.buildHttpException(MinecraftClient.java:170)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readServiceResponse(MinecraftClient.java:147)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.post(MinecraftClient.java:89)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilUserApiService.getKeyPair(YggdrasilUserApiService.java:62)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.fetchProfileKeyPair(AccountProfileKeyPairManager.java:128)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.lambda$readOrFetchProfileKeyPair$0(AccountProfileKeyPairManager.java:77)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[19:00:13] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=travel cycle=3
+[19:00:13] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 768.500000, 120.000000, 0.500000]
+[19:00:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage travel: composited=10993 skipped=598 builds=9 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=3
+[19:00:13] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 768.500000, 120.000000, 0.500000
+[19:00:23] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 2560.500000, 120.000000, 0.500000]
+[19:00:23] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 2560.500000, 120.000000, 0.500000
+[19:00:33] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 7800.500000, 120.000000, 0.500000]
+[19:00:33] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 7800.500000, 120.000000, 0.500000
+[19:00:43] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=return cycle=3
+[19:00:43] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[19:00:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage return: composited=11893 skipped=598 builds=9 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=3
+[19:00:43] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[19:00:53] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=horizon cycle=3
+[19:00:53] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 208 block(s)]
+[19:00:53] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage horizon: composited=12192 skipped=598 builds=9 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=3
+[19:00:53] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 160.000000, 0.500000]
+[19:00:53] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 208 block(s)
+[19:00:53] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 160.000000, 0.500000
+[19:01:03] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=far cycle=3
+[19:01:03] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 185.000000, 0.500000]
+[19:01:03] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage far: composited=12492 skipped=598 builds=9 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=3
+[19:01:03] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 185.000000, 0.500000
+[19:01:13] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=fade cycle=3
+[19:01:13] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 185.000000, 0.500000]
+[19:01:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage fade: composited=12792 skipped=598 builds=9 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=3
+[19:01:13] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 185.000000, 0.500000
+[19:01:23] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=edit cycle=3
+[19:01:23] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage edit: composited=13093 skipped=598 builds=9 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=3
+[19:01:23] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 208 block(s)]
+[19:01:23] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[19:01:23] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 1377 block(s)]
+[19:01:23] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 208 block(s)
+[19:01:23] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[19:01:23] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 1377 block(s)
+[19:01:33] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=remove cycle=3
+[19:01:33] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage remove: composited=13393 skipped=598 builds=9 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=3
+[19:01:33] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 1377 block(s)]
+[19:01:33] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 1377 block(s)
+[19:01:43] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=resize cycle=3
+[19:01:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage resize: composited=13694 skipped=598 builds=9 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=3
+[19:01:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:01:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[19:01:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:01:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:01:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:01:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:01:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:01:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:01:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[19:01:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkHierarchicalScene]: [5c-5a] resized the size-dependent resources to 1920x1080 (the tree and its 5310 meshed sections are kept)
+[19:01:43] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] resized the hierarchical scene to 1920x1080 (its 5310 meshed sections kept)
+[19:01:53] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=reload cycle=3
+[19:01:53] [Render thread/INFO] (Minecraft) Reloading ResourceManager: vanilla, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-getter-api-v2, fabric-client-gametest-api-v1, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-creative-tab-api-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-debug-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-gametest-api-v1, fabric-item-api-v1, fabric-key-mapping-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v3, fabric-menu-api-v1, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-permission-api-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, lithium, modmenu, sodium, voxy
+[19:01:53] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage reload: composited=13993 skipped=598 builds=9 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=3
+[19:01:53] [Worker-Main-4/INFO] (Minecraft) Found unifont_all_no_pua-17.0.01.hex, loading
+[19:01:53] [Worker-Main-5/INFO] (Minecraft) Found unifont_pua-17.0.01.hex, loading
+[19:01:53] [Server thread/INFO] (Minecraft) Saving and pausing game...
+[19:01:53] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:01:53] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:01:53] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:01:53] [Worker-Main-2/INFO] (Minecraft) Found unifont_jp_patch-17.0.01.hex, loading
+[19:01:54] [Render thread/INFO] (Minecraft) OpenAL initialized on device MacBook Pro Speakers
+[19:01:54] [Render thread/INFO] (Minecraft) Sound engine started
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[19:01:54] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[19:01:54] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] requested the block atlas (2048x2048) through Blaze3D
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] block atlas read through Blaze3D: 2048x2048
+[19:01:55] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:01:55] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:01:55] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 20 biomes already registered by the world
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:01:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #10: streaming render distance 17, sections -1..0
+[19:02:03] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=nether cycle=3
+[19:02:03] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage nether: composited=14257 skipped=600 builds=10 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=3
+[19:02:03] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 100.000000, 0.500000]
+[19:02:03] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: -804933456715516506@1764130885
+[19:02:04] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:02:04] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:02:04] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:02:04] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 100.000000, 0.500000
+[19:02:04] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:02:04] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 2 biomes already registered by the world
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:04] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #11: streaming render distance 17, sections 0..0
+[19:02:13] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=overworld cycle=3
+[19:02:13] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage overworld: composited=14259 skipped=892 builds=11 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=3
+[19:02:13] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[19:02:13] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:02:13] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:02:13] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:02:13] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[19:02:13] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:02:13] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 20 biomes already registered by the world
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:14] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #12: streaming render distance 17, sections -1..0
+[19:02:23] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=descend cycle=3
+[19:02:23] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 79.000000, 0.500000]
+[19:02:23] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage descend: composited=14553 skipped=894 builds=12 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=3
+[19:02:23] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 79.000000, 0.500000
+[19:02:24] [Active world cleaner/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down idle world: -804933456715516506
+[19:02:33] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=ascend cycle=3
+[19:02:33] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 175.000000, 0.500000]
+[19:02:33] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage ascend: composited=14853 skipped=894 builds=12 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=3
+[19:02:33] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 175.000000, 0.500000
+[19:02:44] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=disconnect cycle=3
+[19:02:44] [Server thread/INFO] (Minecraft) Stopping server
+[19:02:44] [Server thread/INFO] (Minecraft) Saving players
+[19:02:44] [Server thread/INFO] (Minecraft) Saving worlds
+[19:02:44] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:02:44] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:02:44] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:02:44] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[19:02:44] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[19:02:44] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[19:02:44] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[19:02:44] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:02:44] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[19:02:45] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[19:02:45] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=reconnect cycle=3
+[19:02:45] [Render thread/INFO] (Minecraft) Loaded 1585 recipes
+[19:02:45] [Render thread/INFO] (Minecraft) Loaded 1688 advancements
+[19:02:45] [Render thread/INFO] (BiomeModificationImpl) Applied 0 biome modifications to 0 of 66 new biomes in 162.3 μs
+[19:02:45] [Server thread/INFO] (Minecraft) Starting integrated minecraft server version 26.2
+[19:02:45] [Server thread/INFO] (Minecraft) Generating keypair
+[19:02:45] [Server thread/INFO] (Minecraft) Loading 0 persistent chunks...
+[19:02:45] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:02:45] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:02:45] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:02:45] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[19:02:45] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[19:02:45] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[19:02:45] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[19:02:45] [Server thread/INFO] (Minecraft) Loading 49 chunks for player spawn...
+[19:02:45] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[19:02:46] [Server thread/INFO] (Minecraft) Time elapsed: 297 ms
+[19:02:46] [Server thread/INFO] (Minecraft) Player574[local:E:2af22d15] logged in with entity id 3024 at (0.5, 175.0, 0.5)
+[19:02:46] [Server thread/INFO] (Minecraft) Player574 joined the game
+[19:02:46] [Server thread/INFO] (Minecraft) Changing view distance to 8, from 10
+[19:02:46] [Server thread/INFO] (Minecraft) Changing simulation distance to 5, from 0
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 9
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 7462760223788803275@1264667007
+[19:02:46] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:02:46] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 1
+[19:02:46] [Render thread/INFO] (Minecraft) Loaded 29 advancements
+[19:02:46] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:02:46] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage reconnect: composited=15153 skipped=894 builds=12 vkBuffers=2 vkBufferBytes=25165968 vkTextures=1 vkTextureBytes=542474624 frame=0x0 cycle=3
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] requested the block atlas (2048x2048) through Blaze3D
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] block atlas read through Blaze3D: 2048x2048
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 20 biomes already registered by the world
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:02:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #13: streaming render distance 17, sections -1..0
+[19:02:46] [Download-11/ERROR] (Minecraft) Failed to retrieve profile key pair
+
+MinecraftClientHttpException[type=HTTP_ERROR, status=401, response=ErrorResponse[path=/player/certificates, error=null, errorMessage=null, details=null]]
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.buildHttpException(MinecraftClient.java:170)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readServiceResponse(MinecraftClient.java:147)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.post(MinecraftClient.java:89)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilUserApiService.getKeyPair(YggdrasilUserApiService.java:62)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.fetchProfileKeyPair(AccountProfileKeyPairManager.java:128)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.lambda$readOrFetchProfileKeyPair$0(AccountProfileKeyPairManager.java:77)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[19:02:55] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=travel cycle=4
+[19:02:55] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 768.500000, 120.000000, 0.500000]
+[19:02:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage travel: composited=15427 skipped=896 builds=13 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=4
+[19:02:55] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 768.500000, 120.000000, 0.500000
+[19:03:05] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 2560.500000, 120.000000, 0.500000]
+[19:03:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 2560.500000, 120.000000, 0.500000
+[19:03:15] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 7800.500000, 120.000000, 0.500000]
+[19:03:15] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 7800.500000, 120.000000, 0.500000
+[19:03:25] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=return cycle=4
+[19:03:25] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[19:03:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage return: composited=16325 skipped=896 builds=13 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=4
+[19:03:25] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[19:03:35] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=horizon cycle=4
+[19:03:35] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 208 block(s)]
+[19:03:35] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage horizon: composited=16625 skipped=896 builds=13 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=4
+[19:03:35] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 160.000000, 0.500000]
+[19:03:35] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 208 block(s)
+[19:03:35] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 160.000000, 0.500000
+[19:03:45] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=far cycle=4
+[19:03:45] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 185.000000, 0.500000]
+[19:03:45] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage far: composited=16925 skipped=896 builds=13 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=4
+[19:03:45] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 185.000000, 0.500000
+[19:03:55] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=fade cycle=4
+[19:03:55] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 185.000000, 0.500000]
+[19:03:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage fade: composited=17225 skipped=896 builds=13 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=4
+[19:03:55] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 185.000000, 0.500000
+[19:04:05] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=edit cycle=4
+[19:04:05] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 208 block(s)]
+[19:04:05] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[19:04:05] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage edit: composited=17525 skipped=896 builds=13 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=4
+[19:04:05] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 1377 block(s)]
+[19:04:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 208 block(s)
+[19:04:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[19:04:05] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 1377 block(s)
+[19:04:15] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=remove cycle=4
+[19:04:15] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage remove: composited=17825 skipped=896 builds=13 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=4
+[19:04:15] [Server thread/INFO] (Minecraft) [Player574: Successfully filled 1377 block(s)]
+[19:04:15] [Render thread/INFO] (Minecraft) [System] [CHAT] Successfully filled 1377 block(s)
+[19:04:25] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=resize cycle=4
+[19:04:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage resize: composited=18058 skipped=896 builds=13 vkBuffers=40 vkBufferBytes=733751400 vkTextures=11 vkTextureBytes=615876608 frame=1920x1080 cycle=4
+[19:04:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:04:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[19:04:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:04:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[19:04:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkHierarchicalScene]: [5c-5a] resized the size-dependent resources to 1708x960 (the tree and its 5212 meshed sections are kept)
+[19:04:25] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] resized the hierarchical scene to 1708x960 (its 5212 meshed sections kept)
+[19:04:35] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=reload cycle=4
+[19:04:35] [Render thread/INFO] (Minecraft) Reloading ResourceManager: vanilla, fabric-api, fabric-api-base, fabric-api-lookup-api-v1, fabric-biome-api-v1, fabric-block-api-v1, fabric-block-getter-api-v2, fabric-client-gametest-api-v1, fabric-command-api-v2, fabric-content-registries-v0, fabric-convention-tags-v2, fabric-crash-report-info-v1, fabric-creative-tab-api-v1, fabric-data-attachment-api-v1, fabric-data-generation-api-v1, fabric-debug-api-v1, fabric-dimensions-v1, fabric-entity-events-v1, fabric-events-interaction-v0, fabric-game-rule-api-v1, fabric-gametest-api-v1, fabric-item-api-v1, fabric-key-mapping-api-v1, fabric-lifecycle-events-v1, fabric-loot-api-v3, fabric-menu-api-v1, fabric-message-api-v1, fabric-model-loading-api-v1, fabric-networking-api-v1, fabric-object-builder-api-v1, fabric-particles-v1, fabric-permission-api-v1, fabric-recipe-api-v1, fabric-registry-sync-v0, fabric-renderer-api-v1, fabric-renderer-indigo, fabric-rendering-fluids-v1, fabric-rendering-v1, fabric-resource-conditions-api-v1, fabric-resource-loader-v0, fabric-resource-loader-v1, fabric-screen-api-v1, fabric-serialization-api-v1, fabric-sound-api-v1, fabric-tag-api-v1, fabric-transfer-api-v1, fabric-transitive-access-wideners-v1, fabricloader, lithium, modmenu, sodium, voxy
+[19:04:35] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage reload: composited=18158 skipped=896 builds=13 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=4
+[19:04:35] [Worker-Main-10/INFO] (Minecraft) Found unifont_all_no_pua-17.0.01.hex, loading
+[19:04:35] [Worker-Main-13/INFO] (Minecraft) Found unifont_pua-17.0.01.hex, loading
+[19:04:35] [Worker-Main-4/INFO] (Minecraft) Found unifont_jp_patch-17.0.01.hex, loading
+[19:04:35] [Server thread/INFO] (Minecraft) Saving and pausing game...
+[19:04:35] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:04:35] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:04:35] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:04:36] [Render thread/INFO] (Minecraft) OpenAL initialized on device MacBook Pro Speakers
+[19:04:36] [Render thread/INFO] (Minecraft) Sound engine started
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/particles.png-atlas
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 128x128x0 minecraft:textures/atlas/decorated_pot.png-atlas
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 2048x1024x0 minecraft:textures/atlas/armor_trims.png-atlas
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 512x256x0 minecraft:textures/atlas/paintings.png-atlas
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/shield_patterns.png-atlas
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/chest.png-atlas
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 256x128x0 minecraft:textures/atlas/celestials.png-atlas
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/banner_patterns.png-atlas
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 1024x512x0 minecraft:textures/atlas/items.png-atlas
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 1024x1024x0 minecraft:textures/atlas/gui.png-atlas
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 128x64x0 minecraft:textures/atlas/map_decorations.png-atlas
+[19:04:36] [Render thread/INFO] (Minecraft) Created: 512x512x0 minecraft:textures/atlas/shulker_boxes.png-atlas
+[19:04:36] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] requested the block atlas (2048x2048) through Blaze3D
+[19:04:36] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] block atlas read through Blaze3D: 2048x2048
+[19:04:36] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:04:36] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:04:36] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 20 biomes already registered by the world
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #14: streaming render distance 17, sections -1..0
+[19:04:45] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=nether cycle=4
+[19:04:45] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage nether: composited=18248 skipped=898 builds=14 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=4
+[19:04:45] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 100.000000, 0.500000]
+[19:04:45] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: -804933456715516506@1264667007
+[19:04:45] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:04:45] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:04:45] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:04:46] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 100.000000, 0.500000
+[19:04:46] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:04:46] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 2 biomes already registered by the world
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:46] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #15: streaming render distance 17, sections 0..0
+[19:04:55] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=overworld cycle=4
+[19:04:55] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage overworld: composited=18250 skipped=995 builds=15 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=4
+[19:04:55] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 120.000000, 0.500000]
+[19:04:55] [Active world cleaner/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down idle world: 7462760223788803275
+[19:04:55] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 7462760223788803275@1264667007
+[19:04:56] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:04:56] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:04:56] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:04:56] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 120.000000, 0.500000
+[19:04:56] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:04:56] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 20 biomes already registered by the world
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:04:56] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #16: streaming render distance 17, sections -1..0
+[19:05:05] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=descend cycle=4
+[19:05:05] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 79.000000, 0.500000]
+[19:05:05] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage descend: composited=18347 skipped=997 builds=16 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=4
+[19:05:06] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 79.000000, 0.500000
+[19:05:06] [Active world cleaner/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down idle world: -804933456715516506
+[19:05:15] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=ascend cycle=4
+[19:05:15] [Server thread/INFO] (Minecraft) [Player574: Teleported Player574 to 0.500000, 175.000000, 0.500000]
+[19:05:15] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage ascend: composited=18447 skipped=997 builds=16 vkBuffers=40 vkBufferBytes=730280040 vkTextures=11 vkTextureBytes=598837376 frame=1708x960 cycle=4
+[19:05:16] [Render thread/INFO] (Minecraft) [System] [CHAT] Teleported Player574 to 0.500000, 175.000000, 0.500000
+[19:05:25] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=disconnect cycle=4
+[19:05:25] [Server thread/INFO] (Minecraft) Stopping server
+[19:05:25] [Server thread/INFO] (Minecraft) Saving players
+[19:05:25] [Server thread/INFO] (Minecraft) Saving worlds
+[19:05:25] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:05:26] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:05:26] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:05:26] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[19:05:26] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[19:05:26] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[19:05:26] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[19:05:26] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:05:26] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[19:05:27] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[19:05:27] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] stage=reconnect cycle=4
+[19:05:27] [Render thread/INFO] (Minecraft) Loaded 1585 recipes
+[19:05:27] [Render thread/INFO] (Minecraft) Loaded 1688 advancements
+[19:05:27] [Render thread/INFO] (BiomeModificationImpl) Applied 0 biome modifications to 0 of 66 new biomes in 101.0 μs
+[19:05:27] [Server thread/INFO] (Minecraft) Starting integrated minecraft server version 26.2
+[19:05:27] [Server thread/INFO] (Minecraft) Generating keypair
+[19:05:27] [Server thread/INFO] (Minecraft) Loading 0 persistent chunks...
+[19:05:27] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:05:27] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:05:27] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:05:27] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[19:05:27] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[19:05:27] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[19:05:27] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[19:05:28] [Server thread/INFO] (Minecraft) Loading 49 chunks for player spawn...
+[19:05:28] [Server thread/INFO] (Minecraft) Preparing spawn area: 16%
+[19:05:28] [Server thread/INFO] (Minecraft) Preparing spawn area: 100%
+[19:05:28] [Server thread/INFO] (Minecraft) Time elapsed: 539 ms
+[19:05:28] [Server thread/INFO] (Minecraft) Player574[local:E:2a1cf811] logged in with entity id 3953 at (0.5, 175.0, 0.5)
+[19:05:28] [Server thread/INFO] (Minecraft) Player574 joined the game
+[19:05:28] [Server thread/INFO] (Minecraft) Changing view distance to 8, from 10
+[19:05:28] [Server thread/INFO] (Minecraft) Changing simulation distance to 5, from 0
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 9
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 7462760223788803275@926708326
+[19:05:28] [Render thread/INFO] (Voxy) [nt.mt.ct.rr.LevelRenderer]: [native-vk] native instance mode: world engine created; no renderer
+[19:05:28] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Dedicated voxy thread pool size: 1
+[19:05:28] [Render thread/INFO] (Minecraft) Loaded 29 advancements
+[19:05:28] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:05:28] [Render thread/INFO] (ChunkBuilder) Started 8 worker threads
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier frames entering stage reconnect: composited=18547 skipped=997 builds=16 vkBuffers=2 vkBufferBytes=25165968 vkTextures=1 vkTextureBytes=542474624 frame=0x0 cycle=4
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] requested the block atlas (2048x2048) through Blaze3D
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeAtlas]: [native-vk] block atlas read through Blaze3D: 2048x2048
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.VkRealModelBakery]: [5c-3b] replayed 20 biomes already registered by the world
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-vanilla-bound': 1 bindings, push=96B, stages=[VERTEX, FRAGMENT]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-resolve-reproject': 1 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-ssao': 3 bindings, push=128B, stages=[COMPUTE]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-post': 2 bindings, push=128B, stages=[VERTEX, FRAGMENT]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-native-composite': 2 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+[19:05:28] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeHierarchicalLoad]: [native-vk] hier-LOAD scene #17: streaming render distance 17, sections -1..0
+[19:05:28] [Download-14/ERROR] (Minecraft) Failed to retrieve profile key pair
+
+MinecraftClientHttpException[type=HTTP_ERROR, status=401, response=ErrorResponse[path=/player/certificates, error=null, errorMessage=null, details=null]]
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.buildHttpException(MinecraftClient.java:170)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.readServiceResponse(MinecraftClient.java:147)
+	at knot//com.mojang.authlib.minecraft.client.MinecraftClient.post(MinecraftClient.java:89)
+	at knot//com.mojang.authlib.yggdrasil.YggdrasilUserApiService.getKeyPair(YggdrasilUserApiService.java:62)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.fetchProfileKeyPair(AccountProfileKeyPairManager.java:128)
+	at knot//net.minecraft.client.multiplayer.AccountProfileKeyPairManager.lambda$readOrFetchProfileKeyPair$0(AccountProfileKeyPairManager.java:77)
+	at java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1789)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1090)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:614)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+[19:05:37] [Render thread/INFO] (Minecraft) [STDOUT]: [voxy-harness] finished failures=0
+[19:05:37] [Render thread/INFO] (Minecraft) Stopping!
+[19:05:37] [Render thread/INFO] (Voxy) [me.cx.vy.ct.ce.vk.me.McNativeVkContext]: [native-vk] released Minecraft's device from VkContext (nothing of Minecraft's was destroyed)
+[19:05:37] [Server thread/INFO] (Minecraft) Player574 lost connection: Disconnected
+[19:05:37] [Server thread/INFO] (Minecraft) Player574 left the game
+[19:05:37] [Server thread/INFO] (Minecraft) Stopping singleplayer server as player logged out
+[19:05:37] [Server thread/INFO] (Minecraft) Stopping server
+[19:05:37] [Server thread/INFO] (Minecraft) Saving players
+[19:05:37] [Server thread/INFO] (Minecraft) Saving worlds
+[19:05:37] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:overworld
+[19:05:37] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_end
+[19:05:37] [Server thread/INFO] (Minecraft) Saving chunks for level 'ServerLevel[voxy-harness]'/minecraft:the_nether
+[19:05:37] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (world): All chunks are saved
+[19:05:37] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[19:05:37] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[19:05:37] [Server thread/INFO] (Minecraft) ThreadedAnvilChunkStorage: All dimensions are saved
+[19:05:37] [Render thread/INFO] (ChunkBuilder) Stopping worker threads
+[19:05:37] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[19:05:38] [Render thread/INFO] (Voxy) [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[Vulkan Loader] DEBUG | LAYER:  Unloading layer library /opt/homebrew/Cellar/vulkan-validationlayers/1.4.357.0/lib/libVkLayer_khronos_validation.dylib
+
+[Incubating] Problems report is available at: file:///Users/xyz/dev/voxy/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.6.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 11m 23s
+8 actionable tasks: 2 executed, 6 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.6.0/userguide/configuration_cache_enabling.html
