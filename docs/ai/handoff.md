@@ -363,7 +363,11 @@ commit the report alone, then repair.
    rate limits (1 s rebuild interval, 10 s empty retry) and a product-capacity soak (the product
    launch runs 4 lifecycles at 1 << 20 sections / 512 MiB; `36aa82ee`, run
    `20261012T053415-126654Z`: 733.8 MB buffers + 615.9 MB textures at 1920x1080, exactly flat per
-   size). Next: Codex round of record after 2026-10-14 12:30. Far-world: the gate
+   size). Window resize resizes the scene in place, keeping its geometry, as GL (`03ccecc5`, run
+   `20261012T063749-518322Z`: 17 builds over the 4-lifecycle soak instead of 21). The 66 ms atlas-upload
+   frame (run `20261011T163645-918547Z`) has not recurred in seven runs; uploads are not throttled (a
+   mesh drawn before its tile would show the wrong texture). Next: Codex round of record after
+   2026-10-14 12:30. Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
    here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
    terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the
