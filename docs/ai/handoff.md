@@ -374,8 +374,13 @@ commit the report alone, then repair.
    mesh drawn before its tile would show the wrong texture). Fade judged (`283790fe`, `1cee4d98`):
    both judges model GL's blend from the retained alpha; travel goes on to x 7800 and a `fade`
    look (pitch 10) is required to show judged blended pixels (run `20261012T094712-600670Z`: 69 in
-   the fade look, 294 in all). Remaining from the round-28 readiness list: visual references
-   (water, night, sky/clouds, translucency). Next: Codex round of record after 2026-10-14 12:30. Far-world: the gate
+   the fade look, 294 in all). Visual references (`6fad0309`, `e017b402`): water and translucency
+   were already judged (the horizon look's Voxy-only band x 640–896 is ocean, 99307 water columns);
+   sky and clouds are in the far and fade looks; a `night` look (midnight at spawn) is required to
+   show judged Voxy pixels. Run `20261012T113121-123739Z` (built from `e017b402`, all five launches,
+   replay clean): 2357 expected-visible Voxy pixels in the night look, 69 blended in the fade look
+   (291 in all), 6205 beyond Minecraft's far plane; no zero-size copy. The round-28 readiness list
+   is done. Next: Codex round of record after 2026-10-14 12:30. Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
    here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
    terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the
