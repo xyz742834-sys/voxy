@@ -7,7 +7,16 @@ layout(binding = 2) uniform sampler2D depthTex;
 
 #import <voxy:util/depthutils.glsl>
 
-#ifdef BETTER_SSAO
+#ifdef VK_SSAO_PUSH
+// Vulkan (the native path, McNativeSSAO): loose uniforms do not exist there, so the BASIC variant's
+// two matrices arrive as push constants. GL never defines VK_SSAO_PUSH; its declarations are below.
+layout(push_constant) uniform SSAOPush {
+    mat4 pushMVP;
+    mat4 pushInvMVP;
+} ssaoPush;
+#define MVP ssaoPush.pushMVP
+#define invMVP ssaoPush.pushInvMVP
+#elif defined(BETTER_SSAO)
 layout(binding = 3) uniform sampler2D sourceDepthTex;
 layout(location = 4) uniform mat4 Proj;
 layout(location = 5) uniform mat4 invProj;

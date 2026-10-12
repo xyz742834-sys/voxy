@@ -310,6 +310,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private final McNativeComposite composite;
     /** GL's final-blit colour work (fog, fade) in Voxy's submission; the composite blends its output. */
     private McNativePost post;
+    /** GL's SSAO pass (BASIC), between the scene and the post pass. */
+    private McNativeSSAO ssao;
     private final java.lang.ref.WeakReference<me.cortex.voxy.common.world.WorldEngine> engine;
     private final int atlasGeneration, buildOrdinal, width, height;
     /** Sections populate() meshed when the scene was built (its log line); {@code meshed} grows after. */
@@ -604,7 +606,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 probe.target.recordDepthReadback(cmd);
                 probe.recordResolve(cmd, mvp, mcMvp, true);
                 lastPost = postParameters();
-                probe.post.record(cmd, probe.target.color, probe.target.depth,
+                probe.ssao.record(cmd, probe.target.color, probe.target.depth, new org.joml.Matrix4f().set(mvp));
+                probe.post.record(cmd, probe.ssao.output, probe.target.depth,
                     new org.joml.Matrix4f().set(mvp).invert(), sub, lastPost, true);
                 probe.composite.prepareSources(cmd);
             }
@@ -745,7 +748,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         long sceneRecorded = System.nanoTime();
         probe.recordResolve(cmd, mvp, mcMvp, false);
         float[] params = postParameters();
-        probe.post.record(cmd, probe.target.color, probe.target.depth,
+        // GL's SSAO pass, then its final blit's fog/fade from the SSAO output (colourSSAOTex)
+        probe.ssao.record(cmd, probe.target.color, probe.target.depth, new org.joml.Matrix4f().set(mvp));
+        probe.post.record(cmd, probe.ssao.output, probe.target.depth,
             new org.joml.Matrix4f().set(mvp).invert(), sub, params, false);
         probe.composite.prepareSources(cmd);
         if (INJECT_AT >= 0 && injectedFailures == 0 && framesComposited >= INJECT_AT) {
@@ -839,6 +844,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         me.cortex.voxy.client.core.vk.VkTexture atlas = null;
         McNativeComposite composite = null;
         McNativePost post = null;
+        McNativeSSAO ssao = null;
         me.cortex.voxy.client.core.vk.VkTexture mcDepth = null;
         me.cortex.voxy.client.core.vk.VkDepthResolve resolve = null;
         me.cortex.voxy.client.core.vk.VkBuffer mcDepthReadback = null;
@@ -863,7 +869,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                     | VK10.VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
             resolve = new me.cortex.voxy.client.core.vk.VkDepthResolve(target.depth, width, height, true);
             mcDepthReadback = new me.cortex.voxy.client.core.vk.VkBuffer((long) width * height * 4);
-            post = new McNativePost(target.color, target.depth, width, height);
+            ssao = new McNativeSSAO(target.color, target.depth, width, height);
+            post = new McNativePost(ssao.output, target.depth, width, height);
             composite = new McNativeComposite(post.output, mcDepth);
             Logger.info("[native-vk] hier-LOAD scene #" + builds + ": streaming render distance "
                 + scene.streamRenderDistance() + ", sections " + sections[0] + ".." + sections[1]);
@@ -872,6 +879,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 McNativeAtlas.generation(), builds, width, height, meshed);
             target = null; scene = null; composite = null;
             built.post = post;
+            built.ssao = ssao;
+            ssao = null;
             built.atlasLent = true;
             atlas = null;   // the built scene holds it now
             mcDepth = null; resolve = null; mcDepthReadback = null; post = null;
@@ -884,6 +893,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             if (atlas != null) AtlasPool.giveBack();
             if (composite != null) try { composite.free(); } catch (Throwable t) { closeFailures++; }
             if (post != null) try { post.free(); } catch (Throwable t) { closeFailures++; }
+            if (ssao != null) try { ssao.free(); } catch (Throwable t) { closeFailures++; }
             if (resolve != null) try { resolve.free(); } catch (Throwable t) { closeFailures++; }
             if (mcDepth != null) try { mcDepth.free(); } catch (Throwable t) { closeFailures++; }
             if (mcDepthReadback != null) try { mcDepthReadback.free(); } catch (Throwable t) { closeFailures++; }
@@ -1207,6 +1217,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         this.destroyed = true;
         try { this.composite.free(); } catch (Throwable t) { closeFailures++; }
         if (this.post != null) try { this.post.free(); } catch (Throwable t) { closeFailures++; }
+        if (this.ssao != null) try { this.ssao.free(); } catch (Throwable t) { closeFailures++; }
         try { this.scene.free(); } catch (Throwable t) { closeFailures++; }
         try { this.target.free(); } catch (Throwable t) { closeFailures++; }
         try { this.resolve.free(); } catch (Throwable t) { closeFailures++; }
