@@ -366,8 +366,11 @@ commit the report alone, then repair.
    size). Window resize resizes the scene in place, keeping its geometry, as GL (`03ccecc5`, run
    `20261012T063749-518322Z`: 17 builds over the 4-lifecycle soak instead of 21). The 66 ms atlas-upload
    frame (run `20261011T163645-918547Z`) has not recurred in seven runs; uploads are not throttled (a
-   mesh drawn before its tile would show the wrong texture). Next: Codex round of record after
-   2026-10-14 12:30. Far-world: the gate
+   mesh drawn before its tile would show the wrong texture). Fade judged (`283790fe`, `1cee4d98`):
+   both judges model GL's blend from the retained alpha; travel goes on to x 7800 and a `fade`
+   look (pitch 10) is required to show judged blended pixels (run `20261012T094712-600670Z`: 69 in
+   the fade look, 294 in all). Remaining from the round-28 readiness list: visual references
+   (water, night, sky/clouds, translucency). Next: Codex round of record after 2026-10-14 12:30. Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
    here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
    terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the

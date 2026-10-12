@@ -1,6 +1,7 @@
 You are an INDEPENDENT reviewer, round 28 (round of record; an owner-scheduled Claude reviewer already
 reviewed a68cf90a: docs/ai/runs/native-integration-review-r28-claude.md, REDESIGN; its findings are repaired
-in 6a6ff092, 9cb2435d, c00e2b1a, bcd86b21 — judge those repairs too — 463a8212 ports GL's SSAO (BASIC), 1c00c234 fails closed on device features, 36aa82ee adds wall-clock rate limits and a product-capacity soak, 03ccecc5 resizes the scene in place —
+in 6a6ff092, 9cb2435d, c00e2b1a, bcd86b21 — judge those repairs too — 463a8212 ports GL's SSAO (BASIC), 1c00c234 fails closed on device features, 36aa82ee adds wall-clock rate limits and a product-capacity soak, 03ccecc5 resizes the scene in place, 283790fe/1cee4d98 judge the fade
+   against GL's blend from retained alpha and require a fade look —
    check the old probe's destruction against Minecraft's in-flight frame). Do not fix anything; judge it.
 
 Candidate: this checkout's HEAD (docs-only commits after dd2a64c7, which retains the latest evidence). Round 27 returned REDESIGN against 9cfd9c01:
@@ -33,7 +34,7 @@ What changed since 10856154, grouped by the round-27 readiness list:
   16f1b496 (a hierarchical camera-extent-mismatch skip carries its extents, so the gate can corroborate it), 906ddbab (normal-play GPU and render-thread timing, required complete; no budget judged), a2a3f5dd (worker-thread meshing as GL; results dropped for positions edited in flight; workers stopped at retire), d2047de0 (the real-scale atlas lent to one scene at a time, kept across rebuilds), 7dad2148 (texture memory measured and judged), 08a9501d (owner decision: GL's capacities, 1 << 20 sections and 512 MiB geometry).
 - Far-world: 1376d11f (travel to x 2560 and a `far` look; the gate requires judged Voxy pixels beyond
   Minecraft's far plane).
-Latest evidence: docs/ai/runs/native-evidence/20261012T063749-518322Z (built from 03ccecc5); five launches.
+Latest evidence: docs/ai/runs/native-evidence/20261012T094712-600670Z (built from 1cee4d98); five launches.
 
 The boundary from rounds 4-27 still governs and the candidate accepts it. Judge, CONFIRMED or
 REFUTED with file/line or command:
@@ -55,7 +56,7 @@ REFUTED with file/line or command:
 
 Run: ./gradlew test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true
 -PvkSyncEnv=true  and  python3 -m unittest discover -s scripts/tests  and
-python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261012T063749-518322Z
+python3 scripts/verify.py --replay-evidence docs/ai/runs/native-evidence/20261012T094712-600670Z
 Do NOT run scripts/verify.py --only native or --only live; judge the committed evidence.
 
 Write docs/ai/runs/native-integration-review.md with "VERDICT: PASS" or "VERDICT: REDESIGN" on the
