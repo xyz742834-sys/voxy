@@ -34,6 +34,12 @@ void main() {
     vec3 point = view.xyz / view.w - push.cameraRel.xyz;   // camera-relative, as GL's rev3d
 
     colour = texelFetch(colourTex, p, 0);
+    // ⚠ The scene's alpha is not coverage: quads.frag packs face/LoD/AO metadata into it. GL's SSAO
+    // pass (post/ssao.comp) consumes that and writes alpha 1 before the final blit fades and blends
+    // it; the native path has no SSAO pass (not ported), so set alpha 1 here as that pass does (without
+    // the AO). Round-28 follow-up: with the composite blending, the metadata had made Voxy's terrain
+    // translucent (run 20261012T013138-074672Z: 43178 sub-1 alpha pixels in one band).
+    colour.a = 1.0;
     if (push.fogColour.a > 0.0) {
         float fogLerp = clamp(fma(length(point.xyz), push.endParams.x, push.endParams.y), 0, push.endParams.z);
         colour.rgb = mix(colour.rgb, push.fogColour.rgb, fogLerp * push.fogColour.a);
