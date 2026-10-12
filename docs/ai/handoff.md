@@ -357,7 +357,10 @@ commit the report alone, then repair.
    All round-28 findings repaired and gated (runs `20261012T020352-075639Z`,
    `20261012T023659-283754Z`). SSAO ported (`463a8212`, GL's BASIC variant — GL's AUTO choice on macOS;
    BETTER/BEST run as BASIC natively since they read Minecraft's depth; run
-   `20261012T032802-424394Z`). Next: Codex round of record after 2026-10-14 12:30. Far-world: the gate
+   `20261012T032802-424394Z`). Fail closed on device features (`1c00c234`): Voxy's four features are
+   added to Minecraft's device only if the physical device supports all of them, else Minecraft's
+   request is unchanged and the native path stays off (run `20261012T043138-363666Z`). Next: Codex
+   round of record after 2026-10-14 12:30. Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
    here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
    terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the
