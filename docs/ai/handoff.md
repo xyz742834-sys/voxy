@@ -359,8 +359,11 @@ commit the report alone, then repair.
    BETTER/BEST run as BASIC natively since they read Minecraft's depth; run
    `20261012T032802-424394Z`). Fail closed on device features (`1c00c234`): Voxy's four features are
    added to Minecraft's device only if the physical device supports all of them, else Minecraft's
-   request is unchanged and the native path stays off (run `20261012T043138-363666Z`). Next: Codex
-   round of record after 2026-10-14 12:30. Far-world: the gate
+   request is unchanged and the native path stays off (run `20261012T043138-363666Z`). Wall-clock
+   rate limits (1 s rebuild interval, 10 s empty retry) and a product-capacity soak (the product
+   launch runs 4 lifecycles at 1 << 20 sections / 512 MiB; `36aa82ee`, run
+   `20261012T053415-126654Z`: 733.8 MB buffers + 615.9 MB textures at 1920x1080, exactly flat per
+   size). Next: Codex round of record after 2026-10-14 12:30. Far-world: the gate
    already counts Voxy pixels beyond Minecraft's far plane (`beyondMinecraftFar`, 2048 blocks
    here) and was 0. Now (`1376d11f`): `travel` goes on to x 2560 and a new `far` stage looks at that
    terrain from (0, 185, 0), pitch 16, below the clouds; far samples go to hierarchical-LOAD and the
