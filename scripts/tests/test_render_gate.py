@@ -196,6 +196,13 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(log=texture_leak), "retired scenes are not freed")
         ok = self.run_gate()
         self.assertEqual(ok["memory"], {"bufferBytes": 84432744, "textureBytes": 600000000})
+        # a scene-less last snapshot (the level change retired the scene) is not the footprint
+        def sceneless_last(text):
+            return text.replace(RECONNECT + " vkTextureBytes=600000000 frame=1920x1080",
+                                RECONNECT.replace("vkBufferBytes=84432744", "vkBufferBytes=25165968")
+                                + " vkTextureBytes=542474624 frame=0x0")
+        self.assertEqual(self.run_gate(log=sceneless_last)["memory"],
+                         {"bufferBytes": 84432744, "textureBytes": 600000000})
         def sizeless(text):
             return text.replace(" frame=1708x960\n", "\n", 1)
         self.assertRefused(self.run_gate(log=sizeless), "states no frame size")

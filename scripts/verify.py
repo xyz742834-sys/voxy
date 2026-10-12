@@ -3311,8 +3311,10 @@ def native_render_result(output, log_text, expected_device=None, command=None,
             raise ValueError(f"the {L} launch composited no frame in (stage, cycle) {idle[:6]}")
         result.update(success=True, framesComposited=composited, frameSkips=dict(skips),
                       performance=report.get("performance"),
-                      memory=({"bufferBytes": lines[-1][5], "textureBytes": lines[-1][10]}
-                              if lines else None),
+                      # the footprint with a live scene: the last snapshot that holds one (a level
+                      # change retires the scene, so the last snapshot can be scene-less, 0x0)
+                      memory=next(({"bufferBytes": l[5], "textureBytes": l[10]}
+                                   for l in reversed(lines) if l[7:9] != (0, 0)), None),
                       builds=report["builds"], perStage=growth,
                       answer=f"the product switch alone ran Voxy's hierarchical scene on Minecraft's"
                              f" Vulkan backend and composited {composited} frame(s), in every"
