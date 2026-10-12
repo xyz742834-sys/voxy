@@ -233,4 +233,24 @@ public class McNativeTerrainLoadTest {
         org.junit.jupiter.api.Assertions.assertEquals(-1, McNativeTerrainLoad.expectationClearOnly(rung + 7));
         org.junit.jupiter.api.Assertions.assertEquals(-1, McNativeTerrainLoad.expectationClearOnly(McNativeDepthLadder.BASE));
     }
+
+    /** Round-28 R28-FADE-BLEND: a blended pixel (Voxy's fade) is judged against GL's blend. */
+    @org.junit.jupiter.api.Test
+    void theJudgeModelsGlsBlend() {
+        byte[] classes = {(byte) McNativeDepthLadder.CLEAR};
+        byte[] before = {20, 40, 60};
+        int ref = 200 | 100 << 8 | 50 << 16;
+        float[] depth = {0.5f};
+        int[] half = {McNativeTerrainLoad.blendChannel(200, 20, 128),
+            McNativeTerrainLoad.blendChannel(100, 40, 128), McNativeTerrainLoad.blendChannel(50, 60, 128)};
+        java.util.function.BiFunction<int[], Integer, long[]> judge = (px, a) -> McNativeTerrainLoad.judge(
+            classes, before, new byte[] {(byte) px[0], (byte) px[1], (byte) px[2]}, new int[] {ref}, depth,
+            true, new int[] {a});
+        org.junit.jupiter.api.Assertions.assertEquals(1, judge.apply(half, 128)[McNativeTerrainLoad.VISIBLE]);
+        org.junit.jupiter.api.Assertions.assertEquals(1,
+            judge.apply(new int[] {half[0] + 1, half[1] + 1, half[2] + 1}, 128)[McNativeTerrainLoad.VISIBLE]);
+        org.junit.jupiter.api.Assertions.assertEquals(1, judge.apply(new int[] {200, 100, 50}, 128)[McNativeTerrainLoad.OTHER]);
+        org.junit.jupiter.api.Assertions.assertEquals(1, judge.apply(new int[] {20, 40, 60}, 0)[McNativeTerrainLoad.AMBIGUOUS]);
+        org.junit.jupiter.api.Assertions.assertEquals(1, judge.apply(new int[] {200, 100, 50}, 255)[McNativeTerrainLoad.VISIBLE]);
+    }
 }

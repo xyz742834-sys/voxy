@@ -22,6 +22,14 @@ from test_ladder_gate import (DEVICE, EXTENTS, TERRAIN_REF, direction_checkpoint
                               direction_samples, far_sample, full_ladder_package, sample)
 
 
+def clear_ladder_px():
+    """A ladder pixel of the CLEAR class (Minecraft drew nothing there)."""
+    for px in [tuple(int(round(v * 255)) for v in c) for c in verify.EXPECTED_LADDER_PALETTE]:
+        if verify.ladder_classify(px) == verify.LADDER_CLEAR:
+            return px
+    raise AssertionError("no CLEAR colour in the ladder palette")
+
+
 class HierLoadGateTest(unittest.TestCase):
 
     def run_gate(self, hier_violate=None, hier_status=None, mutate_ladder=None, mutate_hier=None,
@@ -415,13 +423,42 @@ class HierLoadGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(depth_kind="none", mutate_hier=R(0, minDepth=0.5)),
                            "reports minDepth=0.5 with no geometry")
 
-    def test_blended_fade_pixels_are_refused_not_misjudged(self):
+    def test_the_fade_is_judged_from_the_retained_alpha(self):
+        from test_ladder_gate import write_gz_f32
         R = lambda **kw: (lambda r: r["results"][0].update(**kw))
+        # the reported count must be the retained alpha's
         self.assertRefused(self.run_gate(mutate_hier=R(fadePixels=12)),
-                           "holds 12 blended (fade-zone) pixel(s)")
+                           "reports fadePixels=12 but its retained alpha holds 0")
         self.assertRefused(self.run_gate(mutate_hier=R(fadePixels=-1)), "states fadePixels=-1")
-        self.assertRefused(self.run_gate(mutate_hier=lambda r: r["results"][0].pop("fadePixels")),
-                           "states fadePixels=None")
+        # the alpha must be retained, sized as the band, and within [0, 1]
+        self.assertRefused(self.run_gate(mutate_hier=R(alphaFile=None)), "names alphaFile=None")
+        def first_alpha(o):
+            hl = json.loads((o / "native-hier-load.json").read_text())
+            return o / next(e for e in hl["results"] if e["status"] == "judged")["alphaFile"]
+        self.assertRefused(self.run_gate(mutate_files=lambda o: write_gz_f32(first_alpha(o), [[1.0] * 3] * 2)),
+                           "is 3x2, not the band's")
+        def over(o):
+            path = first_alpha(o)
+            rows, _ = verify.read_f32_gz(path)
+            rows[0][0] = 1.5
+            write_gz_f32(path, rows)
+        self.assertRefused(self.run_gate(mutate_files=over), "holds values outside [0, 1]")
+
+    def test_the_judge_models_gls_blend(self):
+        ref, before = (200, 100, 50), (20, 40, 60)
+        half = tuple(verify.blend_channel(r, b, 128) for r, b in zip(ref, before))
+        def judge(after_px, a):
+            return verify.terrain_load_judge([[before]], [[clear_ladder_px()]], [[after_px]],
+                                             [[ref]], [[0.5]], clear_only=True, alpha=[[a]])
+        # a blended pixel is Voxy shown; the unblended reference colour or one step off is not
+        self.assertEqual(judge(half, 128)["visible"], 1)
+        self.assertEqual(judge(tuple(c + 1 for c in half), 128)["visible"], 1)
+        self.assertEqual(judge(ref, 128)["other"], 1)
+        self.assertEqual(judge(tuple(c + 2 for c in half), 128)["other"], 1)
+        # alpha 0 blends to Minecraft's colour: ambiguous, never a violation
+        self.assertEqual(judge(before, 0)["ambiguous"], 1)
+        # opaque: exact
+        self.assertEqual(judge(ref, 255)["visible"], 1)
 
     def test_voxys_own_projection_and_the_reprojection_are_rederived(self):
         from test_ladder_gate import write_gz_f32

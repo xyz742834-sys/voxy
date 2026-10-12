@@ -206,6 +206,8 @@ public final class McNativeDepthLadder implements Destroyable {
      * toward neither rotation.
      */
     public static final String FAR_STAGE = "far";
+    /** The fade look (LiveWorldHarness.FADE_*): like the far look, every sample to hierarchical-LOAD. */
+    public static final String FADE_STAGE = "fade";
     private static int assigned, assignedHorizon;
     private static int problems;
     private static String firstProblem;
@@ -479,7 +481,8 @@ public final class McNativeDepthLadder implements Destroyable {
                 boolean horizon = HORIZON_STAGE.equals(System.getProperty("voxy.harness.stage", ""));
                 boolean real = McNativeRealLoad.enabled(), hier = McNativeHierarchicalLoad.enabled();
                 boolean horizonBranch = horizon && (real || hier);
-                boolean far = hier && FAR_STAGE.equals(System.getProperty("voxy.harness.stage", ""));
+                String now = System.getProperty("voxy.harness.stage", "");
+                boolean far = hier && (FAR_STAGE.equals(now) || FADE_STAGE.equals(now));
                 String consumer = far ? EXPERIMENT_HIER_LOAD
                     : assignConsumer(McNativeTerrainLoad.enabled(), real, hier, horizon,
                         horizonBranch ? assignedHorizon : assigned);

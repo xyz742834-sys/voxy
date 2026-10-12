@@ -531,6 +531,8 @@ def full_ladder_package(out, pairs, violate=None, depth_kind="sweep", coexist=Tr
             true_depth = ([[far_true if d else 0.0 for d in row] for row in depth]
                           if far_look else depth)
             write_gz_f32(out / entry["voxyDepthFile"], hier_raw_depth(true_depth, entry, s))
+            # the reference's alpha: opaque (no fade) in these looks
+            write_gz_f32(out / entry["alphaFile"], [[1.0] * len(row) for row in depth])
             hier_entries.append(entry)
             continue
         if consumer == verify.LADDER_REAL_LOAD:
@@ -621,7 +623,8 @@ def hier_entry(sample, field, before, depth, after):
                  rawProjection=list(HIER_MC_PROJECTION), voxyNear=16.0,
                  vanillaRenderDistance=128.0, sodiumChunkRenderDisabled=False,
                  voxyDepthFile=f"native-hier-load-voxydepth-{at}.f32.gz",
-                 previousCapture=at - 1, buildsSoFar=1, fadePixels=0)
+                 previousCapture=at - 1, buildsSoFar=1, fadePixels=0,
+                 alphaFile=f"native-hier-load-alpha-{at}.f32.gz")
     return entry
 
 

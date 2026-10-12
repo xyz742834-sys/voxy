@@ -418,6 +418,23 @@ public final class McNativeTerrainLoad implements Destroyable {
     /** @param clearOnly judge by {@link #expectationClearOnly} instead of the depth-test rule */
     static long[] judge(byte[] classes, byte[] before, byte[] after, int[] refRgb, float[] refDepth,
                         boolean clearOnly) {
+        return judge(classes, before, after, refRgb, refDepth, clearOnly, null);
+    }
+
+    /** One channel of GL's final-blit blend: src * a + dst * (1 - a), alpha in 0..255. */
+    static int blendChannel(int src, int dst, int alpha) {
+        return Math.round((src * alpha + dst * (255 - alpha)) / 255f);
+    }
+
+    /**
+     * @param refAlpha the reference's alpha per band pixel (0..255; Voxy's fade), or null for 255
+     *        everywhere. Where it is below 255 the composite blends as GL's final blit
+     *        (SRC_ALPHA, ONE_MINUS_SRC_ALPHA over Minecraft's colour), so "Voxy shows" means the pixel
+     *        equals that blend of the reference over {@code before}, within one step per channel
+     *        (UNORM blending may round either way). Alpha 0 blends to {@code before}: ambiguous.
+     */
+    static long[] judge(byte[] classes, byte[] before, byte[] after, int[] refRgb, float[] refDepth,
+                        boolean clearOnly, int[] refAlpha) {
         long[] c = new long[COUNTS];
         int n = classes.length;
         for (int i = 0; i < n; i++) {
@@ -431,9 +448,19 @@ public final class McNativeTerrainLoad implements Destroyable {
             }
             c[GEOMETRY]++;
             int rgb = refRgb[i];
-            boolean sameAsRef = (after[i3] & 0xFF) == (rgb & 0xFF)
-                && (after[i3 + 1] & 0xFF) == ((rgb >> 8) & 0xFF)
-                && (after[i3 + 2] & 0xFF) == ((rgb >> 16) & 0xFF);
+            int alpha = refAlpha == null ? 255 : refAlpha[i];
+            boolean sameAsRef;
+            if (alpha >= 255) {
+                sameAsRef = (after[i3] & 0xFF) == (rgb & 0xFF)
+                    && (after[i3 + 1] & 0xFF) == ((rgb >> 8) & 0xFF)
+                    && (after[i3 + 2] & 0xFF) == ((rgb >> 16) & 0xFF);
+            } else {
+                sameAsRef = true;
+                for (int ch = 0; ch < 3; ch++) {
+                    int want = blendChannel((rgb >> (8 * ch)) & 0xFF, before[i3 + ch] & 0xFF, alpha);
+                    if (Math.abs((after[i3 + ch] & 0xFF) - want) > 1) sameAsRef = false;
+                }
+            }
             int expect = clearOnly ? expectationClearOnly(classes[i]) : expectation(classes[i], refDepth[i]);
             if (expect > 0) c[EXPECT_VISIBLE]++;
             else if (expect < 0) c[EXPECT_HIDDEN]++;

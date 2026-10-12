@@ -69,13 +69,20 @@ public final class LiveWorldHarness implements ClientModInitializer {
      * (its terrain ends at 128 blocks) and the x = 768 terrain (~9°) is outside the band.
      */
     static final int FAR_TRAVEL_X = 2560, FAR_Y = 185, FAR_YAW = -90, FAR_PITCH = 16;
+    /**
+     * Voxy's fade (GL's final blit fades 90–100 % of its render distance: ~7344–8160 blocks at the
+     * default 16): `travel`'s third leg ingests terrain at x 7672–7928, and the `fade` look faces it
+     * from (0, 185, 0) at pitch 10, the band's rays 4° above to 2° below horizontal reaching it at
+     * ~0.9° below — blended pixels the gate judges against GL's blend.
+     */
+    static final int FADE_TRAVEL_X = 7800, FADE_PITCH = 10;
     private int travelLeg;
     private String name() { return STAGES[stage]; }
     private CompletableFuture<Void> reload;
     private long editVersion;
     private static final String WORLD = "voxy-harness";
     private static final String[] STAGES = {"create", "warmup", "turn", "travel", "return",
-        "horizon", "far", "edit", "remove", "resize", "reload", "nether", "overworld", "descend",
+        "horizon", "far", "fade", "edit", "remove", "resize", "reload", "nether", "overworld", "descend",
         "ascend", "disconnect", "reconnect"};
     /**
      * The `horizon` look: back at spawn after the travel to x = 768, facing +x (yaw -90) with
@@ -161,9 +168,9 @@ public final class LiveWorldHarness implements ClientModInitializer {
             mc.options.pauseOnLostFocus = false;
             if (mc.gui.screen() != null && mc.gui.screen().isPauseScreen()) mc.gui.setScreen(null);
             // travel's second leg: after its dwell at x = 768, on to the far terrain
-            if (name().equals("travel") && travelLeg == 0 && elapsed >= dwell) {
-                travelLeg = 1;
-                command(mc, "tp @s " + FAR_TRAVEL_X + " 120 0 0 30");
+            if (name().equals("travel") && travelLeg < 2 && elapsed >= dwell) {
+                travelLeg++;
+                command(mc, "tp @s " + (travelLeg == 1 ? FAR_TRAVEL_X : FADE_TRAVEL_X) + " 120 0 0 30");
                 stageStarted = System.nanoTime();
                 return;
             }
@@ -179,6 +186,9 @@ public final class LiveWorldHarness implements ClientModInitializer {
             } else if (name().equals("far")) {
                 mc.player.setYRot(FAR_YAW);
                 mc.player.setXRot(FAR_PITCH);
+            } else if (name().equals("fade")) {
+                mc.player.setYRot(FAR_YAW);
+                mc.player.setXRot(FADE_PITCH);
             } else {
                 mc.player.setYRot(0);
                 mc.player.setXRot(30);
@@ -262,6 +272,7 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 command(mc, "tp @s 0 " + HORIZON_Y + " 0 " + HORIZON_YAW + " " + HORIZON_PITCH);
             }
             case "far" -> command(mc, "tp @s 0 " + FAR_Y + " 0 " + FAR_YAW + " " + FAR_PITCH);
+            case "fade" -> command(mc, "tp @s 0 " + FAR_Y + " 0 " + FAR_YAW + " " + FADE_PITCH);
             case "edit" -> {
                 command(mc, "fill " + HORIZON_WALL_X + " 150 0 " + HORIZON_WALL_X + " 165 12 minecraft:air");
                 // back to where `edit` always ran, so later stages see what they saw before `horizon`
@@ -297,8 +308,8 @@ public final class LiveWorldHarness implements ClientModInitializer {
     private boolean ready(Minecraft mc) {
         return switch (name()) {
             case "warmup", "return", "overworld" -> mc.level.dimension() == Level.OVERWORLD && near(mc, 0, 120, 0);
-            case "travel" -> travelLeg == 0 ? near(mc, 768, 120, 0) : near(mc, FAR_TRAVEL_X, 120, 0);
-            case "far" -> near(mc, 0, FAR_Y, 0);
+            case "travel" -> near(mc, travelLeg == 0 ? 768 : travelLeg == 1 ? FAR_TRAVEL_X : FADE_TRAVEL_X, 120, 0);
+            case "far", "fade" -> near(mc, 0, FAR_Y, 0);
             case "horizon" -> near(mc, 0, HORIZON_Y, 0)
                 && mc.level.getBlockState(new BlockPos(HORIZON_WALL_X, 157, 6)).is(Blocks.STONE);
             case "edit" -> near(mc, 0, 120, 0) && mc.level.getBlockState(new BlockPos(0, 104, 24)).is(Blocks.GLASS)

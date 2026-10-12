@@ -298,8 +298,10 @@ public final class McNativeHierarchicalLoad implements Destroyable {
      * NOTES; the judged entry reports the selected orientation's count.
      */
     private static final java.util.Map<Long, int[]> FADE_PIXELS = new java.util.HashMap<>();
+    /** Per judged sample, the retained file holding the reference's alpha. Guarded by NOTES. */
+    private static final java.util.Map<Long, String> ALPHA_FILES = new java.util.HashMap<>();
 
-    private record Pending(int[][] rects, int[][] colour, float[][] depth, float[][] rawDepth,
+    private record Pending(int[][] rects, int[][] colour, float[][] depth, float[][] rawDepth, int[][] alpha,
                            Result partial) {}
 
     private final VulkanDevice device;
@@ -689,18 +691,21 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         float[][] bandDepth = new float[2][];
         float[][] bandRaw = new float[2][];
         int[] bandFade = new int[2];
+        int[][] bandAlpha = new int[2][];
         for (int o = 0; o < 2; o++) {
             int[] q = rects[o];
             int w = q[2] - q[0], h = q[3] - q[1];
             bandColour[o] = new int[w * h];
             bandDepth[o] = new float[w * h];
             bandRaw[o] = new float[w * h];
+            bandAlpha[o] = new int[w * h];
             int i = 0;
             for (int y = q[1]; y < q[3]; y++) {
                 for (int x = q[0]; x < q[2]; x++, i++) {
                     bandColour[o][i] = colours[y * width + x];
                     bandDepth[o][i] = depths[y * width + x];
                     bandRaw[o][i] = rawDepths[y * width + x];
+                    bandAlpha[o][i] = alphas[y * width + x];
                     // a geometry pixel the composite blends (Voxy's fade): its result is not the
                     // reference colour, so the exact-colour judge cannot check it
                     if (depths[y * width + x] > 0f && alphas[y * width + x] < 255) bandFade[o]++;
@@ -720,7 +725,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             probe.scene.visibility().name(), voxyProjection.get(new float[16]), null,
             rawVk.get(new float[16]), voxyNear, vanillaDistance, sodiumOff);
         synchronized (NOTES) {
-            PENDING.put(at, new Pending(rects, bandColour, bandDepth, bandRaw, partial));
+            PENDING.put(at, new Pending(rects, bandColour, bandDepth, bandRaw, bandAlpha, partial));
         }
         requestReadback(colour, width, height, at);
     }
@@ -1195,8 +1200,16 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 }
             }
             // Voxy's GL rule: shown exactly on the ladder's CLEAR pixels, hidden everywhere else
+            // Voxy's fade blends as GL's final blit; the judge models it from the post output's alpha
+            int[] refAlpha = pending.alpha()[o];
             long[] counts = McNativeTerrainLoad.judge(band.classes(), band.pixels(), after, refRgb, refDepth,
-                CLEAR_ONLY);
+                CLEAR_ONLY, refAlpha);
+            int fade = 0;
+            float[] alphaOut = new float[refAlpha.length];
+            for (int k = 0; k < refAlpha.length; k++) {
+                alphaOut[k] = refAlpha[k] / 255f;
+                if (refDepth[k] > VkDepth.CLEAR && refAlpha[k] < 255) fade++;
+            }
             String file = McNativeTerrainLoad.writeCrop(data, width, q, "native-hier-load-" + at + ".ppm.gz");
             String frameFile = McNativeTerrainLoad.writeFrame(data, width, height,
                 "native-hier-load-frame-" + at + ".ppm.gz");
@@ -1207,6 +1220,13 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             // the reference depth from it and the two published projections
             String rawName = "native-hier-load-voxydepth-" + at + ".f32.gz";
             boolean rawWritten = refWritten && writeDepth(pending.rawDepth()[o], w, h, rawName);
+            // the reference's alpha (alpha / 255): the gate recomputes the blend from it
+            String alphaName = "native-hier-load-alpha-" + at + ".f32.gz";
+            boolean alphaWritten = refWritten && writeDepth(alphaOut, w, h, alphaName);
+            synchronized (NOTES) {
+                FADE_PIXELS.put(at, new int[] {fade, fade});
+                if (alphaWritten) ALPHA_FILES.put(at, alphaName);
+            }
             var p = pending.partial();
             var result = new Result(at, JUDGED, p.stage(), counts, minDepth, maxDepth, file, frameFile,
                 refWritten ? refName : null, refWritten ? depthName : null, p.projectionAdjusted(),
@@ -1403,10 +1423,12 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         List<String> notes;
         java.util.Map<Long, int[][]> extentSkips;
         java.util.Map<Long, int[]> fadePixels;
+        java.util.Map<Long, String> alphaFiles;
         synchronized (NOTES) {
             notes = List.copyOf(NOTES);
             extentSkips = new java.util.HashMap<>(EXTENT_SKIPS);
             fadePixels = new java.util.HashMap<>(FADE_PIXELS);
+            alphaFiles = new java.util.HashMap<>(ALPHA_FILES);
         }
         var sb = new StringBuilder("{\n");
         sb.append("  \"enabled\": ").append(enabled()).append(",\n");
@@ -1501,6 +1523,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 // either orientation's count, conservatively (the gate decides the orientation)
                 int[] fade = fadePixels.get(r.at());
                 sb.append(", \"fadePixels\": ").append(fade == null ? -1 : Math.max(fade[0], fade[1]));
+                sb.append(", \"alphaFile\": ").append(McNativeVulkanProbe.quote(alphaFiles.get(r.at())));
             } else {
                 sb.append(", \"atlasState\": ").append(r.atlasState());
                 int[][] extents = extentSkips.get(r.at());

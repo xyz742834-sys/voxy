@@ -273,7 +273,7 @@ def run_stage(name, arguments, output, timeout):
 # The harness's checkpointed lifecycle stages (LiveWorldHarness.STAGES minus "create" and
 # "disconnect", which checkpoint nothing). "descend" and "ascend" are the Z-direction
 # experiment: the same ground looked at straight down from two heights above it.
-LIFECYCLE_STAGES = ("warmup", "turn", "travel", "return", "horizon", "far", "edit", "remove", "resize",
+LIFECYCLE_STAGES = ("warmup", "turn", "travel", "return", "horizon", "far", "fade", "edit", "remove", "resize",
                     "reload", "nether", "overworld", "descend", "ascend", "reconnect")
 DESCEND_ABOVE_GROUND, ASCEND_ABOVE_GROUND = 12, 108   # LiveWorldHarness.*_ABOVE_GROUND
 PLAYER_EYE_HEIGHT = 1.62                              # Minecraft's standing eye height
@@ -932,6 +932,8 @@ LADDER_TERRAIN_LOAD, LADDER_REAL_LOAD, LADDER_HIER_LOAD = "terrainLoad", "realLo
 LADDER_HORIZON_STAGE = "horizon"
 # McNativeDepthLadder.FAR_STAGE: every sample there goes to hierarchical-LOAD when it runs
 LADDER_FAR_STAGE = "far"
+# McNativeDepthLadder.FADE_STAGE: likewise (Voxy's fade zone)
+LADDER_FADE_STAGE = "fade"
 
 
 def ladder_expected_consumer(terrain, real, index, hier=False, horizon=False):
@@ -951,7 +953,7 @@ def ladder_expected_consumers(terrain, real, hier, stages):
     """The hand-off for a whole sample list, from each sample's published stage."""
     out, general, horizon_count = [], 0, 0
     for stage in stages:
-        if stage == LADDER_FAR_STAGE and hier:
+        if stage in (LADDER_FAR_STAGE, LADDER_FADE_STAGE) and hier:
             out.append(LADDER_HIER_LOAD)
             continue
         horizon = stage == LADDER_HORIZON_STAGE and (real or hier)
@@ -1848,7 +1850,13 @@ def terrain_load_expectation_clear_only(ladder_class):
     return 1 if ladder_class == LADDER_CLEAR else -1
 
 
-def terrain_load_judge(before, ladder, after, reference, depth, clear_only=False):
+def blend_channel(src, dst, alpha):
+    """McNativeTerrainLoad.blendChannel: GL's final-blit blend of one channel, alpha 0..255
+    (Java's Math.round of a float: half rounds up)."""
+    return math.floor((src * alpha + dst * (255 - alpha)) / 255.0 + 0.5)
+
+
+def terrain_load_judge(before, ladder, after, reference, depth, clear_only=False, alpha=None):
     """Count every band pixel the way McNativeTerrainLoad.judge does, from the retained crops:
     `ladder` classifies Minecraft's depth, `before` is the previous readback (the quad's
     crop when the coexist experiment ran, else the ladder's), `after` the third readback,
@@ -1866,7 +1874,13 @@ def terrain_load_judge(before, ladder, after, reference, depth, clear_only=False
                     counts["changedWhereNoGeometry"] += 1
                 continue
             counts["geometry"] += 1
-            same_as_ref = px == tuple(reference[y][x][:3])
+            a = 255 if alpha is None else alpha[y][x]
+            if a >= 255:
+                same_as_ref = px == tuple(reference[y][x][:3])
+            else:
+                # Voxy's fade blends as GL's final blit: within one step per channel of the blend
+                same_as_ref = all(abs(px[ch] - blend_channel(reference[y][x][ch], px_before[ch], a)) <= 1
+                                  for ch in range(3))
             cls = ladder_classify(tuple(ladder[y][x][:3]))
             expect = (terrain_load_expectation_clear_only(cls) if clear_only
                       else terrain_load_expectation(cls, d))
@@ -2363,8 +2377,28 @@ def judge_load_sample(output, recount, entry, at, coexist_enabled, logged, log_t
     thumb, _ = read_ppm_gz(output / wanted["frameFile"])
     if ladder_anchor_blocks(after, recount["rect"], thumb) == 0:
         raise ValueError(f"the {L} crop at draw {at} covers no whole thumbnail block")
+    # round-28 R28-FADE-BLEND: the composite blends Voxy's fade as GL's final blit; the reference's
+    # alpha is retained so the blend is recomputed here, not taken on trust
+    alpha = None
+    if spec.get("alpha"):
+        alpha_name = f"{prefix}-alpha-{at}.f32.gz"
+        if entry.get("alphaFile") != alpha_name or not (output / alpha_name).is_file():
+            raise ValueError(f"{L} at draw {at} names alphaFile={entry.get('alphaFile')!r}, not"
+                             f" {alpha_name!r} (retained)")
+        raw_alpha, (alw, alh) = read_f32_gz(output / alpha_name)
+        if (alw, alh) != (aw, ah):
+            raise ValueError(f"the {L} alpha at draw {at} is {alw}x{alh}, not the band's {aw}x{ah}")
+        if any(not (0.0 <= v <= 1.0) or math.isnan(v) for row in raw_alpha for v in row):
+            raise ValueError(f"the {L} alpha at draw {at} holds values outside [0, 1]")
+        alpha = [[round(v * 255) for v in row] for row in raw_alpha]
+        fade = sum(1 for y, row in enumerate(alpha) for x, a in enumerate(row)
+                   if a < 255 and depth[y][x] > 0.0)
+        if entry.get("fadePixels") != fade:
+            raise ValueError(f"{L} at draw {at} reports fadePixels={entry.get('fadePixels')!r} but its"
+                             f" retained alpha holds {fade} blended geometry pixel(s)")
+        wanted["alphaFile"] = alpha_name
     counts = terrain_load_judge(before, ladder, after, reference, depth,
-                                clear_only=spec.get("clear_only", False))
+                                clear_only=spec.get("clear_only", False), alpha=alpha)
     for field, value in counts.items():
         if entry[field] != value:
             raise ValueError(f"{L} at draw {at} reports {field}={entry[field]} but the"
@@ -2628,7 +2662,9 @@ HIER_LOAD_SPEC = {"label": "hierarchical-LOAD", "line_label": "hier-load", "pref
                   "line_re": HIER_LOAD_LOG_LINE, "attempts": hier_load_build_attempts,
                   "nothing_re": HIER_NOTHING_LOG, "budget": HIER_LOAD_BUILD_BUDGET,
                   # Voxy's GL rule: shown exactly on CLEAR pixels, hidden on every other
-                  "clear_only": True}
+                  "clear_only": True,
+                  # the reference's alpha is retained and the fade's blend judged from it
+                  "alpha": True}
 
 
 def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text, required=False,
@@ -2797,15 +2833,12 @@ def hier_load_checks(output, ladder_report, recounts, coexist_enabled, log_text,
         if entry.get("iterationsRun") != HIER_LOAD_ITERATIONS:
             raise ValueError(f"{L} at draw {at} ran {entry.get('iterationsRun')!r} iteration(s), not"
                              f" {HIER_LOAD_ITERATIONS}")
-        # round-28 R28-FADE-BLEND: the composite blends Voxy's fade as GL does; the per-pixel judge
-        # compares exact colours and does not model the blend, so a sample holding blended
-        # (alpha < 1) geometry pixels is refused, not misjudged
+        # round-28 R28-FADE-BLEND: the composite blends Voxy's fade as GL does; blended (alpha < 1)
+        # geometry pixels are judged against that blend, recomputed from the retained alpha
+        # (judge_load_sample recounts fadePixels from it)
         fade = entry.get("fadePixels")
         if not finite_int(fade) or fade < 0:
             raise ValueError(f"{L} at draw {at} states fadePixels={fade!r}")
-        if fade:
-            raise ValueError(f"{L} at draw {at} holds {fade} blended (fade-zone) pixel(s), which the"
-                             f" exact-colour judge cannot check")
         # a streaming scene starts empty (meshedAtBuild, normally 0) and serviceRequests meshes
         # what the traversal asks for, so `meshed` (now) can only be at least that
         if not finite_int(entry.get("meshedAtBuild")) or not finite_int(entry.get("meshed")) \
