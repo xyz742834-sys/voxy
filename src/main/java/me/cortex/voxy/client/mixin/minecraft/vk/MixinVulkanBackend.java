@@ -5,7 +5,7 @@ import com.mojang.blaze3d.vulkan.init.VulkanFeature;
 import me.cortex.voxy.client.core.vk.mcnative.McNativeDeviceFeatures;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
+import org.spongepowered.asm.mixin.injection.ModifyArgs;
 
 import java.util.Set;
 
@@ -31,13 +31,22 @@ import java.util.Set;
 @Mixin(VulkanBackend.class)
 public class MixinVulkanBackend {
 
-    @ModifyArg(
+    @ModifyArgs(
         method = "createDevice(JLcom/mojang/blaze3d/shaders/ShaderSource;Lcom/mojang/blaze3d/shaders/GpuDebugOptions;Ljava/lang/Runnable;)Lcom/mojang/blaze3d/systems/GpuDevice;",
         at = @At(value = "INVOKE",
             target = "Lcom/mojang/blaze3d/vulkan/VulkanBackend;createDevice(Ljava/util/Collection;Lcom/mojang/blaze3d/vulkan/VulkanPhysicalDevice;Ljava/util/Set;)Lorg/lwjgl/vulkan/VkDevice;"),
-        index = 2,
         require = 0)
-    private static Set<VulkanFeature> voxy$addRequiredFeatures(Set<VulkanFeature> requested) {
-        return McNativeDeviceFeatures.augment(requested);
+    private static void voxy$addRequiredFeatures(org.spongepowered.asm.mixin.injection.invoke.arg.Args args) {
+        Set<VulkanFeature> requested = args.get(2);
+        com.mojang.blaze3d.vulkan.VulkanPhysicalDevice physical = args.get(1);
+        // round-28 readiness: only features this device supports are added; asking for an
+        // unsupported one would fail Minecraft's own vkCreateDevice (fail closed: add nothing)
+        java.util.Set<String> supported;
+        try {
+            supported = McNativeDeviceFeatures.supportedBy(physical.vkPhysicalDevice());
+        } catch (Throwable t) {
+            supported = java.util.Set.of();
+        }
+        args.set(2, McNativeDeviceFeatures.augment(requested, supported));
     }
 }

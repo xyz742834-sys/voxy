@@ -91,4 +91,33 @@ public class McNativeDeviceFeaturesTest {
         assertSame(VulkanBackend.REQUIRED_DEVICE_FEATURES, same,
             "with the flag unset, Minecraft's device creation must be untouched");
     }
+
+    /**
+     * Round-28 readiness: a device lacking one of the features Voxy needs gets Minecraft's request
+     * unchanged — asking for an unsupported feature fails Minecraft's own vkCreateDevice — and the
+     * native path is not ready (it stays off).
+     */
+    @Test
+    void aDeviceLackingAFeatureGetsMinecraftsRequestUnchanged() {
+        String previous = System.getProperty(McNativeDeviceFeatures.FLAG);
+        System.setProperty(McNativeDeviceFeatures.FLAG, "true");
+        try {
+            var lacking = java.util.Set.of("drawIndirectFirstInstance", "fragmentStoresAndAtomics",
+                "vertexPipelineStoresAndAtomics");   // no shaderInt64
+            var same = McNativeDeviceFeatures.augment(VulkanBackend.REQUIRED_DEVICE_FEATURES, lacking);
+            assertSame(VulkanBackend.REQUIRED_DEVICE_FEATURES, same, "nothing may be added");
+            assertFalse(McNativeDeviceFeatures.ready());
+            assertTrue(McNativeDeviceFeatures.unreadyReason().contains("shaderInt64"),
+                McNativeDeviceFeatures.unreadyReason());
+
+            var all = java.util.Set.of("drawIndirectFirstInstance", "shaderInt64",
+                "fragmentStoresAndAtomics", "vertexPipelineStoresAndAtomics");
+            var augmented = McNativeDeviceFeatures.augment(VulkanBackend.REQUIRED_DEVICE_FEATURES, all);
+            assertEquals(VulkanBackend.REQUIRED_DEVICE_FEATURES.size() + 4, augmented.size());
+            assertTrue(McNativeDeviceFeatures.ready());
+        } finally {
+            if (previous == null) System.clearProperty(McNativeDeviceFeatures.FLAG);
+            else System.setProperty(McNativeDeviceFeatures.FLAG, previous);
+        }
+    }
 }

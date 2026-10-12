@@ -356,6 +356,10 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     public static boolean enabled() {
         return Boolean.getBoolean(FLAG) || (McNativeRender.on() && VoxyClient.nativeInstanceMode());
     }
+    /** {@link #enabled} and Minecraft's device carries every feature Voxy needs. */
+    public static boolean active() { return enabled() && McNativeDeviceFeatures.ready(); }
+    private static boolean featuresNoted;
+
     public static boolean everyFrame() {
         return enabled() && (Boolean.getBoolean(EVERY_FRAME_FLAG) || McNativeRender.on());
     }
@@ -388,6 +392,16 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     /** Level-render tail, after the ladder, every frame. Inert without its flag. */
     public static void renderIfEnabled() {
         if (!enabled()) return;
+        // fail closed (round-28 readiness): without every feature Voxy's shaders need enabled on
+        // Minecraft's device, the native path does not run at all
+        if (!active()) {
+            if (!featuresNoted) {
+                featuresNoted = true;
+                note("the native path is off: " + (McNativeDeviceFeatures.unreadyReason() != null
+                    ? McNativeDeviceFeatures.unreadyReason() : "Minecraft's device features were not verified"));
+            }
+            return;
+        }
         renderCalls++;
         logStageChange();
         long capture = McNativeCamera.frame();

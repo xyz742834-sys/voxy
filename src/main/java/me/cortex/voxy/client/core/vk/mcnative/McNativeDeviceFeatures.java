@@ -74,6 +74,47 @@ public final class McNativeDeviceFeatures {
      * @param requested MC が組み立てた機能集合 (変更しない)
      */
     public static Set<VulkanFeature> augment(Set<VulkanFeature> requested) {
+        // tests: the device's support is not consulted (assumed); Minecraft's call passes it
+        return augment(requested, WANTED.keySet());
+    }
+
+    /**
+     * The physical device's support for the features Voxy wants, read with
+     * vkGetPhysicalDeviceFeatures. Round-28 readiness: features are added only if the device
+     * supports them — requesting an unsupported one makes Minecraft's own vkCreateDevice fail.
+     */
+    public static Set<String> supportedBy(org.lwjgl.vulkan.VkPhysicalDevice physical) {
+        var out = new LinkedHashSet<String>();
+        try (MemoryStack stack = stackPush()) {
+            var f = VkPhysicalDeviceFeatures.calloc(stack);
+            org.lwjgl.vulkan.VK10.vkGetPhysicalDeviceFeatures(physical, f);
+            if (f.drawIndirectFirstInstance()) out.add("drawIndirectFirstInstance");
+            if (f.shaderInt64()) out.add("shaderInt64");
+            if (f.fragmentStoresAndAtomics()) out.add("fragmentStoresAndAtomics");
+            if (f.vertexPipelineStoresAndAtomics()) out.add("vertexPipelineStoresAndAtomics");
+        }
+        return out;
+    }
+
+    /**
+     * Every feature Voxy needs is enabled on Minecraft's device (requested by Minecraft or added
+     * here). False until device creation went through {@link #augment}; the native path does not run
+     * without it (fail closed).
+     */
+    public static boolean ready() { return ready; }
+
+    /** Why {@link #ready} is false (null when it is true or nothing was attempted). */
+    public static String unreadyReason() { return unreadyReason; }
+
+    private static volatile boolean ready;
+    private static volatile String unreadyReason;
+
+    /**
+     * @param supported the features the physical device supports ({@link #supportedBy}); if any
+     *        wanted one is missing nothing is added — Minecraft's device stays exactly as it asked —
+     *        and the native path is not ready
+     */
+    public static Set<VulkanFeature> augment(Set<VulkanFeature> requested, Set<String> supported) {
         attempted = true;
         if (!Boolean.getBoolean(FLAG) && !McNativeRender.on()) return requested;
         if (requested == null) {
@@ -91,6 +132,16 @@ public final class McNativeDeviceFeatures {
                 String name = nameOf(feature);
                 if (name != null) existing.add(name);
             }
+            var unsupported = new ArrayList<String>();
+            for (String name : WANTED.keySet()) {
+                if (!existing.contains(name) && !supported.contains(name)) unsupported.add(name);
+            }
+            if (!unsupported.isEmpty()) {
+                unreadyReason = "this device does not support " + unsupported
+                    + "; Voxy's native path stays off and Minecraft's device is created as it asked";
+                note(unreadyReason);
+                return requested;
+            }
             var augmented = new LinkedHashSet<VulkanFeature>(requested);
             for (var entry : WANTED.entrySet()) {
                 if (existing.contains(entry.getKey())) continue;
@@ -103,6 +154,13 @@ public final class McNativeDeviceFeatures {
                 Logger.info("[native-vk] asked Minecraft's device for " + ADDED
                     + " (supported by this device, not requested by Minecraft)");
             }
+            var missing = new ArrayList<String>();
+            for (String name : WANTED.keySet()) {
+                if (!existing.contains(name) && !ADDED.contains(name)) missing.add(name);
+            }
+            ready = missing.isEmpty();
+            unreadyReason = ready ? null : "could not add " + missing + " to Minecraft's device";
+            if (!ready) note(unreadyReason);
             return augmented;
         } catch (Throwable t) {
             note("could not augment Minecraft's device features: " + t);

@@ -23,7 +23,7 @@ public class MixinFogRenderer {
         // same: without this, Minecraft's render-distance fog turned its edge terrain into sky
         // colour, and Voxy's near cut removed Voxy's terrain behind it — the "floating pieces" of
         // round 28 (R28-FLOATING-PIECES)
-        if (vrs == null && !me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.enabled()) return;
+        if (vrs == null && !me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.active()) return;
         var data = cir.getReturnValue();
         boolean fogIsDamnClose = data.environmentalEnd<10;
         var mode = VoxyConfig.CONFIG.getFogMode();
