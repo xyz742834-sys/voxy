@@ -19,7 +19,11 @@ public class MixinFogRenderer {
         if (!VoxyConfig.CONFIG.isRenderingEnabled()) return;
 
         var vrs = IVoxyRenderSystemHolder.getNullable();
-        if (vrs == null) return;
+        // the native path (Minecraft on Vulkan) has no GL render system but renders Voxy all the
+        // same: without this, Minecraft's render-distance fog turned its edge terrain into sky
+        // colour, and Voxy's near cut removed Voxy's terrain behind it — the "floating pieces" of
+        // round 28 (R28-FLOATING-PIECES)
+        if (vrs == null && !me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.enabled()) return;
         var data = cir.getReturnValue();
         boolean fogIsDamnClose = data.environmentalEnd<10;
         var mode = VoxyConfig.CONFIG.getFogMode();
