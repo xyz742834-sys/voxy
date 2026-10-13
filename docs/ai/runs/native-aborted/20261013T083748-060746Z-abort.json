@@ -1,0 +1,48 @@
+{
+  "run": "20261013T083748-060746Z",
+  "token": "VOXY_R28_REPAIR_6A29306C_20261013T083310Z",
+  "candidate": "6a29306c6a65be1366a48ab786b46a70ea451847",
+  "outcome": "ABORTED (coordinator option A)",
+  "reason": "R29 source finding: the native update observation's edit stage requires a visibility-change ingest on an invisible->visible placement, which GL's ingest (MixinRenderSectionManager, old-visible only) never records; the oracle could not pass, so the run was stopped early. No source defect was observed at runtime and nothing here is a PASS.",
+  "parent": {
+    "pid": 68078,
+    "exit": 1,
+    "note": "the runner exits 1 because its native child did not exit 0; owning shell exit 0"
+  },
+  "children": [
+    {
+      "name": "junit",
+      "pid": 68095,
+      "exit": 0,
+      "timeout": false,
+      "seconds": 10.8,
+      "result": "test task executed; XML 369 tests, 1 skipped, 0 failures, 0 errors"
+    },
+    {
+      "name": "verify.py --only native",
+      "pid": 68693,
+      "exit": -15,
+      "timeout": false,
+      "seconds": 391.6,
+      "launches": {
+        "native (environment)": "exit 0 (not gated: verify.py was stopped before its summary verdict)",
+        "native-ladder": "ABORTED at harness stage 'far' (SIGTERM to its Gradle/Minecraft group)",
+        "native-render": "NOT_RUN",
+        "native-pressure": "NOT_RUN",
+        "native-inject": "NOT_RUN"
+      }
+    }
+  ],
+  "signals": [
+    "2026-10-13T08:44:19Z verified groups 68693(verify.py 68693) 73239(wrapper 73239) 73266(gradle 73266, minecraft 73318); parent 68078",
+    "2026-10-13T08:44:19Z SIGSTOP pid 68693 (verify.py; prevents launches 3-5)",
+    "2026-10-13T08:44:19Z SIGTERM group 73266",
+    "2026-10-13T08:44:19Z SIGTERM group 73239",
+    "2026-10-13T08:44:19Z SIGTERM group 68693",
+    "2026-10-13T08:44:19Z SIGCONT pid 68693 (deliver TERM)",
+    "2026-10-13T08:44:21Z after 3s remaining in owned groups: []",
+    "  PID  PGID STAT COMMAND"
+  ],
+  "remainingOwnedProcesses": [],
+  "harnessDirectory": "build/harness/20261013T083748-060746Z (retained as-is, not copied)"
+}
