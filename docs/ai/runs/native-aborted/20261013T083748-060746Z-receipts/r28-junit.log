@@ -1,0 +1,1958 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.6.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :
+Fabric Loom: 1.16.3
+
+> Task :compileJava UP-TO-DATE
+> Task :processResources
+> Task :classes
+> Task :compileTestJava UP-TO-DATE
+> Task :processTestResources NO-SOURCE
+> Task :testClasses UP-TO-DATE
+Validation Warning: [ VALIDATION-SETTINGS ] | MessageID = 0x7f1922d7
+vkCreateInstance(): Application is using deprecated "enables" (VK_LAYER_ENABLES) layer settings.
+Deprecated settings and new settings cannot be mixed, and deprecated ones take precedence. Consider only using the new settings:
+  Deprecated: VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT | New: "validate_sync" (VK_LAYER_VALIDATE_SYNC=1)
+
+
+
+> Task :test
+
+VkMeshWorkersTest > aStuckWorkerKeepsWhatItReadsUntilItEnds() PASSED
+
+VkMeshWorkersTest > nothingIsSubmittedAfterAStop() PASSED
+
+VkMeshWorkersTest > cancelledTasksGiveTheWorldBack() PASSED
+
+VkMeshWorkersTest > aReapBeforeAStopIsRefused() PASSED
+
+VkMeshWorkersTest > aClosedWorldRunsNothing() PASSED
+
+VkMeshWorkersTest > anInterruptedStopKeepsTheInterruptAndTheResources() PASSED
+
+VkMeshWorkersTest > ordinaryWorkIsDeliveredAndAStopFreesWhatTheWorkersOwned() PASSED
+
+McNativeDepthLadderTest > thePublishedGeometryIsTheOneTheGatePins() PASSED
+
+McNativeDepthLadderTest > everyPipelineTestsDepthWithoutWritingIt() PASSED
+
+McNativeDepthLadderTest > aCreatorThatRewritesTheStateIsObservedAndRefused() STANDARD_OUT
+    [17:37:41] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] the depth-stencil state handed to pipeline creation is not the one the ladder built (compare ops [[7, 1, 0], [7, 1, 0], [4, 1, 0], [6, 1, 0]]); the pipelines are not used
+    [17:37:41] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDepthLadder]: [native-vk] the depth-stencil state handed to pipeline creation is not the one the ladder built (compare ops [[1, 1, 1], [7, 1, 1], [4, 1, 1], [6, 1, 1]]); the pipelines are not used
+
+McNativeDepthLadderTest > aCreatorThatRewritesTheStateIsObservedAndRefused() PASSED
+
+McNativeDepthLadderTest > theLadderIsInertWithoutItsFlag() PASSED
+
+McNativeDepthLadderTest > pixelsAreClassifiedByThreeLevelQuantisation() PASSED
+
+McNativeDepthLadderTest > theDefaultEvidenceClaimsNothingUnmeasured() PASSED
+
+McNativeDepthLadderTest > creationHandsTheCreatorTheTablesCompareOpsWithWritesOff() PASSED
+
+McNativeHierarchicalLoadTest > theGeometryCapacityHonoursGlsOverride() PASSED
+
+McNativeHierarchicalLoadTest > theKillSwitchTurnsTheProductPathOff() PASSED
+
+McNativeHierarchicalLoadTest > theHandOffRotatesThreeExperimentsAndKeepsHorizonForTheRealWorldOnes() PASSED
+
+McNativeHierarchicalLoadTest > anEmptyBuildIsRetriedInNormalPlayButNotUnderTheLadder() PASSED
+
+McNativeHierarchicalLoadTest > theExperimentIsInertWithoutItsFlag() STANDARD_OUT
+    [17:37:41] [Test worker/ERROR]: [me.cx.vy.cl.VoxyCommon]: Running voxy without minecraft
+
+McNativeHierarchicalLoadTest > theExperimentIsInertWithoutItsFlag() PASSED
+
+McNativeInstanceProbeTest > theDefaultEvidenceClaimsNothing() PASSED
+
+McNativeInstanceProbeTest > anAllAirPlaceholderIsNotCountedAndOneBlockIs() PASSED
+
+McNativeInstanceProbeTest > theProbeIsInertWithoutItsFlag() PASSED
+
+McNativeMarkerOrientationTest > theMirroredOrientationIsAlsoAccepted() PASSED
+
+McNativeMarkerOrientationTest > aGoodMirrorCannotExcuseAYellowBoxInTheOtherOrientation() PASSED
+
+McNativeMarkerOrientationTest > anEmptyImageIsRejected() PASSED
+
+McNativeMarkerOrientationTest > twoValidPatternsAreAmbiguousRatherThanSuccessful() PASSED
+
+McNativeMarkerOrientationTest > oneCorrectOrientationIsAccepted() PASSED
+
+McNativeRealLoadTest > theAtlasStartsUnreadAndItsPendingOrdinalIsTheGatesConstant() PASSED
+
+McNativeRealLoadTest > theSkipReasonsAreTheFixedSet() PASSED
+
+McNativeRealLoadTest > eachSampleGoesToExactlyOneExperiment() PASSED
+
+McNativeRealLoadTest > theExperimentIsInertWithoutItsFlag() PASSED
+
+McNativeTerrainLifetimeTest > theDepthProbeJsonDoesNotClaimAnUnmeasuredConvention() PASSED
+
+McNativeTerrainLifetimeTest > everyEntryPointIsInertWithoutItsFlag() PASSED
+
+McNativeTerrainLifetimeTest > theDepthProbeIsInertWithoutItsFlag() PASSED
+
+McNativeTerrainLifetimeTest > theProbePublishesWhatTheGateNeedsToJudgeLifetime() PASSED
+
+McNativeTerrainLoadSceneTest STANDARD_OUT
+    [17:37:41] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.VkContext]: Vulkan library: /opt/homebrew/lib/libvulkan.dylib
+    [17:37:41] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.VkContext]: Vulkan driver: Apple M4 Pro api=1.4.357 driver=0.2.2210 vendorID=0x106b deviceID=0x1b000209
+    [17:37:41] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.VkContext]: Vulkan instance API: requested=1.4.0 available=1.4.357
+    [17:37:41] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.VkContext]: Vulkan: Apple M4 Pro api=1.4 subgroupSize=32 timestampBits=64 timestampPeriod=1.0 maxPushConstants=4096 minSsboOffsetAlign=16 unifiedMemType=1 metalObjects=true validation=true syncValidation=true
+
+McNativeTerrainLoadSceneTest > theReferenceLandsInTheBandWithGeometryOnBothSidesOfTheBracket() STANDARD_OUT
+    [17:37:41] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.me.McNativeTerrainScene]: [native-vk] terrain reference on the adopted device: 21972 of 1639680 pixels are not background
+
+McNativeTerrainLoadSceneTest > theReferenceLandsInTheBandWithGeometryOnBothSidesOfTheBracket() PASSED
+
+McNativeTerrainLoadTest > theViewFitsTheSweepInsideTheLadderBandWithoutTouchingDepth() PASSED
+
+McNativeTerrainLoadTest > theSceneIsTheDepthSweepAndItsCellsFollowTheQuadLayout() PASSED
+
+McNativeTerrainLoadTest > clearPixelsAlwaysPassAndTheGlRuleShowsVoxyOnlyThere() PASSED
+
+McNativeTerrainLoadTest > theJudgeModelsGlsBlend() PASSED
+
+McNativeTerrainLoadTest > theDefaultEvidenceClaimsNothingUnmeasured() PASSED
+
+McNativeTerrainLoadTest > theJudgeCountsEveryKindOfPixel() PASSED
+
+McNativeTerrainLoadTest > theSweepPutsGeometryOnBothSidesOfMinecraftsTerrainBracket() PASSED
+
+McNativeTerrainLoadTest > theExperimentIsInertWithoutItsFlag() PASSED
+
+McNativeTerrainLoadTest > theExpectationRuleHonoursTheBracketEnds() PASSED
+
+CapabilitiesWithoutGlTest > withoutGlTheModDisablesItself() STANDARD_OUT
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.gl.Capabilities]: No OpenGL context on this thread (IllegalStateException); Minecraft is probably not using the OpenGL backend.
+
+CapabilitiesWithoutGlTest > withoutGlTheModDisablesItself() PASSED
+
+CapabilitiesWithoutGlTest > everyGlDerivedFlagIsOff() PASSED
+
+CapabilitiesWithoutGlTest > withoutGlTheVulkanBackendIsAlsoRefused() PASSED
+
+CapabilitiesWithoutGlTest > queryingGpuMemoryStillThrowsWhenUnavailable() PASSED
+
+CapabilitiesWithoutGlTest > loadingCapabilitiesWithoutAGlContextDoesNotThrow() PASSED
+
+InteropValidationSuppressionTest > stopsSuppressingAfterUnregister() PASSED
+
+InteropValidationSuppressionTest > doesNotSuppressTheSameVuidOnAnUnregisteredHandle() PASSED
+
+InteropValidationSuppressionTest > suppressesTheKnownNoise() PASSED
+
+InteropValidationSuppressionTest > doesNotSuppressAHandleThatMerelySharesAPrefix() PASSED
+
+InteropValidationSuppressionTest > doesNotSuppressADifferentVuidOnTheSameHandle() PASSED
+
+InteropValidationSuppressionTest > suppressesNothingByDefault() PASSED
+
+McNativeDeviceFeaturesTest > aDeviceLackingAFeatureGetsMinecraftsRequestUnchanged() STANDARD_OUT
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] this device does not support [shaderInt64]; Voxy's native path stays off and Minecraft's device is created as it asked
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] drawIndirectFirstInstance: offset 40 verified by read-back
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] shaderInt64: offset 160 verified by read-back
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] fragmentStoresAndAtomics: offset 104 verified by read-back
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] vertexPipelineStoresAndAtomics: offset 100 verified by read-back
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] asked Minecraft's device for [drawIndirectFirstInstance, shaderInt64, fragmentStoresAndAtomics, vertexPipelineStoresAndAtomics] (supported by this device, not requested by Minecraft)
+
+McNativeDeviceFeaturesTest > aDeviceLackingAFeatureGetsMinecraftsRequestUnchanged() PASSED
+
+McNativeDeviceFeaturesTest > itAddsNothingWhenTheFlagIsUnset() PASSED
+
+McNativeDeviceFeaturesTest > itAddsExactlyTheFeaturesMinecraftDoesNotRequest() STANDARD_OUT
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] drawIndirectFirstInstance: offset 40 verified by read-back
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] shaderInt64: offset 160 verified by read-back
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] fragmentStoresAndAtomics: offset 104 verified by read-back
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] vertexPipelineStoresAndAtomics: offset 100 verified by read-back
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] asked Minecraft's device for [drawIndirectFirstInstance, shaderInt64, fragmentStoresAndAtomics, vertexPipelineStoresAndAtomics, drawIndirectFirstInstance, shaderInt64, fragmentStoresAndAtomics, vertexPipelineStoresAndAtomics] (supported by this device, not requested by Minecraft)
+
+McNativeDeviceFeaturesTest > itAddsExactlyTheFeaturesMinecraftDoesNotRequest() PASSED
+
+McNativeDeviceFeaturesTest > eachAddedFeatureSetsOnlyTheFieldItNames() STANDARD_OUT
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] drawIndirectFirstInstance: offset 40 verified by read-back
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] shaderInt64: offset 160 verified by read-back
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] fragmentStoresAndAtomics: offset 104 verified by read-back
+    [17:37:42] [Test worker/WARN]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] vertexPipelineStoresAndAtomics: offset 100 verified by read-back
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.me.McNativeDeviceFeatures]: [native-vk] asked Minecraft's device for [drawIndirectFirstInstance, shaderInt64, fragmentStoresAndAtomics, vertexPipelineStoresAndAtomics, drawIndirectFirstInstance, shaderInt64, fragmentStoresAndAtomics, vertexPipelineStoresAndAtomics, drawIndirectFirstInstance, shaderInt64, fragmentStoresAndAtomics, vertexPipelineStoresAndAtomics] (supported by this device, not requested by Minecraft)
+
+McNativeDeviceFeaturesTest > eachAddedFeatureSetsOnlyTheFieldItNames() PASSED
+
+McNativeMarkerDrawTest > theMarkerShadersCompileToSpirv() PASSED
+
+McNativeMarkerDrawTest > theDrawIsOffUnlessItsFlagIsSet() PASSED
+
+McNativeMarkerDrawTest > theMarkerColourIsOneAScreenshotCanFind() PASSED
+
+McNativeRealShaderProbeTest > theProbeResolvesEveryQuadOrdinalThroughVoxysRealShaderStack() STANDARD_OUT
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'native-merged-index-probe': 3 bindings, push=4B, stages=[COMPUTE]
+
+McNativeRealShaderProbeTest > theProbeResolvesEveryQuadOrdinalThroughVoxysRealShaderStack() PASSED
+
+McNativeTerrainProbeTest > theProbeIsOffUnlessItsFlagIsSet() PASSED
+
+McNativeTerrainProbeTest > theFailureBudgetIsBounded() PASSED
+
+McNativeVulkanProbeTest > anEmptyNoteListStillProducesValidJson() PASSED
+
+McNativeVulkanProbeTest > theReportIsImmutableAndRendersEveryHandle() PASSED
+
+McNativeVulkanProbeTest > theEvidenceJsonIsWellFormedAndEscapes() PASSED
+
+McNativeVulkanProbeTest > probingWithoutADeviceReportsWhyInsteadOfThrowing() PASSED
+
+MergedTableTest > allEmptySectionsProduceAnEmptyTable() PASSED
+
+MergedTableTest > translucentRunsAreSkippedConsistently() PASSED
+
+MergedTableTest > prefixIsMonotonicAndEndsAtTheTotal() PASSED
+
+MergedTableTest > facesLargerThanTheIndexBufferAreSplit() PASSED
+
+MergedTableTest > boundaryCasesReachTheTable() PASSED
+
+MergedTableTest > maxFaceDrawCountIsAnUpperBound() PASSED
+
+MergedTableTest > binarySearchAgreesWithLinearSearchEverywhere() PASSED
+
+MergedTableTest > mergedTableDrawsExactlyWhatStage1Draws() PASSED
+
+MergedTableTest > binarySearchNeverLandsOnAnEmptyEntry() STANDARD_OUT
+    [cpu] dense table: 63 slots, 50 empty, 189 quads
+
+MergedTableTest > binarySearchNeverLandsOnAnEmptyEntry() PASSED
+
+MergedTableTest > tableRoundTripsThroughBuffers() PASSED
+
+MergedTableTest > thirtyTwoStepsIsEnoughForAnyTableWeCanBuild() PASSED
+
+MergedTableTest > faceRegionsAreContiguousAndDisjoint() PASSED
+
+NodeIntegrityTest > aNodeSetThatDisagreesIsCaught() PASSED
+
+NodeIntegrityTest > aHealthyTreePassesIntegrity() PASSED
+
+NodeIntegrityTest > theWatchSetIsOnlyCheckedWhenItIsHandedIn() PASSED
+
+NodeIntegrityTest > dropTheWatchAndIntegrityFails() PASSED
+
+ShaderGuardTest > unshimmedInstanceIdIsRejectedWithGuidance() STANDARD_OUT
+    [17:37:42] [Test worker/ERROR]: [me.cx.vy.ct.ce.vk.sr.SpirvCompiler]: SPIR-V compile failed (raster-guard:VERTEX):
+    raster-guard:VERTEX:252: error: 'location' : SPIR-V requires location for user input/output
+    raster-guard:VERTEX:253: error: 'location' : SPIR-V requires location for user input/output
+    raster-guard:VERTEX:261: error: 'gl_InstanceID' : undeclared identifier (Did you mean gl_InstanceIndex?)
+    raster-guard:VERTEX:261: error: '[]' : scalar integer expression required
+
+    [vk] gl_InstanceID guard:
+    Shader 'raster-guard' (VERTEX) uses gl_InstanceID, which is deliberately NOT shimmed for Vulkan.
+      GL's gl_InstanceID excludes baseInstance; Vulkan's gl_InstanceIndex includes it, so a blind
+      #define would silently corrupt any draw with a non-zero baseInstance.
+      Port this shader by hand and confirm how baseInstance should be handled at each use site.
+      Compat prelude contents: docs/phase2-glsl-compat.md
+
+ShaderGuardTest > unshimmedInstanceIdIsRejectedWithGuidance() PASSED
+
+ShaderGuardTest > defaultBlockUniformIsRejectedWithGuidance() STANDARD_OUT
+    [17:37:42] [Test worker/ERROR]: [me.cx.vy.ct.ce.vk.sr.SpirvCompiler]: SPIR-V compile failed (scatter-guard:COMPUTE):
+    scatter-guard:COMPUTE:23: error: 'non-opaque uniforms outside a block' : not allowed when using GLSL for Vulkan
+
+    [vk] default-block uniform guard:
+    Shader 'scatter-guard' (COMPUTE) still contains default-block uniforms, which Vulkan GLSL forbids. These must be migrated to push constants before this shader can be ported:
+        layout(location = 0) uniform uint count;
+      Migrate with the #ifdef VULKAN pattern, see docs/phase2-glsl-compat.md T-4.
+      Tracking list: docs/phase2-pushconstant-todo.md
+
+ShaderGuardTest > defaultBlockUniformIsRejectedWithGuidance() PASSED
+
+ShaderGuardTest > compatPreludeIsInjected() PASSED
+
+ShaderGuardTest > aVulkanShaderThatForgetsTheDepthConventionCannotCompile() STANDARD_OUT
+    [vk] depth convention guard:
+    Shader 'depthutils-guard' (FRAGMENT) imports depthutils.glsl but was not given the depth convention defines USE_REVERSE_Z USE_ZERO_ONE_DEPTH.
+      Build it through VkDepth.defines(...). Without them the shader silently compiles the non-reverse-Z branch: REDUCTION flips min<->max, CLOSER_SIGN flips sign, and NEAR/FAR swap. Nothing crashes; only the picture is wrong.
+      See VkDepth and docs/phase5c4-plan.md.
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'depthutils-guard-ok': 1 bindings, push=0B, stages=[FRAGMENT]
+
+ShaderGuardTest > aVulkanShaderThatForgetsTheDepthConventionCannotCompile() PASSED
+
+ShaderGuardTest > glSourcesAreUntouched() PASSED
+
+ShaderMemoryLayoutTest > sharedBufferStructsHaveTheDocumentedOffsetsAndStrides() PASSED
+
+ShaderMemoryLayoutTest > actualTerrainUniformOffsetsMatchTheJavaWriter() PASSED
+
+ShaderMemoryLayoutTest > insertingARealShaderMemberBreaksTheExpectedContract() PASSED
+
+ShaderMemoryLayoutTest > actualTraversalOffsetsAndNodeStrideMatchHostPacking() PASSED
+
+SmokeTest > shaderResourcesAreOnTheTestClasspath() PASSED
+
+SmokeTest > missingShaderFailsClearly() PASSED
+
+SmokeTest > importExpansionIsRecursive() PASSED
+
+SortVisibilityTest > noUnboundedLoopsRemain() PASSED
+
+SortVisibilityTest > compilesWithBoundedCasLoops() STANDARD_OUT
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'sort_visibility-test': 3 bindings, push=0B, stages=[COMPUTE]
+    [vk] sort_visibility bindings=[Binding[set=0, binding=1, descriptorType=7, count=1, name=VisibilityDataBuffer], Binding[set=0, binding=2, descriptorType=7, count=1, name=MinimumVisibilityBuffer], Binding[set=0, binding=3, descriptorType=7, count=1, name=NodeData]]
+
+SortVisibilityTest > compilesWithBoundedCasLoops() PASSED
+
+StencilMaskEquivalenceTest > everythingIsDrawnWhereMinecraftHasNoTerrain() PASSED
+
+StencilMaskEquivalenceTest > theReverseZBranchMatchesTheVulkanPath() PASSED
+
+StencilMaskEquivalenceTest > theTieCaseDrawsMoreWithoutStencil() PASSED
+
+StencilMaskEquivalenceTest > detectsAStrictDepthCompare() PASSED
+
+StencilMaskEquivalenceTest > stencilAndDepthMaskAgreeExceptExactlyAtNear() PASSED
+
+StencilMaskEquivalenceTest > detectsWritingTheMcDepthInstead() PASSED
+
+SyntheticTerrainTest > faceCountsLandInTheRightHalfWords() PASSED
+
+SyntheticTerrainTest > zeroSizeIsRejected() PASSED
+
+SyntheticTerrainTest > boundarySetCoversTheIntendedCases() PASSED
+
+SyntheticTerrainTest > quadFieldsDecodeCorrectly() PASSED
+
+SyntheticTerrainTest > duplicateFootprintsAreActuallyDetected() PASSED
+
+SyntheticTerrainTest > footprintsSeparateTheSixFaceDirections() PASSED
+
+SyntheticTerrainTest > everyBoundaryCaseSurvivesTheFaceMask() PASSED
+
+SyntheticTerrainTest > positionRoundTrips() PASSED
+
+SyntheticTerrainTest > emptySectionsDoNotBreakOffsets() PASSED
+
+SyntheticTerrainTest > geometryAndMetadataAgree() PASSED
+
+SyntheticTerrainTest > everyQuadOccupiesADistinctVisiblePosition() PASSED
+
+SyntheticTerrainTest > quadsAreDistinguishable() PASSED
+
+TerrainShaderTest > reflectionReportsExpectedBindings() STANDARD_OUT
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'terrain-test': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+TerrainShaderTest > reflectionReportsExpectedBindings() PASSED
+
+TerrainShaderTest > oldLightingBindingIsDetectedAsCollision() STANDARD_OUT
+    [vk] C-2 detection:
+    Descriptor binding collision in shader 'terrain-C2-regression' at set 0 binding 1:
+        COMBINED_IMAGE_SAMPLER  'lightSampler'  (VERTEX)
+        STORAGE_BUFFER  'QuadBuffer'  (VERTEX)
+      GL treats UBO / SSBO / texture units as separate namespaces, Vulkan does not.
+      See docs/phase2-binding-audit.md
+
+TerrainShaderTest > oldLightingBindingIsDetectedAsCollision() PASSED
+
+TerrainShaderTest > terrainCompilesToSpirv() STANDARD_OUT
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'terrain-test': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] terrain bindings: [Binding[set=0, binding=0, descriptorType=6, count=1, name=SceneUniform], Binding[set=0, binding=1, descriptorType=7, count=1, name=QuadBuffer], Binding[set=0, binding=2, descriptorType=1, count=1, name=depthTex], Binding[set=0, binding=3, descriptorType=7, count=1, name=ModelBuffer], Binding[set=0, binding=4, descriptorType=7, count=1, name=ModelColourBuffer], Binding[set=0, binding=5, descriptorType=7, count=1, name=PositionScratchBuffer], Binding[set=0, binding=6, descriptorType=1, count=1, name=lightSampler], Binding[set=0, binding=7, descriptorType=1, count=1, name=blockModelAtlas]]
+
+TerrainShaderTest > terrainCompilesToSpirv() PASSED
+
+TerrainShaderTest > translucentVariantCompiles() STANDARD_OUT
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'terrain-translucent-test': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+TerrainShaderTest > translucentVariantCompiles() PASSED
+
+TerrainShaderTest > oldAtlasBindingIsDetectedAsCollision() STANDARD_OUT
+    [vk] C-1 detection:
+    Descriptor binding collision in shader 'terrain-C1-regression' at set 0 binding 0:
+        UNIFORM_BUFFER  'SceneUniform'  (VERTEX)
+        COMBINED_IMAGE_SAMPLER  'blockModelAtlas'  (FRAGMENT)
+      GL treats UBO / SSBO / texture units as separate namespaces, Vulkan does not.
+      See docs/phase2-binding-audit.md
+
+TerrainShaderTest > oldAtlasBindingIsDetectedAsCollision() PASSED
+
+TerrainShaderTest > currentBindingsHaveNoCollision() STANDARD_OUT
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'terrain-test': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+TerrainShaderTest > currentBindingsHaveNoCollision() PASSED
+
+TraversalDispatchTest STANDARD_OUT
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'traversal-dispatch-test': 10 bindings, push=4B, stages=[COMPUTE]
+
+TraversalDispatchTest > bindBeforeUpdateIsRejected() PASSED
+
+TraversalDispatchTest > threeVariantsCoverTheFlipFlop() PASSED
+
+TraversalDispatchTest > recordsFullDispatchLoop() PASSED
+
+TraversalShaderTest > vulkanBranchIsSelectedByPreprocessor() PASSED
+
+TraversalShaderTest > glBranchIsPreservedOnDisk() PASSED
+
+TraversalShaderTest > traversalCompilesWithPushConstant() STANDARD_OUT
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'traversal-test': 10 bindings, push=4B, stages=[COMPUTE]
+    [vk] traversal push=4B stages=0x20 bindings=[Binding[set=0, binding=0, descriptorType=1, count=1, name=hizDepthSampler], Binding[set=0, binding=1, descriptorType=6, count=1, name=SceneUniform], Binding[set=0, binding=2, descriptorType=7, count=1, name=requestQueueStruct], Binding[set=0, binding=3, descriptorType=7, count=1, name=renderQueueStruct], Binding[set=0, binding=4, descriptorType=7, count=1, name=NodeData], Binding[set=0, binding=6, descriptorType=7, count=1, name=NodeQueueMeta], Binding[set=0, binding=7, descriptorType=7, count=1, name=NodeQueueSource], Binding[set=0, binding=8, descriptorType=7, count=1, name=NodeQueueSink], Binding[set=0, binding=9, descriptorType=7, count=1, name=renderTrackerArray], Binding[set=0, binding=10, descriptorType=7, count=1, name=TraversalLimits]]
+
+TraversalShaderTest > traversalCompilesWithPushConstant() PASSED
+
+TraversalShaderTest > theTraversalCannotBeBuiltWithoutTheLimitCounters() STANDARD_OUT
+    [17:37:42] [Test worker/ERROR]: [me.cx.vy.ct.ce.vk.sr.SpirvCompiler]: SPIR-V compile failed (traversal-no-limits:COMPUTE):
+    traversal-no-limits:COMPUTE:93: error: 'TRAVERSAL_LIMITS_BINDING' : undeclared identifier
+    traversal-no-limits:COMPUTE:93: error: '' : constant expression required
+    traversal-no-limits:COMPUTE:93: error: 'layout-id value' : scalar integer expression required
+    traversal-no-limits:COMPUTE:93: error: 'binding' : needs a literal integer
+
+    [vk] traversal limits guard:
+    shaderc: traversal-no-limits:COMPUTE
+    traversal-no-limits:COMPUTE:93: error: 'TRAVERSAL_LIMITS_BINDING' : undeclared identifier
+    traversal-no-limits:COMPUTE:93: error: '' : constant expression required
+    traversal-no-limits:COMPUTE:93: error: 'layout-id value' : scalar integer expression required
+    traversal-no-limits:COMPUTE:93: error: 'binding' : needs a literal integer
+
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'traversal-with-limits': 10 bindings, push=4B, stages=[COMPUTE]
+
+TraversalShaderTest > theTraversalCannotBeBuiltWithoutTheLimitCounters() PASSED
+
+ValidationLayerProbeTest > reportVkContextInitOutcome() STANDARD_OUT
+    === VkContext.init() outcome ===
+      org.lwjgl.vulkan.libname = /opt/homebrew/lib/libvulkan.dylib
+      OK  queueFamily=0
+      plain vkCreateInstance -> VkResult -9
+
+ValidationLayerProbeTest > reportVkContextInitOutcome() PASSED
+
+ValidationLayerProbeTest > enumerateInstanceLayersAndExtensions() STANDARD_OUT
+    === instance layers (1) ===
+      VK_LAYER_KHRONOS_validation  (spec 1.4.357)
+    === instance extensions (19) ===
+      VK_KHR_device_group_creation
+      VK_KHR_external_fence_capabilities
+      VK_KHR_external_memory_capabilities
+      VK_KHR_external_semaphore_capabilities
+      VK_KHR_get_physical_device_properties2
+      VK_KHR_get_surface_capabilities2
+      VK_KHR_surface
+      VK_KHR_surface_maintenance1
+      VK_KHR_surface_protected_capabilities
+      VK_EXT_debug_report
+      VK_EXT_debug_utils
+      VK_EXT_headless_surface
+      VK_EXT_layer_settings
+      VK_EXT_metal_surface
+      VK_EXT_surface_maintenance1
+      VK_EXT_swapchain_colorspace
+      VK_MVK_macos_surface
+      VK_KHR_portability_enumeration
+      VK_LUNARG_direct_driver_loading
+    VK_LAYER_KHRONOS_validation : AVAILABLE
+    VK_EXT_debug_utils          : AVAILABLE
+    VK_ICD_FILENAMES            : null
+    VK_LAYER_PATH               : /opt/homebrew/opt/vulkan-validationlayers/share/vulkan/explicit_layer.d
+    VULKAN_SDK                  : null
+
+ValidationLayerProbeTest > enumerateInstanceLayersAndExtensions() PASSED
+
+ValidationLayerProbeTest > enumerateLayerProvidedExtensions() STANDARD_OUT
+    === layer-provided extensions (VK_LAYER_KHRONOS_validation) ===
+      VK_EXT_debug_report
+      VK_EXT_debug_utils
+      VK_EXT_layer_settings
+      VK_EXT_validation_features
+
+ValidationLayerProbeTest > enumerateLayerProvidedExtensions() PASSED
+
+ValidationLayerProbeTest > reportDriverIdentity() STANDARD_OUT
+    === driver identity ===
+      Apple M4 Pro api=1.4.357 driver=0.2.2210 vendorID=0x106b deviceID=0x1b000209
+      loaded from : /opt/homebrew/lib/libvulkan.dylib
+      validation  : true
+      syncValidation : true
+      VK_KHR_synchronization2   : NATIVE
+      VK_KHR_portability_subset : present
+
+ValidationLayerProbeTest > reportDriverIdentity() PASSED
+
+VkAtlasScaleTest > theTwoScalesReallyDiffer() PASSED
+
+VkAtlasScaleTest > theRealSizedAtlasProducesTheSamePicture() STANDARD_OUT
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:42] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkAtlasScaleTest > theRealSizedAtlasProducesTheSamePicture() PASSED
+
+VkAttachmentLoadHazardTest > aFreshTargetThatLoadsItsDepthIsHazardFree() STANDARD_OUT
+    [vk] a LOAD-ed depth attachment on a fresh render target: SYNC-HAZARD-READ-AFTER-WRITE = 0 (sync validation on)
+
+VkAttachmentLoadHazardTest > aFreshTargetThatLoadsItsDepthIsHazardFree() PASSED
+
+VkAttachmentLoadHazardTest > loadingBothAttachmentsAfterAPassThatWroteThemIsHazardFree() STANDARD_OUT
+    [vk] a second pass that LOADs both attachments written by the first pass: SYNC-HAZARD-READ-AFTER-WRITE = 0 (sync validation on)
+
+VkAttachmentLoadHazardTest > loadingBothAttachmentsAfterAPassThatWroteThemIsHazardFree() PASSED
+
+VkAttachmentLoadHazardTest > theDepthOnlyHelperIsHazardFree() STANDARD_OUT
+    [vk] beginRenderingDepthOnly after a depth-writing pass: SYNC-HAZARD-READ-AFTER-WRITE = 0 (sync validation on)
+
+VkAttachmentLoadHazardTest > theDepthOnlyHelperIsHazardFree() PASSED
+
+VkAttachmentLoadHazardTest > aFreshTargetThatLoadsItsColourIsHazardFree() STANDARD_OUT
+    [vk] a LOAD-ed colour attachment on a fresh render target: SYNC-HAZARD-READ-AFTER-WRITE = 0 (sync validation on)
+
+VkAttachmentLoadHazardTest > aFreshTargetThatLoadsItsColourIsHazardFree() PASSED
+
+VkBarriersTest STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'barrier-test': 1 bindings, push=0B, stages=[COMPUTE]
+
+VkBarriersTest > computeToComputeSilencesTheHazard() PASSED
+
+VkBarriersTest > missingBarrierIsDetected() STANDARD_OUT
+    [vk] validation messages = 0, SYNC-HAZARD = 0
+
+VkBarriersTest > missingBarrierIsDetected() SKIPPED
+
+VkBarriersTest > conservativeBarrierAlsoCovers() PASSED
+
+VkBarriersTest > computeToIndirectRecordsCleanly() PASSED
+
+VkBarriersTest > plainBufferHazardIsNowDetected() STANDARD_OUT
+    [17:37:43] [Test worker/ERROR]: [me.cx.vy.ct.ce.vk.VkContext]: [vk-validation] [SYNC-HAZARD-WRITE-AFTER-WRITE] vkCmdFillBuffer(): WRITE_AFTER_WRITE hazard detected. vkCmdFillBuffer writes to dstBuffer VkBuffer 0x1ff00000001ff, which was previously written by another vkCmdFillBuffer command. 
+    No sufficient synchronization is present to ensure that a write (VK_ACCESS_2_TRANSFER_WRITE_BIT) at VK_PIPELINE_STAGE_2_CLEAR_BIT does not conflict with a prior write of the same type at the same stage.
+    Buffer access region: {
+      offset = 0
+      size = 256
+    }
+
+    [vk] plain buffer hazards = 1
+      [vk-validation] [SYNC-HAZARD-WRITE-AFTER-WRITE] vkCmdFillBuffer(): WRITE_AFTER_WRITE hazard detected. vkCmdFillBuffer writes to dstBuffer VkBuffer 0x1ff00000001ff, which was previously written by another vkCmdFillBuffer command. 
+    No sufficient synchronization is present to ensure that a write (VK_ACCESS_2_TRANSFER_WRITE_BIT) at VK_PIPELINE_STAGE_2_CLEAR_BIT does not conflict with a prior write of the same type at the same stage.
+    Buffer access region: {
+      offset = 0
+      size = 256
+    }
+
+
+VkBarriersTest > plainBufferHazardIsNowDetected() PASSED
+
+VkBufferTest > zeroActuallyZeroes() PASSED
+
+VkBufferTest > fillWritesWordPattern() PASSED
+
+VkBufferTest > hostWritesAreVisibleThroughTheMapping() PASSED
+
+VkBufferTest > createsMappedBuffer() PASSED
+
+VkBufferTest > allocationAccountingTracksLiveBuffers() PASSED
+
+VkBufferTest > zeroRangeOnlyTouchesItsRange() PASSED
+
+VkContextTest > deviceInitialises() STANDARD_OUT
+    [vk] queueFamily=0 unifiedMemoryType=1
+
+VkContextTest > deviceInitialises() PASSED
+
+VkContextTest > subgroupSizeMatchesPhase0() STANDARD_OUT
+    [vk] subgroupSize=32 hasSubgroup=true
+
+VkContextTest > subgroupSizeMatchesPhase0() PASSED
+
+VkContextTest > unifiedMemoryTypeExists() STANDARD_OUT
+    [vk] unified memory flags=0xf heapCount=1
+
+VkContextTest > unifiedMemoryTypeExists() PASSED
+
+VkContextTest > storageBufferOffsetAlignmentIsSatisfiable() STANDARD_OUT
+    [vk] minStorageBufferOffsetAlignment=16 minUniformBufferOffsetAlignment=16
+
+VkContextTest > storageBufferOffsetAlignmentIsSatisfiable() PASSED
+
+VkContextTest > maxPushConstantsSizeIsAtLeastWhatWeNeed() STANDARD_OUT
+    [vk] maxPushConstantsSize=4096
+
+VkContextTest > maxPushConstantsSizeIsAtLeastWhatWeNeed() PASSED
+
+VkContextTest > requiredFeaturesAreSupported() STANDARD_OUT
+    [vk] shaderInt64=true multiDrawIndirect=true drawIndirectFirstInstance=true
+
+VkContextTest > requiredFeaturesAreSupported() PASSED
+
+VkCullIndirectTest > theIndirectCullMatchesTheDirectCullWhenTheCountIsExact() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkCullIndirectTest > theIndirectCullMatchesTheDirectCullWhenTheCountIsExact() PASSED
+
+VkCullIndirectTest > prepWritesTheCullDrawCommand() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkCullIndirectTest > prepWritesTheCullDrawCommand() PASSED
+
+VkCullIndirectTest > theInstanceCountFollowsTheSectionCount() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkCullIndirectTest > theInstanceCountFollowsTheSectionCount() PASSED
+
+VkCullTest > theSceneActuallyHasAnOcclusionRelationship() PASSED
+
+VkCullTest > cullingDoesNotChangeWhatIsVisible() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkCullTest > cullingDoesNotChangeWhatIsVisible() PASSED
+
+VkCullTest > theOccludedSectionIsCulled() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkCullTest > theOccludedSectionIsCulled() PASSED
+
+VkCullTest > movingTheSectionOutFromBehindTheWallMakesItVisibleAgain() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkCullTest > movingTheSectionOutFromBehindTheWallMakesItVisibleAgain() PASSED
+
+VkCullTest > cullingReducesTheGeneratedTable() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] table quads: no cull=1040, with cull=1024
+
+VkCullTest > cullingReducesTheGeneratedTable() PASSED
+
+VkCullTest > narrowBarriersGiveTheSameCullResult() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkCullTest > narrowBarriersGiveTheSameCullResult() PASSED
+
+VkCullTest > cullDrawUsesZeroBaseInstance() PASSED
+
+VkCullTest > theOccluderIsActuallyDrawn() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-cull-raster': 4 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] cull scene: 58564 px covered
+
+VkCullTest > theOccluderIsActuallyDrawn() PASSED
+
+VkDepthConventionTest > backgroundIsFarAndGeometryIsCloser() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkDepthConventionTest > backgroundIsFarAndGeometryIsCloser() PASSED
+
+VkDepthConventionTest > movingTheCameraCloserIncreasesTheClosestDepth() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkDepthConventionTest > movingTheCameraCloserIncreasesTheClosestDepth() PASSED
+
+VkDepthConventionTest > theProjectionMapsNearToOneAndFarToZero() PASSED
+
+VkDepthConventionTest > constantsDescribeReverseZ() PASSED
+
+VkDepthVisualiseTest > onlyTheFarTexelsBecomeTheSkyColour() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-visualise': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkDepthVisualiseTest > onlyTheFarTexelsBecomeTheSkyColour() PASSED
+
+VkDepthVisualiseTest > rowsAreNotShuffled() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-visualise': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkDepthVisualiseTest > rowsAreNotShuffled() PASSED
+
+VkDepthVisualiseTest > drawnTexelsAreGrey() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-visualise': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkDepthVisualiseTest > drawnTexelsAreGrey() PASSED
+
+VkDepthVisualiseTest > nearerDepthIsBrighter() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-visualise': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkDepthVisualiseTest > nearerDepthIsBrighter() PASSED
+
+VkDepthVisualiseTest > drawsWithoutALayoutMismatchDiagnostic() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-visualise': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] VkDepthVisualiseTest: validation=true messages=0
+
+VkDepthVisualiseTest > drawsWithoutALayoutMismatchDiagnostic() PASSED
+
+VkFrameTrackerTest > anAbandonedFrameRunsNothingAndTheNextFrameRuns() PASSED
+
+VkFrameTrackerTest > endWithoutBeginIsRejected() PASSED
+
+VkFrameTrackerTest > aFailedSubmitDoesNotHangTheNextFrame() PASSED
+
+VkFrameTrackerTest > aFailedWaitLeavesTheFrameUsable() PASSED
+
+VkFrameTrackerTest > doubleBeginIsRejected() PASSED
+
+VkFrameTrackerTest > emptyFrameSubmitsAndCompletes() PASSED
+
+VkFrameTrackerTest > frameCyclesAdvanceGeneration() PASSED
+
+VkFrameTrackerTest > deferredFreeRunsAtFrameBoundary() PASSED
+
+VkFrameTrackerTest > inFlightDetectionStillWorks() PASSED
+
+VkFrameTrackerTest > deferredFreeFailureDoesNotBreakTheFrame() STANDARD_OUT
+    [17:37:43] [Test worker/ERROR]: [me.cx.vy.ct.ce.vk.VkFrameTracker]: deferred free failed java.lang.RuntimeException: boom
+    java.lang.RuntimeException: boom
+    	at me.cortex.voxy.vk.VkFrameTrackerTest.lambda$deferredFreeFailureDoesNotBreakTheFrame$0(VkFrameTrackerTest.java:107)
+    	at me.cortex.voxy.client.core.vk.VkFrameTracker.drainPendingFree(VkFrameTracker.java:240)
+    	at me.cortex.voxy.client.core.vk.VkFrameTracker.beginFrame(VkFrameTracker.java:156)
+    	at org.junit.jupiter.api.AssertDoesNotThrow.assertDoesNotThrow(AssertDoesNotThrow.java:71)
+    	at org.junit.jupiter.api.AssertDoesNotThrow.assertDoesNotThrow(AssertDoesNotThrow.java:58)
+    	at org.junit.jupiter.api.Assertions.assertDoesNotThrow(Assertions.java:3228)
+    	at me.cortex.voxy.vk.VkFrameTrackerTest.deferredFreeFailureDoesNotBreakTheFrame(VkFrameTrackerTest.java:111)
+    	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+    	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+    	at org.junit.platform.commons.util.ReflectionUtils.invokeMethod(ReflectionUtils.java:728)
+    	at org.junit.jupiter.engine.execution.MethodInvocation.proceed(MethodInvocation.java:60)
+    	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$ValidatingInvocation.proceed(InvocationInterceptorChain.java:131)
+    	at org.junit.jupiter.engine.extension.TimeoutExtension.intercept(TimeoutExtension.java:156)
+    	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestableMethod(TimeoutExtension.java:147)
+    	at org.junit.jupiter.engine.extension.TimeoutExtension.interceptTestMethod(TimeoutExtension.java:86)
+    	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker$ReflectiveInterceptorCall.lambda$ofVoidMethod$0(InterceptingExecutableInvoker.java:103)
+    	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.lambda$invoke$0(InterceptingExecutableInvoker.java:93)
+    	at org.junit.jupiter.engine.execution.InvocationInterceptorChain$InterceptedInvocation.proceed(InvocationInterceptorChain.java:106)
+    	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.proceed(InvocationInterceptorChain.java:64)
+    	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.chainAndInvoke(InvocationInterceptorChain.java:45)
+    	at org.junit.jupiter.engine.execution.InvocationInterceptorChain.invoke(InvocationInterceptorChain.java:37)
+    	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:92)
+    	at org.junit.jupiter.engine.execution.InterceptingExecutableInvoker.invoke(InterceptingExecutableInvoker.java:86)
+    	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.lambda$invokeTestMethod$7(TestMethodTestDescriptor.java:218)
+    	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+    	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.invokeTestMethod(TestMethodTestDescriptor.java:214)
+    	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:139)
+    	at org.junit.jupiter.engine.descriptor.TestMethodTestDescriptor.execute(TestMethodTestDescriptor.java:69)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:151)
+    	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+    	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+    	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+    	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+    	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+    	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+    	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+    	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+    	at java.base/java.util.ArrayList.forEach(ArrayList.java:1604)
+    	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.invokeAll(SameThreadHierarchicalTestExecutorService.java:41)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$6(NodeTestTask.java:155)
+    	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$8(NodeTestTask.java:141)
+    	at org.junit.platform.engine.support.hierarchical.Node.around(Node.java:137)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.lambda$executeRecursively$9(NodeTestTask.java:139)
+    	at org.junit.platform.engine.support.hierarchical.ThrowableCollector.execute(ThrowableCollector.java:73)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.executeRecursively(NodeTestTask.java:138)
+    	at org.junit.platform.engine.support.hierarchical.NodeTestTask.execute(NodeTestTask.java:95)
+    	at org.junit.platform.engine.support.hierarchical.SameThreadHierarchicalTestExecutorService.submit(SameThreadHierarchicalTestExecutorService.java:35)
+    	at org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutor.execute(HierarchicalTestExecutor.java:57)
+    	at org.junit.platform.engine.support.hierarchical.HierarchicalTestEngine.execute(HierarchicalTestEngine.java:54)
+    	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:198)
+    	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:169)
+    	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:93)
+    	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.lambda$execute$0(EngineExecutionOrchestrator.java:58)
+    	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.withInterceptedStreams(EngineExecutionOrchestrator.java:141)
+    	at org.junit.platform.launcher.core.EngineExecutionOrchestrator.execute(EngineExecutionOrchestrator.java:57)
+    	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:103)
+    	at org.junit.platform.launcher.core.DefaultLauncher.execute(DefaultLauncher.java:85)
+    	at org.junit.platform.launcher.core.DelegatingLauncher.execute(DelegatingLauncher.java:47)
+    	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.processAllTestDefinitions(JUnitPlatformTestDefinitionProcessor.java:205)
+    	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor$CollectThenExecuteTestDefinitionConsumer.access$000(JUnitPlatformTestDefinitionProcessor.java:122)
+    	at org.gradle.api.internal.tasks.testing.junitplatform.JUnitPlatformTestDefinitionProcessor.stop(JUnitPlatformTestDefinitionProcessor.java:116)
+    	at org.gradle.api.internal.tasks.testing.SuiteTestDefinitionProcessor.stop(SuiteTestDefinitionProcessor.java:63)
+    	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+    	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+    	at org.gradle.internal.dispatch.MethodInvocation.invokeOn(MethodInvocation.java:77)
+    	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:28)
+    	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:19)
+    	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33)
+    	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:88)
+    	at jdk.proxy1/jdk.proxy1.$Proxy4.stop(Unknown Source)
+    	at org.gradle.api.internal.tasks.testing.worker.TestWorker$3.run(TestWorker.java:195)
+    	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:126)
+    	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:103)
+    	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:63)
+    	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56)
+    	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:122)
+    	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:72)
+    	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69)
+    	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74)
+
+VkFrameTrackerTest > deferredFreeFailureDoesNotBreakTheFrame() PASSED
+
+VkGeometryBudgetTest > aSectionIsRoundedUpToTheAllocationGranularity() PASSED
+
+VkGeometryBudgetTest > anEmptySectionCostsNothing() PASSED
+
+VkGeometryBudgetTest > ignoringTheGranularityWouldUnderestimate() PASSED
+
+VkGeometryFlushTest > anUploadThatDoesNotFitIsRejected() PASSED
+
+VkGeometryFlushTest > uploadsLandAtTheirElementOffsetTimesEight() PASSED
+
+VkGeometryFlushTest > theElementOffsetIsNotAlreadyAByteOffset() PASSED
+
+VkGeometryFragmentationTest > adjacentFreesMergeAndBecomeFittable() PASSED
+
+VkGeometryFragmentationTest > allocationArenaCanAllocMatchesActualAllocOutcome() PASSED
+
+VkGeometryFragmentationTest > fragmentedFreeSpaceCanFailEvenWhenTheAggregateIsEnough() PASSED
+
+VkGeometryInvariantsTest > everyQuadFieldIsDecodedAtTheRightBits() PASSED
+
+VkGeometryInvariantsTest > aPrefixOfTheWrongLengthIsCaught() PASSED
+
+VkGeometryInvariantsTest > duplicateQuadsWithinASectionAreCaught() PASSED
+
+VkGeometryInvariantsTest > aSentinelThatDisagreesWithWhatWasWrittenIsCaught() PASSED
+
+VkGeometryInvariantsTest > aStateIdPastTheModelBufferIsCaught() PASSED
+
+VkGeometryInvariantsTest > aPrefixThatRunsBackwardsIsCaught() PASSED
+
+VkGeometryInvariantsTest > aHealthyPrefixReportsNothing() PASSED
+
+VkGeometryInvariantsTest > aPrefixThatDoesNotStartAtZeroIsCaught() PASSED
+
+VkGeometryInvariantsTest > bucketsLargerThanTheIndexBufferAreCaught() PASSED
+
+VkGeometryInvariantsTest > healthySyntheticGeometryReportsNothing() PASSED
+
+VkGeometryInvariantsTest > bucketStartsThatRunBackwardsAreCaught() PASSED
+
+VkGeometryInvariantsTest > quadsThatResolveToNoEntryAreCaught() PASSED
+
+VkGeometryReclaimTest > reclaimStopsAtTheCapEvenWithCandidatesRemaining() STANDARD_OUT
+    [17:37:43] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 3@[0, 0, 0]
+    [17:37:43] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 3@[2, 0, 0]
+    [17:37:43] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 3@[4, 0, 0]
+    [17:37:43] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 3@[6, 0, 0]
+    [17:37:43] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 3@[8, 0, 0]
+
+VkGeometryReclaimTest > reclaimStopsAtTheCapEvenWithCandidatesRemaining() PASSED
+
+VkGeometryReclaimTest > nodesWithAnInFlightChildRequestAreNeverAttempted() STANDARD_OUT
+    [17:37:43] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 2@[0, 0, 0]
+
+VkGeometryReclaimTest > nodesWithAnInFlightChildRequestAreNeverAttempted() PASSED
+
+VkGeometryReclaimTest > allocAndFreeAreTrackedThroughNodeManager() PASSED
+
+VkGeometryReclaimTest > reclaimingWithNothingAllocatedDoesNothing() PASSED
+
+VkGeometryReclaimTest > topLevelNodesAreNeverAttemptedEvenWhenTheyAreOldest() STANDARD_OUT
+    [17:37:43] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 3@[0, 0, 0]
+
+VkGeometryReclaimTest > topLevelNodesAreNeverAttemptedEvenWhenTheyAreOldest() PASSED
+
+VkGeometryReclaimTest > reclaimingANonTopLevelInnerNodeDirectly() STANDARD_OUT
+    [17:37:43] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 2@[0, 0, 0]
+
+VkGeometryReclaimTest > reclaimingANonTopLevelInnerNodeDirectly() PASSED
+
+VkGpuTableTest > narrowBarriersProduceTheSameTableAndImage() STANDARD_OUT
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:43] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkGpuTableTest > narrowBarriersProduceTheSameTableAndImage() PASSED
+
+VkGpuTableTest > gpuTableIsDeterministic() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkGpuTableTest > gpuTableIsDeterministic() PASSED
+
+VkGpuTableTest > gpuBuiltTableRendersIdenticallyToTheCpuBuiltOne() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkGpuTableTest > gpuBuiltTableRendersIdenticallyToTheCpuBuiltOne() PASSED
+
+VkGpuTableTest > currentGpuCountsWinAcrossGrowthShrinkAndDispatchBoundaries() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkGpuTableTest > currentGpuCountsWinAcrossGrowthShrinkAndDispatchBoundaries() PASSED
+
+VkGpuTableTest > invisibleSectionsContributeNothing() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkGpuTableTest > invisibleSectionsContributeNothing() PASSED
+
+VkGpuTableTest > visibilityActuallyChangesTheTable() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [vk] visibility: all=189 quads, one hidden=175
+
+VkGpuTableTest > visibilityActuallyChangesTheTable() PASSED
+
+VkGpuTableTest > gpuActuallyWritesEveryPartOfTheTable() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkGpuTableTest > gpuActuallyWritesEveryPartOfTheTable() PASSED
+
+VkGpuTableTest > gpuTableMatchesTheCpuReferenceByteForByte() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [vk] gpu table: 63 slots, 13 non-empty, 189 quads -- byte-identical to the CPU reference
+
+VkGpuTableTest > gpuTableMatchesTheCpuReferenceByteForByte() PASSED
+
+VkGpuTimerTest STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkGpuTimerTest > aBiggerWorkloadMeasuresLonger() STANDARD_OUT
+    [vk] many=0.529ms  one=0.014ms  total=0.543ms
+
+VkGpuTimerTest > aBiggerWorkloadMeasuresLonger() PASSED
+
+VkGpuTimerTest > spansAreNamedAndCounted() PASSED
+
+VkGpuTimerTest > reportWhetherTimestampsAreAvailableAtAll() STANDARD_OUT
+    [vk] timestampValidBits=64 period=1.0ns supported=true
+
+VkGpuTimerTest > reportWhetherTimestampsAreAvailableAtAll() PASSED
+
+VkHiZDepthSourceTest > adifferentDepthGivesADifferentHiZ() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkHiZDepthSourceTest > adifferentDepthGivesADifferentHiZ() PASSED
+
+VkHiZDepthSourceTest > theHiZCanReadADepthAttachment() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkHiZDepthSourceTest > theHiZCanReadADepthAttachment() PASSED
+
+VkHiZTest STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-hiz': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkHiZTest > theChainIsSizedTheWayTheReferenceSizesIt() PASSED
+
+VkHiZTest > takingTheMaximumInsteadWouldBeDetected() PASSED
+
+VkHiZTest > theSourcePatternActuallyDistinguishesMinFromMax() PASSED
+
+VkHiZTest > levelZeroActuallySampledTheSource() PASSED
+
+VkHiZTest > eachLevelIsTheExactReductionOfTheOneAbove() PASSED
+
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/Users/xyz/.gradle/caches/modules-2/files-2.1/org.joml/joml/1.10.8/fc0a71dad90a2cf41d82a76156a0e700af8e4f8d/joml-1.10.8.jar)
+WARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+
+> Task :test
+
+VkHostViewportTest > voxysProjectionRejectsImpossiblePlanes() PASSED
+
+VkHostViewportTest > sectionCoordinatesFloorTowardsNegativeInfinity() PASSED
+
+VkHostViewportTest > voxysPlanesLandOnTheReverseZEndpoints() PASSED
+
+VkHostViewportTest > anchorsAreAlignedToTheQuantum() PASSED
+
+VkHostViewportTest > theTerrainIsOnScreenWhereverTheCameraLooks() PASSED
+
+VkHostViewportTest > itDoesNotAssumeTheHostDepthRange() PASSED
+
+VkHostViewportTest > theFarPlaneDistanceCanBeReadBackFromTheProjection() PASSED
+
+VkHostViewportTest > skippingTheConversionBreaksAMinusOneToOneHost() PASSED
+
+VkHostViewportTest > aFixedDirectionAnchorGoesOffScreen() PASSED
+
+VkHostViewportTest > onlyVoxysProjectionReachesPastMinecraftsFarPlane() PASSED
+
+VkHostViewportTest > itDoesNotAssumeWhichWayTheViewMatrixLooks() PASSED
+
+VkHostViewportTest > theGlProjectionKeepsExtraTransformsAndPicksNearLikeGl() PASSED
+
+VkHostViewportTest > thePairSitsAtTwoDifferentDistances() PASSED
+
+VkHostViewportTest > voxysProjectionChangesTheDepthAndNothingElse() PASSED
+
+VkHostViewportTest > theAnchorOriginSitsWhereTheSubPositionSaysItDoes() PASSED
+
+VkIndexSplitTest > theSharedBufferIsCreatedOncePerCapacity() PASSED
+
+VkIndexSplitTest > splittingDoesNotChangeTheImage() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkIndexSplitTest > splittingDoesNotChangeTheImage() PASSED
+
+VkIndexSplitTest > gpuSplitMatchesTheCpuSplit() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [vk] gpu split at T=8: 27 draws (max 31), all matching the CPU reference
+
+VkIndexSplitTest > gpuSplitMatchesTheCpuSplit() PASSED
+
+VkIndexSplitTest > smallCapacitiesActuallySplit() STANDARD_OUT
+    [vk] face draws: T=1M -> 7, T=4 -> 50
+
+VkIndexSplitTest > smallCapacitiesActuallySplit() PASSED
+
+VkIndexSplitTest > gpuBuiltSplitRendersIdentically() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkIndexSplitTest > gpuBuiltSplitRendersIdentically() PASSED
+
+VkIndexSplitTest > indicesMatchTheGlLayout() PASSED
+
+VkInteropImageTest > hostWritesToTheIOSurfaceAreReadByVulkan() PASSED
+
+VkInteropImageTest > bindsPrivateDeviceLocalMemory() PASSED
+
+VkInteropImageTest > vulkanWritesLandInTheIOSurface() PASSED
+
+VkInteropImageTest > depthVisualiseOnInteropImagesIsValidationClean() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-depth-visualise': 1 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] VkInteropImageTest depth-visualise: validation=true messages=0 suppressed=0
+
+VkInteropImageTest > depthVisualiseOnInteropImagesIsValidationClean() PASSED
+
+VkMergedIndexTest > singleEntryTableResolvesWithoutIterating() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'merged-index-probe': 3 bindings, push=4B, stages=[COMPUTE]
+
+VkMergedIndexTest > singleEntryTableResolvesWithoutIterating() PASSED
+
+VkMergedIndexTest > gpuBinarySearchMatchesCpuLinearSearchForEveryQuad() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'merged-index-probe': 3 bindings, push=4B, stages=[COMPUTE]
+    [vk] merged index probe: 189 quad ordinals resolved, all matching the CPU reference
+
+VkMergedIndexTest > gpuBinarySearchMatchesCpuLinearSearchForEveryQuad() PASSED
+
+VkMergedIndexTest > aCorruptedPrefixIsActuallyDetected() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'merged-index-probe': 3 bindings, push=4B, stages=[COMPUTE]
+    [vk] corrupted prefix -> 1 resolutions differ
+
+VkMergedIndexTest > aCorruptedPrefixIsActuallyDetected() PASSED
+
+VkModelUploadTargetTest > bakedTexturesLandOnTheTileTheShaderWillSample() PASSED
+
+VkModelUploadTargetTest > theLayoutAgreesWithTheBakerAndTheShader() PASSED
+
+VkModelUploadTargetTest > modelIdsOutsideTheRangeAreRejected() PASSED
+
+VkNodeTreeTest > childCountsOutsideTheThreeBitFieldAreRejected() PASSED
+
+VkNodeTreeTest > nodesAreWrittenTheWayTheShaderReadsThem() PASSED
+
+VkNodeTreeTest > theChildrenOfTheOctreeTileTheirParent() PASSED
+
+VkNodeTreeTest > ancestryCanBeResolvedForTheCutCheck() PASSED
+
+VkOrientationTest > geometryLandsOnThePredictedRow() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkOrientationTest > geometryLandsOnThePredictedRow() PASSED
+
+VkOrientationTest > discriminatingViewpoint() PASSED
+
+VkRealPositionTest > feedingTheRawKeyToTheGpuFormatIsWrong() PASSED
+
+VkRealPositionTest > theWorldKeyIsPackPositionWithItsWordsSwapped() PASSED
+
+VkRealPositionTest > theWorldKeyRoundTripsIntoTheGpuPositionFormat() PASSED
+
+VkRealPositionTest > theTwoFormatsAreActuallyDifferent() PASSED
+
+VkRenderQueueClampTest > aCountPastTheCapacityIsClamped() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkRenderQueueClampTest > aCountPastTheCapacityIsClamped() PASSED
+
+VkRenderQueueClampTest > aCountWithinTheCapacityIsUnchanged() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkRenderQueueClampTest > aCountWithinTheCapacityIsUnchanged() PASSED
+
+VkRenderTargetTest > clearAndReadback() PASSED
+
+VkRenderTargetTest > writesPng() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'png-triangle': 0 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] wrote /Users/xyz/dev/voxy/build/vk-test-output/triangle.png
+
+VkRenderTargetTest > writesPng() PASSED
+
+VkRenderTargetTest > differingRendersAreDetected() PASSED
+
+VkRenderTargetTest > writesDiffPng() STANDARD_OUT
+    [vk] wrote /Users/xyz/dev/voxy/build/vk-test-output/diff.png
+
+VkRenderTargetTest > writesDiffPng() PASSED
+
+VkRenderTargetTest > drawAndReadback() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'stage0-triangle': 0 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkRenderTargetTest > drawAndReadback() PASSED
+
+VkRenderTargetTest > survivesMultipleFrames() PASSED
+
+VkRenderTargetTest > dynamicRenderingIsAvailable() PASSED
+
+VkRenderTargetTest > identicalRendersCompareEqual() PASSED
+
+VkSectionCapacityTest > capacitiesRoundUpButNeverDouble() PASSED
+
+VkStreamTest > mode1RejectsWritesOutsideTheRecordingWindow() PASSED
+
+VkStreamTest > directDownloadSeesFinalState() PASSED
+
+VkStreamTest > mode2ExhaustionReportsDetail() STANDARD_OUT
+    [vk] scratch exhaustion:
+    VkUploadStream scratch exhausted.
+        requester   : giant-test-alloc
+        requested   : 2147483583 bytes (aligned to 2147483584)
+        remaining   : 16777216 bytes
+        capacity    : 16777216 bytes
+        last alloc  : (none)
+      The ring is reset at each frame boundary; this means one frame's mode-2 uploads
+      exceeded the scratch. Raise SCRATCH_SIZE, or split the work across frames.
+      See docs/phase3-uploadstream-proposal.md 5-2.
+
+VkStreamTest > mode2ExhaustionReportsDetail() PASSED
+
+VkStreamTest > stagedDownloadKeepsTheSnapshot() PASSED
+
+VkStreamTest > stagedDownloadRequiresRecording() PASSED
+
+VkStreamTest > mode1WritesStraightIntoTheTarget() PASSED
+
+VkStreamTest > mode1RejectsOutOfRange() PASSED
+
+VkStreamTest > mode2ResetsEachFrame() PASSED
+
+VkStreamTest > pendingClearsAfterDelivery() PASSED
+
+VkStreamTest > mode2OffsetsAreAligned() PASSED
+
+VkTemporalTest > nothingVisibleLastFrameMeansTemporalEqualsOpaque() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkTemporalTest > nothingVisibleLastFrameMeansTemporalEqualsOpaque() PASSED
+
+VkTemporalTest > everythingVisibleLastFrameMeansAnEmptyTemporalTable() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkTemporalTest > everythingVisibleLastFrameMeansAnEmptyTemporalTable() PASSED
+
+VkTemporalTest > temporalRendersIdenticallyToOpaqueWhenNothingWasVisible() STANDARD_OUT
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:44] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] temporal == opaque: 5526 px, diff 0
+
+VkTemporalTest > temporalRendersIdenticallyToOpaqueWhenNothingWasVisible() PASSED
+
+VkTemporalTest > temporalIsNeitherEmptyNorEverything() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [vk] temporal quads = 175, opaque quads = 189
+
+VkTemporalTest > temporalIsNeitherEmptyNorEverything() PASSED
+
+VkTemporalTest > temporalLayeredOnOpaqueLeavesTheOpaqueImageIntact() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkTemporalTest > temporalLayeredOnOpaqueLeavesTheOpaqueImageIntact() PASSED
+
+VkTemporalTest > markingSectionsAsAlreadyVisibleChangesTheTemporalImage() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] excluding one section from temporal -> 5525 px differ
+
+VkTemporalTest > markingSectionsAsAlreadyVisibleChangesTheTemporalImage() PASSED
+
+VkTemporalTest > temporalTableMatchesTheCpuReference() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [vk] temporal table: 175 quads of 189 opaque -- byte-identical to the CPU reference
+
+VkTemporalTest > temporalTableMatchesTheCpuReference() PASSED
+
+VkTemporalTest > anEmptyTemporalTableDrawsNothing() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkTemporalTest > anEmptyTemporalTableDrawsNothing() PASSED
+
+VkTemporalTest > narrowBarriersProduceTheSameTemporalResult() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkTemporalTest > narrowBarriersProduceTheSameTemporalResult() PASSED
+
+VkTemporalTest > layeringMustNotClearWhatTheOpaquePassDrew() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] clearing on the temporal pass -> 5525 px differ
+
+VkTemporalTest > layeringMustNotClearWhatTheOpaquePassDrew() PASSED
+
+VkTerrainRenderTest > zeroDrawsLeavesTheClearColour() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkTerrainRenderTest > zeroDrawsLeavesTheClearColour() PASSED
+
+VkTerrainRenderTest > theSplitRecordingPathDrawsTheSameImage() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkTerrainRenderTest > theSplitRecordingPathDrawsTheSameImage() PASSED
+
+VkTerrainRenderTest > mergedPathMatchesPerSectionPixelForPixel() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] stage1 draws = 13, stage2b draws = 7, table entries = 63, quads = 189
+
+VkTerrainRenderTest > mergedPathMatchesPerSectionPixelForPixel() PASSED
+
+VkTerrainRenderTest > theExplicitFormatCheckStillRejectsAMismatch() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkTerrainRenderTest > theExplicitFormatCheckStillRejectsAMismatch() PASSED
+
+VkTerrainRenderTest > repeatedRendersArePixelIdentical() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkTerrainRenderTest > repeatedRendersArePixelIdentical() PASSED
+
+VkTerrainRenderTest > drawsMultipleSectionsAtDistinctPositions() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] wide: 914 px covered, 79 distinct colours
+
+VkTerrainRenderTest > drawsMultipleSectionsAtDistinctPositions() PASSED
+
+VkTerrainRenderTest > singleQuadLandsWhereAndHowPredicted() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] single quad: 9342 px covered
+    [vk] quad centre projects to (256,256) -> [192, 0, 55, 65]
+
+VkTerrainRenderTest > singleQuadLandsWhereAndHowPredicted() PASSED
+
+VkTerrainRenderTest > eachBoundaryCaseMergesIdentically() STANDARD_OUT
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] ① 最小 (quad 1 枚): 6008 px, 1 -> 7 draws
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] ② 1 方向だけ: 7239 px, 1 -> 7 draws
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] ③ 空セクションを挟む: 844 px, 2 -> 7 draws
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] ⑥ quad 数ちょうど 64: 2272 px, 1 -> 7 draws
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:45] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] ⑦ 7 面区分すべて: 2440 px, 7 -> 7 draws
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] ⑧ 負座標: 5628 px, 1 -> 7 draws
+
+VkTerrainRenderTest > eachBoundaryCaseMergesIdentically() PASSED
+
+VkTerrainRenderTest > mergedPathMatchesFromASecondViewpoint() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkTerrainRenderTest > mergedPathMatchesFromASecondViewpoint() PASSED
+
+VkTerrainRenderTest > reusingOneTargetAcrossFramesIsStable() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkTerrainRenderTest > reusingOneTargetAcrossFramesIsStable() PASSED
+
+VkTerrainRenderTest > drawsTheCloseUpView() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] close-up: 13 draws, 5526 px covered, 13 distinct colours
+
+VkTerrainRenderTest > drawsTheCloseUpView() PASSED
+
+VkTerrainRenderTest > aCorruptedMergedTableChangesTheImage() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] corrupted merged entry -> 482 px differ
+
+VkTerrainRenderTest > aCorruptedMergedTableChangesTheImage() PASSED
+
+VkTerrainRenderTest > narrowBarriersProduceTheSameImage() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkTerrainRenderTest > narrowBarriersProduceTheSameImage() PASSED
+
+VkTerrainRenderTest > tableGenerationDoesNotChangeTheImage() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+
+VkTerrainRenderTest > tableGenerationDoesNotChangeTheImage() PASSED
+
+VkTerrainRenderTest > shiftingTheQuadIndexChangesTheImage() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-per_section': 8 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [vk] one-quad index shift -> 482 px differ
+
+VkTerrainRenderTest > shiftingTheQuadIndexChangesTheImage() PASSED
+
+VkTerrainRenderTest > vertexShaderUsesThe64BitQuadPath() PASSED
+
+VkTerrainResourcesTest > allocatesEveryBuffer() PASSED
+
+VkTerrainResourcesTest > lightmapIsUniformAndSeparate() PASSED
+
+VkTerrainResourcesTest > adjacentFaceCellsDiffer() PASSED
+
+VkTerrainResourcesTest > writesModelData() PASSED
+
+VkTerrainResourcesTest > atlasTransferLandsOnTheGpu() PASSED
+
+VkTextureTest > externalTextureDoesNotOwnMemory() PASSED
+
+VkTextureTest > samplersAreCached() PASSED
+
+VkTextureTest > createsPerLevelViews() PASSED
+
+VkTextureTest > differentLevelsHoldDifferentLayouts() PASSED
+
+VkTextureTest > sameLayoutStillEmitsWhenSyncIsNeeded() PASSED
+
+VkTextureTest > startsUndefined() PASSED
+
+VkTopLevelQueueTest > removingFromTheMiddleMovesTheTailIntoTheGap() PASSED
+
+VkTopLevelQueueTest > theLiveRangeAlwaysEqualsTheLiveSet() PASSED
+
+VkTopLevelQueueTest > removingTheTailWritesNothing() PASSED
+
+VkTopLevelQueueTest > addingWritesEachIdIntoItsSlot() PASSED
+
+VkTopLevelQueueTest > addingTheSameIdTwiceIsAMistake() PASSED
+
+VkTopLevelQueueTest > overflowingTheCapacityIsReported() PASSED
+
+VkTopLevelQueueTest > removingAnIdThatWasNeverAddedIsAMistake() PASSED
+
+VkTranslucentTest > repeatedTranslucentRendersAreIdentical() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkTranslucentTest > repeatedTranslucentRendersAreIdentical() PASSED
+
+VkTranslucentTest > translucentQuadsDoNotOverlapOnScreen() STANDARD_OUT
+    [vk] translucentCases: 4 translucent quads, no screen overlap
+
+VkTranslucentTest > translucentQuadsDoNotOverlapOnScreen() PASSED
+
+VkTranslucentTest > bucketsAreOrderedFarToNear() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkTranslucentTest > bucketsAreOrderedFarToNear() PASSED
+
+VkTranslucentTest > overlapDetectionActuallyWorks() PASSED
+
+VkTranslucentTest > narrowBarriersProduceTheSameTranslucentImage() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkTranslucentTest > narrowBarriersProduceTheSameTranslucentImage() PASSED
+
+VkTranslucentTest > aSceneWithNoTranslucentSectionsIsHandled() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+
+VkTranslucentTest > aSceneWithNoTranslucentSectionsIsHandled() PASSED
+
+VkTranslucentTest > everySectionLandsInItsDistanceBucketExactlyOnce() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [vk] translucent buckets: {1020=[3], 1021=[1, 2], 1022=[0]}
+
+VkTranslucentTest > everySectionLandsInItsDistanceBucketExactlyOnce() PASSED
+
+VkTranslucentTest > translucentQuadsAppearWherePredicted() STANDARD_OUT
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:46] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [vk] translucent pass changes 57 px
+
+VkTranslucentTest > translucentQuadsAppearWherePredicted() PASSED
+
+VkTranslucentTest > noBucketExceedsTheIndexBuffer() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [vk] translucent: max bucket = 2 quads, clamped = 0
+
+VkTranslucentTest > noBucketExceedsTheIndexBuffer() PASSED
+
+VkTraversalTest > everyDispatchIsSeparatedByABarrier() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+
+VkTraversalTest > everyDispatchIsSeparatedByABarrier() PASSED
+
+VkTraversalTest > theDrawnSetIsAlwaysAnAntichain() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+
+VkTraversalTest > theDrawnSetIsAlwaysAnAntichain() PASSED
+
+VkTraversalTest > aQueueThatFitsDropsNothing() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+
+VkTraversalTest > aQueueThatFitsDropsNothing() PASSED
+
+VkTraversalTest > overflowingTheQueueIsBoundedAndCountedExactly() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+
+VkTraversalTest > overflowingTheQueueIsBoundedAndCountedExactly() PASSED
+
+VkTraversalTest > nearThingsAreDrawnFinerThanFarThingsInTheSameFrame() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+
+VkTraversalTest > nearThingsAreDrawnFinerThanFarThingsInTheSameFrame() PASSED
+
+VkTraversalTest > movingAwayOnlyEverCoarsensTheCut() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+    [vk] cut vs distance: finest=[0, 0, 0, 1, 1, 2] drawn=[64, 64, 64, 8, 8, 1]
+
+VkTraversalTest > movingAwayOnlyEverCoarsensTheCut() PASSED
+
+VkTraversalTest > aTreeBehindTheCameraIsCulledButOneInFrontIsNot() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+
+VkTraversalTest > aTreeBehindTheCameraIsCulledButOneInFrontIsNot() PASSED
+
+VkTraversalTest > aFineThresholdDrawsTheChildrenAndNotTheRoot() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+
+VkTraversalTest > aFineThresholdDrawsTheChildrenAndNotTheRoot() PASSED
+
+VkTraversalTest > aCoarseThresholdDrawsOnlyTheRoot() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-traversal': 10 bindings, push=4B, stages=[COMPUTE]
+
+VkTraversalTest > aCoarseThresholdDrawsOnlyTheRoot() PASSED
+
+VkVisibilityModeTest > everyModeStillMarksTheSectionAsDrawnThisFrame() PASSED
+
+VkVisibilityModeTest > evenAndOddPartitionTheSections() PASSED
+
+VkVisibilityModeTest > allVisibleLeavesNothingForTemporal() PASSED
+
+VkVisibilityModeTest > neitherHalfIsEmpty() PASSED
+
+VkVisibilityModeTest > askingForACullWordIsAMistake() PASSED
+
+VkVisibilityModeTest > noneVisibleSendsEverythingToTemporal() PASSED
+
+VkVisualRecoveryTest > missingDrawIsRejectedByIndependentReference() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [visual-recovery] missing-control Pixels[colorMismatches=3072, depthMismatches=3072, coveredPixels=0, maxDepthError=0.10000000149011612]
+
+VkVisualRecoveryTest > missingDrawIsRejectedByIndependentReference() PASSED
+
+VkVisualRecoveryTest > mirroredImageIsRejectedByIndependentReference() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [visual-recovery] mirrored-control Pixels[colorMismatches=6144, depthMismatches=6144, coveredPixels=3072, maxDepthError=0.10000000149011612]
+
+VkVisualRecoveryTest > mirroredImageIsRejectedByIndependentReference() PASSED
+
+VkVisualRecoveryTest > wrongDepthIsRejectedEvenWithMatchingColor() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [visual-recovery] depth-control Pixels[colorMismatches=0, depthMismatches=3072, coveredPixels=3072, maxDepthError=0.10000000149011612]
+
+VkVisualRecoveryTest > wrongDepthIsRejectedEvenWithMatchingColor() PASSED
+
+VkVisualRecoveryTest > analyticColorAndDepthMatchEveryPixel() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [visual-recovery] analytic Pixels[colorMismatches=0, depthMismatches=0, coveredPixels=3072, maxDepthError=0.0]
+
+VkVisualRecoveryTest > analyticColorAndDepthMatchEveryPixel() PASSED
+
+VkVisualRecoveryTest > wrongAtlasColorIsRejectedByIndependentReference() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [visual-recovery] color-control Pixels[colorMismatches=3072, depthMismatches=0, coveredPixels=3072, maxDepthError=0.0]
+
+VkVisualRecoveryTest > wrongAtlasColorIsRejectedByIndependentReference() PASSED
+
+VkVisualRecoveryTest > tinyArenaReclaimsRejectsAndRerequestsWithIdenticalPixels() STANDARD_OUT
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prep': 8 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-cmdgen': 10 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-temporal-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-bucket-scan': 1 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-gen': 7 bindings, push=0B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-translucent-prefix': 4 bindings, push=4B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-merged-prefix': 2 bindings, push=12B, stages=[COMPUTE]
+    [17:37:47] [Test worker/INFO]: [me.cx.vy.ct.ce.vk.sr.VkShader$Builder]: VkShader 'vk-terrain-merged': 10 bindings, push=0B, stages=[VERTEX, FRAGMENT]
+    [17:37:47] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 0@[0, 0, 0]
+    [visual-recovery] before-pressure Pixels[colorMismatches=0, depthMismatches=0, coveredPixels=3072, maxDepthError=0.0]
+    [17:37:47] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 0@[0, 0, 0]
+    [visual-recovery] recovered-0 Pixels[colorMismatches=0, depthMismatches=0, coveredPixels=3072, maxDepthError=0.0]
+    [17:37:47] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 0@[0, 0, 0]
+    [17:37:47] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 0@[0, 0, 0]
+    [visual-recovery] recovered-1 Pixels[colorMismatches=0, depthMismatches=0, coveredPixels=3072, maxDepthError=0.0]
+    [17:37:47] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 0@[0, 0, 0]
+    [17:37:47] [Test worker/WARN]: [me.cx.vy.ct.ce.rg.hl.NodeManager]: Request result with child existence of 0, for child pos 0@[0, 0, 0]
+    [visual-recovery] recovered-2 Pixels[colorMismatches=0, depthMismatches=0, coveredPixels=3072, maxDepthError=0.0]
+
+VkVisualRecoveryTest > tinyArenaReclaimsRejectsAndRerequestsWithIdenticalPixels() PASSED
+
+[Incubating] Problems report is available at: file:///Users/xyz/dev/voxy/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.6.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 10s
+4 actionable tasks: 2 executed, 2 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.6.0/userguide/configuration_cache_enabling.html

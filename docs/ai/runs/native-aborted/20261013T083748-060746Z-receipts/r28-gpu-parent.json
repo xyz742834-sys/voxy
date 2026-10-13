@@ -1,0 +1,36 @@
+{
+  "head": "6a29306c6a65be1366a48ab786b46a70ea451847",
+  "children": [
+    {
+      "name": "junit",
+      "pid": 68095,
+      "argv": [
+        "./gradlew",
+        "test",
+        "--offline",
+        "-PvkLibname=/opt/homebrew/lib/libvulkan.dylib",
+        "-PvkValidation=true",
+        "-PvkSyncEnv=true",
+        "--no-daemon"
+      ],
+      "log": "/private/tmp/claude-501/-Users-xyz-dev-voxy/74c67808-b704-4c84-9b9a-2d05594c2956/scratchpad/r28-junit.log",
+      "exit": 0,
+      "timeout": false,
+      "seconds": 10.8
+    },
+    {
+      "name": "native",
+      "pid": 68693,
+      "argv": [
+        "/Users/xyz/.nix-profile/bin/python3",
+        "scripts/verify.py",
+        "--only",
+        "native"
+      ],
+      "log": "/private/tmp/claude-501/-Users-xyz-dev-voxy/74c67808-b704-4c84-9b9a-2d05594c2956/scratchpad/r28-native.log",
+      "exit": -15,
+      "timeout": false,
+      "seconds": 391.6
+    }
+  ]
+}

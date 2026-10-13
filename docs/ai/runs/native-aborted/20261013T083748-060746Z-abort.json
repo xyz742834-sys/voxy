@@ -26,7 +26,7 @@
       "seconds": 391.6,
       "launches": {
         "native (environment)": "exit 0 (not gated: verify.py was stopped before its summary verdict)",
-        "native-ladder": "ABORTED at harness stage 'far' (SIGTERM to its Gradle/Minecraft group)",
+        "native-ladder": "ABORTED by SIGTERM at 08:44:19Z while in harness stage 'overworld' (entered 08:44:09Z); its native-result.json holds 13 checkpoints, warmup..nether",
         "native-render": "NOT_RUN",
         "native-pressure": "NOT_RUN",
         "native-inject": "NOT_RUN"
@@ -44,5 +44,21 @@
     "  PID  PGID STAT COMMAND"
   ],
   "remainingOwnedProcesses": [],
-  "harnessDirectory": "build/harness/20261013T083748-060746Z (retained as-is, not copied)"
+  "harnessDirectory": "build/harness/20261013T083748-060746Z (retained as-is, not copied)",
+  "corrections": [
+    {
+      "date": "2026-10-13",
+      "what": "The ladder launch was first recorded as aborted at 'far'. That came from a log read at 08:42:39Z, two minutes before the stop; by the stop it had reached 'overworld' (13 checkpoints through 'nether'), as the R29 reviewer found. Raw evidence in build/harness/20261013T083748-060746Z is unchanged."
+    }
+  ],
+  "receipts": {
+    "path": "docs/ai/runs/native-aborted/20261013T083748-060746Z-receipts/",
+    "files": [
+      "r28-gpu-parent.json (parent runner's own record of each child's pid/exit/seconds)",
+      "r28-abort-signals.log (the signals sent, with UTC times)",
+      "r28-junit.log (Gradle output of the JUnit child)",
+      "r28-native.log (verify.py stdout until SIGTERM)"
+    ],
+    "notArchived": "the JUnit XML reports of that child (build/test-results/test) were overwritten by later CPU-only JUnit runs during the R29 repair; their counts (369 tests, 1 skipped, 0 failures, 0 errors) were read at 08:42Z and are not separately archived"
+  }
 }

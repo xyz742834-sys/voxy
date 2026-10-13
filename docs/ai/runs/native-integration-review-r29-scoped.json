@@ -1,0 +1,222 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "6a29306c6a65be1366a48ab786b46a70ea451847",
+  "round": 29,
+  "review_kind": "independent_scoped_delta_cpu_review",
+  "scope_base": "6e8a35a0b722e7e401f172576cd51ded7e334caa",
+  "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r29",
+  "scoped_review_complete": true,
+  "record_review_complete": false,
+  "native_validation_complete": false,
+  "evidence_completeness": "CPU_COMPLETE; IMPLEMENTATION_NATIVE_ABORTED; PRODUCT_PRESSURE_INJECT_NOT_RUN",
+  "completed_utc": "2026-10-13T08:54:38.811187+00:00",
+  "model": "Current terminal selection unchanged; no model/account changes",
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED_CARRIED",
+      "scope": "completed_delivery",
+      "message": "Normally enabled native delivery remains unaccepted; distinct from default-on readiness.",
+      "evidence": [
+        "docs/ai/project-goal.md:15"
+      ]
+    },
+    {
+      "id": "R29-UPDATE-PLACEMENT",
+      "judgment": "CONFIRMED",
+      "scope": "scoped_update_observation_closure",
+      "message": "New all-air placement observation requires ingest on a transition excluded by the old-visible producer predicate.",
+      "evidence": [
+        "src/harness/java/me/cortex/voxy/harness/LiveWorldHarness.java:281",
+        "src/main/java/me/cortex/voxy/client/mixin/sodium/MixinRenderSectionManager.java:118",
+        ".agent-run/r29/implementation-native-ladder-native-result.json"
+      ]
+    },
+    {
+      "id": "R29-UPDATE-CAUSALITY",
+      "judgment": "CONFIRMED",
+      "scope": "scoped_update_observation_closure",
+      "message": "Accepted enqueue and max ancestor mesh revision do not bind the commanded change to completion into the relevant mesh; observer lacks world/scene/revision identity.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/common/world/service/VoxelIngestService.java:209",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkHierarchicalScene.java:1551",
+        ".agent-run/r29/source-probes.json"
+      ]
+    },
+    {
+      "id": "R29-WORLD-SHUTDOWN-BOUND",
+      "judgment": "CONFIRMED_CONTROL_FLOW_NATIVE_TIMEOUT_NOT_RUN",
+      "scope": "claimed_worker_shutdown_repair",
+      "message": "250ms worker wait is repaired, but retained task world refs can keep the outer VoxyInstance shutdown loop waiting indefinitely. No actual native UAF/race claimed.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/commonImpl/VoxyInstance.java:258",
+        "src/main/java/me/cortex/voxy/common/world/WorldEngine.java:170",
+        ".agent-run/r29/source-probes.json"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R29-UPDATE-COUNTERS",
+      "judgment": "CONFIRMED",
+      "message": "Whole gate accepts negative/impossibly high scene build counts and negative ingest counts.",
+      "evidence": [
+        "scripts/verify.py:2591",
+        ".agent-run/r29/gate-probes.json"
+      ]
+    },
+    {
+      "id": "R29-MATRIX-REPAIR-STATUS",
+      "judgment": "CONFIRMED",
+      "message": "Rows4/5 overstate repaired-source status; CPU/source closures6/7 and broader owner acceptance must stay distinct.",
+      "evidence": [
+        "docs/ai/native-acceptance-matrix.md:18",
+        "docs/ai/native-acceptance-matrix.md:19"
+      ]
+    }
+  ],
+  "safe_for_normal_play": true,
+  "safety_scope": "All voxy.native.* flags unset from startup; scoped source/CPU dormant safety only. No fresh ordinary GL/native live regression.",
+  "safe_for_normal_play_with_product_switch": "NOT_ESTABLISHED",
+  "delivery_complete": false,
+  "round27_findings_closed": {
+    "DELIVERY-BOUNDARY": false,
+    "R27-EMPTY-REBUILD": true,
+    "R27-RENDER-DISABLE": true,
+    "R27-RENDER-GATE": true,
+    "R26-LADDER-GUARD-COVERAGE": true,
+    "R24-HIER-GUARD-COVERAGE": true,
+    "R27-CONTEXT-DRIFT": true
+  },
+  "round27_closure_scope": "Prior closures carried from verbatim R28 record; only named context correction re-audited in this delta.",
+  "round28_findings_closed": {
+    "R28-GATE-GUARD-COVERAGE": true,
+    "R28-WORKER-SHUTDOWN-BOUND": false,
+    "R28-NATIVE-UPDATE-OBSERVATION": false,
+    "R27-CONTEXT-DRIFT": true
+  },
+  "default_on_readiness": {
+    "judgment": "REFUTED",
+    "ready": false,
+    "safe_to_flip_now": false,
+    "distinct_from_delivery": true,
+    "remaining": [
+      "1. Repair and obtain candidate-bound observation of native ingestion through completion into the relevant section\u2019s native mesh, with scene/world/revision attribution; keep pixels separate. Sustained/interior edits, loaded boundaries and rapid travel remain unaccepted.",
+      "2. Resolve the outer shutdown bound and retain resources until safe cleanup on timeout/interruption; observe live timeout/shutdown behavior, config off/on, startup/runtime kill and connected app-close. The single synthetic submit failure is not real device-loss/unsupported-device coverage.",
+      "3. Complete the aborted candidate-bound product/pressure/injection acceptance under separate coordination after repairs. Preserve the failed batch. The prior four-cycle evidence remains bounded history; long-session/update workloads remain open.",
+      "4. Retain the existing broader visual/reference obligations: water/translucency, later depth users, dimension/initial lightmap latency, fog/sky and projection cases. The owner must decide whether BASIC fallback for BETTER/BEST SSAO is acceptable.",
+      "5. Set/accept and evaluate intended performance/memory budgets, and decide the existing 5%/1% allocation tolerances and one-pixel sample floors. This review does not substitute its own thresholds. The two named guard-coverage gaps are now closed; the new observer consistency/causality gaps are not.",
+      "6. Obtain the inherited ordinary GL/native baseline acceptance. Any future normal-configuration enable and final delivery acceptance require their own authorization; neither is done here."
+    ]
+  },
+  "render_gate_judgment": {
+    "judgment": "REDESIGN_NEW_UPDATE_OBSERVER",
+    "historical_render_gates": "not reopened; carried within historical scope",
+    "named_guard_gaps_closed": 2,
+    "worker_accounting_mutation_detected": true,
+    "new_update_whole_predicates_detected": 8,
+    "new_update_mutation_assertion_failures": 6,
+    "new_update_mutation_errors": 2,
+    "counterexamples": [
+      "impossible_builds_negative",
+      "builds_beyond_final",
+      "negative_ingests",
+      "unrelated_ancestor_revision"
+    ],
+    "live_replay": "NOT_RUN_NO_COMPLETE_BOUND_BUNDLE"
+  },
+  "product_switch_judgment": {
+    "judgment": "OPT_IN_ROUTE_RETAINED; NEW_CANDIDATE_NATIVE_ACCEPTANCE_INCOMPLETE",
+    "default_enabled": false,
+    "candidate_product_launch": "NOT_RUN",
+    "candidate_pressure_launch": "NOT_RUN",
+    "candidate_inject_launch": "NOT_RUN",
+    "pixels_proven_by_new_update_observer": false
+  },
+  "tests": {
+    "reviewer_cpu_worker_junit": {
+      "tests": 7,
+      "passed": 7,
+      "skipped": 0,
+      "exit_code": 0,
+      "method": "Standalone javac/JUnit; only JDK and JUnit dependencies, no Vulkan classes"
+    },
+    "reviewer_python": {
+      "file": "scripts/tests/test_render_gate.py",
+      "tests": 34,
+      "passed": 34,
+      "exit_code": 0
+    },
+    "reviewer_mutations": {
+      "named_previous_gaps": 2,
+      "worker_accounting": 1,
+      "update_predicates": 8,
+      "all_detected": true
+    },
+    "source_extracted_probes": {
+      "ancestor_leaf_revision": 10,
+      "ancestor_before": 20,
+      "ancestor_after": 22,
+      "stop_wait_ms_observed": 255,
+      "outer_wait_alive_after_ms": 800,
+      "retained_refs": 1,
+      "cleanup_completed": true
+    }
+  },
+  "implementation_evidence": {
+    "run": "20261013T083748-060746Z",
+    "outcome": "ABORTED",
+    "abort_record_commit": "9a41235a",
+    "parent_exit": 1,
+    "verify_exit": -15,
+    "exit_provenance": "Coordinator and retained abort record; not reviewer-owned waits",
+    "junit_exit": 0,
+    "junit_xml_independent_recount": {
+      "suites": 68,
+      "tests": 369,
+      "passed": 368,
+      "skipped": 1,
+      "failures": 0,
+      "errors": 0,
+      "scope": "Earlier independent recount of mutable build XML at08:47; directory later changed before snapshot, so later one-suite copy is not this run. Positive exit and source association remain owner/abort-record provenance."
+    },
+    "environment": "result complete true,17checkpoints; no batch gate verdict",
+    "ladder": "incomplete,13checkpoints through nether; log next enters overworld; abort record far description stale",
+    "product": "NOT_RUN",
+    "pressure": "NOT_RUN",
+    "inject": "NOT_RUN",
+    "complete_source_fingerprint_bundle": false,
+    "old_run_bound_to_candidate": false,
+    "cleanup_pids_absent": [
+      68078,
+      68095,
+      68693,
+      73239,
+      73266,
+      73318
+    ],
+    "junit_xml_later_snapshot": "NOT_EVIDENCE_FOR_CANDIDATE: one later repair-test suite; failed snapshot attempt preserved",
+    "focused_aborted_ladder_update_check": "REFUSED: no visibility-change ingest of the edit probe's chunk section was recorded (0 -> 0)"
+  },
+  "resource_coordination": {
+    "token": "VOXY_R28_REPAIR_6A29306C_20261013T083310Z",
+    "agreement_message": "msg_6c372f0008bd",
+    "release_message": "msg_981a2941b240",
+    "release_ack": "msg_077aa5f64ce4",
+    "hold": "EXPLICITLY_RELEASED",
+    "additional_launch_authority": false
+  },
+  "not_checked": [
+    "No reviewer GPU/native/live launch",
+    "No completed candidate-bound native replay bundle",
+    "Product/pressure/injection launches NOT_RUN after coordinator abort",
+    "Native timeout/interruption and actual UAF not tested",
+    "Mesh causality and pixels remain separate and unaccepted",
+    "Wider R28 visual/workload/performance/ordinary GL acceptance remains open"
+  ],
+  "no_production_edits": true,
+  "reviewer_gpu_launches": 0,
+  "reviewer_minecraft_launches": 0,
+  "gpu_jobs_queued": 0,
+  "proof_directory": ".agent-run/r29"
+}
