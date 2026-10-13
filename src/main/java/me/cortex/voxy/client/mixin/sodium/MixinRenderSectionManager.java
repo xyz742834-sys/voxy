@@ -19,6 +19,7 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
+import me.cortex.voxy.commonImpl.WorldIdentifier;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -101,7 +102,15 @@ public class MixinRenderSectionManager {
         boolean isInvisible = instance.isInvisible();
         int changes = instance.setInfo(info);
         VoxyRenderSystem vrs = null;
-        if (isInvisible == instance.isInvisible() || changes == 0 || (vrs = IVoxyRenderSystemHolder.getNullable()) == null) {
+        if (isInvisible == instance.isInvisible() || changes == 0) {
+            return changes;
+        }
+        // GL ingests through its render system's engine; the native path has no GL render system,
+        // so it resolves the level's engine as the block-change ingest does (MixinClientLevel)
+        WorldIdentifier nativeWorld = null;
+        if ((vrs = IVoxyRenderSystemHolder.getNullable()) == null
+                && (!me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.active()
+                    || (nativeWorld = WorldIdentifier.of(this.level)) == null)) {
             return changes;
         }
         int x = instance.getChunkX(), y = instance.getChunkY(), z = instance.getChunkZ();
@@ -131,7 +140,10 @@ public class MixinRenderSectionManager {
 
                     //Note: we dont do this check and just blindly ingest, it shouldbe ok :tm:
                     //if (blp != null || slp != null)
-                    VoxelIngestService.rawIngest(vrs.getEngine(), section, x, y, z, blp == null ? null : blp.copy(), slp == null ? null : slp.copy());
+                    var bl = blp == null ? null : blp.copy();
+                    var sl = slp == null ? null : slp.copy();
+                    if (vrs != null) VoxelIngestService.rawIngest(vrs.getEngine(), section, x, y, z, bl, sl);
+                    else VoxelIngestService.rawIngest(nativeWorld, section, x, y, z, bl, sl);
                 }
             }
         }
