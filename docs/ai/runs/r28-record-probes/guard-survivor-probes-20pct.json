@@ -1,0 +1,20 @@
+[
+  {
+    "case": "streaming-false",
+    "baseline_success": false,
+    "baseline_failures": [
+      "ValueError: the product render probe says streaming=False, sectionRenderDistance=16.0"
+    ],
+    "guard_removed_success": true,
+    "mutant_failures": []
+  },
+  {
+    "case": "within-first-size-run-growth",
+    "baseline_success": false,
+    "baseline_failures": [
+      "ValueError: the product render launch's live Vulkan allocations grew from 40 buffers / 730280040 bytes / 11 textures / 598837376 texture bytes (turn, 1708x960) to 40 / 876336048 / 11 / 598837376 (resize, 1708x960) over 17 build(s); retired scenes are not freed"
+    ],
+    "guard_removed_success": true,
+    "mutant_failures": []
+  }
+]

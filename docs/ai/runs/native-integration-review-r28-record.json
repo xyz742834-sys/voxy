@@ -1,0 +1,283 @@
+{
+  "final_verdict": "REDESIGN",
+  "reviewed_commit": "6e8a35a0b722e7e401f172576cd51ded7e334caa",
+  "round": 28,
+  "review_kind": "independent_review_of_record",
+  "record_review_complete": true,
+  "completed_utc": "2026-10-13T07:58:05.762076+00:00",
+  "checkout": "/Users/xyz/orca/workspaces/voxy/native-review-r28-record",
+  "initial_tree_clean": true,
+  "model": "GPT-6-Astra high (terminal-reported; unchanged)",
+  "blocking_findings": [
+    {
+      "id": "DELIVERY-BOUNDARY",
+      "judgment": "CONFIRMED",
+      "message": "Normally enabled native rendering and complete normal-play delivery acceptance remain unmet; readiness is evaluated separately and remains false.",
+      "evidence": [
+        "docs/ai/project-goal.md:15",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeRender.java:24"
+      ]
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "R27-CONTEXT-DRIFT",
+      "judgment": "CONFIRMED",
+      "message": "Architecture native-route statements repaired, but current-state still denies implemented configured streaming, real lightmap, bounds and SSAO.",
+      "evidence": [
+        "docs/ai/current-state.md:124",
+        "docs/ai/current-state.md:150",
+        "docs/ai/current-state.md:156"
+      ]
+    },
+    {
+      "id": "R28-GATE-GUARD-COVERAGE",
+      "judgment": "CONFIRMED",
+      "message": "Two reachable predicate removals escape current tests: streaming=False and within-size-run allocation growth. Unchanged production guards correctly reject the independent probes.",
+      "evidence": [
+        "scripts/verify.py:2567",
+        "scripts/verify.py:3344",
+        ".agent-run/r28-record/guard-survivor-probes-20pct.json"
+      ]
+    },
+    {
+      "id": "R28-WORKER-SHUTDOWN-BOUND",
+      "judgment": "CONFIRMED_CONTROL_FLOW; NATIVE_RACE_NOT_RUN",
+      "message": "Normal level-change retirement is repaired, but stopWorkers can stall ten seconds and return with workers alive; termination/leak status does not gate scene/bakery cleanup or enter the report.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/core/vk/VkRealMesher.java:277",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkHierarchicalScene.java:1576",
+        ".agent-run/r28-record/worker-stop.json"
+      ]
+    },
+    {
+      "id": "R28-NATIVE-UPDATE-OBSERVATION",
+      "judgment": "CONFIRMED_EVIDENCE_GAP",
+      "message": "Native visibility-change ingest is source-connected but lacks a dedicated observation; native edit/remove checkpoints do not prove native mesh/pixel update causality.",
+      "evidence": [
+        "src/main/java/me/cortex/voxy/client/mixin/sodium/MixinRenderSectionManager.java:109",
+        "src/harness/java/me/cortex/voxy/harness/LiveWorldHarness.java:287",
+        "src/main/java/me/cortex/voxy/client/core/vk/VulkanWorldUpdates.java:34"
+      ]
+    }
+  ],
+  "safe_for_normal_play": true,
+  "safety_scope": "All voxy.native.* flags unset from startup; source/offline dormant safety only. Supported GL route preserved; Minecraft Vulkan keeps Voxy rendering disabled. No new normal-play launch.",
+  "safe_for_normal_play_with_product_switch": "NOT_ESTABLISHED",
+  "delivery_complete": false,
+  "round27_findings_closed": {
+    "DELIVERY-BOUNDARY": false,
+    "R27-EMPTY-REBUILD": true,
+    "R27-RENDER-DISABLE": true,
+    "R27-RENDER-GATE": true,
+    "R26-LADDER-GUARD-COVERAGE": true,
+    "R24-HIER-GUARD-COVERAGE": true,
+    "R27-CONTEXT-DRIFT": false
+  },
+  "default_on_readiness": {
+    "judgment": "REFUTED",
+    "ready": false,
+    "safe_to_flip_now": false,
+    "distinct_from_delivery": true,
+    "remaining": [
+      "Observe native visibility-transition ingest and resulting native mesh/pixel updates; sustained/interior edits, loaded boundaries and rapid travel remain unaccepted.",
+      "Bound worker shutdown before world/model cleanup, including timeout/interruption; observe live config toggles, startup/runtime kill and connected app-close; extend failure/unsupported-device coverage beyond synthetic submit failure.",
+      "Independently accept full-scene lighting, dimension transitions, water/translucency, entities/weather/downstream depth, fog/sky and projection variants; decide BASIC fallback for BETTER/BEST SSAO.",
+      "Set and meet full normal-play timing/memory budgets including fence/build/post/SSAO and CPU workers; extend four-cycle soak to intended sustained workloads.",
+      "Cover streaming and within-size allocation predicate removals; accept or tighten 5% within-run/1% cross-cycle tolerances and one-pixel far/fade/night floors; correct living context.",
+      "Obtain ordinary GL/native baseline acceptance and, after readiness approval, separately authorize normal-configuration enable and completed-delivery acceptance."
+    ]
+  },
+  "render_gate_judgment": {
+    "judgment": "CONFIRMED_BOUNDED_REPAIRS",
+    "r27_replay_counterexamples_rejected": 7,
+    "r27_survivors": [],
+    "old_codex_empty_and_1x1_thumbnails": "both refused with refreshed member hashes and unchanged source binding",
+    "latest_thumbnail_count": 51,
+    "claude_replay_cases": 13,
+    "claude_survivors": [
+      "0.8% cross-cycle allocation growth: allowed by explicit 1% tolerance"
+    ],
+    "guard_audits": {
+      "ladder_named": {
+        "detected": 22,
+        "inventory": 22
+      },
+      "shared_hierarchy": {
+        "hier_detected": 40,
+        "combined_detected": 41,
+        "inventory": 41,
+        "last_hier_guard_redundant": true
+      },
+      "product_pressure_inject_logs": {
+        "detected": 59,
+        "inventory": 63
+      },
+      "product_soak_thumbnail_extension": {
+        "detected": 10,
+        "inventory": 11
+      },
+      "far_fade_night_reprojection": {
+        "detected": 13,
+        "inventory": 13
+      }
+    },
+    "coverage_gaps": [
+      "hier_stream_problem streaming/finite-distance predicate",
+      "native_render_result within-size-run allocation predicate"
+    ],
+    "allowances": {
+      "within_size_run_growth": 0.05,
+      "across_cycles_same_size_growth": 0.01,
+      "far_fade_night_min_qualifying_pixels": 1
+    },
+    "audit_scope": "Whole predicates removed in memory; unchanged tests, byte/dependency-bound caches; not exhaustive boolean-subexpression mutation."
+  },
+  "product_switch_judgment": {
+    "judgment": "CONFIRMED_OPT_IN_ROUTE",
+    "frames_composited": 24755,
+    "cycles": 4,
+    "builds": 17,
+    "resizes": 4,
+    "section_capacity": 1048576,
+    "geometry_bytes": 536870912,
+    "default_enabled": false,
+    "config_disable": "source-extracted probe confirms one retirement and per-call skip accounting; reenable recreates",
+    "runtime_kill": "stops product calls, retains scene/context/instance; diagnostic flags independent",
+    "startup_kill": "prevents product startup; later clear does not retroactively initialize it",
+    "empty_retry_ms": 10000,
+    "minimum_build_interval_ms": 1000,
+    "normal_play_acceptance": "NOT_ESTABLISHED"
+  },
+  "failure_injection_judgment": {
+    "judgment": "CONFIRMED_BOUNDED",
+    "frames_composited": 6841,
+    "frames_after_injection": 5841,
+    "expected_problems": 1,
+    "expected_frame_failed": 1,
+    "expected_error_lines": 1,
+    "expected_control_hazards": 1,
+    "actual_device_loss_tested": false,
+    "limits": [
+      "VkResult -4 simulated without submission",
+      "control identified by text/multiplicity, not buffer identity",
+      "recovery pixels not exhaustively judged",
+      "native worker timeout/race not run"
+    ]
+  },
+  "soak_judgment": {
+    "judgment": "CONFIRMED_BOUNDED",
+    "product_cycles": 4,
+    "pressure_cycles": 4,
+    "product_frames": 24755,
+    "pressure_frames": 19062,
+    "product_builds": 17,
+    "pressure_builds": 17,
+    "in_place_resizes_each": 4,
+    "pressure_reclaimed": 998913,
+    "zero_leakage_proven": false,
+    "long_session_acceptance": false,
+    "performance_budget_judged": false
+  },
+  "far_world_judgment": {
+    "judgment": "CONFIRMED_RETAINED_SAMPLE",
+    "draw": 3842,
+    "geometry_pixels": 3553,
+    "visible_pixels": 3553,
+    "beyond_mc_far_pixels": 3553,
+    "minecraft_far_blocks": 2048,
+    "clamped_depth": 1.1920930376163597e-07,
+    "violations": 0,
+    "dedicated_fade_draw": 4082,
+    "dedicated_fade_pixels": 69,
+    "scope": "Independent retained-byte recount; multiple projection variants not accepted."
+  },
+  "prior_round28_repairs": {
+    "R28-RENDER-THUMBNAIL-VALIDITY": "CONFIRMED_CLOSED",
+    "R28-QUEUE-OVERFLOW": "CONFIRMED_CLOSED_SOURCE_AND_BOUNDED_OFFSCREEN",
+    "R28-FADE-BLEND": "CONFIRMED_CLOSED_SOURCE_AND_RECOUNT",
+    "R28-FAILED-FRAME-STATE": "CONFIRMED_CLOSED_FOR_TESTED_FAILURE_CLASS",
+    "R28-WORKER-LIFETIME": "LEVEL_CHANGE_RETIREMENT_REPAIRED; TIMEOUT_BOUND_OPEN",
+    "R28-LIGHTMAP-FIRST-FRAMES": "PER_SCENE_CACHE_REPAIRED; INITIAL_COPY_LATENCY_REMAINS",
+    "R28-GATE-RESIDUALS": "DISABLED_SKIP_AND_PER_CYCLE_GROWTH_CLOSED; WITHIN_RUN_TEST_COVERAGE_AND_EXPLICIT_ALLOWANCES_REMAIN",
+    "R28-FLOATING-PIECES": "NATIVE_FOG_ROUTE_REPAIRED; BROADER_VISUAL_ACCEPTANCE_NOT_ESTABLISHED"
+  },
+  "evidence": {
+    "retained_run": "docs/ai/runs/native-evidence/20261013T013657-855541Z",
+    "built_commit": "cea74445cdf8d1bd2d5c5dfae1eae8ca6235df30",
+    "source_binding_entries": 445,
+    "manifest_members": 547,
+    "selected_source_diff_from_build": false,
+    "required_checks": {
+      "reviewed_commit": "6e8a35a0b722e7e401f172576cd51ded7e334caa",
+      "replay_exit_code": 0,
+      "replay_source_binding_entries": 445,
+      "gpu_exit_code": 0,
+      "gpu_tests": 362,
+      "gpu_passed": 361,
+      "gpu_skipped": 1,
+      "gpu_failures": 0,
+      "gpu_clearance": "VOXY_R28_RECORD_JUNIT_20261013T072935Z",
+      "gpu_attempts": 1,
+      "native_live_launches": 0,
+      "python_status": "PASS",
+      "python_exit_code": 0,
+      "python_tests": 348,
+      "python_seconds": 1207.83
+    },
+    "gpu_cleanup": {
+      "parent_exit": {
+        "exit_code": 0,
+        "timed_out": false,
+        "elapsed_seconds": 14.22203016281128,
+        "parent_pid": 90167,
+        "observed_pids": [
+          "90167",
+          "90261",
+          "90557"
+        ],
+        "finished_utc": "2026-10-13T07:32:14.742798+00:00"
+      },
+      "xml_suites": 67,
+      "test_totals": {
+        "tests": 362,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1
+      },
+      "observed_processes": {
+        "90167": {
+          "ppid": 90153,
+          "pgid": 90167,
+          "command": "/usr/bin/java -Xmx64m -Xms64m -Dorg.gradle.appname=gradlew -jar /Users/xyz/orca/workspaces/voxy/native-review-r28-record/gradle/wrapper/gradle-wrapper.jar test --offline -PvkLibname=/opt/homebrew/lib/libvulkan.dylib -PvkValidation=true -PvkSyncEnv=true --no-daemon"
+        },
+        "90261": {
+          "ppid": 90167,
+          "pgid": 90261,
+          "command": "/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java --add-opens=java.base/java.lang=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.prefs/java.util.prefs=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED --add-opens=java.base/java.nio.charset=ALL-UNNAMED --add-opens=java.base/java.net=ALL-UNNAMED --add-opens=java.base/java.util.concurrent=ALL-UNNAMED --add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens=java.xml/javax.xml.namespace=ALL-UNNAMED --add-opens=java.base/java.time=ALL-UNNAMED --enable-native-access=ALL-UNNAMED -Xmx2G -Dfile.encoding=UTF-8 -Duser.country=JP -Duser.language=en -Duser.variant -cp /Users/xyz/.gradle/wrapper/dists/gradle-9.6.0-bin/42k10rwplmzkhuboz9kdazi7s/gradle-9.6.0/lib/gradle-daemon-main-9.6.0.jar -javaagent:/Users/xyz/.gradle/wrapper/dists/gradle-9.6.0-bin/42k10rwplmzkhuboz9kdazi7s/gradle-9.6.0/lib/agents/gradle-instrumentation-agent-9.6.0.jar org.gradle.launcher.daemon.bootstrap.GradleDaemon 9.6.0"
+        },
+        "90557": {
+          "ppid": 90261,
+          "pgid": 90261,
+          "command": "/Library/Java/JavaVirtualMachines/temurin-25.jdk/Contents/Home/bin/java -Dorg.gradle.internal.worker.tmpdir=/Users/xyz/orca/workspaces/voxy/native-review-r28-record/build/tmp/test/work -Dorg.lwjgl.vulkan.libname=/opt/homebrew/lib/libvulkan.dylib -Dvoxy.test.os=Mac OS X/aarch64 -Dvoxy.vk.validation=true --enable-native-access=ALL-UNNAMED @/Users/xyz/.gradle/.tmp/gradle-worker-classpath808849581590207130txt -Xmx512m -Dfile.encoding=UTF-8 -Duser.country=JP -Duser.language=en -Duser.variant -ea worker.org.gradle.process.internal.worker.GradleWorkerMain 'Gradle Test Executor 1'"
+        }
+      },
+      "remaining_observed_processes": {}
+    },
+    "independent_recount": ".agent-run/r28-record/recount28.json",
+    "proof_directory": ".agent-run/r28-record"
+  },
+  "not_checked": [
+    "No new Minecraft/native/live execution authorized or performed",
+    "Dedicated native visibility-ingest observation",
+    "Normal GL or native flag-free live regression",
+    "Live toggle and worker-timeout/shutdown race",
+    "Actual device loss and full queue saturation",
+    "Full-scene reference correctness, broader projections/water/translucency/SSAO choices",
+    "Long-session/default-on delivery acceptance"
+  ],
+  "no_production_edits": true,
+  "gpu_jobs_queued": 0,
+  "minecraft_launches": 0,
+  "source_boundary": "Only review artifacts in new checkout; old review preserved."
+}
