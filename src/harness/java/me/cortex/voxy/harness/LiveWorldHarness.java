@@ -279,6 +279,8 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 command(mc, "tp @s 0 120 0 0 30");
             }
             case "edit" -> {
+                if (nativeMode) updateProbeBefore(mc);
+                if (nativeMode) command(mc, "setblock " + PROBE_X + " " + PROBE_Y + " " + PROBE_Z + " minecraft:glass");
                 command(mc, "time set noon");   // back from the night look
                 command(mc, "fill " + HORIZON_WALL_X + " 150 0 " + HORIZON_WALL_X + " 165 12 minecraft:air");
                 // back to where `edit` always ran, so later stages see what they saw before `horizon`
@@ -287,6 +289,10 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 command(mc, "fill -8 100 20 8 108 28 minecraft:glass");
             }
             case "remove" -> {
+                if (nativeMode) {
+                    updateProbeBefore(mc);
+                    command(mc, "setblock " + PROBE_X + " " + PROBE_Y + " " + PROBE_Z + " minecraft:air");
+                }
                 if (!nativeMode) editVersion = VkInteropProbe.meshVersionAt(0, 104, 24);
                 command(mc, "fill -8 100 20 8 108 28 minecraft:air");
             }
@@ -305,6 +311,48 @@ public final class LiveWorldHarness implements ClientModInitializer {
             case "reconnect" -> mc.createWorldOpenFlows().openWorld(WORLD, () -> {});
             default -> { }
         }
+    }
+
+    /**
+     * Native update observation (round-28 Codex review of record, R28-NATIVE-UPDATE-OBSERVATION): one
+     * glass block placed at {@code edit} and removed at {@code remove}, in view from the edit pose,
+     * at an interior position of a chunk section that must be all air before (local 8, 6, 8) and in
+     * a Voxy section of its own (1, 3, 2: away from the edit fill's). On the native path a non-air
+     * placement and an interior removal reach Voxy only through Sodium's visibility-change ingest
+     * (until the chunk unloads), so a native mesh change there is attributable to that route.
+     */
+    private static final int PROBE_X = 40, PROBE_Y = 118, PROBE_Z = 72;
+    private java.util.Map<String, Object> probeBefore;
+
+    private void updateProbeBefore(Minecraft mc) {
+        var before = new java.util.LinkedHashMap<String, Object>();
+        var section = mc.level.getChunk(PROBE_X >> 4, PROBE_Z >> 4).getSection(mc.level.getSectionIndex(PROBE_Y));
+        before.put("sectionEmpty", section.hasOnlyAir());
+        before.put("block", blockAt(mc));
+        before.put("meshVersion", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.meshVersionAt(PROBE_X, PROBE_Y, PROBE_Z));
+        before.put("builds", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.buildsSoFar());
+        before.put("visibilityIngests", me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace
+            .visibilityIngests(PROBE_X >> 4, PROBE_Y >> 4, PROBE_Z >> 4));
+        probeBefore = before;
+    }
+
+    private static String blockAt(Minecraft mc) {
+        return net.minecraft.core.registries.BuiltInRegistries.BLOCK
+            .getKey(mc.level.getBlockState(new BlockPos(PROBE_X, PROBE_Y, PROBE_Z)).getBlock()).toString();
+    }
+
+    private java.util.Map<String, Object> updateProbe(Minecraft mc) {
+        var probe = new java.util.LinkedHashMap<String, Object>();
+        probe.put("block", java.util.List.of(PROBE_X, PROBE_Y, PROBE_Z));
+        probe.put("before", probeBefore);
+        var after = new java.util.LinkedHashMap<String, Object>();
+        after.put("block", blockAt(mc));
+        after.put("meshVersion", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.meshVersionAt(PROBE_X, PROBE_Y, PROBE_Z));
+        after.put("builds", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.buildsSoFar());
+        after.put("visibilityIngests", me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace
+            .visibilityIngests(PROBE_X >> 4, PROBE_Y >> 4, PROBE_Z >> 4));
+        probe.put("after", after);
+        return probe;
     }
 
     /** Odd cycles grow the window to 960x540, even ones return it to the default 854x480. */
@@ -406,6 +454,7 @@ public final class LiveWorldHarness implements ClientModInitializer {
         entry.put("cameraY", mc.gameRenderer.mainCamera().position().y);
         entry.put("playerPitch", mc.player.getXRot());
         entry.put("groundY", groundY == Integer.MIN_VALUE ? null : groundY);
+        if ((name.equals("edit") || name.equals("remove")) && probeBefore != null) entry.put("updateProbe", updateProbe(mc));
         nativeCheckpoints.add(entry);
         screenshotsPending.incrementAndGet();
         Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image -> {

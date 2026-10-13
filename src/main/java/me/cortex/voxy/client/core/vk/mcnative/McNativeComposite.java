@@ -21,8 +21,10 @@ import static org.lwjgl.vulkan.VK10.*;
  * The native composite: Voxy's own target colour (and its depth reprojected into Minecraft's
  * space, which marks where Voxy drew) drawn into a pass that LOADs Minecraft's colour and depth.
  * Voxy's GL composition rule: a Voxy pixel lands only where Minecraft's depth is still the clear
- * value — the fragment depth is 0 and the test is {@link VkDepth#COMPARE_OP} (GREATER_OR_EQUAL),
- * writes off. Pixels Voxy did not draw are discarded and Minecraft's stay untouched.
+ * value — Minecraft's depth is cleared to 0 and the test is {@link VkDepth#COMPARE_OP}
+ * (GREATER_OR_EQUAL). Where Voxy lands it writes its reprojected depth and blends its colour by its
+ * fade alpha (GL's final-blit blend). Pixels Voxy did not draw are discarded and Minecraft's stay
+ * untouched.
  *
  * <p>Shape taken from {@code VkDepthResolve} (full-screen triangle, texelFetch, Voxy's shader and
  * pipeline helpers). Differences: two sampled sources, a colour AND depth attachment (Minecraft's

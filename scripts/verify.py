@@ -2559,6 +2559,55 @@ VOXY_FOG_MODES = ("FOG_AND_FADE", "FOG", "FADE", "OFF")   # NormalRenderPipeline
 HIER_FRAME_SKIPS = REAL_LOAD_SKIPS + ("fog-covers-all",)
 
 
+UPDATE_PROBE_BLOCK = [40, 118, 72]   # LiveWorldHarness.PROBE_X/Y/Z
+UPDATE_PROBE_STAGES = {"edit": ("minecraft:air", "minecraft:glass"),
+                       "remove": ("minecraft:glass", "minecraft:air")}
+
+
+def native_update_problem(checkpoints):
+    """Why the native update observation fails (None if it holds).
+
+    ⚠ Round-28 Codex review of record, R28-NATIVE-UPDATE-OBSERVATION: the native edit/remove
+    checkpoints required no native mesh change. The harness places one glass block at `edit` and
+    removes it at `remove`, at an interior position of a chunk section that was all air, in a Voxy
+    section of its own. On the native path such a placement or removal reaches Voxy only through
+    Sodium's visibility-change ingest (until the chunk unloads), so each stage must show, within the
+    same scene (no rebuild between): the block changed as commanded, at least one visibility-change
+    ingest of that chunk section recorded, and a later native mesh revision there. This observes the
+    route through Voxy's mesh, not pixels: Voxy draws only where Minecraft's depth is clear, which
+    this close it is not."""
+    by_stage = {}
+    for case in checkpoints:
+        by_stage.setdefault(case.get("stage"), case)
+    for stage, (was, now) in UPDATE_PROBE_STAGES.items():
+        probe = (by_stage.get(stage) or {}).get("updateProbe")
+        if not isinstance(probe, dict) or probe.get("block") != UPDATE_PROBE_BLOCK:
+            return f"the {stage} checkpoint carries no update observation at {UPDATE_PROBE_BLOCK}"
+        before, after = probe.get("before"), probe.get("after")
+        if not isinstance(before, dict) or not isinstance(after, dict):
+            return f"the {stage} update observation lacks its before/after state"
+        for side, state in (("before", before), ("after", after)):
+            for key in ("meshVersion", "builds", "visibilityIngests"):
+                if not finite_int(state.get(key)):
+                    return f"the {stage} update observation's {side}.{key} is {state.get(key)!r}"
+        if stage == "edit" and before.get("sectionEmpty") is not True:
+            return (f"the {stage} probe's chunk section was not all air before the placement"
+                    f" (sectionEmpty={before.get('sectionEmpty')!r}), so its visibility does not change")
+        if before.get("block") != was or after.get("block") != now:
+            return (f"the {stage} probe block went {before.get('block')!r} -> {after.get('block')!r},"
+                    f" not {was} -> {now}")
+        if before["meshVersion"] < 0 or after["builds"] != before["builds"]:
+            return (f"the {stage} observation spans no single scene (mesh version"
+                    f" {before['meshVersion']}, builds {before['builds']} -> {after['builds']})")
+        if after["visibilityIngests"] <= before["visibilityIngests"]:
+            return (f"no visibility-change ingest of the {stage} probe's chunk section was recorded"
+                    f" ({before['visibilityIngests']} -> {after['visibilityIngests']})")
+        if after["meshVersion"] <= before["meshVersion"]:
+            return (f"the native mesh at the {stage} probe did not change (revision"
+                    f" {before['meshVersion']} -> {after['meshVersion']})")
+    return None
+
+
 def hier_stream_problem(report):
     """Why the probe's streaming facts are not Voxy's (None if they are): it streams at
     ceil(sectionRenderDistance + 1) top-level columns, as VoxyRenderSystem.setRenderDistance, and
@@ -3162,6 +3211,10 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         environment = native_environment_result(output, require_screenshots=False)
         if not environment["success"]:
             raise ValueError(f"the {L} launch's environment: {environment['failures']}")
+        update_problem = native_update_problem(
+            json.loads((output / "native-result.json").read_text()).get("checkpoints") or [])
+        if update_problem:
+            raise ValueError(f"the {L} launch's native update: {update_problem}")
         report = json.loads((output / "native-hier-load.json").read_text())
         # a diagnostic that is off still writes its report at shutdown (measured: real-LOAD's);
         # it must be inert in every counter, not merely say enabled=false
@@ -3187,6 +3240,15 @@ def native_render_result(output, log_text, expected_device=None, command=None,
             got = report.get(field)
             if got != value or isinstance(got, bool) != isinstance(value, bool):
                 raise ValueError(f"the {L} report says {field}={got!r}, not {value!r}")
+        # round-28 R28-WORKER-SHUTDOWN-BOUND: a retired scene's mesher whose workers outlived their
+        # stop keeps what they read until they end; one still running at shutdown leaked it
+        deferred, reaped, leaked = (report.get("meshWorkersDeferred"), report.get("meshWorkersReaped"),
+                                    report.get("meshWorkersLeaked"))
+        if not all(finite_int(n) and n >= 0 for n in (deferred, reaped, leaked)) \
+                or leaked != 0 or deferred != reaped + leaked:
+            raise ValueError(f"the {L} report states meshWorkersDeferred={deferred!r},"
+                             f" meshWorkersReaped={reaped!r}, meshWorkersLeaked={leaked!r}: every"
+                             f" mesher whose workers outlived their stop must have been freed")
         composited, skips, calls = (report.get("framesComposited"), report.get("frameSkips"),
                                     report.get("renderCalls"))
         if not finite_int(composited) or not finite_int(calls) or not isinstance(skips, dict):

@@ -143,7 +143,9 @@ public class MixinRenderSectionManager {
                     var bl = blp == null ? null : blp.copy();
                     var sl = slp == null ? null : slp.copy();
                     if (vrs != null) VoxelIngestService.rawIngest(vrs.getEngine(), section, x, y, z, bl, sl);
-                    else VoxelIngestService.rawIngest(nativeWorld, section, x, y, z, bl, sl);
+                    else if (VoxelIngestService.rawIngest(nativeWorld, section, x, y, z, bl, sl)) {
+                        me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.visibilityIngested(x, y, z);
+                    }
                 }
             }
         }

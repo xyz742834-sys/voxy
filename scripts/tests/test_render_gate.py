@@ -28,9 +28,23 @@ def environment():
                     graphicsQueueFamily=0, computeQueueFamily=3, transferQueueFamily=3)
     for role in ("colour", "depth"):
         renderer[role] = dict(vkImage=15, vkImageView=16, width=960, height=540)
-    return {"complete": True, "success": True, "failures": [],
-            "checkpoints": [dict(stage=st, renderer=json.loads(json.dumps(renderer)))
-                            for st in verify.LIFECYCLE_STAGES]}
+    checkpoints = [dict(stage=st, renderer=json.loads(json.dumps(renderer)))
+                   for st in verify.LIFECYCLE_STAGES]
+    for case in checkpoints:
+        if case["stage"] in verify.UPDATE_PROBE_STAGES:
+            case["updateProbe"] = update_probe(case["stage"])
+    return {"complete": True, "success": True, "failures": [], "checkpoints": checkpoints}
+
+
+def update_probe(stage):
+    """The harness's native update observation as a passing run records it."""
+    was, now = verify.UPDATE_PROBE_STAGES[stage]
+    version = 40 if stage == "edit" else 41
+    return {"block": list(verify.UPDATE_PROBE_BLOCK),
+            "before": {"sectionEmpty": stage == "edit", "block": was, "meshVersion": version,
+                       "builds": 1, "visibilityIngests": 0 if stage == "edit" else 1},
+            "after": {"block": now, "meshVersion": version + 1, "builds": 1,
+                      "visibilityIngests": 1 if stage == "edit" else 2}}
 
 DEVICE = 0x7a42970018
 
@@ -55,6 +69,7 @@ def report(**overrides):
             "voxyNear": 16.0, "voxyFar": 48000.0, "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True, "results": [], "problems": 0,
             "firstProblem": None, "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
+            "meshWorkersDeferred": 0, "meshWorkersReaped": 0, "meshWorkersLeaked": 0,
             "readbacksInFlight": 0, "atlasReads": 1, "device": hex(DEVICE), "notes": []}
     body.update(overrides)
     return body
@@ -157,6 +172,10 @@ class RenderGateTest(unittest.TestCase):
                                f"says {field}=")
 
     def test_the_product_scene_streams(self):
+        # round-28 R28-GATE-GUARD-COVERAGE: every other streaming fact consistent, streaming off
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(streaming=False)), "says streaming=False")
+        self.assertRefused(self.run_gate(mutate=lambda b: b.pop("streaming")), "says streaming=None")
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(streaming=1)), "says streaming=1")
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(maxTopLevels=0)), "nothing was streamed in")
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(streamRenderDistance=5)), "streams at 5 columns")
         # the near cut
@@ -206,6 +225,88 @@ class RenderGateTest(unittest.TestCase):
         def sizeless(text):
             return text.replace(" frame=1708x960\n", "\n", 1)
         self.assertRefused(self.run_gate(log=sizeless), "states no frame size")
+
+    def test_native_updates_must_reach_voxys_mesh(self):
+        # round-28 R28-NATIVE-UPDATE-OBSERVATION: the probe block's placement and removal reach the
+        # native mesh through Sodium's visibility-change ingest, in one scene
+        def probe(stage, side, **change):
+            def edit(e):
+                for case in e["checkpoints"]:
+                    if case["stage"] == stage:
+                        target = case["updateProbe"] if side is None else case["updateProbe"][side]
+                        for k, v in change.items():
+                            if v is KeyError:
+                                target.pop(k)
+                            else:
+                                target[k] = v
+            return edit
+        for stage in ("edit", "remove"):
+            for side, change, fragment in (
+                    (None, {"updateProbe": None}, "carries no update observation"),
+                    (None, {"block": [0, 104, 24]}, "carries no update observation"),
+                    (None, {"after": KeyError}, "lacks its before/after state"),
+                    ("after", {"meshVersion": None}, "after.meshVersion is None"),
+                    ("before", {"visibilityIngests": True}, "before.visibilityIngests is True"),
+                    ("after", {"block": "minecraft:stone"}, "probe block went"),
+                    ("after", {"builds": 2}, "spans no single scene"),
+                    ("before", {"meshVersion": -1}, "spans no single scene"),
+                    ("after", {"visibilityIngests": 0 if stage == "edit" else 1}, "no visibility-change ingest"),
+                    ("after", {"meshVersion": 40 if stage == "edit" else 41}, "did not change")):
+                if side is None and "updateProbe" in change:
+                    def drop(e, st=stage):
+                        for case in e["checkpoints"]:
+                            if case["stage"] == st:
+                                case.pop("updateProbe")
+                    self.assertRefused(self.run_gate(env=drop), fragment)
+                    continue
+                self.assertRefused(self.run_gate(env=probe(stage, side, **change)), f"{stage}")
+                self.assertRefused(self.run_gate(env=probe(stage, side, **change)), fragment)
+        # the placement must change the section's visibility: it was all air before
+        self.assertRefused(self.run_gate(env=probe("edit", "before", sectionEmpty=False)), "was not all air")
+        self.assertRefused(self.run_gate(env=probe("edit", "before", sectionEmpty=None)), "was not all air")
+        # only the first checkpoint of a stage counts (later cycles' are not recorded by the harness)
+        ok = self.run_gate()
+        self.assertTrue(ok["success"], ok["failures"])
+
+    def test_mesher_workers_that_outlive_their_stop_are_accounted(self):
+        # round-28 R28-WORKER-SHUTDOWN-BOUND: deferred meshers must all have been freed
+        ok = self.run_gate(mutate=lambda b: b.update(meshWorkersDeferred=2, meshWorkersReaped=2))
+        self.assertTrue(ok["success"], ok["failures"])
+        for fields in ({"meshWorkersLeaked": 1, "meshWorkersDeferred": 1},
+                       {"meshWorkersDeferred": 1}, {"meshWorkersReaped": 1},
+                       {"meshWorkersDeferred": -1, "meshWorkersReaped": -1},
+                       {"meshWorkersLeaked": None}, {"meshWorkersDeferred": True, "meshWorkersReaped": True}):
+            self.assertRefused(self.run_gate(mutate=lambda b, f=fields: b.update(f)),
+                               "every mesher whose workers outlived their stop")
+        self.assertRefused(self.run_gate(mutate=lambda b: b.pop("meshWorkersLeaked")),
+                           "meshWorkersLeaked=None")
+
+    def assertWithinRun(self, result):
+        """Refused by the within-size-run check itself, not the cross-lifecycle one."""
+        self.assertRefused(result, "build(s); retired scenes are not freed")
+        self.assertTrue(all(f.endswith("build(s); retired scenes are not freed")
+                            for f in result["failures"]), result["failures"])
+
+    def test_growth_within_the_first_run_at_a_size_is_refused(self):
+        # round-28 R28-GATE-GUARD-COVERAGE: in the product soak, the first 1708x960 run grows 20 %
+        # by its end and the later runs at that size are back down, so only the within-run check
+        # sees it (the cross-lifecycle one compares the first run's start with the last run's end)
+        RESIZE = ("entering stage resize: composited=1000 skipped=6 builds=1 vkBuffers=40"
+                  " vkBufferBytes=80961384 vkTextures=10 vkTextureBytes=600000000 frame=1708x960")
+        soak = dict(cycles=verify.SOAK_CYCLES, gate=verify.native_product_result,
+                    command=COMMAND + [f"-PharnessCycles={verify.SOAK_CYCLES}"])
+        ok = self.run_gate(**soak)
+        self.assertTrue(ok["success"], ok["failures"])
+        def grown(text):
+            assert text.count(RESIZE) == 1
+            return text.replace(RESIZE, RESIZE.replace("80961384", str(int(80961384 * 1.2))))
+        self.assertWithinRun(self.run_gate(log=grown, **soak))
+        def textures(text):
+            return text.replace(RESIZE, RESIZE.replace("vkTextureBytes=600000000", "vkTextureBytes=720000000"))
+        self.assertWithinRun(self.run_gate(log=textures, **soak))
+        def counted(text):
+            return text.replace(RESIZE, RESIZE.replace("vkBuffers=40", "vkBuffers=41"))
+        self.assertWithinRun(self.run_gate(log=counted, **soak))
 
     def test_a_resize_excuses_only_its_frame_sized_buffers(self):
         # one byte more than two RGBA8 buffers of the 433920 added pixels

@@ -11,6 +11,8 @@ import me.cortex.voxy.common.world.WorldEngine;
 import org.joml.Matrix4fc;
 import org.lwjgl.vulkan.VkCommandBuffer;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BooleanSupplier;
 
 /**
@@ -1558,6 +1560,32 @@ public final class VkHierarchicalScene {
     /** Stop the mesher's workers (a retired scene; its world may be closing). Idempotent. */
     public void stopMeshing() { this.mesher.stopWorkers(); }
 
+    /**
+     * Meshers whose stopped workers were still running when their scene was freed, each with the
+     * model bakery those workers read; freed by {@link #reapLingering} once the workers terminate.
+     * Render thread only.
+     */
+    private static final List<Object[]> LINGERING = new ArrayList<>();
+    private static int lingeringDeferred, lingeringReaped;
+
+    /** Free lingering meshers whose workers have terminated (render thread, every frame). */
+    public static void reapLingering() {
+        for (var it = LINGERING.iterator(); it.hasNext(); ) {
+            var pair = it.next();
+            if (!((VkRealMesher) pair[0]).free()) continue;
+            ((VkRealModelBakery) pair[1]).free();
+            it.remove();
+            lingeringReaped++;
+        }
+    }
+
+    /** Scenes freed while their mesher's workers were still running. */
+    public static int lingeringDeferred() { return lingeringDeferred; }
+    /** Of those, the ones whose workers later terminated and whose resources were freed. */
+    public static int lingeringReaped() { return lingeringReaped; }
+    /** Still waiting on their workers. */
+    public static int lingering() { return LINGERING.size(); }
+
     public void free() {
         if (this.freed) return;
         this.freed = true;
@@ -1572,8 +1600,15 @@ public final class VkHierarchicalScene {
         this.table.free();
         this.traversal.free();
         this.hiz.free();
-        this.mesher.free();
-        this.bakery.free();
+        // stopped workers that are still running read the model factory: both wait for them
+        if (this.mesher.free()) {
+            this.bakery.free();
+        } else {
+            LINGERING.add(new Object[]{this.mesher, this.bakery});
+            lingeringDeferred++;
+            Logger.warn("[native-vk] mesher workers were still running " + VkRealMesher.STOP_WAIT_MILLIS
+                + " ms after they were stopped; their meshes, factories and the model bakery are freed when they end");
+        }
         this.modelTarget.free();
         this.res.free();
     }

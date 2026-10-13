@@ -77,6 +77,24 @@ public final class VkRealMesher {
             this.workerFactories.add(f);
             return f;
         });
+        this.workers = new VkMeshWorkers<>(
+            () -> Math.min(4, me.cortex.voxy.client.config.VoxyConfig.CONFIG.serviceThreads),
+            "Voxy native mesher",
+            new VkMeshWorkers.WorldHold() {
+                @Override public boolean tryAcquire() {
+                    if (!world.isLive()) return false;
+                    try {
+                        world.acquireRef();   // throws, holding nothing, if it closed just now
+                        return true;
+                    } catch (IllegalStateException closed) {
+                        return false;
+                    }
+                }
+                @Override public void release() { world.releaseRef(); }
+            },
+            r -> { if (r.built() != null) r.built().free(); },
+            () -> { for (var f : this.workerFactories) f.free(); },
+            STOP_WAIT_MILLIS);
     }
 
     /**
@@ -191,30 +209,19 @@ public final class VkRealMesher {
      * (measured 2026-10-10). Workers here only read the world and the model factory
      * ({@code hasModelForBlockId}, as GL's workers do); baking stays on the render thread.
      */
-    private java.util.concurrent.ExecutorService workers;
-    private final java.util.concurrent.ConcurrentLinkedQueue<AsyncResult> results =
-        new java.util.concurrent.ConcurrentLinkedQueue<>();
     private final List<RenderDataFactory> workerFactories =
         java.util.Collections.synchronizedList(new java.util.ArrayList<>());
     private final ThreadLocal<RenderDataFactory> workerFactory;
+    /** The workers; each task holds the world, as Voxy's ingest service does. */
+    private final VkMeshWorkers<AsyncResult> workers;
 
     /** Mesh {@code position} on a worker; its result arrives through {@link #pollResult}. */
     public void submit(long position) {
-        if (this.freed || this.workersStopped) throw new IllegalStateException("mesher stopped");
-        if (this.workers == null) {
-            int threads = Math.max(1, Math.min(4,
-                me.cortex.voxy.client.config.VoxyConfig.CONFIG.serviceThreads));
-            var counter = new java.util.concurrent.atomic.AtomicInteger();
-            this.workers = java.util.concurrent.Executors.newFixedThreadPool(threads, r -> {
-                var t = new Thread(r, "Voxy native mesher " + counter.incrementAndGet());
-                t.setDaemon(true);
-                return t;
-            });
-        }
-        this.workers.execute(() -> this.results.add(this.meshAsync(position)));
+        if (this.freed) throw new IllegalStateException("mesher freed");
+        this.workers.submit(() -> this.meshAsync(position), new AsyncResult(position, null, null));
     }
 
-    public AsyncResult pollResult() { return this.results.poll(); }
+    public AsyncResult pollResult() { return this.workers.poll(); }
 
     private AsyncResult meshAsync(long position) {
         if (!this.world.isLive() || Thread.currentThread().isInterrupted()) {
@@ -267,39 +274,30 @@ public final class VkRealMesher {
         return true;
     }
 
-    private boolean workersStopped, workersLeaked;
+    /**
+     * How long the render thread waits for interrupted workers. A worker meshes one section at a
+     * time (milliseconds); past this they keep what they read ({@link VkMeshWorkers}).
+     */
+    static final long STOP_WAIT_MILLIS = 250;
 
     /**
-     * Stop the workers and wait for them; free their factories and any undelivered meshes.
-     * Idempotent. If they do not stop in time, their factories are leaked rather than freed under
-     * them.
+     * Stop the workers (bounded; see {@link VkMeshWorkers#stop}). Idempotent.
+     * @return whether they have terminated: until then the model bakery they read must stay alive
      */
-    public void stopWorkers() {
-        if (this.workersStopped) return;
-        this.workersStopped = true;
-        if (this.workers == null) return;
-        this.workers.shutdownNow();
-        try {
-            if (!this.workers.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)) {
-                this.workersLeaked = true;
-                Logger.warn("[native-vk] mesher workers did not stop within 10 s; leaking their factories");
-                return;
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            this.workersLeaked = true;
-            return;
-        }
-        for (AsyncResult r; (r = this.results.poll()) != null; ) {
-            if (r.built() != null) r.built().free();
-        }
-        for (var f : this.workerFactories) f.free();
-    }
+    public boolean stopWorkers() { return this.workers.stop(); }
 
-    public void free() {
-        if (this.freed) return;
-        this.stopWorkers();
+    /** Whether stopped workers are still running. */
+    public boolean workersAlive() { return this.workers.alive(); }
+
+    /**
+     * Free the mesher once its workers have terminated.
+     * @return false while stopped workers are still running: nothing is freed, call again later
+     */
+    public boolean free() {
+        if (this.freed) return true;
+        if (!this.stopWorkers()) return false;
         this.freed = true;
         this.factory.free();
+        return true;
     }
 }

@@ -57,11 +57,12 @@ import java.util.OptionalDouble;
  *
  * <h2>Stated limits of this slice</h2>
  * Voxy renders with its own projection (VoxyRenderSystem.computeProjectionMat's, near from the
- * vanilla distance, far 48000); its depth is reprojected into Minecraft's space (the R32F image)
- * but not written into Minecraft's depth — whether a later pass (post-processing) reads that depth
- * is not inventoried. Minecraft's terrain does not occlude Voxy's traversal/HiZ as on GL
- * (Voxy's submission runs before Minecraft's frame executes), so culling is less effective, not
- * less correct. Composited at the level-render tail, after Minecraft's translucents. The
+ * vanilla distance, far 48000); its depth is reprojected into Minecraft's space (the R32F image),
+ * and the composite writes it into Minecraft's depth where Voxy lands (as GL's final blit) —
+ * whether every later depth consumer (entities, weather, post-processing) behaves as on GL is not
+ * yet accepted. Minecraft's terrain does not occlude Voxy's traversal/HiZ as on GL (Voxy's
+ * submission runs before Minecraft's frame executes), so culling is less effective, not less
+ * correct. Composited at Sodium's cutout hook, before Minecraft's translucents, as GL. The
  * device-idle wait per hand-off is safe but blocking.
  */
 public final class McNativeHierarchicalLoad implements Destroyable {
@@ -266,6 +267,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     /** Every-frame attempts that drew nothing, by the same reasons a handed sample would skip with. */
     private static final java.util.TreeMap<String, Long> FRAME_SKIPS = new java.util.TreeMap<>();
     private static int builds, problems, closeFailures, leakedScenes, readbacksInFlight, frameId = 1;
+    private static int meshWorkersLeaked;
     private static boolean attempted, deviceDiverged, startedTracker;
     private static String firstProblem;
     private static long ownerDeviceSeen;
@@ -395,6 +397,18 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     public static long framesComposited() { return framesComposited; }
     public static long drawsRecorded() { return drawsRecorded; }
 
+    /**
+     * The live scene's last completed mesh revision at any ancestor of a block, or -1 without a
+     * scene (harness observation of native updates; render thread).
+     */
+    public static long meshVersionAt(int x, int y, int z) {
+        var live = instance;
+        return live == null || live.destroyed ? -1 : live.scene.meshVersionAt(x, y, z);
+    }
+
+    /** Scene builds so far: a change between two observations means the scene was rebuilt. */
+    public static int buildsSoFar() { return builds; }
+
     public static List<Result> results() {
         synchronized (NOTES) {
             return List.copyOf(RESULTS.values());
@@ -416,6 +430,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         }
         renderCalls++;
         logStageChange();
+        // a retired scene's mesher whose workers outlived their stop: free it once they end
+        try { VkHierarchicalScene.reapLingering(); } catch (Throwable t) { closeFailures++; }
         long capture = McNativeCamera.frame();
         long previousCapture = lastCaptureSeen;
         boolean fresh = capture != previousCapture;
@@ -1363,6 +1379,14 @@ public final class McNativeHierarchicalLoad implements Destroyable {
                 AtlasPool.giveBack();
             }
         }
+        // after every scene's destruction: meshers whose workers have ended are freed now; any still
+        // running keep their resources, leaked on purpose (their workers would read them), and say so
+        try { VkHierarchicalScene.reapLingering(); } catch (Throwable t) { closeFailures++; }
+        meshWorkersLeaked = VkHierarchicalScene.lingering();
+        if (meshWorkersLeaked > 0) {
+            note(meshWorkersLeaked + " retired scene(s)' mesher workers were still running at shutdown;"
+                + " their meshes, factories and model bakeries are leaked on purpose");
+        }
         // after the idle wait and every scene's destruction; a leaked scene keeps it lent (leaked too)
         try { AtlasPool.freeIfIdle(); } catch (Throwable t) { closeFailures++; }
         stopTracker();
@@ -1541,6 +1565,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"firstProblem\": ").append(McNativeVulkanProbe.quote(firstProblem)).append(",\n");
         sb.append("  \"closeFailures\": ").append(closeFailures).append(",\n");
         sb.append("  \"leakedScenes\": ").append(leakedScenes).append(",\n");
+        sb.append("  \"meshWorkersDeferred\": ").append(VkHierarchicalScene.lingeringDeferred()).append(",\n");
+        sb.append("  \"meshWorkersReaped\": ").append(VkHierarchicalScene.lingeringReaped()).append(",\n");
+        sb.append("  \"meshWorkersLeaked\": ").append(meshWorkersLeaked).append(",\n");
         sb.append("  \"deviceDiverged\": ").append(deviceDiverged).append(",\n");
         sb.append("  \"readbacksInFlight\": ").append(readbacksInFlight).append(",\n");
         sb.append("  \"atlasReads\": ").append(McNativeAtlas.reads()).append(",\n");
