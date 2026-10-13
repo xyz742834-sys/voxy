@@ -4833,6 +4833,34 @@ def retain_render_thumbnails(render_output, target, prefix="render"):
     return kept
 
 
+def check_render_thumbnails(sub_dir, sub, checkpoints):
+    """Each required checkpoint thumbnail must decode whole and be the quarter-scale of its
+    checkpoint's frame (the last checkpoint of that stage, whose colour attachment the
+    screenshot captured).
+
+    ⚠ Round-28 Codex review R28-RENDER-THUMBNAIL-VALIDITY: membership alone was checked, so an
+    empty file or a 1x1 PNG with a refreshed manifest hash replayed clean. This does not judge
+    the thumbnails' pixels — they are the visual record, bound to the run by the manifest."""
+    sizes = {}
+    for case in checkpoints:
+        colour = ((case.get("renderer") or {}).get("colour") or {})
+        sizes[case.get("stage")] = (colour.get("width"), colour.get("height"))
+    for stage in LIFECYCLE_STAGES:
+        width, height = sizes.get(stage, (None, None))
+        if not (isinstance(width, int) and isinstance(height, int) and width > 0 and height > 0):
+            raise ValueError(f"the {sub} launch's {stage} checkpoint does not say its frame size,"
+                             f" so its thumbnail cannot be checked")
+        want = (width // RENDER_THUMB_SCALE, height // RENDER_THUMB_SCALE)
+        path = sub_dir / f"frame-{stage}.png"
+        try:
+            rows, got = top_rows_rgb(path, max(1, want[1]))
+        except (OSError, ValueError, zlib.error) as exc:
+            raise ValueError(f"the {sub} launch's {stage} thumbnail does not decode: {exc}")
+        if got != want or len(rows) != want[1]:
+            raise ValueError(f"the {sub} launch's {stage} thumbnail is {got[0]}x{got[1]}, not the"
+                             f" quarter-scale {want[0]}x{want[1]} of its {width}x{height} frame")
+
+
 def retain_marker_crops(native_output, target):
     """Save a small PNG of the marker region from every captured frame."""
     report_path = native_output / "native-marker-draw.json"
@@ -5242,7 +5270,9 @@ def replay_evidence(directory):
                 outcome[sub]["reclaimed"] = sub_result.get("reclaimed")
             if sub == "inject":
                 outcome[sub]["compositedAfter"] = sub_result.get("compositedAfter")
-            # round-27: every lifecycle checkpoint's thumbnail is part of the claim
+            # round-27: every lifecycle checkpoint's thumbnail is part of the claim; round-28:
+            # and each must be a decodable thumbnail of its checkpoint's frame
+            check_render_thumbnails(sub_dir, sub, sub_checkpoints)
             ladder_refs += [f"{sub}/native-hier-load.json", f"{sub}/native-result.json",
                             f"{sub}/{launch}.log"] + [f"{sub}/frame-{stage_}.png"
                                                       for stage_ in LIFECYCLE_STAGES]

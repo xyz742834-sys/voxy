@@ -544,3 +544,60 @@ class NativeLogChecksTest(unittest.TestCase):
         self.assertFalse(self.check(self.HAZARD * 2, injected=True)["success"])
         other = "[12:00:00] [Render thread/ERROR] (Minecraft) vkCmdDraw(): READ_AFTER_WRITE hazard detected.\n"
         self.assertFalse(self.check(self.HAZARD + other, injected=True)["success"])
+
+
+class RenderThumbnailTest(unittest.TestCase):
+    """R28-RENDER-THUMBNAIL-VALIDITY (round-28 Codex review): a required checkpoint thumbnail must
+    decode and be the quarter-scale of its checkpoint's frame, not merely be a manifest member."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        self.checkpoints = environment()["checkpoints"]
+        k = verify.RENDER_THUMB_SCALE
+        for st in verify.LIFECYCLE_STAGES:
+            verify.write_rgb_png(self.dir / f"frame-{st}.png", [[(40, 90, 160)] * (960 // k)] * (540 // k))
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def check(self):
+        verify.check_render_thumbnails(self.dir, "render", self.checkpoints)
+
+    def test_quarter_scale_thumbnails_pass(self):
+        self.check()
+
+    def test_an_empty_thumbnail_fails(self):
+        (self.dir / "frame-horizon.png").write_bytes(b"")
+        with self.assertRaisesRegex(ValueError, "horizon thumbnail does not decode"):
+            self.check()
+
+    def test_a_one_pixel_thumbnail_fails(self):
+        verify.write_rgb_png(self.dir / "frame-horizon.png", [[(0, 0, 0)]])
+        with self.assertRaisesRegex(ValueError, "horizon thumbnail is 1x1, not the quarter-scale 240x135"):
+            self.check()
+
+    def test_a_truncated_thumbnail_fails(self):
+        path = self.dir / "frame-night.png"
+        path.write_bytes(path.read_bytes()[:-20])
+        with self.assertRaisesRegex(ValueError, "night thumbnail does not decode"):
+            self.check()
+
+    def test_a_missing_thumbnail_fails(self):
+        (self.dir / "frame-edit.png").unlink()
+        with self.assertRaisesRegex(ValueError, "edit thumbnail does not decode"):
+            self.check()
+
+    def test_the_last_checkpoint_of_a_stage_sets_its_size(self):
+        # a resize: the stage's last checkpoint says 854x480, so the 960x540 thumbnail is wrong
+        later = json.loads(json.dumps(self.checkpoints[-1]))
+        later["stage"] = "resize"
+        later["renderer"]["colour"].update(width=854, height=480)
+        self.checkpoints.append(later)
+        with self.assertRaisesRegex(ValueError, "resize thumbnail is 240x135, not the quarter-scale 213x120"):
+            self.check()
+
+    def test_a_checkpoint_without_a_frame_size_fails(self):
+        del self.checkpoints[0]["renderer"]["colour"]["width"]
+        with self.assertRaisesRegex(ValueError, "does not say its frame size"):
+            self.check()
