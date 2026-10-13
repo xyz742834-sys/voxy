@@ -15,8 +15,8 @@ decision implementation cannot settle.
 | 1 | Clear-pixel composition, depth write, cutout point | E | Ladder bands (12 judged hierarchy samples, zero violations), reprojection | Downstream depth users (entities, weather) — visual reference |
 | 2 | Far / fade / night | E | Run `20261013T013657-855541Z`: 3553 far, 69 faded, 2357 night pixels judged | Floors are 1 pixel (row 13) |
 | 3 | Water / translucency | E (partial) | Horizon band is ocean; judged against Voxy's GL rule | Mixed opaque/translucent ordering reference |
-| 4 | Native updates (visibility ingest → mesh) | R | Probe block at (40,118,72): `native_update_problem` requires, at `edit` and `remove`, the commanded block change, ≥1 visibility-change ingest of its chunk section and a later native mesh revision in one scene | Pixels not observable this close (Voxy only where MC depth is clear); sustained edits / rapid travel workload |
-| 5 | Worker shutdown bound | R | `VkMeshWorkers`: 250 ms bound, per-task world reference, deferred bakery/mesher free, leaked count in the report (gate requires 0); 7 CPU tests incl. stuck/interrupted/stale/cancelled | Timeout path observed live (not inducible without a fault hook) |
+| 4 | Native updates (removal → visibility ingest → exact leaf mesh) | R (source, CPU) | R29 corrected the first design: GL's ingest admits only an old-visible section, so the placement is never ingested (recorded at `edit`, nothing causal). `remove` must show, in order after the action and on the scene's engine: the probe section's ingest, the scene consuming a dirty update for exactly its level-0 section, and an accepted mesh of exactly that section (no ancestor counts); counters domain-checked against the report's builds. 13/13 refusals detected when removed | Not yet run on hardware; placement into an empty section reaches Voxy only at chunk unload (GL parity, not observed); pixels not observable this close; first-lifecycle checkpoints only (stated coverage limit); sustained edits / rapid travel |
+| 5 | Worker and world shutdown bound | R (source, CPU) | Inner: `VkMeshWorkers` 250 ms stop, per-task world reference, deferred mesher/bakery free, leaked count (gate: 0). Outer (R29): `VoxyInstance.shutdown` waits for a used world at most `boundWorldRelease` (set to 10 s by the native path; default unbounded, GL unchanged), then leaves it unfreed — never freed under its reader — and counts it (`worldsLeftUnfreed`, gate: 0). CPU: 7 worker tests + 4 outer-bound tests with the real workers (deadline removal detected) | Not yet run on hardware; live timeout/interrupt not inducible without a fault hook; a world left unfreed is not flushed (data since its last save is lost, as with a killed process) |
 | 6 | Gate guard coverage | R | streaming=False and within-size-run growth: focused tests, each predicate's removal detected | — |
 | 7 | Living context | R | current-state / project-goal / three code comments corrected | — |
 | 8 | Lifecycle soak, pressure reclaim, injected submit failure | E | 4-cycle product + pressure soaks, one injected failed submit | Long session, rapid travel; real device loss is not testable here |
@@ -27,5 +27,7 @@ decision implementation cannot settle.
 | 13 | Allocation tolerances 5 % / 1 %, far/fade/night floors of one pixel | O | Measured runs are flat per size; samples exceed floors by 69–3553× | **Owner:** keep, or tighten (e.g. floors from measured minima); not changed without evidence/decision |
 | 14 | GL path regression with the new mixins | M | Mixins inert flags-unset (source review) | One ordinary GL launch on the candidate |
 
-Next native run (one, when the coordinator grants a window) binds rows 4–7 and must pass the
-update observation in the product, pressure and inject launches.
+Before the next native run: an explicit narrow pre-launch judgment by the independent R29 reviewer on
+rows 4–5 (the run of `6a29306c` was aborted: its edit oracle could not pass —
+`runs/native-aborted/20261013T083748-060746Z-abort.json`). The run then binds rows 4–7 and must pass
+the update observation in the product, pressure and inject launches.

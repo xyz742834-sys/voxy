@@ -317,22 +317,42 @@ public final class LiveWorldHarness implements ClientModInitializer {
      * Native update observation (round-28 Codex review of record, R28-NATIVE-UPDATE-OBSERVATION): one
      * glass block placed at {@code edit} and removed at {@code remove}, in view from the edit pose,
      * at an interior position of a chunk section that must be all air before (local 8, 6, 8) and in
-     * a Voxy section of its own (1, 3, 2: away from the edit fill's). On the native path a non-air
-     * placement and an interior removal reach Voxy only through Sodium's visibility-change ingest
-     * (until the chunk unloads), so a native mesh change there is attributable to that route.
+     * a level-0 Voxy section of its own (1, 3, 2: away from the edit fill's).
+     *
+     * <p>As on GL, Sodium's visibility-change ingest admits only a section that WAS visible (it was
+     * emptied; MixinRenderSectionManager), so the placement (invisible to visible) is not ingested
+     * until the chunk unloads — GL's behaviour, recorded, not required. The removal empties the
+     * section again (visible to invisible); on the native path an interior removal reaches Voxy only
+     * through that ingest, so a re-mesh of exactly that level-0 section is attributable to it (R29).
      */
     private static final int PROBE_X = 40, PROBE_Y = 118, PROBE_Z = 72;
     private java.util.Map<String, Object> probeBefore;
 
+    private static java.util.Map<String, Object> event(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.Event e) {
+        if (e == null) return null;
+        var m = new java.util.LinkedHashMap<String, Object>();
+        m.put("seq", e.seq());
+        m.put("engine", e.engine());
+        return m;
+    }
+
+    private java.util.Map<String, Object> probeState(Minecraft mc) {
+        var state = new java.util.LinkedHashMap<String, Object>();
+        state.put("seq", me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.now());
+        state.put("block", blockAt(mc));
+        state.put("builds", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.buildsSoFar());
+        state.put("sceneEngine", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.sceneEngineIdentity());
+        state.put("leafMeshVersion", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.level0MeshVersionAt(PROBE_X, PROBE_Y, PROBE_Z));
+        return state;
+    }
+
+    /** Before the stage's action: the trace observes the probe's level-0 section from here on. */
     private void updateProbeBefore(Minecraft mc) {
-        var before = new java.util.LinkedHashMap<String, Object>();
+        me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.observeLeaf(
+            me.cortex.voxy.common.world.WorldEngine.getWorldSectionId(0, PROBE_X >> 5, PROBE_Y >> 5, PROBE_Z >> 5));
         var section = mc.level.getChunk(PROBE_X >> 4, PROBE_Z >> 4).getSection(mc.level.getSectionIndex(PROBE_Y));
+        var before = probeState(mc);
         before.put("sectionEmpty", section.hasOnlyAir());
-        before.put("block", blockAt(mc));
-        before.put("meshVersion", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.meshVersionAt(PROBE_X, PROBE_Y, PROBE_Z));
-        before.put("builds", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.buildsSoFar());
-        before.put("visibilityIngests", me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace
-            .visibilityIngests(PROBE_X >> 4, PROBE_Y >> 4, PROBE_Z >> 4));
         probeBefore = before;
     }
 
@@ -345,13 +365,11 @@ public final class LiveWorldHarness implements ClientModInitializer {
         var probe = new java.util.LinkedHashMap<String, Object>();
         probe.put("block", java.util.List.of(PROBE_X, PROBE_Y, PROBE_Z));
         probe.put("before", probeBefore);
-        var after = new java.util.LinkedHashMap<String, Object>();
-        after.put("block", blockAt(mc));
-        after.put("meshVersion", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.meshVersionAt(PROBE_X, PROBE_Y, PROBE_Z));
-        after.put("builds", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.buildsSoFar());
-        after.put("visibilityIngests", me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace
-            .visibilityIngests(PROBE_X >> 4, PROBE_Y >> 4, PROBE_Z >> 4));
-        probe.put("after", after);
+        probe.put("after", probeState(mc));
+        probe.put("ingest", event(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace
+            .lastIngest(PROBE_X >> 4, PROBE_Y >> 4, PROBE_Z >> 4)));
+        probe.put("leafDirty", event(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.leafDirty()));
+        probe.put("leafMeshed", event(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.leafMeshed()));
         return probe;
     }
 

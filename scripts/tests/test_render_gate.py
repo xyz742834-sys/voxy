@@ -37,14 +37,21 @@ def environment():
 
 
 def update_probe(stage):
-    """The harness's native update observation as a passing run records it."""
+    """The harness's native update observation as a passing run records it (engine 77, scene
+    builds 2 as the fixture report; `remove` with its ordered ingest/dirty/mesh chain)."""
     was, now = verify.UPDATE_PROBE_STAGES[stage]
-    version = 40 if stage == "edit" else 41
-    return {"block": list(verify.UPDATE_PROBE_BLOCK),
-            "before": {"sectionEmpty": stage == "edit", "block": was, "meshVersion": version,
-                       "builds": 1, "visibilityIngests": 0 if stage == "edit" else 1},
-            "after": {"block": now, "meshVersion": version + 1, "builds": 1,
-                      "visibilityIngests": 1 if stage == "edit" else 2}}
+    base = 100 if stage == "edit" else 200
+    probe = {"block": list(verify.UPDATE_PROBE_BLOCK),
+             "before": {"seq": base, "block": was, "builds": 2, "sceneEngine": 77, "leafMeshVersion": 40,
+                        "sectionEmpty": stage == "edit"},
+             "after": {"seq": base + 50, "block": now, "builds": 2, "sceneEngine": 77,
+                       "leafMeshVersion": 40 if stage == "edit" else 46},
+             "ingest": None, "leafDirty": None, "leafMeshed": None}
+    if stage == "remove":
+        probe.update(ingest={"seq": base + 3, "engine": 77}, leafDirty={"seq": base + 7, "engine": 77},
+                     leafMeshed={"seq": base + 20, "engine": 77})
+    return probe
+
 
 DEVICE = 0x7a42970018
 
@@ -69,7 +76,7 @@ def report(**overrides):
             "voxyNear": 16.0, "voxyFar": 48000.0, "declaredDepthState": [6, 1, 1],
             "depthStateReadBack": False, "instanceMode": True, "results": [], "problems": 0,
             "firstProblem": None, "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
-            "meshWorkersDeferred": 0, "meshWorkersReaped": 0, "meshWorkersLeaked": 0,
+            "meshWorkersDeferred": 0, "meshWorkersReaped": 0, "meshWorkersLeaked": 0, "worldsLeftUnfreed": 0,
             "readbacksInFlight": 0, "atlasReads": 1, "device": hex(DEVICE), "notes": []}
     body.update(overrides)
     return body
@@ -227,46 +234,63 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(log=sizeless), "states no frame size")
 
     def test_native_updates_must_reach_voxys_mesh(self):
-        # round-28 R28-NATIVE-UPDATE-OBSERVATION: the probe block's placement and removal reach the
-        # native mesh through Sodium's visibility-change ingest, in one scene
-        def probe(stage, side, **change):
+        # round-28 R28-NATIVE-UPDATE-OBSERVATION and R29: the removal reaches exactly the probe's
+        # level-0 native mesh through the visibility ingest, in order, on the scene's own engine
+        def at(stage, f):
             def edit(e):
                 for case in e["checkpoints"]:
                     if case["stage"] == stage:
-                        target = case["updateProbe"] if side is None else case["updateProbe"][side]
-                        for k, v in change.items():
-                            if v is KeyError:
-                                target.pop(k)
-                            else:
-                                target[k] = v
+                        f(case["updateProbe"])
             return edit
-        for stage in ("edit", "remove"):
-            for side, change, fragment in (
-                    (None, {"updateProbe": None}, "carries no update observation"),
-                    (None, {"block": [0, 104, 24]}, "carries no update observation"),
-                    (None, {"after": KeyError}, "lacks its before/after state"),
-                    ("after", {"meshVersion": None}, "after.meshVersion is None"),
-                    ("before", {"visibilityIngests": True}, "before.visibilityIngests is True"),
-                    ("after", {"block": "minecraft:stone"}, "probe block went"),
-                    ("after", {"builds": 2}, "spans no single scene"),
-                    ("before", {"meshVersion": -1}, "spans no single scene"),
-                    ("after", {"visibilityIngests": 0 if stage == "edit" else 1}, "no visibility-change ingest"),
-                    ("after", {"meshVersion": 40 if stage == "edit" else 41}, "did not change")):
-                if side is None and "updateProbe" in change:
-                    def drop(e, st=stage):
-                        for case in e["checkpoints"]:
-                            if case["stage"] == st:
-                                case.pop("updateProbe")
-                    self.assertRefused(self.run_gate(env=drop), fragment)
-                    continue
-                self.assertRefused(self.run_gate(env=probe(stage, side, **change)), f"{stage}")
-                self.assertRefused(self.run_gate(env=probe(stage, side, **change)), fragment)
-        # the placement must change the section's visibility: it was all air before
-        self.assertRefused(self.run_gate(env=probe("edit", "before", sectionEmpty=False)), "was not all air")
-        self.assertRefused(self.run_gate(env=probe("edit", "before", sectionEmpty=None)), "was not all air")
-        # only the first checkpoint of a stage counts (later cycles' are not recorded by the harness)
+        def setp(stage, path, value):
+            def f(p):
+                target = p
+                for k in path[:-1]:
+                    target = target[k]
+                if value is KeyError:
+                    target.pop(path[-1])
+                else:
+                    target[path[-1]] = value
+            return at(stage, f)
         ok = self.run_gate()
         self.assertTrue(ok["success"], ok["failures"])
+        for stage in ("edit", "remove"):
+            for path, value, fragment in (
+                    (("block",), [0, 104, 24], "carries no update observation"),
+                    (("after",), KeyError, "lacks its before/after state"),
+                    # R29-UPDATE-COUNTERS: domains and consistency with the report's builds (2)
+                    (("before", "builds"), -5, "before.builds is -5"),
+                    (("before", "builds"), 999999, "spans no single scene"),
+                    (("after", "builds"), 3, "spans no single scene"),
+                    (("before", "seq"), -1, "before.seq is -1"),
+                    (("after", "seq"), 1, "out of order"),
+                    (("after", "sceneEngine"), 78, "spans no single scene"),
+                    (("before", "sceneEngine"), 0, "before.sceneEngine is 0"),
+                    (("before", "leafMeshVersion"), -1, "before.leafMeshVersion is -1"),
+                    (("after", "leafMeshVersion"), True, "after.leafMeshVersion is True"),
+                    (("after", "block"), "minecraft:stone", "probe block went")):
+                self.assertRefused(self.run_gate(env=setp(stage, path, value)), fragment)
+        self.assertRefused(self.run_gate(env=at("edit", lambda p: p.pop("updateProbe", None) or
+                                                 p.clear())), "carries no update observation")
+        self.assertRefused(self.run_gate(env=setp("edit", ("before", "sectionEmpty"), False)), "was not all air")
+        self.assertRefused(self.run_gate(env=setp("edit", ("before", "sectionEmpty"), None)), "was not all air")
+        # R29-UPDATE-PLACEMENT: the placement is not ingested on GL either; edit asks nothing causal
+        self.assertTrue(self.run_gate(env=setp("edit", ("after", "leafMeshVersion"), 40))["success"])
+        # R29-UPDATE-CAUSALITY: every link present, on the scene's engine, strictly ordered
+        for name in ("ingest", "leafDirty", "leafMeshed"):
+            self.assertRefused(self.run_gate(env=setp("remove", (name,), None)), f"records no {name} event")
+            self.assertRefused(self.run_gate(env=setp("remove", (name, "engine"), 78)), "not the scene's 77")
+            self.assertRefused(self.run_gate(env=setp("remove", (name, "seq"), -3)), f"records no {name} event")
+            self.assertRefused(self.run_gate(env=setp("remove", (name, "seq"), 260)), "is not after")
+        self.assertRefused(self.run_gate(env=setp("remove", ("ingest", "seq"), 150)), "is not after 200")
+        self.assertRefused(self.run_gate(env=setp("remove", ("leafDirty", "seq"), 202)), "is not after 203")
+        self.assertRefused(self.run_gate(env=setp("remove", ("leafMeshed", "seq"), 206)), "is not after 207")
+        # the reviewer's ancestor counterexample: an ancestor grew (20 -> 22) but the probe's own
+        # level-0 section was never re-meshed — the leaf's revision and mesh event are what count
+        self.assertRefused(self.run_gate(env=setp("remove", ("after", "leafMeshVersion"), 40)), "was not re-meshed")
+        self.assertRefused(self.run_gate(env=setp("remove", ("leafMeshed",), None)), "records no leafMeshed event")
+        # the report's own builds must be stated
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(builds=0)), "scene build(s)")
 
     def test_mesher_workers_that_outlive_their_stop_are_accounted(self):
         # round-28 R28-WORKER-SHUTDOWN-BOUND: deferred meshers must all have been freed
@@ -280,6 +304,11 @@ class RenderGateTest(unittest.TestCase):
                                "every mesher whose workers outlived their stop")
         self.assertRefused(self.run_gate(mutate=lambda b: b.pop("meshWorkersLeaked")),
                            "meshWorkersLeaked=None")
+        for value in (1, None, True, -1):
+            self.assertRefused(self.run_gate(mutate=lambda b, v=value: b.update(worldsLeftUnfreed=v)),
+                               "past Voxy's bounded shutdown wait")
+        self.assertRefused(self.run_gate(mutate=lambda b: b.pop("worldsLeftUnfreed")),
+                           "worldsLeftUnfreed=None")
 
     def assertWithinRun(self, result):
         """Refused by the within-size-run check itself, not the cross-lifecycle one."""

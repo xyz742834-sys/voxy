@@ -2564,21 +2564,30 @@ UPDATE_PROBE_STAGES = {"edit": ("minecraft:air", "minecraft:glass"),
                        "remove": ("minecraft:glass", "minecraft:air")}
 
 
-def native_update_problem(checkpoints):
+def native_update_problem(checkpoints, final_builds):
     """Why the native update observation fails (None if it holds).
 
-    ⚠ Round-28 Codex review of record, R28-NATIVE-UPDATE-OBSERVATION: the native edit/remove
-    checkpoints required no native mesh change. The harness places one glass block at `edit` and
-    removes it at `remove`, at an interior position of a chunk section that was all air, in a Voxy
-    section of its own. On the native path such a placement or removal reaches Voxy only through
-    Sodium's visibility-change ingest (until the chunk unloads), so each stage must show, within the
-    same scene (no rebuild between): the block changed as commanded, at least one visibility-change
-    ingest of that chunk section recorded, and a later native mesh revision there. This observes the
-    route through Voxy's mesh, not pixels: Voxy draws only where Minecraft's depth is clear, which
-    this close it is not."""
+    ⚠ Round-28 Codex review of record, R28-NATIVE-UPDATE-OBSERVATION; R29-UPDATE-PLACEMENT,
+    R29-UPDATE-CAUSALITY, R29-UPDATE-COUNTERS. The harness places one glass block at `edit` and
+    removes it at `remove`, at an interior position of a chunk section that was all air, in a
+    level-0 Voxy section of its own. As on GL, Sodium's visibility-change ingest admits only a
+    section that WAS visible, so the placement is not ingested (until the chunk unloads): `edit`
+    records it and its precondition, nothing causal. The removal empties the section again, and on
+    the native path an interior removal reaches Voxy only through that ingest. `remove` must show,
+    within one scene on one engine, strictly in this order after the harness's action: the ingest of
+    the probe's chunk section accepted into the scene's engine; the scene consuming a dirty update
+    for exactly the probe's level-0 section; and the scene accepting a mesh of exactly that section
+    (submitted after the dirty update, so made from the changed world). No ancestor counts. Mesh
+    level, not pixels: Voxy draws only where Minecraft's depth is clear, which this close it is
+    not. Only the first lifecycle's checkpoints are recorded (a stated coverage limit)."""
+    def positive(v):
+        return finite_int(v) and v > 0
+
     by_stage = {}
     for case in checkpoints:
         by_stage.setdefault(case.get("stage"), case)
+    if not positive(final_builds):
+        return f"the report states {final_builds!r} scene build(s)"
     for stage, (was, now) in UPDATE_PROBE_STAGES.items():
         probe = (by_stage.get(stage) or {}).get("updateProbe")
         if not isinstance(probe, dict) or probe.get("block") != UPDATE_PROBE_BLOCK:
@@ -2587,24 +2596,43 @@ def native_update_problem(checkpoints):
         if not isinstance(before, dict) or not isinstance(after, dict):
             return f"the {stage} update observation lacks its before/after state"
         for side, state in (("before", before), ("after", after)):
-            for key in ("meshVersion", "builds", "visibilityIngests"):
-                if not finite_int(state.get(key)):
+            for key in ("seq", "builds", "sceneEngine"):
+                if not positive(state.get(key)):
                     return f"the {stage} update observation's {side}.{key} is {state.get(key)!r}"
+            if not finite_int(state.get("leafMeshVersion")) or state["leafMeshVersion"] < 0:
+                return (f"the {stage} update observation's {side}.leafMeshVersion is"
+                        f" {state.get('leafMeshVersion')!r}")
+        if before["seq"] >= after["seq"]:
+            return f"the {stage} observation's marks are out of order ({before['seq']} -> {after['seq']})"
+        if after["builds"] != before["builds"] or after["builds"] > final_builds \
+                or after["sceneEngine"] != before["sceneEngine"]:
+            return (f"the {stage} observation spans no single scene (builds {before['builds']} ->"
+                    f" {after['builds']} of {final_builds}, engine {before['sceneEngine']} ->"
+                    f" {after['sceneEngine']})")
         if stage == "edit" and before.get("sectionEmpty") is not True:
             return (f"the {stage} probe's chunk section was not all air before the placement"
-                    f" (sectionEmpty={before.get('sectionEmpty')!r}), so its visibility does not change")
+                    f" (sectionEmpty={before.get('sectionEmpty')!r})")
         if before.get("block") != was or after.get("block") != now:
             return (f"the {stage} probe block went {before.get('block')!r} -> {after.get('block')!r},"
                     f" not {was} -> {now}")
-        if before["meshVersion"] < 0 or after["builds"] != before["builds"]:
-            return (f"the {stage} observation spans no single scene (mesh version"
-                    f" {before['meshVersion']}, builds {before['builds']} -> {after['builds']})")
-        if after["visibilityIngests"] <= before["visibilityIngests"]:
-            return (f"no visibility-change ingest of the {stage} probe's chunk section was recorded"
-                    f" ({before['visibilityIngests']} -> {after['visibilityIngests']})")
-        if after["meshVersion"] <= before["meshVersion"]:
-            return (f"the native mesh at the {stage} probe did not change (revision"
-                    f" {before['meshVersion']} -> {after['meshVersion']})")
+        if stage == "edit":
+            continue   # GL's ingest does not see a placement into an empty section
+        engine, chain, last = before["sceneEngine"], [], before["seq"]
+        for name in ("ingest", "leafDirty", "leafMeshed"):
+            event = probe.get(name)
+            if not isinstance(event, dict) or not positive(event.get("seq")) \
+                    or not positive(event.get("engine")):
+                return f"the {stage} observation records no {name} event ({event!r})"
+            if event["engine"] != engine:
+                return (f"the {stage} {name} event concerns engine {event['engine']}, not the"
+                        f" scene's {engine}")
+            if not last < event["seq"] < after["seq"]:
+                return (f"the {stage} {name} event (sequence {event['seq']}) is not after"
+                        f" {last} and before {after['seq']}")
+            last = event["seq"]
+        if after["leafMeshVersion"] <= before["leafMeshVersion"]:
+            return (f"the {stage} probe's level-0 section was not re-meshed (revision"
+                    f" {before['leafMeshVersion']} -> {after['leafMeshVersion']})")
     return None
 
 
@@ -3211,11 +3239,12 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         environment = native_environment_result(output, require_screenshots=False)
         if not environment["success"]:
             raise ValueError(f"the {L} launch's environment: {environment['failures']}")
+        report = json.loads((output / "native-hier-load.json").read_text())
         update_problem = native_update_problem(
-            json.loads((output / "native-result.json").read_text()).get("checkpoints") or [])
+            json.loads((output / "native-result.json").read_text()).get("checkpoints") or [],
+            report.get("builds"))
         if update_problem:
             raise ValueError(f"the {L} launch's native update: {update_problem}")
-        report = json.loads((output / "native-hier-load.json").read_text())
         # a diagnostic that is off still writes its report at shutdown (measured: real-LOAD's);
         # it must be inert in every counter, not merely say enabled=false
         present = []
@@ -3244,11 +3273,16 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         # stop keeps what they read until they end; one still running at shutdown leaked it
         deferred, reaped, leaked = (report.get("meshWorkersDeferred"), report.get("meshWorkersReaped"),
                                     report.get("meshWorkersLeaked"))
+        unfreed = report.get("worldsLeftUnfreed")
         if not all(finite_int(n) and n >= 0 for n in (deferred, reaped, leaked)) \
                 or leaked != 0 or deferred != reaped + leaked:
             raise ValueError(f"the {L} report states meshWorkersDeferred={deferred!r},"
                              f" meshWorkersReaped={reaped!r}, meshWorkersLeaked={leaked!r}: every"
                              f" mesher whose workers outlived their stop must have been freed")
+        # R29-WORLD-SHUTDOWN-BOUND: a world still held past the bounded shutdown wait is left unfreed
+        if not finite_int(unfreed) or unfreed != 0:
+            raise ValueError(f"the {L} report states worldsLeftUnfreed={unfreed!r}: a world was still"
+                             f" in use past Voxy's bounded shutdown wait")
         composited, skips, calls = (report.get("framesComposited"), report.get("frameSkips"),
                                     report.get("renderCalls"))
         if not finite_int(composited) or not finite_int(calls) or not isinstance(skips, dict):

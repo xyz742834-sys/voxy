@@ -268,6 +268,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private static final java.util.TreeMap<String, Long> FRAME_SKIPS = new java.util.TreeMap<>();
     private static int builds, problems, closeFailures, leakedScenes, readbacksInFlight, frameId = 1;
     private static int meshWorkersLeaked;
+    /** How long Voxy's instance shutdown waits for a world a native worker still holds. */
+    static final long WORLD_RELEASE_MILLIS = 10_000;
     private static boolean attempted, deviceDiverged, startedTracker;
     private static String firstProblem;
     private static long ownerDeviceSeen;
@@ -406,6 +408,22 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         return live == null || live.destroyed ? -1 : live.scene.meshVersionAt(x, y, z);
     }
 
+    /**
+     * The live scene's last completed mesh revision of the level-0 world section holding a block
+     * (0 if never meshed), or -1 without a scene. No ancestor counts.
+     */
+    public static long level0MeshVersionAt(int x, int y, int z) {
+        var live = instance;
+        return live == null || live.destroyed ? -1 : live.scene.meshVersionOf(
+            me.cortex.voxy.common.world.WorldEngine.getWorldSectionId(0, x >> 5, y >> 5, z >> 5));
+    }
+
+    /** Identity of the live scene's world engine, or 0 without a scene (harness observation). */
+    public static int sceneEngineIdentity() {
+        var live = instance;
+        return live == null || live.destroyed ? 0 : System.identityHashCode(live.scene.world());
+    }
+
     /** Scene builds so far: a change between two observations means the scene was rebuilt. */
     public static int buildsSoFar() { return builds; }
 
@@ -429,6 +447,11 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             return;
         }
         renderCalls++;
+        if (renderCalls == 1) {
+            // R29-WORLD-SHUTDOWN-BOUND: a mesher worker that outlives its stop holds its world; the
+            // instance's shutdown leaves such a world unfreed after this, rather than waiting forever
+            me.cortex.voxy.commonImpl.VoxyInstance.boundWorldRelease(WORLD_RELEASE_MILLIS);
+        }
         logStageChange();
         // a retired scene's mesher whose workers outlived their stop: free it once they end
         try { VkHierarchicalScene.reapLingering(); } catch (Throwable t) { closeFailures++; }
@@ -1568,6 +1591,7 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"meshWorkersDeferred\": ").append(VkHierarchicalScene.lingeringDeferred()).append(",\n");
         sb.append("  \"meshWorkersReaped\": ").append(VkHierarchicalScene.lingeringReaped()).append(",\n");
         sb.append("  \"meshWorkersLeaked\": ").append(meshWorkersLeaked).append(",\n");
+        sb.append("  \"worldsLeftUnfreed\": ").append(me.cortex.voxy.commonImpl.VoxyInstance.worldsLeftUnfreed()).append(",\n");
         sb.append("  \"deviceDiverged\": ").append(deviceDiverged).append(",\n");
         sb.append("  \"readbacksInFlight\": ").append(readbacksInFlight).append(",\n");
         sb.append("  \"atlasReads\": ").append(McNativeAtlas.reads()).append(",\n");

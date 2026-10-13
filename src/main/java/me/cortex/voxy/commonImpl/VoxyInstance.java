@@ -221,6 +221,39 @@ public abstract class VoxyInstance {
         debug.add("I/S/AWSC: " + this.ingestService.getTaskCount() + "/" + this.savingService.getTaskCount() + "/[" + this.activeWorlds.values().stream().map(a->""+a.getActiveSectionCount()).collect(Collectors.joining(", ")) + "]");//Active world section count
     }
 
+
+    /**
+     * How long shutdown waits for a world still in use before leaving it unfreed; negative waits for
+     * as long as it takes, as Voxy always has (the default, so GL's behaviour is unchanged). The
+     * native path bounds it (round-29 R29-WORLD-SHUTDOWN-BOUND): a native mesher worker that outlives
+     * its stop holds its world, and disconnect or application exit must not wait on it forever.
+     */
+    private static volatile long worldReleaseDeadlineMillis = -1;
+    private static volatile int worldsLeftUnfreed;
+
+    public static void boundWorldRelease(long millis) { worldReleaseDeadlineMillis = millis; }
+
+    /** Worlds a shutdown left unfreed because they were still in use past the deadline. */
+    public static int worldsLeftUnfreed() { return worldsLeftUnfreed; }
+
+    /**
+     * Wait until {@code used} turns false, or until {@code deadlineMillis} has passed (negative: no
+     * deadline). @return whether it was released
+     */
+    static boolean awaitWorldRelease(BooleanSupplier used, long deadlineMillis) {
+        long end = deadlineMillis < 0 ? Long.MAX_VALUE : System.nanoTime() + deadlineMillis * 1_000_000L;
+        while (used.getAsBoolean()) {
+            if (System.nanoTime() >= end) return false;
+            try {
+                //noinspection BusyWait
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return true;
+    }
+
     public void shutdown() {
         Logger.info("Shutting down voxy instance");
         this.isRunning = false;
@@ -255,15 +288,15 @@ public abstract class VoxyInstance {
                     }
                     //Dont lock in the loopy thing, this should basicly never happen if it does something horrific happened
                     this.activeWorldLock.unlockWrite(stamp);
-                    while (world.isWorldUsed()) {
-                        try {
-                            //noinspection BusyWait
-                            Thread.sleep(10);
-                        } catch (InterruptedException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
+                    boolean released = awaitWorldRelease(world::isWorldUsed, worldReleaseDeadlineMillis);
                     stamp = this.activeWorldLock.writeLock();
+                    if (!released) {
+                        // still read by someone: freeing it would free it under its reader; leak it
+                        worldsLeftUnfreed++;
+                        Logger.error("A world was still in use " + worldReleaseDeadlineMillis
+                            + " ms into shutdown; left unfreed (not flushed or closed)");
+                        continue;
+                    }
                 }
                 //Free the world
                 world.free();

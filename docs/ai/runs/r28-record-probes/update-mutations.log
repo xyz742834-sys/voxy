@@ -1,8 +1,13 @@
-0 DETECTED | not isinstance(probe, dict) or probe.get("block") != UPDATE_PROBE_BLOCK
-1 DETECTED | not isinstance(before, dict) or not isinstance(after, dict)
-2 DETECTED | not finite_int(state.get(key))
-3 DETECTED | stage == "edit" and before.get("sectionEmpty") is not True
-4 DETECTED | before.get("block") != was or after.get("block") != now
-5 DETECTED | before["meshVersion"] < 0 or after["builds"] != before["builds"]
-6 DETECTED | after["visibilityIngests"] <= before["visibilityIngests"]
-7 DETECTED | after["meshVersion"] <= before["meshVersion"]
+DETECTED | if not positive(final_builds):
+DETECTED | if not isinstance(probe, dict) or probe.get("block") != UPDATE_PROBE_BLOCK:
+DETECTED | if not isinstance(before, dict) or not isinstance(after, dict):
+DETECTED | if not positive(state.get(key)):
+DETECTED | if not finite_int(state.get("leafMeshVersion")) or state["leafMeshVersion"] < 0:
+DETECTED | if before["seq"] >= after["seq"]:
+DETECTED | if after["builds"] != before["builds"] or after["builds"] > final_builds or after["sceneEngine"] != before["sc
+DETECTED | if stage == "edit" and before.get("sectionEmpty") is not True:
+DETECTED | if before.get("block") != was or after.get("block") != now:
+DETECTED | if not isinstance(event, dict) or not positive(event.get("seq")) or not positive(event.get("engine")):
+DETECTED | if event["engine"] != engine:
+DETECTED | if not last < event["seq"] < after["seq"]:
+DETECTED | if after["leafMeshVersion"] <= before["leafMeshVersion"]:

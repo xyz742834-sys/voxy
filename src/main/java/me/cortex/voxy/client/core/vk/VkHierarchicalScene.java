@@ -1077,6 +1077,7 @@ public final class VkHierarchicalScene {
         for (int i = 0; i < 4096; i++) {
             Long pos = this.meshUpdates.poll();
             if (pos == null) break;
+            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.dirtyConsumed(pos, this.world);
             this.pendingMesh.remove(pos);
             if (this.inFlight.contains(pos.longValue())) this.staleInFlight.add(pos.longValue());
         }
@@ -1103,6 +1104,7 @@ public final class VkHierarchicalScene {
             if (!this.acceptGeometry(r.built())) break;   // the admission freed it
             this.pendingMesh.add(pos);
             this.meshVersions.put(pos, ++this.meshVersion);
+            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.meshed(pos, this.world);
             this.meshedSections++;
             accepted++;
         }
@@ -1161,6 +1163,7 @@ public final class VkHierarchicalScene {
         for (int i = 0; i < 4096; i++) {
             Long pos = this.meshUpdates.poll();
             if (pos == null) break;
+            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.dirtyConsumed(pos, this.world);
             this.pendingMesh.remove(pos);
             // an asynchronous result for it, still in flight, is stale now
             if (this.inFlight.contains(pos.longValue())) this.staleInFlight.add(pos.longValue());
@@ -1195,6 +1198,7 @@ public final class VkHierarchicalScene {
             if (!this.acceptGeometry(built)) break;
             this.pendingMesh.add(pos);
             this.meshVersions.put(pos, ++this.meshVersion);
+            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.meshed(pos, this.world);
             this.meshedSections++;
             meshed++;
         }
@@ -1556,6 +1560,18 @@ public final class VkHierarchicalScene {
         }
         return version;
     }
+
+    /**
+     * Last completed mesh revision of exactly one world section (0 if never meshed in this scene).
+     * Unlike {@link #meshVersionAt}, no ancestor's revision counts: a coarser section also covers
+     * unrelated changes (harness observation of native updates).
+     */
+    public long meshVersionOf(long worldSectionId) {
+        return this.meshVersions.get(worldSectionId);
+    }
+
+    /** The world engine this scene renders. */
+    public WorldEngine world() { return this.world; }
 
     /** Stop the mesher's workers (a retired scene; its world may be closing). Idempotent. */
     public void stopMeshing() { this.mesher.stopWorkers(); }
