@@ -1,0 +1,8 @@
+0 DETECTED | not isinstance(probe, dict) or probe.get("block") != UPDATE_PROBE_BLOCK
+1 DETECTED | not isinstance(before, dict) or not isinstance(after, dict)
+2 DETECTED | not finite_int(state.get(key))
+3 DETECTED | stage == "edit" and before.get("sectionEmpty") is not True
+4 DETECTED | before.get("block") != was or after.get("block") != now
+5 DETECTED | before["meshVersion"] < 0 or after["builds"] != before["builds"]
+6 DETECTED | after["visibilityIngests"] <= before["visibilityIngests"]
+7 DETECTED | after["meshVersion"] <= before["meshVersion"]

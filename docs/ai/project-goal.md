@@ -57,8 +57,11 @@ This document records direction. Native integration is implemented as default-of
 experiments and one product switch (`voxy.native.render`: device adoption, Voxy's
 instance and every-frame composite on Minecraft's own Vulkan backend; see
 [current-state.md](current-state.md) and the survey); it is **not delivered or
-accepted** — Voxy is not normally enabled on Minecraft Vulkan, and normal-play,
-pressure and lifecycle acceptance are future work.
+accepted** — Voxy is not normally enabled on Minecraft Vulkan. Bounded evidence exists under
+the product switch (gated runs in `docs/ai/runs/native-evidence/`: four-lifecycle product and
+pressure soaks, one injected failed submit, judged ladder bands including far/fade/night); it is
+measured within its scope, not acceptance of normal play. Normal-play acceptance (updates,
+failure/shutdown, broader visuals, performance) and the default-on decision remain open.
 
 ## Required evidence
 

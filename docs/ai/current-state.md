@@ -121,7 +121,8 @@ tested behaviourally" and "Round-8 review repairs, and the per-pixel ladder".
   This removes the unbound-image descriptor diagnostic without expanding suppressions.
   The existing 45 offscreen composite checks pass with clean validation on this host.
 - **Real model baking/meshing and atlas** use the same CPU upload boundary as GL.
-  The real atlas is 12288×8192 with four mip levels; lightmap input remains synthetic.
+  The real atlas is 12288×8192 with four mip levels. In the GL-hosted diagnostic probe the
+  lightmap input remains synthetic; the native path reads Minecraft's lightmap (`McNativeLightmap`).
 - **Diagnostic world updates** now use the shared `SectionUpdateRouter`. Ingestion
   threads enqueue mesh/child keys; bounded servicing happens after the GPU fence.
   Block packets are coalesced into up to 64 section snapshots per client tick by
@@ -146,14 +147,18 @@ tested behaviourally" and "Round-8 review repairs, and the per-pixel ladder".
 
 - **No accepted production Vulkan integration**: native Minecraft Vulkan device
   adoption and an every-frame native composite exist behind default-off flags and the
-  product switch, but Voxy is not normally enabled on Minecraft Vulkan, there is no
-  normal Vulkan `VoxyRenderSystem`, and the scene radius is not configuration-driven.
+  product switch, but Voxy is not normally enabled on Minecraft Vulkan and there is no
+  normal Vulkan `VoxyRenderSystem`. (The native scene itself is configuration-driven: Voxy's
+  render distance, subdivision and GL capacities.)
   `VkInteropProbe` still defaults to synthetic `PAIR`; only an explicit development
   property such as `voxy.5c4` selects hierarchy (any property value selects it).
 - The diagnostic update path is synchronous, rebuilds the scene when leaving its
   region, and does not reuse the full GL async renderer / render-generation service.
   Rapid travel, sustained edits and long-session performance need further testing.
-- **No Vulkan SSAO, generated depth bounds, Iris integration or real lightmap**.
+- **The GL-hosted diagnostic probe has no SSAO, generated depth bounds or real lightmap.**
+  The native path has GL's BASIC SSAO (configured BETTER/BEST run as BASIC — not yet accepted
+  or implemented), the near-cut bounds (`VkBoundRenderer`) and Minecraft's lightmap. Neither has
+  Iris integration.
   Within-bucket translucency ordering remains nondeterministic; oversized buckets
   clamp and discard excess quads.
 - **Apple-shaped portability**: first physical device/graphics queue selection,
