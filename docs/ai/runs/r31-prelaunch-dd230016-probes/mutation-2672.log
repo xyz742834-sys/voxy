@@ -1,0 +1,15 @@
+F
+======================================================================
+FAIL: test_native_updates_must_reach_voxys_mesh (test_render_gate.RenderGateTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-dd230016/scripts/tests/test_render_gate.py", line 311, in test_native_updates_must_reach_voxys_mesh
+    self.assertRefused(self.run_gate(env=setp(stage, path, value)), fragment)
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-dd230016/scripts/tests/test_render_gate.py", line 162, in assertRefused
+    self.assertFalse(result["success"], "passed although: " + fragment)
+AssertionError: True is not false : passed although: probe block went
+
+----------------------------------------------------------------------
+Ran 1 test in 0.022s
+
+FAILED (failures=1)

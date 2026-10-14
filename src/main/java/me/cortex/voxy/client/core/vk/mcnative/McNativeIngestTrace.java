@@ -23,7 +23,12 @@ import java.util.concurrent.locks.StampedLock;
  * start cannot lend its identity to an earlier one. Two things make an accepted mesh derive from a
  * specific update rather than merely follow it in time:
  * <ol>
- *   <li><b>One synchronization boundary.</b> The observation owns a {@link StampedLock}. The real
+ *   <li><b>One synchronization boundary.</b> The leaf's content in one engine has exactly one
+ *       {@link Domain}: a {@link StampedLock} and the content version, kept per (engine, leaf) for the
+ *       engine's lifetime and <em>shared by every observation of that leaf</em> — replacing the
+ *       observation (a new epoch) never replaces the lock, so a writer captured by an earlier observation
+ *       still serializes with the current readers (R31 prelaunch review of dd230016: the reset lock
+ *       split). The real
  *       {@link WorldUpdater#insertUpdate} holds its write lock from before the leaf's level-0 content
  *       write until after the publication of that write's outcome ({@link Update}: the leaf's content
  *       <em>version</em> it left, whether it changed, which chunk section it wrote and what it wrote
@@ -62,14 +67,35 @@ public final class McNativeIngestTrace {
     /** The scene stopped watching the leaf's geometry: the version then and the leaf's non-air count (-1: not obtainable). */
     public record Unwatch(long seq, long epoch, int engine, long version, int nonEmptyBlocks) {}
 
+    /**
+     * The content synchronization domain of one leaf in one engine: its lock and its content version.
+     * Exactly one per (engine, leaf) while the engine is alive, shared by every observation of the leaf
+     * and never replaced by a reset: evidence identity (the observation's epoch) and physical content
+     * synchronization are separate things.
+     */
+    private static final class Domain {
+        final StampedLock lock = new StampedLock();
+        /** The leaf's content version: advanced inside the write boundary, by changed writes only. */
+        volatile long version;
+    }
+
+    /** Domains by engine (identity, weakly held: an engine's domains live as long as it does) and leaf. */
+    private static final java.util.Map<Object, ConcurrentHashMap<Long, Domain>> DOMAINS =
+        java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
+
+    private static Domain domain(Object engine, long leaf) {
+        if (engine == null) return new Domain();   // no engine: nothing can ever match this observation
+        return DOMAINS.computeIfAbsent(engine, e -> new ConcurrentHashMap<>()).computeIfAbsent(leaf, l -> new Domain());
+    }
+
     /** A read lock held on the current observation's leaf; released once by {@link #release}. */
     public static class ReadHold {
-        private final Observation obs;
+        private final Domain domain;
         private long stamp;
-        ReadHold(Observation obs, long stamp) { this.obs = obs; this.stamp = stamp; }
+        ReadHold(Domain domain, long stamp) { this.domain = domain; this.stamp = stamp; }
         public final void release() {
             long s = this.stamp;
-            if (s != 0) { this.stamp = 0; this.obs.lock.unlockRead(s); }
+            if (s != 0) { this.stamp = 0; this.domain.lock.unlockRead(s); }
         }
     }
 
@@ -83,7 +109,7 @@ public final class McNativeIngestTrace {
         public final long version;
         public final String probeHeld;
         MeshRead(Observation obs, long stamp, int engine, long version, String probeHeld) {
-            super(obs, stamp);
+            super(obs.domain, stamp);
             this.epoch = obs.epoch;
             this.engine = engine;
             this.version = version;
@@ -98,9 +124,8 @@ public final class McNativeIngestTrace {
         final int sx, sy, sz;          // the target chunk section
         final int probeIndex;          // the probe's index in the leaf's data
         final int probeInSource;       // the probe's index in a level-0 VoxelizedSection of the target chunk section
-        final StampedLock lock = new StampedLock();
-        /** The leaf's content version: advanced inside the write boundary, by changed writes only. */
-        volatile long version;
+        /** The leaf's one content domain in this engine (shared across observations; never replaced). */
+        final Domain domain;
         volatile Update lastUpdate, lastChange;
         volatile Event leafDirty;
         volatile Mesh leafMeshed;
@@ -108,13 +133,13 @@ public final class McNativeIngestTrace {
         final AtomicInteger otherSectionUpdates = new AtomicInteger();
         final ConcurrentHashMap<Long, Event> ingested = new ConcurrentHashMap<>();
 
-        Observation(long leaf, int px, int py, int pz, int engine, long version) {
+        Observation(long leaf, int px, int py, int pz, int engine, Domain domain) {
             this.leaf = leaf;
             this.engine = engine;
             this.sx = px >> 4; this.sy = py >> 4; this.sz = pz >> 4;
             this.probeIndex = WorldSection.getIndex(px & 31, py & 31, pz & 31);
             this.probeInSource = ((py & 15) << 8) | ((pz & 15) << 4) | (px & 15);
-            this.version = version;
+            this.domain = domain;
         }
     }
 
@@ -126,12 +151,13 @@ public final class McNativeIngestTrace {
         if (!on || obs == null || leaf.key != obs.leaf) return null;
         int engine = identity(into);
         if (engine != obs.engine) return null;   // another engine's section of the same id: not observed
-        long stamp = obs.lock.writeLock();
+        var domain = obs.domain;   // the leaf's one lock, whatever observation is current when this ends
+        long stamp = domain.lock.writeLock();
         return changed -> {
             try {
-                if (changed) obs.version++;
+                if (changed) domain.version++;
                 boolean target = source.x == obs.sx && source.y == obs.sy && source.z == obs.sz;
-                var update = new Update(SEQ.incrementAndGet(), obs.epoch, engine, obs.version, changed,
+                var update = new Update(SEQ.incrementAndGet(), obs.epoch, engine, domain.version, changed,
                     leaf.getNonEmptyBlockCount(), source.x, source.y, source.z,
                     target ? blockName(into, source.section[obs.probeInSource]) : null);
                 if (target) {
@@ -141,7 +167,7 @@ public final class McNativeIngestTrace {
                     obs.otherSectionUpdates.incrementAndGet();
                 }
             } finally {
-                obs.lock.unlockWrite(stamp);
+                domain.lock.unlockWrite(stamp);
             }
         };
     };
@@ -188,20 +214,19 @@ public final class McNativeIngestTrace {
     /**
      * Observe, from now on, the level-0 section {@code leaf} holding the probe block at (px, py, pz) as
      * read by {@code engine}. Events of earlier observations are forgotten (their epoch stays theirs);
-     * the leaf's content version is kept only for the same leaf and the same engine.
+     * the leaf's content domain — its lock and version — is the engine's own for that leaf and is
+     * shared, not replaced: a writer or reader captured before this call still holds or waits for the
+     * same lock the new observation's readers use.
      */
     public static void observe(long leaf, int px, int py, int pz, Object engine) {
-        var prev = current;
-        int id = identity(engine);
-        long version = prev != null && prev.leaf == leaf && prev.engine == id ? prev.version : 0;
-        current = new Observation(leaf, px, py, pz, id, version);
+        current = new Observation(leaf, px, py, pz, identity(engine), domain(engine, leaf));
     }
 
     /** The current observation's epoch (0: none). */
     public static long epoch() { var o = current; return o == null ? 0 : o.epoch; }
 
     /** The observed leaf's content version so far (0 until the updater first changed it). */
-    public static long generation() { var o = current; return o == null ? 0 : o.version; }
+    public static long generation() { var o = current; return o == null ? 0 : o.domain.version; }
 
     /** Updates of the observed leaf by chunk sections other than the target's, since the observation began. */
     public static int otherSectionUpdates() { var o = current; return o == null ? 0 : o.otherSectionUpdates.get(); }
@@ -226,7 +251,7 @@ public final class McNativeIngestTrace {
     public static ReadHold readHold(long pos, Object engine) {
         var obs = current;
         if (!on || obs == null || pos != obs.leaf || identity(engine) != obs.engine) return null;
-        return new ReadHold(obs, obs.lock.readLock());
+        return new ReadHold(obs.domain, obs.domain.lock.readLock());
     }
 
     /** The live scene consumed a dirty update for {@code pos} (render thread). */
@@ -246,9 +271,9 @@ public final class McNativeIngestTrace {
         if (!on || obs == null || pos != obs.leaf) return null;
         int id = identity(engine);
         if (id != obs.engine) return null;
-        long stamp = obs.lock.readLock();
+        long stamp = obs.domain.lock.readLock();
         long content = section._unsafeGetRawDataArray()[obs.probeIndex];
-        return new MeshRead(obs, stamp, id, obs.version, blockName(engine, content));
+        return new MeshRead(obs, stamp, id, obs.domain.version, blockName(engine, content));
     }
 
     /** The mesher finished reading: release the read lock (idempotent; null is nothing). */
@@ -275,7 +300,7 @@ public final class McNativeIngestTrace {
         var obs = current;
         if (!on || obs == null || pos != obs.leaf) return;
         int id = identity(engine);
-        long stamp = obs.lock.readLock();
+        long stamp = obs.domain.lock.readLock();
         try {
             int nonEmpty = -1;
             if (engine.isLive()) {
@@ -284,9 +309,9 @@ public final class McNativeIngestTrace {
                     try { nonEmpty = section.getNonEmptyBlockCount(); } finally { section.release(); }
                 }
             }
-            obs.leafUnwatched = new Unwatch(SEQ.incrementAndGet(), obs.epoch, id, obs.version, nonEmpty);
+            obs.leafUnwatched = new Unwatch(SEQ.incrementAndGet(), obs.epoch, id, obs.domain.version, nonEmpty);
         } finally {
-            obs.lock.unlockRead(stamp);
+            obs.domain.lock.unlockRead(stamp);
         }
     }
 

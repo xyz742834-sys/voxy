@@ -1,0 +1,9 @@
+allprojects {
+    afterEvaluate {
+        tasks.named('test') {
+            doFirst {
+                new File(rootProject.projectDir, '.agent-run/prelaunch/runtime-classpath.txt').text = classpath.asPath
+            }
+        }
+    }
+}

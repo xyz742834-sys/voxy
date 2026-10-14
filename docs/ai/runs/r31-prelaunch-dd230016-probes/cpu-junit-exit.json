@@ -1,0 +1,21 @@
+{
+  "command": [
+    "./gradlew",
+    "test",
+    "--offline",
+    "--no-daemon",
+    "-I",
+    ".agent-run/prelaunch/cpu.init.gradle",
+    "--tests",
+    "me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTraceTest",
+    "--tests",
+    "me.cortex.voxy.client.core.vk.mcnative.McNativeCausalityRaceTest",
+    "--tests",
+    "me.cortex.voxy.common.world.WorldUpdaterOutcomeTest",
+    "--tests",
+    "me.cortex.voxy.commonImpl.VoxyInstanceShutdownBoundTest"
+  ],
+  "pid": 80220,
+  "exit": 0,
+  "elapsed_seconds": 17.13352870941162
+}

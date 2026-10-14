@@ -1,0 +1,202 @@
+{
+  "verdict": "HOLD",
+  "final_verdict": "HOLD",
+  "reviewed_commit": "dd23001649bda8e05e2e02911c6556f1d665a3ee",
+  "base_commit": "5bdc067ef30fa75f735ff3e078edff9c1ccd85a1",
+  "scope": "Independent CPU-only narrow prelaunch review of the two surviving 5bdc067e blockers; no whole-product re-review",
+  "review_complete": true,
+  "review_completion_scope": "Narrow source/CPU decision only; full Python and hardware checks incomplete",
+  "required_verification_complete": false,
+  "launch_authority": false,
+  "per_blocker_closures": {
+    "R29-PRELAUNCH-CAUSALITY": {
+      "closed": false,
+      "old_counterexample_refused": true,
+      "judgment": "HOLD: replacing Observation replaces its lock while old writers still access the same physical leaf; immutable result metadata can disagree with its actual content read",
+      "survivor": "reset_lock_split",
+      "evidence": [
+        ".agent-run/prelaunch/ResetProbe.java",
+        ".agent-run/prelaunch/reset-probe.json",
+        ".agent-run/prelaunch/gate-results.json"
+      ]
+    },
+    "R29-PRELAUNCH-SHUTDOWN": {
+      "closed": true,
+      "closure_scope": "Existing bounded-caller source/CPU counterexamples, one retained cleanup operation",
+      "judgment": "Caller bounded; actual cleanup retained through slow flush/interruption, explicitly released, completed once and counted late; whole gate refuses",
+      "native_cleanup_acceptance": false,
+      "evidence": [
+        ".agent-run/prelaunch/ShutdownProbe.json",
+        ".agent-run/prelaunch/junit/TEST-me.cortex.voxy.commonImpl.VoxyInstanceShutdownBoundTest.xml"
+      ]
+    }
+  },
+  "blocking_findings": [
+    {
+      "id": "R29-PRELAUNCH-CAUSALITY",
+      "source": [
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeIngestTrace.java:101",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeIngestTrace.java:125",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeIngestTrace.java:193",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeIngestTrace.java:244",
+        "scripts/verify.py:2721"
+      ],
+      "finding": "Actual old-observation writes change target data while new MeshRead read lock is held. Modeled mesh reads glass, exact result metadata says air/version3, current update says air/version3; unchanged whole gate accepts.",
+      "limits": "Actual updater/world/trace and real mapper; full mesh factory/scene/geometry/pixels not run. Raw mesh read and scene acceptance/revision modeled. Two old dirty marks paused until acceptance, then writers released and joined."
+    }
+  ],
+  "non_blocking_findings": [],
+  "removal_premise_preserved": {
+    "source_cpu": true,
+    "native_observation": false,
+    "terminal_causality": "Dependent on open reset blocker"
+  },
+  "tests": {
+    "focused_cpu_junit": {
+      "tests": 21,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "class_count": 4,
+      "parent_exit": 0,
+      "xml": ".agent-run/prelaunch/junit/"
+    },
+    "independent_probes": {
+      "ResetProbe": {
+        "compile_exit": 0,
+        "java_exit": 0,
+        "owned_children_joined": true
+      },
+      "OriginalProbe": {
+        "compile_exit": 0,
+        "java_exit": 0,
+        "owned_children_joined": true
+      },
+      "ShutdownProbe": {
+        "compile_exit": 0,
+        "java_exit": 0,
+        "owned_threads_joined": true,
+        "slow_flush_caller_ms": 1209,
+        "interrupt_case_total_ms": 1015,
+        "exactly_once_flush_close_per_operation": true
+      }
+    },
+    "focused_python": {
+      "tests": 2,
+      "passed": 2,
+      "exit": 0
+    },
+    "guard_removal": {
+      "detected": 37,
+      "total": 37,
+      "scope": "native_update_problem and helper; in-memory AST mutations only"
+    },
+    "whole_gate": {
+      "control": {
+        "success": true,
+        "failures": []
+      },
+      "reset_lock_split": {
+        "success": true,
+        "failures": []
+      },
+      "old_after_publication": {
+        "success": false,
+        "failures": [
+          "ValueError: the product render launch's native update: the remove mesh was made from the leaf's content at generation 2, before the removal's 3"
+        ]
+      },
+      "fresh_after_publication": {
+        "success": true,
+        "failures": []
+      },
+      "enqueue_only": {
+        "success": false,
+        "failures": [
+          "ValueError: the product render launch's native update: the remove observation records no update event (None) (the updater changed nothing of the leaf)"
+        ]
+      },
+      "slow_flush_countsBeforeRelease": {
+        "success": false,
+        "failures": [
+          "ValueError: the product render report states shutdownIncomplete=['world-free']: Voxy's shutdown left stages running at its deadline"
+        ]
+      },
+      "slow_flush_countsAfterRelease": {
+        "success": false,
+        "failures": [
+          "ValueError: the product render report states shutdownIncomplete=['world-free']: Voxy's shutdown left stages running at its deadline"
+        ]
+      },
+      "interrupted_slow_flush_countsBeforeRelease": {
+        "success": false,
+        "failures": [
+          "ValueError: the product render report states shutdownIncomplete=['world-free', 'world-free']: Voxy's shutdown left stages running at its deadline"
+        ]
+      },
+      "interrupted_slow_flush_countsAfterRelease": {
+        "success": false,
+        "failures": [
+          "ValueError: the product render report states shutdownIncomplete=['world-free', 'world-free']: Voxy's shutdown left stages running at its deadline"
+        ]
+      }
+    },
+    "review_probe_failure_preserved": {
+      "exit": 1,
+      "reason": "Unsupported body keyword in reviewer gate fixture invocation; corrected to mutate; no production change",
+      "log": ".agent-run/prelaunch/gate-probe-final.log"
+    }
+  },
+  "pendingPython": {
+    "status": "PENDING_EXTERNAL",
+    "candidate": "dd23001649bda8e05e2e02911c6556f1d665a3ee",
+    "reason": "Owner says whole suite is running on exact source; no final exit/docs-only completion receipt at review time",
+    "independent_full_suite_run": false
+  },
+  "notrun": {
+    "offscreen_vulkan": "CPU_ONLY; no authority",
+    "minecraft_native_live": "CPU_ONLY; no authority",
+    "real_unload_arrival_and_held_glass": "FUTURE_COORDINATED_VALIDATION",
+    "warmup_scene_and_lod": "FUTURE_COORDINATED_VALIDATION",
+    "full_scene_mesh_unwatch": "MODELED_CPU_TERMINALS_ONLY",
+    "native_timeout_interrupt": "CPU_COLLABORATORS_ONLY",
+    "pixels": "OUTSIDE_NARROW_SCOPE",
+    "whole_python_suite": "PENDING_EXTERNAL"
+  },
+  "limits": [
+    "One stable observation repairs old glass/v2 versus air/v3 race, but reset does not preserve the physical leaf lock domain",
+    "Permanently stuck retained cleanup may keep resources and a non-daemon JVM alive indefinitely; caller return is refusal, not completed cleanup/persistence",
+    "Native 10-second wait, unsaved-data and failure-retention policies remain unaccepted for default-on",
+    "Hardware/unload-arrival/full-scene timing and terminals remain unrun",
+    "Live placement beyond removal observation, sustained updates and pixels remain missing acceptance",
+    "No actual native UAF/deadlock claim from CPU collaborators"
+  ],
+  "old_native_evidence": "UNBOUND",
+  "default_on_readiness": {
+    "ready": false,
+    "scope": "Unchanged wider gaps carried, not exhaustively re-audited",
+    "remaining": [
+      "Close observation-reset content-binding survivor",
+      "Obtain pending full Python result",
+      "Obtain candidate-bound coordinated native evidence, including actual unload arrival/held glass and full scene mesh or empty-unwatch terminal",
+      "Validate native lifecycle timeout/interruption/retained resource completion",
+      "Live placement and sustained-update acceptance remain missing; mesh-level observation does not establish pixels",
+      "Resolve default-on cleanup stall, indefinite retention and unsaved-data failure policy; satisfy prior whole-delivery readiness gates"
+    ]
+  },
+  "delivery_acceptance": "NOT_ASSESSED_OR_GRANTED",
+  "default_on_acceptance": "NOT_ASSESSED_OR_GRANTED",
+  "normal_play_acceptance": "NOT_ASSESSED_OR_GRANTED",
+  "gpuqueue": {
+    "active": 0,
+    "queued": 0,
+    "planned": 0,
+    "reservations": [],
+    "accepted_holds": [],
+    "tipssi_holds": "RELEASED",
+    "unrelated_processes": "untouched"
+  },
+  "report": "docs/ai/runs/native-prelaunch-review.md",
+  "evidence_directory": ".agent-run/prelaunch/",
+  "review_utc": "2026-10-14T09:52:43.214894+00:00"
+}

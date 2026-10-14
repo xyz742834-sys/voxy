@@ -1,0 +1,15 @@
+F
+======================================================================
+FAIL: test_native_updates_must_reach_voxys_mesh (test_render_gate.RenderGateTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-dd230016/scripts/tests/test_render_gate.py", line 437, in test_native_updates_must_reach_voxys_mesh
+    self.assertRefused(self.run_gate(mutate=lambda b: b.update(builds=0)), "scene build(s)")
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-dd230016/scripts/tests/test_render_gate.py", line 163, in assertRefused
+    self.assertIn(fragment, " ".join(result["failures"]))
+AssertionError: 'scene build(s)' not found in "ValueError: the product render launch's native update: the warmup observation spans no single scene (builds 2 -> 2 of 0, engine 77 -> 77)"
+
+----------------------------------------------------------------------
+Ran 1 test in 0.186s
+
+FAILED (failures=1)

@@ -1,0 +1,19 @@
+E
+======================================================================
+ERROR: test_native_updates_must_reach_voxys_mesh (test_render_gate.RenderGateTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-dd230016/scripts/tests/test_render_gate.py", line 311, in test_native_updates_must_reach_voxys_mesh
+    self.assertRefused(self.run_gate(env=setp(stage, path, value)), fragment)
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-dd230016/scripts/tests/test_render_gate.py", line 158, in run_gate
+    return (gate or verify.native_render_result)(out, text if log is None else log(text), device,
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-dd230016/scripts/verify.py", line 3356, in native_render_result
+    update_problem = native_update_problem(
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-dd230016/scripts/verify.py", line 2650, in native_update_problem
+    if not positive(state.get(key)):
+AttributeError: 'NoneType' object has no attribute 'get'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.034s
+
+FAILED (errors=1)

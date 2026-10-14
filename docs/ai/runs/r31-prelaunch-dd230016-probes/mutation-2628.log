@@ -1,0 +1,15 @@
+F
+======================================================================
+FAIL: test_native_updates_must_reach_voxys_mesh (test_render_gate.RenderGateTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-dd230016/scripts/tests/test_render_gate.py", line 331, in test_native_updates_must_reach_voxys_mesh
+    self.assertRefused(self.run_gate(env=setp("return", ("update", "seq"), 99)), "is not after 100")
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-dd230016/scripts/tests/test_render_gate.py", line 162, in assertRefused
+    self.assertFalse(result["success"], "passed although: " + fragment)
+AssertionError: True is not false : passed although: is not after 100
+
+----------------------------------------------------------------------
+Ran 1 test in 0.074s
+
+FAILED (failures=1)

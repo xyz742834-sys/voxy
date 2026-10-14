@@ -1,0 +1,100 @@
+{
+  "slow_flush": {
+    "boundMs": 1200,
+    "callerElapsedMs": 1209,
+    "interruptRestored": false,
+    "countsBeforeRelease": {
+      "shutdownFailed": 0,
+      "poolThreadsLeft": 0,
+      "worldsLeftUnfreed": 0,
+      "shutdownCompletedLate": 0,
+      "shutdownStageFailures": 0,
+      "shutdownOutstanding": 1,
+      "shutdownIncomplete": [
+        "world-free"
+      ],
+      "saveEntriesUnflushed": 0,
+      "shutdownInterrupted": false
+    },
+    "closeBeforeRelease": 0,
+    "operationNonDaemon": true,
+    "operationStack": [
+      "java.base/jdk.internal.misc.Unsafe.park(Native Method)",
+      "java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:223)",
+      "java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.acquire(AbstractQueuedSynchronizer.java:790)",
+      "java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.acquireSharedInterruptibly(AbstractQueuedSynchronizer.java:1139)",
+      "java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:230)",
+      "me.cortex.voxy.client.core.vk.mcnative.ShutdownProbe$Storage.flush(ShutdownProbe.java:10)",
+      "me.cortex.voxy.common.world.WorldEngine.free(WorldEngine.java:164)",
+      "me.cortex.voxy.commonImpl.VoxyInstance.runShutdown(VoxyInstance.java:453)",
+      "me.cortex.voxy.commonImpl.VoxyInstance$ShutdownOperation.run(VoxyInstance.java:322)",
+      "java.base/java.lang.Thread.run(Thread.java:1474)"
+    ],
+    "countsAfterRelease": {
+      "shutdownFailed": 0,
+      "poolThreadsLeft": 0,
+      "worldsLeftUnfreed": 0,
+      "shutdownCompletedLate": 1,
+      "shutdownStageFailures": 0,
+      "shutdownOutstanding": 0,
+      "shutdownIncomplete": [
+        "world-free"
+      ],
+      "saveEntriesUnflushed": 0,
+      "shutdownInterrupted": false
+    },
+    "flushes": 1,
+    "closes": 1,
+    "ownedThreadsJoined": true
+  },
+  "interrupted_slow_flush": {
+    "boundMs": 30000,
+    "callerElapsedMs": 1015,
+    "interruptRestored": true,
+    "countsBeforeRelease": {
+      "shutdownFailed": 0,
+      "poolThreadsLeft": 0,
+      "worldsLeftUnfreed": 0,
+      "shutdownCompletedLate": 1,
+      "shutdownStageFailures": 0,
+      "shutdownOutstanding": 1,
+      "shutdownIncomplete": [
+        "world-free",
+        "world-free"
+      ],
+      "saveEntriesUnflushed": 0,
+      "shutdownInterrupted": true
+    },
+    "closeBeforeRelease": 0,
+    "operationNonDaemon": true,
+    "operationStack": [
+      "java.base/jdk.internal.misc.Unsafe.park(Native Method)",
+      "java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:223)",
+      "java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.acquire(AbstractQueuedSynchronizer.java:790)",
+      "java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.acquireSharedInterruptibly(AbstractQueuedSynchronizer.java:1139)",
+      "java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:230)",
+      "me.cortex.voxy.client.core.vk.mcnative.ShutdownProbe$Storage.flush(ShutdownProbe.java:10)",
+      "me.cortex.voxy.common.world.WorldEngine.free(WorldEngine.java:164)",
+      "me.cortex.voxy.commonImpl.VoxyInstance.runShutdown(VoxyInstance.java:453)",
+      "me.cortex.voxy.commonImpl.VoxyInstance$ShutdownOperation.run(VoxyInstance.java:322)",
+      "java.base/java.lang.Thread.run(Thread.java:1474)"
+    ],
+    "countsAfterRelease": {
+      "shutdownFailed": 0,
+      "poolThreadsLeft": 0,
+      "worldsLeftUnfreed": 0,
+      "shutdownCompletedLate": 2,
+      "shutdownStageFailures": 0,
+      "shutdownOutstanding": 0,
+      "shutdownIncomplete": [
+        "world-free",
+        "world-free"
+      ],
+      "saveEntriesUnflushed": 0,
+      "shutdownInterrupted": true
+    },
+    "flushes": 1,
+    "closes": 1,
+    "ownedThreadsJoined": true
+  }
+}
