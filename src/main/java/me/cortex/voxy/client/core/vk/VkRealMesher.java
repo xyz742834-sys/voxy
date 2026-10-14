@@ -153,17 +153,30 @@ public final class VkRealMesher {
      * トラバーサルの要求に答えるときは<b>「まだ無い」が普通に起きる</b>。
      */
     public BuiltSection meshOne(int level, int x, int y, int z) {
+        return this.meshOneObserved(level, x, y, z).built();
+    }
+
+    /**
+     * A synchronous mesh and the harness trace's read it was made under ({@code read} is null when the
+     * position is not the observed one, or outside the harness): the identity the scene hands to the
+     * trace at acceptance, carried on the result as the asynchronous path's {@link AsyncResult#read}.
+     */
+    public record SyncMesh(BuiltSection built, me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.MeshRead read) {}
+
+    public SyncMesh meshOneObserved(int level, int x, int y, int z) {
         WorldSection section = this.world.acquireIfExists(level, x, y, z);
-        if (section == null) { this.missing++; return null; }
+        if (section == null) { this.missing++; return new SyncMesh(null, null); }
+        // harness trace: the read lock of the observed leaf is held through the factory's read, and the
+        // version and probe content captured under it travel with the result (R30 prelaunch review)
+        var read = me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.beginMesh(section.key, this.world, section);
         try {
-            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.meshStarted(section.key);
             // ⚠ **先にモデルを焼く。** 本番は例外を投げて非同期に焼かせるが、
             // ここは同期なので先回りするほうが単純である
             this.modelsBaked += this.bakery.ensureModels(blockIdsIn(section));
 
             for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
                 try {
-                    return this.factory.generateMesh(section);
+                    return new SyncMesh(this.factory.generateMesh(section), read);
                 } catch (IdNotYetComputedException e) {
                     // ⚠ セクションの外 (隣の境界) を引いたときは、中身を見ても出てこない
                     var wanted = new IntOpenHashSet();
@@ -176,8 +189,9 @@ public final class VkRealMesher {
                 }
             }
             this.gaveUp++;
-            return null;
+            return new SyncMesh(null, read);
         } finally {
+            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.endMesh(read);
             section.release();
         }
     }
@@ -201,7 +215,8 @@ public final class VkRealMesher {
      * and resubmits, as GL's service requests a bake and retries.
      */
     public record AsyncResult(long position, me.cortex.voxy.client.core.rendering.building.BuiltSection built,
-                              IntOpenHashSet wantedModels) {}
+                              IntOpenHashSet wantedModels,
+                              me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.MeshRead read) {}
 
     /**
      * GL meshes on worker threads (RenderGenerationService on Voxy's service threads, a
@@ -219,20 +234,21 @@ public final class VkRealMesher {
     /** Mesh {@code position} on a worker; its result arrives through {@link #pollResult}. */
     public void submit(long position) {
         if (this.freed) throw new IllegalStateException("mesher freed");
-        this.workers.submit(() -> this.meshAsync(position), new AsyncResult(position, null, null));
+        this.workers.submit(() -> this.meshAsync(position), new AsyncResult(position, null, null, null));
     }
 
     public AsyncResult pollResult() { return this.workers.poll(); }
 
     private AsyncResult meshAsync(long position) {
         if (!this.world.isLive() || Thread.currentThread().isInterrupted()) {
-            return new AsyncResult(position, null, null);
+            return new AsyncResult(position, null, null, null);
         }
         WorldSection section = this.world.acquireIfExists(position);
-        if (section == null) return new AsyncResult(position, null, null);
+        if (section == null) return new AsyncResult(position, null, null, null);
+        // harness trace: the read lock of the observed leaf is held through this read; the version and
+        // probe content captured under it travel on this result (R30 prelaunch review)
+        var read = me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.beginMesh(position, this.world, section);
         try {
-            // harness trace: the content generation this read can see, captured before reading
-            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.meshStarted(position);
             // the models this section needs and the factory lacks (GL: computeAndRequestRequiredModels)
             var missing = new IntOpenHashSet();
             var models = this.bakery.factory();
@@ -240,9 +256,9 @@ public final class VkRealMesher {
                 int id = Mapper.getBlockId(state);
                 if (id != 0 && !models.hasModelForBlockId(id)) missing.add(id);
             }
-            if (!missing.isEmpty()) return new AsyncResult(position, null, missing);
+            if (!missing.isEmpty()) return new AsyncResult(position, null, missing, read);
             try {
-                return new AsyncResult(position, this.workerFactory.get().generateMesh(section), null);
+                return new AsyncResult(position, this.workerFactory.get().generateMesh(section), null, read);
             } catch (IdNotYetComputedException e) {
                 // a neighbour's block, outside this section
                 var wanted = new IntOpenHashSet();
@@ -251,12 +267,13 @@ public final class VkRealMesher {
                     for (long state : e.auxData) wanted.add(Mapper.getBlockId(state));
                 }
                 wanted.remove(0);
-                return new AsyncResult(position, null, wanted.isEmpty() ? null : wanted);
+                return new AsyncResult(position, null, wanted.isEmpty() ? null : wanted, read);
             }
         } catch (Throwable t) {
             Logger.error("[native-vk] meshing " + WorldEngine.pprintPos(position) + " failed", t);
-            return new AsyncResult(position, null, null);
+            return new AsyncResult(position, null, null, read);
         } finally {
+            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.endMesh(read);
             section.release();
         }
     }

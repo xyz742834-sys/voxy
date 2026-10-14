@@ -2566,6 +2566,7 @@ UPDATE_PROBE_STAGES = {"warmup": ("minecraft:air", "minecraft:glass"),
                        "return": ("minecraft:air", "minecraft:glass"),
                        "remove": ("minecraft:glass", "minecraft:air")}
 UPDATE_PROBE_HELD = "minecraft:glass"   # what Voxy must hold at the probe before the removal
+UPDATE_PROBE_SECTION = [c >> 4 for c in UPDATE_PROBE_BLOCK]   # the probe's chunk section: the update's own identity
 
 
 def native_update_problem(checkpoints, final_builds):
@@ -2594,16 +2595,26 @@ def native_update_problem(checkpoints, final_builds):
     stopped watching it). A mesh made from older content, an unchanged leaf, or no terminal state is
     refused; a no-change outcome is never promoted to changed geometry. No ancestor counts. Mesh level,
     not pixels: Voxy draws only where Minecraft's depth is clear, which this close it is not. Only the
-    first lifecycle's checkpoints are recorded (a stated coverage limit)."""
+    first lifecycle's checkpoints are recorded (a stated coverage limit).
+
+    R30 prelaunch review of 5bdc067e (the unrelated-same-leaf race): a counter advanced by any chunk
+    section of the leaf, read by a mesher outside any synchronization with the updater's write, let an
+    old mesh be credited with an unrelated change while the target's write was still unpublished. Now
+    every event carries the observation's `epoch` (one per stage: no reset, rebuild or later start lends
+    identity); the update event is the target chunk section's own (`section`) and says what it wrote at
+    the probe (`wrote`); the mesh records the probe content its mesher read (`probeHeld`) and the content
+    version it read under — captured under the same lock the updater publishes under, so a version at
+    or past the update's contains the update; the removed-geometry terminal records the version and the
+    leaf's non-air count read under that lock."""
     def positive(v):
         return finite_int(v) and v > 0
 
     def nonnegative(v):
         return finite_int(v) and v >= 0
 
-    def dated_event(stage, probe, name, engine, after, before, extra=()):
-        """The event, or a problem string: present, on the scene's engine, dated after `before`
-        and before `after`, with every `extra` key a non-negative int."""
+    def dated_event(stage, probe, name, engine, epoch, after, before, extra=()):
+        """The event, or a problem string: present, on the scene's engine, of this observation's
+        epoch, dated after `before` and before `after`, with every `extra` key a non-negative int."""
         event = probe.get(name)
         if not isinstance(event, dict) or not positive(event.get("seq")) \
                 or not positive(event.get("engine")):
@@ -2611,6 +2622,9 @@ def native_update_problem(checkpoints, final_builds):
         if event["engine"] != engine:
             return None, (f"the {stage} {name} event concerns engine {event['engine']}, not the"
                           f" scene's {engine}")
+        if event.get("epoch") != epoch:
+            return None, (f"the {stage} {name} event belongs to observation epoch {event.get('epoch')!r},"
+                          f" not this stage's {epoch}")
         if not before < event["seq"] < after:
             return None, (f"the {stage} {name} event (sequence {event['seq']}) is not after"
                           f" {before} and before {after}")
@@ -2632,7 +2646,7 @@ def native_update_problem(checkpoints, final_builds):
         if not isinstance(before, dict) or not isinstance(after, dict):
             return f"the {stage} update observation lacks its before/after state"
         for side, state in (("before", before), ("after", after)):
-            for key in ("seq", "builds", "sceneEngine"):
+            for key in ("seq", "builds", "sceneEngine", "epoch"):
                 if not positive(state.get(key)):
                     return f"the {stage} update observation's {side}.{key} is {state.get(key)!r}"
             for key in ("leafMeshVersion", "leafGeneration"):
@@ -2649,13 +2663,16 @@ def native_update_problem(checkpoints, final_builds):
             return (f"the {stage} observation spans no single scene (builds {before['builds']} ->"
                     f" {after['builds']} of {final_builds}, engine {before['sceneEngine']} ->"
                     f" {after['sceneEngine']})")
+        if after["epoch"] != before["epoch"]:
+            return (f"the {stage} observation spans two observation epochs ({before['epoch']} ->"
+                    f" {after['epoch']}): it was reset between its marks")
         if after["leafGeneration"] < before["leafGeneration"]:
             return (f"the {stage} observation's leaf generation went backwards"
                     f" ({before['leafGeneration']} -> {after['leafGeneration']})")
         if before.get("block") != was or after.get("block") != now:
             return (f"the {stage} probe block went {before.get('block')!r} -> {after.get('block')!r},"
                     f" not {was} -> {now}")
-        engine = before["sceneEngine"]
+        engine, epoch = before["sceneEngine"], before["epoch"]
         if stage == "warmup":
             if before.get("chunkLoaded") is not True:
                 return (f"the {stage} probe's chunk was not loaded on the client before the placement"
@@ -2664,12 +2681,19 @@ def native_update_problem(checkpoints, final_builds):
                 return (f"the {stage} probe's chunk section was not all air before the placement"
                         f" (sectionEmpty={before.get('sectionEmpty')!r})")
             continue   # GL's ingest does not see a placement into an empty section: nothing causal
-        update, problem = dated_event(stage, probe, "update", engine, after["seq"], before["seq"],
+        update, problem = dated_event(stage, probe, "update", engine, epoch, after["seq"], before["seq"],
                                       ("generation", "nonEmptyBlocks"))
         if problem:
             return problem + " (the updater changed nothing of the leaf)"
         if update.get("changed") is not True:
             return f"the {stage} update event says changed={update.get('changed')!r}"
+        # the target chunk section's own write, and what it wrote at the probe: an unrelated chunk
+        # section's change of the same leaf is not this update
+        if update.get("section") != UPDATE_PROBE_SECTION:
+            return (f"the {stage} update event is chunk section {update.get('section')!r}'s, not the"
+                    f" probe's {UPDATE_PROBE_SECTION}")
+        if update.get("wrote") != now:
+            return f"the {stage} update wrote {update.get('wrote')!r} at the probe, not {now}"
         if not before["leafGeneration"] < update["generation"] <= after["leafGeneration"]:
             return (f"the {stage} update's content generation {update['generation']} does not advance"
                     f" the leaf's ({before['leafGeneration']} -> {after['leafGeneration']})")
@@ -2686,21 +2710,25 @@ def native_update_problem(checkpoints, final_builds):
                     f" not {UPDATE_PROBE_HELD}, so the removal is a no-op for Voxy and observes nothing")
         if after["voxyHeld"] != now:
             return f"after the removal Voxy holds {after['voxyHeld']!r}, not {now}"
-        ingest, problem = dated_event(stage, probe, "ingest", engine, update["seq"], before["seq"])
+        ingest, problem = dated_event(stage, probe, "ingest", engine, epoch, update["seq"], before["seq"])
         if problem:
             return problem
-        dirty, problem = dated_event(stage, probe, "leafDirty", engine, after["seq"], update["seq"])
+        dirty, problem = dated_event(stage, probe, "leafDirty", engine, epoch, after["seq"], update["seq"])
         if problem:
             return problem
         meshed = probe.get("leafMeshed")
         if isinstance(meshed, dict):
-            meshed, problem = dated_event(stage, probe, "leafMeshed", engine, after["seq"], dirty["seq"],
+            meshed, problem = dated_event(stage, probe, "leafMeshed", engine, epoch, after["seq"], dirty["seq"],
                                           ("generation",))
             if problem:
                 return problem
             if meshed["generation"] < update["generation"]:
                 return (f"the {stage} mesh was made from the leaf's content at generation"
                         f" {meshed['generation']}, before the removal's {update['generation']}")
+            # the content the mesher itself read at the probe, under the same lock as the version
+            if meshed.get("probeHeld") != now:
+                return (f"the {stage} mesh was made from content holding {meshed.get('probeHeld')!r} at"
+                        f" the probe, not {now}")
             if after["leafMeshVersion"] <= before["leafMeshVersion"]:
                 return (f"the {stage} probe's level-0 section was not re-meshed (revision"
                         f" {before['leafMeshVersion']} -> {after['leafMeshVersion']})")
@@ -2708,9 +2736,16 @@ def native_update_problem(checkpoints, final_builds):
         if update["nonEmptyBlocks"] != 0:
             return (f"the {stage} leaf still has {update['nonEmptyBlocks']} non-air block(s) but was"
                     f" neither re-meshed nor removed")
-        unwatched, problem = dated_event(stage, probe, "leafUnwatched", engine, after["seq"], update["seq"])
+        unwatched, problem = dated_event(stage, probe, "leafUnwatched", engine, epoch, after["seq"], update["seq"],
+                                         ("generation",))
         if problem:
             return problem + " (the emptied leaf was neither re-meshed nor removed)"
+        if unwatched["generation"] < update["generation"]:
+            return (f"the {stage} leaf's geometry was removed at content generation"
+                    f" {unwatched['generation']}, before the removal's {update['generation']}")
+        if unwatched.get("nonEmptyBlocks") != 0:
+            return (f"the {stage} leaf's geometry was removed while the leaf held"
+                    f" {unwatched.get('nonEmptyBlocks')!r} non-air block(s), not none")
     return None
 
 
@@ -3375,6 +3410,16 @@ def native_render_result(output, log_text, expected_device=None, command=None,
             if not finite_int(report.get(field)) or report[field] != 0:
                 raise ValueError(f"the {L} report states {field}={report.get(field)!r}: {what} at"
                                  f" Voxy's shutdown deadline")
+        # R30 prelaunch review (SHUTDOWN): the retained shutdown operation must have completed while its
+        # caller waited — not still be running, not have finished after the caller gave up, not failed
+        for field, what in (("shutdownOutstanding", "shutdown operation(s) still running"),
+                            ("shutdownCompletedLate", "shutdown operation(s) completed after their caller"
+                                                      " stopped waiting"),
+                            ("shutdownFailed", "shutdown operation(s) ended in an exception"),
+                            ("shutdownStageFailures", "shutdown stage(s) threw")):
+            if not finite_int(report.get(field)) or report[field] != 0:
+                raise ValueError(f"the {L} report states {field}={report.get(field)!r}: {what}; the"
+                                 f" bounded return was a refusal, not a completed cleanup")
         composited, skips, calls = (report.get("framesComposited"), report.get("frameSkips"),
                                     report.get("renderCalls"))
         if not finite_int(composited) or not finite_int(calls) or not isinstance(skips, dict):

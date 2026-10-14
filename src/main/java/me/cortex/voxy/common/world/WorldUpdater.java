@@ -10,12 +10,20 @@ public class WorldUpdater {
     //Executes an update to the world and automatically updates all the parent mip layers up to level 4 (e.g. where 1 chunk section is 1 block big)
 
     /**
-     * Sees each level-0 outcome as it is final and before it is marked dirty: the section, and whether
-     * its content changed. Null in production; the native harness's trace installs one
-     * ({@code McNativeIngestTrace}, R29-PRELAUNCH-CAUSALITY: the observation needs the updater's real
-     * outcome, not the enqueue).
+     * The write boundary of each level-0 update, for an observer: {@link #beginLeafWrite} is called
+     * before the leaf's level-0 content is written from {@code source} and the returned {@link LeafWrite}
+     * is ended after the content and the non-air count are final and before the dirty mark — so an
+     * observer that locks in {@code begin} and publishes the outcome in {@code end} makes the write and
+     * its publication one step for anyone reading under the same lock (R29-PRELAUNCH-CAUSALITY; the R30
+     * prelaunch review's unrelated-same-leaf race). Null in production; the native harness's trace
+     * installs one while it observes ({@code McNativeIngestTrace}).
      */
-    public interface Observer {void leafUpdated(WorldEngine into, WorldSection leaf, boolean changed);}
+    public interface Observer {
+        /** Before the level-0 write of {@code leaf} from {@code source}; may return null (nothing to end). */
+        LeafWrite beginLeafWrite(WorldEngine into, WorldSection leaf, VoxelizedSection source);
+    }
+    /** The end of one level-0 write: whether the leaf's content changed. */
+    public interface LeafWrite {void end(boolean changed);}
     private static volatile Observer observer;
     public static void setObserver(Observer o) {observer = o;}
 
@@ -43,19 +51,27 @@ public class WorldUpdater {
                 previousSection = null;
             }
 
-            long status = insertSectionLvlIntoWorld(section, worldSection);
-            boolean didStateChange = (status&1)==1;
-            int airCount = (int) ((status>>1)&0x1FFF);
-
-
+            LeafWrite write = null;
             if (lvl == 0) {
-                int nonAirCountDelta = section.lvl0NonAirCount-(4096-airCount);
-                if (nonAirCountDelta != 0) {
-                    worldSection.addNonEmptyBlockCount(nonAirCountDelta);
-                    emptinessStateChange = worldSection.updateLvl0State() ? 2 : 0;
-                }
                 var obs = observer;
-                if (obs != null) obs.leafUpdated(into, worldSection, didStateChange);
+                if (obs != null) write = obs.beginLeafWrite(into, worldSection, section);
+            }
+            boolean didStateChange = false;
+            try {
+                long status = insertSectionLvlIntoWorld(section, worldSection);
+                didStateChange = (status&1)==1;
+                int airCount = (int) ((status>>1)&0x1FFF);
+
+                if (lvl == 0) {
+                    int nonAirCountDelta = section.lvl0NonAirCount-(4096-airCount);
+                    if (nonAirCountDelta != 0) {
+                        worldSection.addNonEmptyBlockCount(nonAirCountDelta);
+                        emptinessStateChange = worldSection.updateLvl0State() ? 2 : 0;
+                    }
+                }
+            } finally {
+                // the outcome is published inside the observer's boundary, before the dirty mark
+                if (write != null) write.end(didStateChange);
             }
 
             if (didStateChange||(emptinessStateChange!=0)) {

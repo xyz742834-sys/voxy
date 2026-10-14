@@ -44,9 +44,11 @@ def update_probe(stage):
     re-meshed from generation 2."""
     was, now = verify.UPDATE_PROBE_STAGES[stage]
     base = 200 if stage == "remove" else 100
+    epoch = 6 if stage == "remove" else 5   # warmup and return share one observation (one epoch)
+    section = list(verify.UPDATE_PROBE_SECTION)
     def state(seq, block, held, generation, revision):
-        return {"seq": seq, "block": block, "voxyHeld": held, "leafGeneration": generation,
-                "builds": 2, "sceneEngine": 77, "leafMeshVersion": revision}
+        return {"seq": seq, "block": block, "voxyHeld": held, "leafGeneration": generation, "epoch": epoch,
+                "otherSectionUpdates": 0, "builds": 2, "sceneEngine": 77, "leafMeshVersion": revision}
     probe = {"block": list(verify.UPDATE_PROBE_BLOCK), "ingest": None, "update": None, "lastUpdate": None,
              "leafDirty": None, "leafMeshed": None, "leafUnwatched": None}
     if stage == "warmup":
@@ -56,19 +58,21 @@ def update_probe(stage):
         # the same before as warmup's: the placement mark; the arrival is dated between the marks
         probe["before"] = dict(state(100, was, "none", 0, 0), chunkLoaded=True, sectionEmpty=True)
         probe["after"] = state(180, now, verify.UPDATE_PROBE_HELD, 1, 12)
-        probe["update"] = probe["lastUpdate"] = {"seq": 130, "engine": 77, "changed": True,
-                                                 "generation": 1, "nonEmptyBlocks": 1}
-        probe["leafDirty"] = {"seq": 160, "engine": 77}
-        probe["leafMeshed"] = {"seq": 170, "engine": 77, "generation": 1}
+        probe["update"] = probe["lastUpdate"] = {"seq": 130, "epoch": epoch, "engine": 77, "changed": True,
+                                                 "generation": 1, "nonEmptyBlocks": 1, "section": section,
+                                                 "wrote": now}
+        probe["leafDirty"] = {"seq": 160, "epoch": epoch, "engine": 77}
+        probe["leafMeshed"] = {"seq": 170, "epoch": epoch, "engine": 77, "generation": 1, "probeHeld": now}
     else:
         probe["before"] = dict(state(base, was, verify.UPDATE_PROBE_HELD, 1, 40), chunkLoaded=True,
                                sectionEmpty=False)
         probe["after"] = state(base + 50, now, "minecraft:air", 2, 46)
-        probe["ingest"] = {"seq": base + 3, "engine": 77}
-        probe["update"] = probe["lastUpdate"] = {"seq": base + 5, "engine": 77, "changed": True,
-                                                 "generation": 2, "nonEmptyBlocks": 0}
-        probe["leafDirty"] = {"seq": base + 7, "engine": 77}
-        probe["leafMeshed"] = {"seq": base + 20, "engine": 77, "generation": 2}
+        probe["ingest"] = {"seq": base + 3, "epoch": epoch, "engine": 77}
+        probe["update"] = probe["lastUpdate"] = {"seq": base + 5, "epoch": epoch, "engine": 77, "changed": True,
+                                                 "generation": 2, "nonEmptyBlocks": 0, "section": section,
+                                                 "wrote": now}
+        probe["leafDirty"] = {"seq": base + 7, "epoch": epoch, "engine": 77}
+        probe["leafMeshed"] = {"seq": base + 20, "epoch": epoch, "engine": 77, "generation": 2, "probeHeld": now}
     return probe
 
 
@@ -97,6 +101,7 @@ def report(**overrides):
             "firstProblem": None, "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
             "meshWorkersDeferred": 0, "meshWorkersReaped": 0, "meshWorkersLeaked": 0, "worldsLeftUnfreed": 0,
             "shutdownIncomplete": [], "shutdownInterrupted": False, "saveEntriesUnflushed": 0, "poolThreadsLeft": 0,
+            "shutdownOutstanding": 0, "shutdownCompletedLate": 0, "shutdownFailed": 0, "shutdownStageFailures": 0,
             "readbacksInFlight": 0, "atlasReads": 1, "device": hex(DEVICE), "notes": []}
     body.update(overrides)
     return body
@@ -367,17 +372,65 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(env=setp("remove", ("after", "leafMeshVersion"), 40)), "was not re-meshed")
         # R29-PRELAUNCH-REMOVAL: the emptied leaf's other truthful terminal state — its geometry removed
         # (the scene stopped watching it) after the update; accepted without a mesh
-        removed = dict(leafMeshed=None, leafUnwatched={"seq": 230, "engine": 77})
+        removed = dict(leafMeshed=None, leafUnwatched={"seq": 230, "epoch": 6, "engine": 77, "generation": 2,
+                                                       "nonEmptyBlocks": 0})
         self.assertTrue(self.run_gate(env=setall("remove", **removed))["success"])
         self.assertTrue(self.run_gate(env=setall("remove", after__leafMeshVersion=40, **removed))["success"])
         self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None, leafUnwatched=None)),
                            "records no leafUnwatched event (None) (the emptied leaf was neither re-meshed nor removed)")
         self.assertRefused(self.run_gate(env=setall("remove", update__nonEmptyBlocks=3, **removed)),
                            "still has 3 non-air block(s) but was neither re-meshed nor removed")
-        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None,
-                                                    leafUnwatched={"seq": 204, "engine": 77})), "is not after 205")
-        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None,
-                                                    leafUnwatched={"seq": 230, "engine": 78})), "not the scene's 77")
+        # R30 prelaunch review (CAUSALITY), the reviewer's race, in the gate's own terms: the unrelated
+        # chunk section (3,7,4) of the same leaf changed and published generation 2; the accepted mesh
+        # read generation 2 with the target still glass; the target's removal had written air but not
+        # published. Its update event is the unrelated section's: refused by identity, and the mesh's
+        # own probe content refuses it again; the target's unpublished write cannot be the update
+        self.assertRefused(self.run_gate(env=setall("remove", update__section=[3, 7, 4], update__wrote=None,
+                                                    update__nonEmptyBlocks=2, leafMeshed__probeHeld="minecraft:glass")),
+                           "update event is chunk section [3, 7, 4]'s, not the probe's [2, 7, 4]")
+        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed__probeHeld="minecraft:glass")),
+                           "mesh was made from content holding 'minecraft:glass' at the probe, not minecraft:air")
+        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed__probeHeld=None)),
+                           "made from content holding None at the probe")
+        self.assertRefused(self.run_gate(env=setp("remove", ("update", "section"), None)), "update event is chunk section None's")
+        self.assertRefused(self.run_gate(env=setp("remove", ("update", "section"), [2, 7]), ), "not the probe's")
+        self.assertRefused(self.run_gate(env=setp("remove", ("update", "wrote"), "minecraft:glass")),
+                           "update wrote 'minecraft:glass' at the probe, not minecraft:air")
+        self.assertRefused(self.run_gate(env=setp("remove", ("update", "wrote"), None)), "update wrote None at the probe")
+        self.assertRefused(self.run_gate(env=setp("return", ("update", "wrote"), "minecraft:air")),
+                           "update wrote 'minecraft:air' at the probe, not minecraft:glass")
+        self.assertRefused(self.run_gate(env=setp("return", ("update", "section"), [3, 7, 4])), "not the probe's")
+        # one observation epoch per stage: a reset between the marks, or an event of another epoch
+        # (an earlier observation's mesh, a later start), lends no identity
+        for stage in ("warmup", "return", "remove"):
+            self.assertRefused(self.run_gate(env=setp(stage, ("after", "epoch"), 9)), "spans two observation epochs")
+            self.assertRefused(self.run_gate(env=setp(stage, ("before", "epoch"), 0)), "before.epoch is 0")
+            self.assertRefused(self.run_gate(env=setp(stage, ("after", "epoch"), None)), "after.epoch is None")
+        for name in ("ingest", "update", "leafDirty", "leafMeshed"):
+            self.assertRefused(self.run_gate(env=setp("remove", (name, "epoch"), 5)),
+                               f"{name} event belongs to observation epoch 5, not this stage's 6")
+            self.assertRefused(self.run_gate(env=setp("remove", (name, "epoch"), None)),
+                               f"{name} event belongs to observation epoch None")
+        self.assertRefused(self.run_gate(env=setp("return", ("update", "epoch"), 6)),
+                           "update event belongs to observation epoch 6, not this stage's 5")
+        # the removed-geometry terminal is bound the same way: the version it was removed at must
+        # include the removal, and the leaf must have had no non-air block then
+        bound = {"seq": 230, "epoch": 6, "engine": 77, "generation": 2, "nonEmptyBlocks": 0}
+        self.assertTrue(self.run_gate(env=setall("remove", leafMeshed=None, leafUnwatched=bound))["success"])
+        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None, leafUnwatched=dict(bound, generation=1))),
+                           "geometry was removed at content generation 1, before the removal's 2")
+        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None, leafUnwatched=dict(bound, generation=-1))),
+                           "leafUnwatched event's generation is -1")
+        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None, leafUnwatched=dict(bound, nonEmptyBlocks=1))),
+                           "removed while the leaf held 1 non-air block(s), not none")
+        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None, leafUnwatched=dict(bound, nonEmptyBlocks=-1))),
+                           "removed while the leaf held -1 non-air block(s)")
+        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None, leafUnwatched=dict(bound, epoch=5))),
+                           "leafUnwatched event belongs to observation epoch 5")
+        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None, leafUnwatched=dict(bound, seq=204))),
+                           "is not after 205")
+        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None, leafUnwatched=dict(bound, engine=78))),
+                           "not the scene's 77")
         # a no-change outcome is never promoted: an unwatch without the updater's change is nothing
         self.assertRefused(self.run_gate(env=setall("remove", update=None, **removed)), "records no update event")
         # the report's own builds must be stated
@@ -413,6 +466,19 @@ class RenderGateTest(unittest.TestCase):
             for value in (1, None, True, -1):
                 self.assertRefused(self.run_gate(mutate=lambda b, f=field, v=value: b.update({f: v})), what)
             self.assertRefused(self.run_gate(mutate=lambda b, f=field: b.pop(f)), f"{field}=None")
+        # R30 prelaunch review (SHUTDOWN): the reviewer's slow-flush shape — the caller returned at its
+        # bound while the retained operation was still in world-free; it completed later, or is still
+        # running at the report, or failed, or a stage threw: each a refusal, not a completed cleanup
+        for field, what in (("shutdownOutstanding", "still running"),
+                            ("shutdownCompletedLate", "completed after their caller stopped waiting"),
+                            ("shutdownFailed", "ended in an exception"),
+                            ("shutdownStageFailures", "shutdown stage(s) threw")):
+            for value in (1, None, True, -1, 2.5):
+                self.assertRefused(self.run_gate(mutate=lambda b, f=field, v=value: b.update({f: v})), what)
+            self.assertRefused(self.run_gate(mutate=lambda b, f=field: b.pop(f)), f"{field}=None")
+        self.assertRefused(self.run_gate(mutate=lambda b: b.update(shutdownIncomplete=["world-free"],
+                                                                     shutdownCompletedLate=1)),
+                           "left stages running at its deadline")
 
     def assertWithinRun(self, result):
         """Refused by the within-size-run check itself, not the cross-lifecycle one."""

@@ -1,70 +1,165 @@
 package me.cortex.voxy.client.core.vk.mcnative;
 
+import me.cortex.voxy.common.voxelization.VoxelizedSection;
+import me.cortex.voxy.common.world.WorldEngine;
+import me.cortex.voxy.common.world.WorldSection;
 import me.cortex.voxy.common.world.WorldUpdater;
+import me.cortex.voxy.common.world.other.Mapper;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.StampedLock;
 
 /**
  * Harness-only causal trace of one native update (round-28 Codex review of record,
- * R28-NATIVE-UPDATE-OBSERVATION; R29-UPDATE-CAUSALITY; R29-PRELAUNCH-CAUSALITY and -REMOVAL).
- * Inert outside the native harness.
+ * R28-NATIVE-UPDATE-OBSERVATION; R29-UPDATE-CAUSALITY; R29-PRELAUNCH-CAUSALITY and -REMOVAL; R30
+ * prelaunch review of 5bdc067e: the unrelated-same-leaf race). Inert outside the native harness: the
+ * updater's observer is installed only while the trace is enabled, so production runs with none.
  *
- * <p>The trace observes one level-0 world section (the leaf holding the probe block). Its spine is
- * the leaf's <b>content generation</b>: a counter that only {@link WorldUpdater#insertUpdate} advances,
- * at the moment it has actually changed the leaf's level-0 content (R29-PRELAUNCH-CAUSALITY: an ingest
- * that was merely queued, or that re-wrote identical content, advances nothing). Everything else is
- * dated on one global sequence ({@link #now}) and tagged with the identity of the world engine it
- * concerned:
+ * <p>The trace holds one {@link Observation}: the level-0 world section (the leaf) that holds the
+ * probe block, the probe's chunk section and index, and the identity of the world engine the scene
+ * reads. Every event records the observation's <b>epoch</b>, so a reset, a scene rebuild or a later
+ * start cannot lend its identity to an earlier one. Two things make an accepted mesh derive from a
+ * specific update rather than merely follow it in time:
  * <ol>
- *   <li>{@link #ingestQueued}: a chunk section was accepted into an engine's ingest queue
- *       (Sodium's visible-to-invisible transition on the native path; {@code MixinRenderSectionManager}).
- *       Queueing, not completion.</li>
- *   <li>{@link #leafUpdated}: the real updater finished the leaf's level-0 content — whether it
- *       changed, the generation it left, and how many non-air blocks the leaf has now (zero: the leaf
- *       emptied, and the scene may remove it instead of re-meshing it).</li>
- *   <li>{@link #dirtyConsumed}: the live scene consumed a dirty update for the leaf (a mesh in flight
- *       became stale).</li>
- *   <li>{@link #meshStarted} / {@link #meshed}: a mesher began reading the leaf — the generation it saw
- *       is captured <em>before</em> the read, so a mesh is never credited with content newer than what it
- *       could have read — and the scene then accepted that mesh. The mesh's generation must reach the
- *       update's for the mesh to derive from it.</li>
- *   <li>{@link #unwatched}: the scene stopped watching the leaf (its geometry was removed): the other
- *       truthful terminal state of an emptied leaf.</li>
+ *   <li><b>One synchronization boundary.</b> The observation owns a {@link StampedLock}. The real
+ *       {@link WorldUpdater#insertUpdate} holds its write lock from before the leaf's level-0 content
+ *       write until after the publication of that write's outcome ({@link Update}: the leaf's content
+ *       <em>version</em> it left, whether it changed, which chunk section it wrote and what it wrote
+ *       at the probe). Every reader of the leaf's content that the gate relies on — the mesher
+ *       ({@link #beginMesh} … {@link #endMesh}, held through the mesh factory's read), the held-content
+ *       read-back ({@link #readHold}) and the removed-geometry terminal ({@link #unwatched}) — holds
+ *       the read lock while it reads and records the version it read under. So a read at version
+ *       {@code v} contains every write published at or before {@code v}, and a paused, unpublished
+ *       write is unobservable.</li>
+ *   <li><b>Identity on the result.</b> {@link #beginMesh} returns an immutable {@link MeshRead} that
+ *       travels with the mesher's own result to the scene's acceptance ({@link #meshed}); no map keyed
+ *       by position, so nothing can be overwritten, reset or supplied by another start.</li>
  * </ol>
- * The gate (scripts/verify.py native_update_problem) also needs the content Voxy held before the
- * action, read back from the world ({@code McNativeHierarchicalLoad.heldBlockAt}): a removal of a
- * block Voxy never held is correctly a no-op, and no observation of it would mean anything.
+ * The gate (scripts/verify.py native_update_problem) requires: one epoch per stage; the update event
+ * to be the <em>target chunk section's</em> own ({@link Update#sx} …), changed, with the content it
+ * wrote at the probe; the accepted mesh's version at or past that update's and its probe content equal
+ * to what the update wrote (or, the leaf emptied, its geometry removed at a version at or past the
+ * update's with no non-air block left); and Voxy's held content read back before and after.
  */
 public final class McNativeIngestTrace {
     private static volatile boolean on = Boolean.getBoolean("voxy.harness.native");
-    private static final AtomicLong SEQ = new AtomicLong();
+    private static final AtomicLong SEQ = new AtomicLong(), EPOCHS = new AtomicLong();
 
-    /** One event: its sequence number and the identity of the engine it concerned. */
-    public record Event(long seq, int engine) {}
-    /** The updater's outcome for the observed leaf's level-0 content. */
-    public record Update(long seq, int engine, boolean changed, long generation, int nonEmptyBlocks) {}
-    /** An accepted mesh of the observed leaf and the content generation its mesher read. */
-    public record Mesh(long seq, int engine, long generation) {}
+    /** One event: its sequence number, the observation epoch it belongs to and the engine it concerned. */
+    public record Event(long seq, long epoch, int engine) {}
+    /**
+     * The updater's outcome for one chunk section of the observed leaf, published inside the write
+     * boundary: the leaf's content version it left, whether it changed anything, the leaf's non-air
+     * block count now, the chunk section it wrote, and (for the target chunk section) the block it
+     * wrote at the probe.
+     */
+    public record Update(long seq, long epoch, int engine, long version, boolean changed, int nonEmptyBlocks,
+                         int sx, int sy, int sz, String wrote) {}
+    /** An accepted mesh of the observed leaf: the version its mesher read under and the probe content it read. */
+    public record Mesh(long seq, long epoch, int engine, long version, String probeHeld) {}
+    /** The scene stopped watching the leaf's geometry: the version then and the leaf's non-air count (-1: not obtainable). */
+    public record Unwatch(long seq, long epoch, int engine, long version, int nonEmptyBlocks) {}
 
-    private static final ConcurrentHashMap<Long, Event> INGESTED = new ConcurrentHashMap<>();
-    /** Generation captured when a mesher began reading the observed leaf, by position. */
-    private static final ConcurrentHashMap<Long, Long> READING = new ConcurrentHashMap<>();
-    private static volatile long observedLeaf = Long.MIN_VALUE;
-    private static volatile long generation;
-    private static volatile Update lastUpdate, lastChange;
-    private static volatile Event leafDirty, leafUnwatched;
-    private static volatile Mesh leafMeshed;
+    /** A read lock held on the current observation's leaf; released once by {@link #release}. */
+    public static class ReadHold {
+        private final Observation obs;
+        private long stamp;
+        ReadHold(Observation obs, long stamp) { this.obs = obs; this.stamp = stamp; }
+        public final void release() {
+            long s = this.stamp;
+            if (s != 0) { this.stamp = 0; this.obs.lock.unlockRead(s); }
+        }
+    }
+
+    /**
+     * A mesher's read of the observed leaf, begun under the read lock: immutable identity that travels
+     * on the mesher's result to the scene's acceptance.
+     */
+    public static final class MeshRead extends ReadHold {
+        public final long epoch;
+        public final int engine;
+        public final long version;
+        public final String probeHeld;
+        MeshRead(Observation obs, long stamp, int engine, long version, String probeHeld) {
+            super(obs, stamp);
+            this.epoch = obs.epoch;
+            this.engine = engine;
+            this.version = version;
+            this.probeHeld = probeHeld;
+        }
+    }
+
+    private static final class Observation {
+        final long epoch = EPOCHS.incrementAndGet();
+        final long leaf;
+        final int engine;
+        final int sx, sy, sz;          // the target chunk section
+        final int probeIndex;          // the probe's index in the leaf's data
+        final int probeInSource;       // the probe's index in a level-0 VoxelizedSection of the target chunk section
+        final StampedLock lock = new StampedLock();
+        /** The leaf's content version: advanced inside the write boundary, by changed writes only. */
+        volatile long version;
+        volatile Update lastUpdate, lastChange;
+        volatile Event leafDirty;
+        volatile Mesh leafMeshed;
+        volatile Unwatch leafUnwatched;
+        final AtomicInteger otherSectionUpdates = new AtomicInteger();
+        final ConcurrentHashMap<Long, Event> ingested = new ConcurrentHashMap<>();
+
+        Observation(long leaf, int px, int py, int pz, int engine, long version) {
+            this.leaf = leaf;
+            this.engine = engine;
+            this.sx = px >> 4; this.sy = py >> 4; this.sz = pz >> 4;
+            this.probeIndex = WorldSection.getIndex(px & 31, py & 31, pz & 31);
+            this.probeInSource = ((py & 15) << 8) | ((pz & 15) << 4) | (px & 15);
+            this.version = version;
+        }
+    }
+
+    private static volatile Observation current;
+
+    /** The updater's write boundary for the observed leaf (installed only while enabled). */
+    private static final WorldUpdater.Observer OBSERVER = (into, leaf, source) -> {
+        var obs = current;
+        if (!on || obs == null || leaf.key != obs.leaf) return null;
+        int engine = identity(into);
+        if (engine != obs.engine) return null;   // another engine's section of the same id: not observed
+        long stamp = obs.lock.writeLock();
+        return changed -> {
+            try {
+                if (changed) obs.version++;
+                boolean target = source.x == obs.sx && source.y == obs.sy && source.z == obs.sz;
+                var update = new Update(SEQ.incrementAndGet(), obs.epoch, engine, obs.version, changed,
+                    leaf.getNonEmptyBlockCount(), source.x, source.y, source.z,
+                    target ? blockName(into, source.section[obs.probeInSource]) : null);
+                if (target) {
+                    obs.lastUpdate = update;
+                    if (changed) obs.lastChange = update;
+                } else {
+                    obs.otherSectionUpdates.incrementAndGet();
+                }
+            } finally {
+                obs.lock.unlockWrite(stamp);
+            }
+        };
+    };
 
     static {
-        // the updater reports its level-0 outcomes to the trace only while the harness observes
-        WorldUpdater.setObserver((into, leaf, changed) -> leafUpdated(leaf.key, into, changed, leaf.getNonEmptyBlockCount()));
+        if (on) WorldUpdater.setObserver(OBSERVER);
     }
 
     private McNativeIngestTrace() {}
 
-    /** Tests only: the harness flag is read once at class load. */
-    static void setEnabled(boolean enabled) { on = enabled; }
+    /** Tests only: the harness flag is read once at class load. Installs or removes the updater's observer. */
+    static void setEnabled(boolean enabled) {
+        on = enabled;
+        WorldUpdater.setObserver(enabled ? OBSERVER : null);
+    }
+
+    /** Tests only: the observer the trace installs, so a test can wrap it (pause inside the boundary). */
+    static WorldUpdater.Observer observer() { return OBSERVER; }
 
     static long sectionKey(int sx, int sy, int sz) {
         return ((long) sx & 0x3FFFFF) << 42 | ((long) sy & 0xFFFFF) << 22 | ((long) sz & 0x3FFFFF);
@@ -75,70 +170,131 @@ public final class McNativeIngestTrace {
     /** A point on the sequence (the harness's before/after marks). */
     public static long now() { return SEQ.incrementAndGet(); }
 
-    /** Chunk section (sx, sy, sz) was accepted into {@code engine}'s ingest queue (not yet applied). */
-    public static void ingestQueued(int sx, int sy, int sz, Object engine) {
-        if (!on) return;
-        INGESTED.put(sectionKey(sx, sy, sz), new Event(SEQ.incrementAndGet(), identity(engine)));
+    /**
+     * The block a packed mapping id denotes in {@code world}: {@code minecraft:air}, the block's
+     * registry key, or {@code unknown:<id>} for an id the mapper has no state for.
+     */
+    public static String blockName(WorldEngine world, long id) {
+        if (Mapper.isAir(id)) return "minecraft:air";
+        int blockId = Mapper.getBlockId(id);
+        try {
+            var state = world.getMapper().getBlockStateFromBlockId(blockId);
+            return net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+        } catch (RuntimeException e) {
+            return "unknown:" + blockId;
+        }
     }
-
-    /** The last ingest queued for chunk section (sx, sy, sz), or null. */
-    public static Event lastIngest(int sx, int sy, int sz) { return INGESTED.get(sectionKey(sx, sy, sz)); }
 
     /**
-     * Observe one level-0 world section id from now on: its events are forgotten, its content
-     * generation is not (the content is what it is, however often it is watched).
+     * Observe, from now on, the level-0 section {@code leaf} holding the probe block at (px, py, pz) as
+     * read by {@code engine}. Events of earlier observations are forgotten (their epoch stays theirs);
+     * the leaf's content version is kept only for the same leaf and the same engine.
      */
-    public static void observeLeaf(long worldSectionId) {
-        if (worldSectionId != observedLeaf) generation = 0;
-        lastUpdate = null;
-        lastChange = null;
-        leafDirty = null;
-        leafMeshed = null;
-        leafUnwatched = null;
-        READING.clear();
-        observedLeaf = worldSectionId;
+    public static void observe(long leaf, int px, int py, int pz, Object engine) {
+        var prev = current;
+        int id = identity(engine);
+        long version = prev != null && prev.leaf == leaf && prev.engine == id ? prev.version : 0;
+        current = new Observation(leaf, px, py, pz, id, version);
     }
 
-    /** The observed leaf's content generation so far (0 until the updater first changed it). */
-    public static long generation() { return generation; }
+    /** The current observation's epoch (0: none). */
+    public static long epoch() { var o = current; return o == null ? 0 : o.epoch; }
 
-    /** The updater finished {@code pos}'s level-0 content (the updater's thread, before its dirty mark). */
-    static void leafUpdated(long pos, Object engine, boolean changed, int nonEmptyBlocks) {
-        if (!on || pos != observedLeaf) return;
-        if (changed) generation++;
-        var update = new Update(SEQ.incrementAndGet(), identity(engine), changed, generation, nonEmptyBlocks);
-        lastUpdate = update;
-        if (changed) lastChange = update;
+    /** The observed leaf's content version so far (0 until the updater first changed it). */
+    public static long generation() { var o = current; return o == null ? 0 : o.version; }
+
+    /** Updates of the observed leaf by chunk sections other than the target's, since the observation began. */
+    public static int otherSectionUpdates() { var o = current; return o == null ? 0 : o.otherSectionUpdates.get(); }
+
+    /** Chunk section (sx, sy, sz) was accepted into {@code engine}'s ingest queue (not yet applied). */
+    public static void ingestQueued(int sx, int sy, int sz, Object engine) {
+        var obs = current;
+        if (!on || obs == null) return;
+        obs.ingested.put(sectionKey(sx, sy, sz), new Event(SEQ.incrementAndGet(), obs.epoch, identity(engine)));
+    }
+
+    /** The last ingest queued for chunk section (sx, sy, sz) in the current observation, or null. */
+    public static Event lastIngest(int sx, int sy, int sz) {
+        var obs = current;
+        return obs == null ? null : obs.ingested.get(sectionKey(sx, sy, sz));
+    }
+
+    /**
+     * Hold the read lock of the observed leaf while reading its content as {@code engine} holds it
+     * (the harness's held-content read-back): null when {@code pos} is not observed, or off.
+     */
+    public static ReadHold readHold(long pos, Object engine) {
+        var obs = current;
+        if (!on || obs == null || pos != obs.leaf || identity(engine) != obs.engine) return null;
+        return new ReadHold(obs, obs.lock.readLock());
     }
 
     /** The live scene consumed a dirty update for {@code pos} (render thread). */
     public static void dirtyConsumed(long pos, Object engine) {
-        if (on && pos == observedLeaf) leafDirty = new Event(SEQ.incrementAndGet(), identity(engine));
+        var obs = current;
+        if (on && obs != null && pos == obs.leaf) obs.leafDirty = new Event(SEQ.incrementAndGet(), obs.epoch, identity(engine));
     }
 
-    /** A mesher is about to read {@code pos}'s content (worker or render thread; before the read). */
-    public static void meshStarted(long pos) {
-        if (on && pos == observedLeaf) READING.put(pos, generation);
+    /**
+     * A mesher is about to read {@code section} (the leaf's content, as {@code engine} holds it): take
+     * the read lock and capture the version and the probe content under it. Null when the position is
+     * not the observed leaf, when the engine is not the observed one, or when off — no lock is taken.
+     * The caller must {@link #endMesh} it on the same code path once the mesh factory has read.
+     */
+    public static MeshRead beginMesh(long pos, WorldEngine engine, WorldSection section) {
+        var obs = current;
+        if (!on || obs == null || pos != obs.leaf) return null;
+        int id = identity(engine);
+        if (id != obs.engine) return null;
+        long stamp = obs.lock.readLock();
+        long content = section._unsafeGetRawDataArray()[obs.probeIndex];
+        return new MeshRead(obs, stamp, id, obs.version, blockName(engine, content));
     }
 
-    /** The live scene accepted a mesh of {@code pos} (render thread). */
-    public static void meshed(long pos, Object engine) {
-        if (!on || pos != observedLeaf) return;
-        Long read = READING.remove(pos);
-        // a mesh whose start was not seen cannot be credited with any content: generation -1
-        leafMeshed = new Mesh(SEQ.incrementAndGet(), identity(engine), read == null ? -1 : read);
+    /** The mesher finished reading: release the read lock (idempotent; null is nothing). */
+    public static void endMesh(MeshRead read) { if (read != null) read.release(); }
+
+    /**
+     * The live scene accepted a mesh of {@code pos} (render thread), the one {@code read} was captured
+     * for. A mesh of the observed leaf whose read was not captured is recorded with version -1 and no
+     * content: it derives from nothing the gate can credit.
+     */
+    public static void meshed(MeshRead read, long pos, Object engine) {
+        var obs = current;
+        if (!on || obs == null || pos != obs.leaf) return;
+        if (read == null) obs.leafMeshed = new Mesh(SEQ.incrementAndGet(), obs.epoch, identity(engine), -1, null);
+        else obs.leafMeshed = new Mesh(SEQ.incrementAndGet(), read.epoch, read.engine, read.version, read.probeHeld);
     }
 
-    /** The live scene stopped watching {@code pos} for meshes (its geometry is gone; render thread). */
-    public static void unwatched(long pos, Object engine) {
-        if (on && pos == observedLeaf) leafUnwatched = new Event(SEQ.incrementAndGet(), identity(engine));
+    /**
+     * The live scene stopped watching {@code pos} for meshes (its geometry is gone; render thread): the
+     * other truthful terminal state of an emptied leaf, recorded under the read lock with the leaf's
+     * version and its non-air block count read back from {@code engine} (-1 when not obtainable).
+     */
+    public static void unwatched(long pos, WorldEngine engine) {
+        var obs = current;
+        if (!on || obs == null || pos != obs.leaf) return;
+        int id = identity(engine);
+        long stamp = obs.lock.readLock();
+        try {
+            int nonEmpty = -1;
+            if (engine.isLive()) {
+                var section = engine.acquireIfExists(pos);
+                if (section != null) {
+                    try { nonEmpty = section.getNonEmptyBlockCount(); } finally { section.release(); }
+                }
+            }
+            obs.leafUnwatched = new Unwatch(SEQ.incrementAndGet(), obs.epoch, id, obs.version, nonEmpty);
+        } finally {
+            obs.lock.unlockRead(stamp);
+        }
     }
 
-    /** The updater's last outcome for the leaf since {@link #observeLeaf}, changed or not. */
-    public static Update lastUpdate() { return lastUpdate; }
-    /** The updater's last outcome that changed the leaf's content, since {@link #observeLeaf}. */
-    public static Update lastChange() { return lastChange; }
-    public static Event leafDirty() { return leafDirty; }
-    public static Mesh leafMeshed() { return leafMeshed; }
-    public static Event leafUnwatched() { return leafUnwatched; }
+    /** The updater's last outcome for the target chunk section since {@link #observe}, changed or not. */
+    public static Update lastUpdate() { var o = current; return o == null ? null : o.lastUpdate; }
+    /** The updater's last outcome for the target chunk section that changed the leaf, since {@link #observe}. */
+    public static Update lastChange() { var o = current; return o == null ? null : o.lastChange; }
+    public static Event leafDirty() { var o = current; return o == null ? null : o.leafDirty; }
+    public static Mesh leafMeshed() { var o = current; return o == null ? null : o.leafMeshed; }
+    public static Unwatch leafUnwatched() { var o = current; return o == null ? null : o.leafUnwatched; }
 }

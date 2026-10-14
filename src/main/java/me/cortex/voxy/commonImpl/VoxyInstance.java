@@ -224,30 +224,57 @@ public abstract class VoxyInstance {
 
 
     /**
-     * How long a shutdown may take in all, in milliseconds; negative waits for as long as it takes,
-     * as Voxy always has (the default, so GL's behaviour is unchanged). The native path bounds it
-     * (R29-WORLD-SHUTDOWN-BOUND, then R29-PRELAUNCH-SHUTDOWN: one deadline for the whole lifecycle —
-     * the cleaner, the ingest and saving services, each used world, the thread pool — not a wait
-     * that only starts after the unbounded ones). What is still running at the deadline is left as it
-     * is, never freed under its reader, and counted here for the harness report.
+     * How long a shutdown's caller may wait in all, in milliseconds; negative waits for as long as it
+     * takes, as Voxy always has (the default, so GL's behaviour is unchanged: the cleanup runs inline).
+     * The native path bounds it (R29-WORLD-SHUTDOWN-BOUND, R29-PRELAUNCH-SHUTDOWN, R30 prelaunch
+     * review): the complete cleanup — the cleaner, idle worlds, import cancellation, the ingest and
+     * saving services, each world's wait and free (storage flush and close), the thread pool — runs as
+     * <b>one retained {@link ShutdownOperation}</b> on its own thread, to completion, holding everything
+     * it cleans up; the caller only waits on its completion handle until the deadline (or an interrupt),
+     * then counts the operation as outstanding and returns. Nothing is ever freed on the caller after
+     * that, nothing is freed under a running reader, and the operation publishes its completion or
+     * failure exactly once; the harness report and gate see what is still outstanding, what finished
+     * late and what failed. A bounded return is a refusal with accounting, not a completed cleanup.
      */
     private static volatile long shutdownDeadlineMillis = -1;
     private static volatile int worldsLeftUnfreed, saveEntriesUnflushed, poolThreadsLeft;
+    private static volatile int shutdownCompletedLate, shutdownFailed, shutdownStageFailures;
     private static volatile boolean shutdownInterrupted;
     private static final List<String> SHUTDOWN_INCOMPLETE = java.util.Collections.synchronizedList(new ArrayList<>());
+    private static final java.util.Set<ShutdownOperation> OUTSTANDING = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     public static void boundShutdown(long millis) { shutdownDeadlineMillis = millis; }
 
-    /** Worlds a shutdown left unfreed because they were still in use at the deadline. */
+    /** Worlds a shutdown left unfreed (freeing them threw). */
     public static int worldsLeftUnfreed() { return worldsLeftUnfreed; }
-    /** Section saves a shutdown left unflushed at the deadline (that data is lost). */
+    /** Section saves a shutdown left unflushed (an interrupted inline shutdown stopped waiting). */
     public static int saveEntriesUnflushed() { return saveEntriesUnflushed; }
-    /** Service worker threads still alive at a shutdown's deadline (their semaphore is leaked). */
+    /** Service worker threads still alive when an inline shutdown stopped waiting (their semaphore is leaked). */
     public static int poolThreadsLeft() { return poolThreadsLeft; }
-    /** Whether a shutdown's thread was interrupted (it finished without waiting, flag restored). */
+    /** Whether a shutdown's caller was interrupted (it stopped waiting; the flag was restored). */
     public static boolean shutdownInterrupted() { return shutdownInterrupted; }
-    /** The stages every shutdown so far left incomplete, in order (empty: all complete). */
+    /** The stages at which shutdown callers stopped waiting, in order (empty: every caller saw completion). */
     public static List<String> shutdownIncomplete() { return List.copyOf(SHUTDOWN_INCOMPLETE); }
+    /** Retained shutdown operations still running (their callers returned at the deadline or an interrupt). */
+    public static int shutdownOutstanding() { return OUTSTANDING.size(); }
+    /** Shutdown operations that completed after their caller had stopped waiting. */
+    public static int shutdownCompletedLate() { return shutdownCompletedLate; }
+    /** Shutdown operations that ended in an exception (logged; whatever they had not freed stays as it is). */
+    public static int shutdownFailed() { return shutdownFailed; }
+    /** Cleanup stages that threw inside a shutdown (logged, the remaining stages ran). */
+    public static int shutdownStageFailures() { return shutdownStageFailures; }
+
+    /**
+     * Wait up to {@code millis} for every outstanding shutdown operation to complete (tests and the
+     * harness reap them so). @return whether none is outstanding afterwards
+     */
+    public static boolean awaitOutstandingShutdowns(long millis) throws InterruptedException {
+        long deadline = Deadline.in(millis);
+        for (var op : OUTSTANDING.toArray(new ShutdownOperation[0])) {
+            if (!op.done.await(Math.max(1, Deadline.remainingMillis(deadline)), java.util.concurrent.TimeUnit.MILLISECONDS)) return false;
+        }
+        return OUTSTANDING.isEmpty();
+    }
 
     /**
      * Wait until {@code used} turns false, or until {@code deadlineMillis} has passed (negative: no
@@ -272,15 +299,91 @@ public abstract class VoxyInstance {
         return RELEASED;
     }
 
+    /** The cleanup's progress: the stage it is in (read by a caller that stopped waiting). */
+    private static class Progress {
+        volatile String stage = "start";
+    }
+
+    /**
+     * The complete cleanup as one retained operation: it owns the instance (and so its services,
+     * worlds and storages) until it has run to its end, publishes its outcome exactly once, and is
+     * listed in {@link #OUTSTANDING} from start to end. States: RUNNING, then COMPLETED (the caller saw
+     * it end) or ABANDONED (the caller stopped waiting first; the end is then counted as late).
+     */
+    private final class ShutdownOperation extends Progress implements Runnable {
+        static final int RUNNING = 0, COMPLETED = 1, ABANDONED = 2;
+        final java.util.concurrent.atomic.AtomicInteger state = new java.util.concurrent.atomic.AtomicInteger(RUNNING);
+        final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+        final Thread thread = new Thread(this, "Voxy instance shutdown");
+
+        @Override public void run() {
+            Throwable failure = null;
+            try {
+                VoxyInstance.this.runShutdown(this);
+            } catch (Throwable t) {
+                failure = t;
+                Logger.error("Instance shutdown operation failed at stage " + this.stage + "; what it had not freed stays as it is", t);
+            } finally {
+                boolean onTime = this.state.compareAndSet(RUNNING, COMPLETED);
+                if (failure != null) shutdownFailed++;
+                if (!onTime) {
+                    shutdownCompletedLate++;
+                    Logger.error("Instance shutdown completed after its caller stopped waiting (last stage " + this.stage + ")");
+                }
+                OUTSTANDING.remove(this);
+                this.done.countDown();
+            }
+        }
+    }
+
     public void shutdown() {
+        long millis = shutdownDeadlineMillis;
+        if (millis < 0) {
+            // the default: inline, waiting as long as it takes (GL, unchanged)
+            this.runShutdown(new Progress());
+            return;
+        }
+        Logger.info("Shutting down voxy instance (caller bound: " + millis + " ms)");
+        this.isRunning = false;
+        long deadline = Deadline.in(millis);
+        var op = new ShutdownOperation();
+        OUTSTANDING.add(op);
+        op.thread.start();
+        boolean interrupted = Thread.interrupted();
+        if (!interrupted) {
+            try {
+                op.done.await(Math.max(1, Deadline.remainingMillis(deadline)), java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                interrupted = true;
+            }
+        }
+        if (op.state.compareAndSet(ShutdownOperation.RUNNING, ShutdownOperation.ABANDONED)) {
+            // still running: it keeps everything it owns and finishes on its own; counted until then
+            String stage = op.stage;
+            SHUTDOWN_INCOMPLETE.add(stage);
+            Logger.error("Instance shutdown still running at stage " + stage + " when its caller stopped waiting ("
+                + (interrupted ? "interrupted" : millis + " ms") + "); it continues in the background, outstanding");
+        }
+        if (interrupted) {
+            shutdownInterrupted = true;
+            Logger.error("Instance shutdown's caller was interrupted; it stopped waiting");
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * The complete cleanup, in Voxy's order, waiting as long as each step takes. Inline (the default)
+     * an interrupt makes the remaining waits stop and what still runs is counted, as before; on the
+     * retained operation's thread nothing interrupts it.
+     */
+    private void runShutdown(Progress progress) {
         Logger.info("Shutting down voxy instance");
-        long deadline = Deadline.in(shutdownDeadlineMillis);
-        // an interrupt never abandons the lifecycle half-way (R29-PRELAUNCH-SHUTDOWN): the remaining
-        // steps run without waiting, everything still running is counted, and the flag is restored
+        long deadline = Deadline.NONE;
         boolean interrupted = Thread.interrupted();
         if (interrupted) deadline = System.nanoTime();
         var incomplete = new ArrayList<String>();
         this.isRunning = false;
+        progress.stage = "world-cleaner";
         try {
             if (deadline == Deadline.NONE) this.worldCleaner.join();
             else {
@@ -292,26 +395,34 @@ public abstract class VoxyInstance {
         }
         if (this.worldCleaner.isAlive()) incomplete.add("world-cleaner");
         if (Thread.interrupted()) { interrupted = true; deadline = System.nanoTime(); }
-        try {this.cleanIdle();} catch (Exception e) {Logger.error(e);}
+        progress.stage = "clean-idle";
+        try {this.cleanIdle();} catch (Exception e) {shutdownStageFailures++; Logger.error(e);}
 
+        progress.stage = "cancel-imports";
         if (!this.activeWorlds.isEmpty()) {
             long stamp = this.activeWorldLock.readLock();
-            for (var world : this.activeWorlds.values()) {
-                this.importManager.cancelImport(world);
+            try {
+                for (var world : this.activeWorlds.values()) {
+                    try {this.importManager.cancelImport(world);} catch (Exception e) {shutdownStageFailures++; Logger.error(e);}
+                }
+            } finally {
+                this.activeWorldLock.unlockRead(stamp);
             }
-            this.activeWorldLock.unlockRead(stamp);
         }
 
+        progress.stage = "ingest";
         try {
             if (!this.ingestService.shutdownUntil(deadline)) incomplete.add("ingest");
-        } catch (Exception e) {Logger.error(e);}
+        } catch (Exception e) {shutdownStageFailures++; Logger.error(e);}
         if (Thread.interrupted()) { interrupted = true; deadline = System.nanoTime(); }
+        progress.stage = "saving";
         try {
             int unflushed = this.savingService.shutdownUntil(deadline);
             if (unflushed != 0) { incomplete.add("saving"); saveEntriesUnflushed += unflushed; }
-        } catch (Exception e) {Logger.error(e);}
+        } catch (Exception e) {shutdownStageFailures++; Logger.error(e);}
         if (Thread.interrupted()) { interrupted = true; deadline = System.nanoTime(); }
 
+        progress.stage = "worlds";
         long stamp = this.activeWorldLock.writeLock();
         try {
             if (!this.activeWorlds.isEmpty()) {
@@ -324,23 +435,25 @@ public abstract class VoxyInstance {
                         }
                         //Dont lock in the loopy thing, this should basicly never happen if it does something horrific happened
                         this.activeWorldLock.unlockWrite(stamp);
+                        progress.stage = "world-wait";
                         int released = awaitWorldReleaseUntil(world::isWorldUsed, deadline);
                         stamp = this.activeWorldLock.writeLock();
                         if (released == INTERRUPTED) { interrupted = true; deadline = System.nanoTime(); Thread.interrupted(); }
                         if (released != RELEASED) {
-                            // still read by someone: freeing it would free it under its reader; leak it
+                            // still read by someone: freeing it would free it under its reader; leave it
                             worldsLeftUnfreed++;
                             incomplete.add("world");
-                            Logger.error("A world was still in use at the shutdown deadline ("
-                                + shutdownDeadlineMillis + " ms); left unfreed (not flushed or closed)");
+                            Logger.error("A world was still in use when the interrupted shutdown stopped waiting; left unfreed (not flushed or closed)");
                             continue;
                         }
                     }
-                    //Free the world
+                    //Free the world (storage flush and close)
+                    progress.stage = "world-free";
                     try {
                         world.free();
                     } catch (Exception e) {
                         worldsLeftUnfreed++;
+                        shutdownStageFailures++;
                         incomplete.add("world");
                         Logger.error("Freeing a world at shutdown failed; left as it is", e);
                     }
@@ -348,10 +461,11 @@ public abstract class VoxyInstance {
                 this.activeWorlds.clear();
             }
 
+            progress.stage = "thread-pool";
             try {
                 int alive = this.threadPool.shutdownUntil(deadline);
                 if (alive != 0) { incomplete.add("thread-pool"); poolThreadsLeft += alive; }
-            } catch (Exception e) {Logger.error(e);}
+            } catch (Exception e) {shutdownStageFailures++; Logger.error(e);}
         } finally {
             this.activeWorldLock.unlockWrite(stamp);
         }
@@ -359,13 +473,14 @@ public abstract class VoxyInstance {
 
         if (!incomplete.isEmpty()) {
             SHUTDOWN_INCOMPLETE.addAll(incomplete);
-            Logger.error("Instance shutdown incomplete at its deadline: " + incomplete);
+            Logger.error("Instance shutdown stopped waiting on: " + incomplete);
         }
         if (interrupted) {
             shutdownInterrupted = true;
             Logger.error("Instance shutdown was interrupted; it finished without waiting");
             Thread.currentThread().interrupt();
         }
+        progress.stage = "done";
         Logger.info("Instance shutdown");
     }
 

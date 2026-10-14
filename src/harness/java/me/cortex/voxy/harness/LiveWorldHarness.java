@@ -347,7 +347,19 @@ public final class LiveWorldHarness implements ClientModInitializer {
         if (e == null) return null;
         var m = new java.util.LinkedHashMap<String, Object>();
         m.put("seq", e.seq());
+        m.put("epoch", e.epoch());
         m.put("engine", e.engine());
+        return m;
+    }
+
+    private static java.util.Map<String, Object> unwatch(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.Unwatch e) {
+        if (e == null) return null;
+        var m = new java.util.LinkedHashMap<String, Object>();
+        m.put("seq", e.seq());
+        m.put("epoch", e.epoch());
+        m.put("engine", e.engine());
+        m.put("generation", e.version());
+        m.put("nonEmptyBlocks", e.nonEmptyBlocks());
         return m;
     }
 
@@ -355,10 +367,13 @@ public final class LiveWorldHarness implements ClientModInitializer {
         if (u == null) return null;
         var m = new java.util.LinkedHashMap<String, Object>();
         m.put("seq", u.seq());
+        m.put("epoch", u.epoch());
         m.put("engine", u.engine());
         m.put("changed", u.changed());
-        m.put("generation", u.generation());
+        m.put("generation", u.version());
         m.put("nonEmptyBlocks", u.nonEmptyBlocks());
+        m.put("section", java.util.List.of(u.sx(), u.sy(), u.sz()));
+        m.put("wrote", u.wrote());
         return m;
     }
 
@@ -366,8 +381,10 @@ public final class LiveWorldHarness implements ClientModInitializer {
         if (e == null) return null;
         var m = new java.util.LinkedHashMap<String, Object>();
         m.put("seq", e.seq());
+        m.put("epoch", e.epoch());
         m.put("engine", e.engine());
-        m.put("generation", e.generation());
+        m.put("generation", e.version());
+        m.put("probeHeld", e.probeHeld());
         return m;
     }
 
@@ -377,6 +394,8 @@ public final class LiveWorldHarness implements ClientModInitializer {
         state.put("block", blockAt(mc));
         state.put("voxyHeld", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.heldBlockAt(PROBE_X, PROBE_Y, PROBE_Z));
         state.put("leafGeneration", me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.generation());
+        state.put("epoch", me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.epoch());
+        state.put("otherSectionUpdates", me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.otherSectionUpdates());
         state.put("builds", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.buildsSoFar());
         state.put("sceneEngine", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.sceneEngineIdentity());
         state.put("leafMeshVersion", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.level0MeshVersionAt(PROBE_X, PROBE_Y, PROBE_Z));
@@ -385,8 +404,9 @@ public final class LiveWorldHarness implements ClientModInitializer {
 
     /** Before the stage's action: the trace observes the probe's level-0 section from here on. */
     private void updateProbeBefore(Minecraft mc) {
-        me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.observeLeaf(
-            me.cortex.voxy.common.world.WorldEngine.getWorldSectionId(0, PROBE_X >> 5, PROBE_Y >> 5, PROBE_Z >> 5));
+        me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.observe(
+            me.cortex.voxy.common.world.WorldEngine.getWorldSectionId(0, PROBE_X >> 5, PROBE_Y >> 5, PROBE_Z >> 5),
+            PROBE_X, PROBE_Y, PROBE_Z, me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.sceneWorld());
         boolean loaded = mc.level.getChunkSource().hasChunk(PROBE_X >> 4, PROBE_Z >> 4);
         var section = mc.level.getChunk(PROBE_X >> 4, PROBE_Z >> 4).getSection(mc.level.getSectionIndex(PROBE_Y));
         var before = probeState(mc);
@@ -411,7 +431,7 @@ public final class LiveWorldHarness implements ClientModInitializer {
         probe.put("lastUpdate", update(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.lastUpdate()));
         probe.put("leafDirty", event(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.leafDirty()));
         probe.put("leafMeshed", mesh(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.leafMeshed()));
-        probe.put("leafUnwatched", event(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.leafUnwatched()));
+        probe.put("leafUnwatched", unwatch(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.leafUnwatched()));
         return probe;
     }
 

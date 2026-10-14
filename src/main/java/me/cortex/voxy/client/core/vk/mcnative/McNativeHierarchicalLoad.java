@@ -430,21 +430,28 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         if (live == null || live.destroyed) return null;
         var world = live.scene.world();
         if (!world.isLive()) return null;
-        var section = world.acquireIfExists(me.cortex.voxy.common.world.WorldEngine.getWorldSectionId(0, x >> 5, y >> 5, z >> 5));
-        if (section == null) return "none";
+        long pos = me.cortex.voxy.common.world.WorldEngine.getWorldSectionId(0, x >> 5, y >> 5, z >> 5);
+        // under the trace's read lock when the leaf is observed: a write paused before its publication
+        // cannot be seen (R30 prelaunch review, CAUSALITY)
+        var hold = McNativeIngestTrace.readHold(pos, world);
         try {
-            long id = section._unsafeGetRawDataArray()[me.cortex.voxy.common.world.WorldSection.getIndex(x & 31, y & 31, z & 31)];
-            if (me.cortex.voxy.common.world.other.Mapper.isAir(id)) return "minecraft:air";
-            int blockId = me.cortex.voxy.common.world.other.Mapper.getBlockId(id);
+            var section = world.acquireIfExists(pos);
+            if (section == null) return "none";
             try {
-                var state = world.getMapper().getBlockStateFromBlockId(blockId);
-                return net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
-            } catch (RuntimeException e) {
-                return "unknown:" + blockId;   // an id the mapper has no state for
+                long id = section._unsafeGetRawDataArray()[me.cortex.voxy.common.world.WorldSection.getIndex(x & 31, y & 31, z & 31)];
+                return McNativeIngestTrace.blockName(world, id);
+            } finally {
+                section.release();
             }
         } finally {
-            section.release();
+            if (hold != null) hold.release();
         }
+    }
+
+    /** The live scene's world engine, or null without a scene (harness observation). */
+    public static me.cortex.voxy.common.world.WorldEngine sceneWorld() {
+        var live = instance;
+        return live == null || live.destroyed ? null : live.scene.world();
     }
 
     /** Identity of the live scene's world engine, or 0 without a scene (harness observation). */
@@ -477,9 +484,9 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         }
         renderCalls++;
         if (renderCalls == 1) {
-            // R29-WORLD-SHUTDOWN-BOUND / R29-PRELAUNCH-SHUTDOWN: a mesher worker that outlives its
-            // stop holds its world; the instance's whole shutdown (services, worlds, pool) ends at this
-            // deadline after this, leaving what still runs as it is and counting it, rather than waiting forever
+            // R29-WORLD-SHUTDOWN-BOUND / R29-PRELAUNCH-SHUTDOWN / R30: the instance's whole shutdown runs
+            // as one retained operation; its caller waits at most this long and then returns, counting the
+            // operation as outstanding (never freeing anything under it) rather than waiting forever
             me.cortex.voxy.commonImpl.VoxyInstance.boundShutdown(SHUTDOWN_MILLIS);
         }
         logStageChange();
@@ -1630,6 +1637,12 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"shutdownInterrupted\": ").append(me.cortex.voxy.commonImpl.VoxyInstance.shutdownInterrupted()).append(",\n");
         sb.append("  \"saveEntriesUnflushed\": ").append(me.cortex.voxy.commonImpl.VoxyInstance.saveEntriesUnflushed()).append(",\n");
         sb.append("  \"poolThreadsLeft\": ").append(me.cortex.voxy.commonImpl.VoxyInstance.poolThreadsLeft()).append(",\n");
+        // R30 prelaunch review (SHUTDOWN): the retained shutdown operation — still running, finished after
+        // its caller gave up waiting, failed, or with a stage that threw
+        sb.append("  \"shutdownOutstanding\": ").append(me.cortex.voxy.commonImpl.VoxyInstance.shutdownOutstanding()).append(",\n");
+        sb.append("  \"shutdownCompletedLate\": ").append(me.cortex.voxy.commonImpl.VoxyInstance.shutdownCompletedLate()).append(",\n");
+        sb.append("  \"shutdownFailed\": ").append(me.cortex.voxy.commonImpl.VoxyInstance.shutdownFailed()).append(",\n");
+        sb.append("  \"shutdownStageFailures\": ").append(me.cortex.voxy.commonImpl.VoxyInstance.shutdownStageFailures()).append(",\n");
         sb.append("  \"deviceDiverged\": ").append(deviceDiverged).append(",\n");
         sb.append("  \"readbacksInFlight\": ").append(readbacksInFlight).append(",\n");
         sb.append("  \"atlasReads\": ").append(McNativeAtlas.reads()).append(",\n");

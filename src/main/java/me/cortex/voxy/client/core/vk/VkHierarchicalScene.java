@@ -1109,7 +1109,7 @@ public final class VkHierarchicalScene {
             if (!this.acceptGeometry(r.built())) break;   // the admission freed it
             this.pendingMesh.add(pos);
             this.meshVersions.put(pos, ++this.meshVersion);
-            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.meshed(pos, this.world);
+            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.meshed(r.read(), pos, this.world);
             this.meshedSections++;
             accepted++;
         }
@@ -1197,13 +1197,14 @@ public final class VkHierarchicalScene {
             if ((this.watcher.get(pos) & WorldEngine.UPDATE_TYPE_BLOCK_BIT) == 0) continue;
             if (this.pendingMesh.contains(pos)) continue;   // already accepted
             int lvl = WorldEngine.getLevel(pos);
-            var built = this.mesher.meshOne(lvl, WorldEngine.getX(pos),
+            var mesh = this.mesher.meshOneObserved(lvl, WorldEngine.getX(pos),
                 WorldEngine.getY(pos), WorldEngine.getZ(pos));
+            var built = mesh.built();
             if (built == null) continue;
             if (!this.acceptGeometry(built)) break;
             this.pendingMesh.add(pos);
             this.meshVersions.put(pos, ++this.meshVersion);
-            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.meshed(pos, this.world);
+            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.meshed(mesh.read(), pos, this.world);
             this.meshedSections++;
             meshed++;
         }

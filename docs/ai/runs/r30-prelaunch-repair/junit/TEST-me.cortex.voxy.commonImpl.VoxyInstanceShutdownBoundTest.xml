@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="me.cortex.voxy.commonImpl.VoxyInstanceShutdownBoundTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-14T09:31:21.404Z" hostname="ombp25.local" time="8.91">
+  <properties/>
+  <testcase name="theSavingServiceSavesWhatItCanAndCountsTheRest()" classname="me.cortex.voxy.commonImpl.VoxyInstanceShutdownBoundTest" time="0.116">
+    <system-out><![CDATA[[18:31:21] [Test worker/ERROR]: [me.cx.vy.cn.wd.se.SectionSavingService]: Voxy section saving still in progress, estimated 1 sections remaining.
+[18:31:21] [Test worker/ERROR]: [me.cx.vy.cn.wd.se.SectionSavingService]: Voxy section saving: 1 section(s) left unsaved at the shutdown deadline
+[18:31:21] [Test worker/ERROR]: [me.cx.vy.cn.wd.se.SectionSavingService]: Voxy section saving still in progress, estimated 1 sections remaining.
+]]></system-out>
+  </testcase>
+  <testcase name="aBlockingImportCancellationIsTheCancelImportsStageAndIsFinishedAfterRelease()" classname="me.cortex.voxy.commonImpl.VoxyInstanceShutdownBoundTest" time="1.213">
+    <system-out><![CDATA[[18:31:21] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[18:31:21] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 5236522163959632514@1958747615
+[18:31:21] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance (caller bound: 1200 ms)
+[18:31:21] [Voxy instance shutdown/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[18:31:22] [Test worker/ERROR]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown still running at stage cancel-imports when its caller stopped waiting (1200 ms); it continues in the background, outstanding
+[18:31:22] [Voxy instance shutdown/INFO]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[18:31:22] [Voxy instance shutdown/ERROR]: [me.cx.vy.cl.VoxyInstance$ShutdownOperation]: Instance shutdown completed after its caller stopped waiting (last stage done)
+]]></system-out>
+  </testcase>
+  <testcase name="anInterruptedCallerStopsWaitingAtOnceAndTheOperationIsUnaffected()" classname="me.cortex.voxy.commonImpl.VoxyInstanceShutdownBoundTest" time="1.011">
+    <system-out><![CDATA[[18:31:22] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[18:31:22] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 5236522163959632514@1180014238
+[18:31:22] [Cleaner-0/ERROR]: [me.cx.vy.cn.ul.TrackedObject]: Object named: me.cortex.voxy.common.world.WorldEngine was not freed, location at:
+ Enable allocation stack tracing
+[18:31:22] [shutdown caller under test/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance (caller bound: 30000 ms)
+[18:31:22] [Voxy instance shutdown/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[18:31:23] [shutdown caller under test/ERROR]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown still running at stage world-free when its caller stopped waiting (interrupted); it continues in the background, outstanding
+[18:31:23] [shutdown caller under test/ERROR]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown's caller was interrupted; it stopped waiting
+[18:31:23] [Voxy instance shutdown/INFO]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[18:31:23] [Voxy instance shutdown/ERROR]: [me.cx.vy.cl.VoxyInstance$ShutdownOperation]: Instance shutdown completed after its caller stopped waiting (last stage done)
+]]></system-out>
+  </testcase>
+  <testcase name="theDefaultShutdownRunsInlineCompletesEverythingAndCountsNothing()" classname="me.cortex.voxy.commonImpl.VoxyInstanceShutdownBoundTest" time="1.12">
+    <system-out><![CDATA[[18:31:23] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[18:31:23] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 5236522163959632514@752103485
+[18:31:23] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[18:31:24] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+]]></system-out>
+  </testcase>
+  <testcase name="aStuckPoolJobIsTheThreadPoolStageAndItsWorkerIsNeitherKilledNorLeaked()" classname="me.cortex.voxy.commonImpl.VoxyInstanceShutdownBoundTest" time="1.712">
+    <system-out><![CDATA[[18:31:24] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[18:31:24] [Test worker/ERROR]: [me.cx.vy.cn.td.PerThreadContextExecutor]: Executor shutdown: 1 job(s) still running at the deadline; their contexts are left as they are
+[18:31:24] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance (caller bound: 1500 ms)
+[18:31:24] [Voxy instance shutdown/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[18:31:26] [Test worker/ERROR]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown still running at stage thread-pool when its caller stopped waiting (1500 ms); it continues in the background, outstanding
+[18:31:26] [Voxy instance shutdown/INFO]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[18:31:26] [Voxy instance shutdown/ERROR]: [me.cx.vy.cl.VoxyInstance$ShutdownOperation]: Instance shutdown completed after its caller stopped waiting (last stage done)
+]]></system-out>
+  </testcase>
+  <testcase name="aSlowSectionSaveIsTheSavingStageAndIsFinishedAfterRelease()" classname="me.cortex.voxy.commonImpl.VoxyInstanceShutdownBoundTest" time="1.306">
+    <system-out><![CDATA[[18:31:26] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[18:31:26] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 5236522163959632514@618836965
+[18:31:26] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance (caller bound: 1200 ms)
+[18:31:26] [Voxy instance shutdown/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[18:31:27] [Test worker/ERROR]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown still running at stage saving when its caller stopped waiting (1200 ms); it continues in the background, outstanding
+[18:31:27] [Voxy instance shutdown/INFO]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[18:31:27] [Voxy instance shutdown/ERROR]: [me.cx.vy.cl.VoxyInstance$ShutdownOperation]: Instance shutdown completed after its caller stopped waiting (last stage done)
+]]></system-out>
+  </testcase>
+  <testcase name="aReaderStillHoldingASectionKeepsTheWorldAliveUntilItReleases()" classname="me.cortex.voxy.commonImpl.VoxyInstanceShutdownBoundTest" time="1.218">
+    <system-out><![CDATA[[18:31:27] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[18:31:27] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 5236522163959632514@310895593
+[18:31:27] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance (caller bound: 1200 ms)
+[18:31:27] [Voxy instance shutdown/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[18:31:28] [Voxy instance shutdown/ERROR]: [me.cx.vy.cl.VoxyInstance]: Not all worlds shutdown, force closing worlds
+[18:31:29] [Test worker/ERROR]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown still running at stage world-wait when its caller stopped waiting (1200 ms); it continues in the background, outstanding
+[18:31:29] [Voxy instance shutdown/INFO]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[18:31:29] [Voxy instance shutdown/ERROR]: [me.cx.vy.cl.VoxyInstance$ShutdownOperation]: Instance shutdown completed after its caller stopped waiting (last stage done)
+]]></system-out>
+  </testcase>
+  <testcase name="aSlowStorageFlushDoesNotHoldTheBoundedCallerAndIsFinishedOnceByTheRetainedOperation()" classname="me.cortex.voxy.commonImpl.VoxyInstanceShutdownBoundTest" time="1.208">
+    <system-out><![CDATA[[18:31:29] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Initializing voxy instance
+[18:31:29] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Creating new world engine: 5236522163959632514@1532033712
+[18:31:29] [Test worker/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance (caller bound: 1200 ms)
+[18:31:29] [Voxy instance shutdown/INFO]: [me.cx.vy.cl.VoxyInstance]: Shutting down voxy instance
+[18:31:30] [Test worker/ERROR]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown still running at stage world-free when its caller stopped waiting (1200 ms); it continues in the background, outstanding
+[18:31:30] [Voxy instance shutdown/INFO]: [me.cx.vy.cl.VoxyInstance]: Instance shutdown
+[18:31:30] [Voxy instance shutdown/ERROR]: [me.cx.vy.cl.VoxyInstance$ShutdownOperation]: Instance shutdown completed after its caller stopped waiting (last stage done)
+]]></system-out>
+  </testcase>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

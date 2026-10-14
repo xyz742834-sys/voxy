@@ -22,7 +22,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * Re-writing content Voxy already holds changes nothing and marks nothing dirty — the reviewer's
  * actual-updater no-op; removing the only block changes the leaf, empties it (no non-air block left)
  * and marks it dirty with a child-existence change, which the scene may answer by removing the leaf's
- * geometry instead of re-meshing it. The observer sees exactly these, before the dirty marks. CPU only.
+ * geometry instead of re-meshing it. The observer's write boundary sees exactly these, before the dirty
+ * marks. CPU only.
  */
 public class WorldUpdaterOutcomeTest {
     /** Nothing stored: every section loads as air (the tracker fills it with sky light 15). */
@@ -65,9 +66,10 @@ public class WorldUpdaterOutcomeTest {
             return true;
         });
         this.engine.setDirtyCallback((section, flags, neighbors) -> this.dirty.add(new Dirty(section.key, flags)));
-        WorldUpdater.setObserver((into, leaf, changed) -> {
+        WorldUpdater.setObserver((into, leaf, source) -> {
             assertSame(this.engine, into);
-            this.outcomes.add(new Outcome(leaf.key, changed, leaf.getNonEmptyBlockCount()));
+            assertEquals(2, source.x, "the chunk section being written");
+            return changed -> this.outcomes.add(new Outcome(leaf.key, changed, leaf.getNonEmptyBlockCount()));
         });
     }
 
@@ -136,9 +138,12 @@ public class WorldUpdaterOutcomeTest {
     void theObserverSeesTheOutcomeBeforeTheDirtyMark() {
         var order = new ArrayList<String>();
         this.engine.setDirtyCallback((section, flags, neighbors) -> { if (section.key == LEAF) order.add("dirty"); });
-        WorldUpdater.setObserver((into, leaf, changed) -> order.add("outcome:" + changed));
+        WorldUpdater.setObserver((into, leaf, source) -> {
+            order.add("begin");
+            return changed -> order.add("outcome:" + changed);
+        });
         WorldUpdater.insertUpdate(this.engine, section(true));
-        assertEquals(List.of("outcome:true", "dirty"), order,
-            "a mesher reading after the dirty mark reads content the observer has already dated");
+        assertEquals(List.of("begin", "outcome:true", "dirty"), order,
+            "the write boundary opens before the content write and publishes before the dirty mark");
     }
 }
