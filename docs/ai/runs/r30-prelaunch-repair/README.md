@@ -75,7 +75,7 @@ on each result (`McNativeIngestTrace`, `WorldUpdater`, `VkRealMesher`, `VkHierar
 - Gate guard mutations: [update_mutations.py](update_mutations.py) →
   [update-mutations.log](update-mutations.log): **36/36** refusing predicates of
   `native_update_problem` detected when removed (guard coverage; not semantic sufficiency).
-- Python suite (`python3 -m unittest discover -s scripts/tests`): **PENDING** at the freeze of this candidate (started on this exact source before the freeze and left running; its exit and count are appended here, docs only, when it ends).
+- Python suite (`python3 -m unittest discover -s scripts/tests`): PENDING at the freeze of `dd230016`; it ran on that exact source (started before the freeze, left running) and ended **351 tests, OK, exit 0, 1343 s** — [python-suite.log](python-suite.log) (this line and the log are a docs-only addition; the fingerprinted source is unchanged).
 - Snapshot taken at the freeze: [junit/](junit/) (the seven classes' XML), [junit-counts.json](junit-counts.json), [focused-gate.log](focused-gate.log).
 
 ## Not checked (and why)
