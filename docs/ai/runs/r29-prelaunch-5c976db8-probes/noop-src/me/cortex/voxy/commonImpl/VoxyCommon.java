@@ -1,0 +1,1 @@
+package me.cortex.voxy.commonImpl;public class VoxyCommon {public static boolean IS_MINE_IN_ABYSS=false;}

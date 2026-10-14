@@ -1,0 +1,17 @@
+F
+======================================================================
+FAIL: test_native_updates_must_reach_voxys_mesh (test_render_gate.RenderGateTest.test_native_updates_must_reach_voxys_mesh)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-5c976db8/scripts/tests/test_render_gate.py", line 290, in test_native_updates_must_reach_voxys_mesh
+    self.assertRefused(self.run_gate(env=setp("remove", ("after", "leafMeshVersion"), 40)), "was not re-meshed")
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-5c976db8/scripts/tests/test_render_gate.py", line 137, in assertRefused
+    self.assertFalse(result["success"], "passed although: " + fragment)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false : passed although: was not re-meshed
+
+----------------------------------------------------------------------
+Ran 1 test in 0.028s
+
+FAILED (failures=1)

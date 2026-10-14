@@ -1,0 +1,1 @@
+package me.cortex.voxy.common.world.other; public class Mapper {public static boolean isAir(long v){return v==0;}}

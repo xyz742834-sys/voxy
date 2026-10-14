@@ -1,0 +1,133 @@
+{
+  "final_verdict": "HOLD",
+  "prelaunch_decision": "HOLD",
+  "reviewed_commit": "5c976db828a04f9ec2960275a7ff0ac207e84052",
+  "base_commit": "6a29306c6a65be1366a48ab786b46a70ea451847",
+  "review_scope": "R29 narrow prelaunch delta, CPU only",
+  "review_complete": true,
+  "launch_authorized": false,
+  "blocking_findings": [
+    {
+      "id": "R29-PRELAUNCH-CAUSALITY",
+      "finding": "Whole render gate accepts target ingest only enqueued, older same-leaf dirty consumption, unchanged-content remesh; no originating completion/generation identity.",
+      "evidence": [
+        ".agent-run/prelaunch/trace.log",
+        ".agent-run/prelaunch/gate-results.json"
+      ],
+      "source": [
+        "src/main/java/me/cortex/voxy/common/world/service/VoxelIngestService.java:209",
+        "src/main/java/me/cortex/voxy/client/core/vk/VkHierarchicalScene.java:1078",
+        "scripts/verify.py:2621"
+      ],
+      "scope": "Actual trace and gate, modeled queue/mesh control flow; not native execution."
+    },
+    {
+      "id": "R29-PRELAUNCH-REMOVAL",
+      "finding": "Placement never ingested; correct removal can be unchanged air and emit no dirty callback. Empty child removal can unwatch without a later accepted leaf mesh. Oracle lacks these terminal states.",
+      "evidence": [
+        ".agent-run/prelaunch/noop.log",
+        ".agent-run/prelaunch/gate-results.json"
+      ],
+      "source": [
+        "src/main/java/me/cortex/voxy/common/world/WorldUpdater.java:36",
+        "src/main/java/me/cortex/voxy/client/core/rendering/hierachical/NodeManager.java:385"
+      ],
+      "scope": "Actual updater with stub collaborators; empty-child scene path inspected only."
+    },
+    {
+      "id": "R29-PRELAUNCH-SHUTDOWN",
+      "finding": "World deadline is reached after unbounded service shutdown waits; interruption escapes before retained-world count and pool cleanup.",
+      "evidence": [
+        ".agent-run/prelaunch/shutdown.log"
+      ],
+      "source": [
+        "src/main/java/me/cortex/voxy/commonImpl/VoxyInstance.java:250",
+        "src/main/java/me/cortex/voxy/commonImpl/VoxyInstance.java:275",
+        "src/main/java/me/cortex/voxy/common/thread/PerThreadContextExecutor.java:85"
+      ],
+      "scope": "Source control flow and full extracted shutdown with mock collaborators; no actual UAF/live deadlock asserted."
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "PLACEMENT-ACCEPTANCE",
+      "status": "NOT_RUN",
+      "finding": "Live placement ingestion remains missing; edit now establishes only a Minecraft precondition."
+    },
+    {
+      "id": "FAILURE-POLICY",
+      "finding": "10-second wait per used world, intentional unfreed/unflushed retention and unsaved-data loss are not accepted for default-on."
+    },
+    {
+      "id": "MATRIX-SCOPE",
+      "finding": "Rows 4/5 disclose several limits but repaired-source status overstates causality and enclosing lifecycle closure."
+    }
+  ],
+  "claim_judgments": {
+    "old_visible_GL_predicate_unchanged": "CONFIRMED",
+    "placement_is_precondition_only": "CONFIRMED",
+    "ingest_to_exact_leaf_derivation": "REFUTED",
+    "ancestor_only_counterexample_refused": "CONFIRMED",
+    "negative_and_impossible_counters_refused": "CONFIRMED",
+    "local_world_timeout_retains_and_counts": "CONFIRMED",
+    "end_to_end_shutdown_bound": "REFUTED",
+    "interruption_cleanup_complete": "REFUTED",
+    "matrix_rows_4_5_fully_scoped": "REFUTED"
+  },
+  "checks": {
+    "cpu_junit": {
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "real_worker_tests": 7,
+      "extracted_world_bound_tests": 4
+    },
+    "focused_python": {
+      "passed": 2
+    },
+    "update_guard_mutations": {
+      "detected": 13,
+      "total": 13
+    },
+    "trace_gate_counterexample": "FALSE_ACCEPT_CONFIRMED",
+    "shutdown_probe": "COUNTEREXAMPLE_CONFIRMED",
+    "unchanged_air_updater_probe": "ZERO_DIRTY_CONFIRMED",
+    "full_gradle": "NOT_RUN_CPU_ONLY",
+    "offscreen_vulkan": "NOT_RUN_CPU_ONLY",
+    "native_live": "NOT_RUN_CPU_ONLY"
+  },
+  "product_native_acceptance": "NOT_RUN",
+  "completed_delivery": "NOT_ACCEPTED",
+  "old_native_evidence_binding": "UNBOUND",
+  "safe_for_normal_play": "NOT_ASSESSED_BY_NARROW_REVIEW",
+  "default_on_readiness": {
+    "ready": false,
+    "remaining": [
+      "Repair causal completion-to-mesh observation and legitimate no-change/empty-leaf terminal states",
+      "Close enclosing shutdown/interruption bounds and accounting",
+      "Fresh source-bound coordinated offscreen and native evidence",
+      "Live placement ingestion; sustained updates and travel",
+      "Downstream depth users and mixed translucency reference",
+      "Live config off/on and startup kill-switch behavior",
+      "Long-session lifecycle and real timeout/interrupt coverage",
+      "First-scene lightmap behavior",
+      "Ordinary GL launch regression",
+      "Owner decisions on SSAO fallback, budgets and tolerance/pixel floors",
+      "Explicit acceptance of failure-path stalls, retained resources and unsaved-data behavior"
+    ]
+  },
+  "resource_state": {
+    "owned_gpu_active": 0,
+    "owned_gpu_queued": 0,
+    "owned_gpu_planned": 0,
+    "owned_probe_children_exited": true,
+    "hold_token": "TIPSSI_R3_ADMISSION_20261013T0910Z",
+    "hold_until_explicit_release": true
+  },
+  "limitations": [
+    "No production service-stack execution in extracted shutdown probe",
+    "No full scene execution in trace/mesh or empty-child model",
+    "No native hardware, pixels, live placement or real device failure proof"
+  ],
+  "report": "docs/ai/runs/native-prelaunch-review.md"
+}

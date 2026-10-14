@@ -1,0 +1,1 @@
+package me.cortex.voxy.common.voxelization; public class VoxelizedSection {public int x,y,z,lvl0NonAirCount; public long[] section=new long[5000];public void setPosition(int a,int b,int c){x=a;y=b;z=c;}public static int getBaseIndexForLevel(int l){return 4096;}}

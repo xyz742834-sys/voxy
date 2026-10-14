@@ -1,0 +1,257 @@
+{
+  "focused_tests": 2,
+  "trace_scope": "Actual production trace events plus constant1000 sequence offset; queue/mesh source-control model, no Minecraft/world execution",
+  "counterexamples": {
+    "control": {
+      "success": true,
+      "failures": [],
+      "scope": "the native path under the product switch alone; per-pixel correctness is the ladder launch's",
+      "framesComposited": 1700,
+      "frameSkips": {
+        "atlas-pending": 6
+      },
+      "performance": {
+        "gpu": {
+          "frames": 20000,
+          "meanMs": 2.5,
+          "p50Ms": 2.4,
+          "p95Ms": 3.1,
+          "maxMs": 6.0
+        },
+        "gpuUnavailable": 0,
+        "cpu": {
+          "frames": 20000,
+          "meanMs": 1.2,
+          "p50Ms": 1.1,
+          "p95Ms": 1.9,
+          "maxMs": 9.0
+        },
+        "gpuSpanMeanMs": {
+          "opaque": 0.3,
+          "hiz": 0.3,
+          "traversal": 0.3,
+          "cull": 0.3,
+          "table": 0.3,
+          "temporal": 0.3,
+          "translucent": 0.3,
+          "resolve": 0.3
+        }
+      },
+      "memory": {
+        "bufferBytes": 84432744,
+        "textureBytes": 600000000
+      },
+      "builds": 2,
+      "perStage": {
+        "warmup": 100,
+        "turn": 100,
+        "travel": 100,
+        "return": 100,
+        "horizon": 100,
+        "far": 100,
+        "fade": 100,
+        "night": 100,
+        "edit": 100,
+        "remove": 100,
+        "resize": 100,
+        "reload": 100,
+        "nether": 100,
+        "overworld": 100,
+        "descend": 100,
+        "ascend": 100,
+        "reconnect": 100
+      },
+      "answer": "the product switch alone ran Voxy's hierarchical scene on Minecraft's Vulkan backend and composited 1700 frame(s), in every required lifecycle stage"
+    },
+    "pending_ingest_prequeued_dirty_same_leaf": {
+      "success": true,
+      "failures": [],
+      "scope": "the native path under the product switch alone; per-pixel correctness is the ladder launch's",
+      "framesComposited": 1700,
+      "frameSkips": {
+        "atlas-pending": 6
+      },
+      "performance": {
+        "gpu": {
+          "frames": 20000,
+          "meanMs": 2.5,
+          "p50Ms": 2.4,
+          "p95Ms": 3.1,
+          "maxMs": 6.0
+        },
+        "gpuUnavailable": 0,
+        "cpu": {
+          "frames": 20000,
+          "meanMs": 1.2,
+          "p50Ms": 1.1,
+          "p95Ms": 1.9,
+          "maxMs": 9.0
+        },
+        "gpuSpanMeanMs": {
+          "opaque": 0.3,
+          "hiz": 0.3,
+          "traversal": 0.3,
+          "cull": 0.3,
+          "table": 0.3,
+          "temporal": 0.3,
+          "translucent": 0.3,
+          "resolve": 0.3
+        }
+      },
+      "memory": {
+        "bufferBytes": 84432744,
+        "textureBytes": 600000000
+      },
+      "builds": 2,
+      "perStage": {
+        "warmup": 100,
+        "turn": 100,
+        "travel": 100,
+        "return": 100,
+        "horizon": 100,
+        "far": 100,
+        "fade": 100,
+        "night": 100,
+        "edit": 100,
+        "remove": 100,
+        "resize": 100,
+        "reload": 100,
+        "nether": 100,
+        "overworld": 100,
+        "descend": 100,
+        "ascend": 100,
+        "reconnect": 100
+      },
+      "answer": "the product switch alone ran Voxy's hierarchical scene on Minecraft's Vulkan backend and composited 1700 frame(s), in every required lifecycle stage"
+    },
+    "build_minus5": {
+      "success": false,
+      "failures": [
+        "ValueError: the product render launch's native update: the edit update observation's before.builds is -5"
+      ],
+      "scope": "the native path under the product switch alone; per-pixel correctness is the ladder launch's"
+    },
+    "build999999": {
+      "success": false,
+      "failures": [
+        "ValueError: the product render launch's native update: the edit observation spans no single scene (builds 999999 -> 999999 of 2, engine 77 -> 77)"
+      ],
+      "scope": "the native path under the product switch alone; per-pixel correctness is the ladder launch's"
+    },
+    "negative_seq": {
+      "success": false,
+      "failures": [
+        "ValueError: the product render launch's native update: the edit update observation's before.seq is -1"
+      ],
+      "scope": "the native path under the product switch alone; per-pixel correctness is the ladder launch's"
+    },
+    "ancestor20to22_leaf10": {
+      "success": false,
+      "failures": [
+        "ValueError: the product render launch's native update: the remove probe's level-0 section was not re-meshed (revision 10 -> 10)"
+      ],
+      "scope": "the native path under the product switch alone; per-pixel correctness is the ladder launch's"
+    },
+    "wrong_engine": {
+      "success": false,
+      "failures": [
+        "ValueError: the product render launch's native update: the remove ingest event concerns engine 78, not the scene's 77"
+      ],
+      "scope": "the native path under the product switch alone; per-pixel correctness is the ladder launch's"
+    },
+    "pre_mark_ingest": {
+      "success": false,
+      "failures": [
+        "ValueError: the product render launch's native update: the remove ingest event (sequence 199) is not after 200 and before 250"
+      ],
+      "scope": "the native path under the product switch alone; per-pixel correctness is the ladder launch's"
+    },
+    "no_empty_leaf_mesh_event": {
+      "success": false,
+      "failures": [
+        "ValueError: the product render launch's native update: the remove observation records no leafMeshed event (None)"
+      ],
+      "scope": "the native path under the product switch alone; per-pixel correctness is the ladder launch's"
+    }
+  },
+  "mutations": [
+    {
+      "line": 2589,
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "line": 2593,
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "line": 2596,
+      "detected": true,
+      "failures": 0,
+      "errors": 1
+    },
+    {
+      "line": 2600,
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "line": 2602,
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "line": 2605,
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "line": 2607,
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "line": 2612,
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "line": 2615,
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "line": 2623,
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "line": 2626,
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "line": 2629,
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    },
+    {
+      "line": 2633,
+      "detected": true,
+      "failures": 1,
+      "errors": 0
+    }
+  ]
+}
