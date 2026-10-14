@@ -1,0 +1,225 @@
+{
+  "oldWaiterStack": [
+    "java.base/jdk.internal.misc.Unsafe.park(Native Method)",
+    "java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:223)",
+    "java.base/java.util.concurrent.locks.StampedLock.acquireWrite(StampedLock.java:1262)",
+    "java.base/java.util.concurrent.locks.StampedLock.writeLock(StampedLock.java:481)",
+    "me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.lambda$static$0(McNativeIngestTrace.java:155)",
+    "me.cortex.voxy.client.core.vk.mcnative.DomainResetProbe.lambda$main$1(DomainResetProbe.java:20)",
+    "me.cortex.voxy.common.world.WorldUpdater.insertUpdate(WorldUpdater.java:57)",
+    "me.cortex.voxy.client.core.vk.mcnative.DomainResetProbe.lambda$main$3(DomainResetProbe.java:21)",
+    "java.base/java.lang.Thread.run(Thread.java:1474)"
+  ],
+  "oldEpoch": 1,
+  "newEpoch": 5,
+  "domainRetainedAcrossResets": true,
+  "newReadStack": [
+    "java.base/jdk.internal.misc.Unsafe.park(Native Method)",
+    "java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:223)",
+    "java.base/java.util.concurrent.locks.StampedLock.acquireRead(StampedLock.java:1418)",
+    "java.base/java.util.concurrent.locks.StampedLock.readLock(StampedLock.java:555)",
+    "me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.beginMesh(McNativeIngestTrace.java:274)",
+    "me.cortex.voxy.client.core.vk.mcnative.DomainResetProbe.lambda$main$4(DomainResetProbe.java:23)",
+    "java.base/java.lang.Thread.run(Thread.java:1474)"
+  ],
+  "newTargetStack": [
+    "java.base/jdk.internal.misc.Unsafe.park(Native Method)",
+    "java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:223)",
+    "java.base/java.util.concurrent.locks.StampedLock.acquireWrite(StampedLock.java:1262)",
+    "java.base/java.util.concurrent.locks.StampedLock.writeLock(StampedLock.java:481)",
+    "me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.lambda$static$0(McNativeIngestTrace.java:155)",
+    "me.cortex.voxy.client.core.vk.mcnative.DomainResetProbe.lambda$main$1(DomainResetProbe.java:20)",
+    "me.cortex.voxy.common.world.WorldUpdater.insertUpdate(WorldUpdater.java:57)",
+    "me.cortex.voxy.client.core.vk.mcnative.DomainResetProbe.lambda$main$5(DomainResetProbe.java:24)",
+    "java.base/java.lang.Thread.run(Thread.java:1474)"
+  ],
+  "contentDuringHeldRead": "minecraft:air",
+  "readVersion": 3,
+  "readProbeHeld": "minecraft:air",
+  "consistentSamples": 50,
+  "oldWriterPendingDuringRead": false,
+  "targetPendingDuringRead": true,
+  "serializedTargetOutcome": {
+    "seq": 6,
+    "epoch": 5,
+    "engine": 186942198,
+    "version": 3,
+    "changed": false,
+    "nonEmptyBlocks": 1,
+    "sx": 2,
+    "sy": 7,
+    "sz": 4,
+    "wrote": "minecraft:air"
+  },
+  "serializedCurrentChange": null,
+  "staleResult": {
+    "before": 8,
+    "beforeGeneration": 4,
+    "after": 13,
+    "afterGeneration": 5,
+    "epoch": 6,
+    "engine": 186942198,
+    "heldBefore": "minecraft:glass",
+    "heldAfter": "minecraft:air",
+    "ingest": {
+      "seq": 9,
+      "epoch": 6,
+      "engine": 186942198
+    },
+    "update": {
+      "seq": 10,
+      "epoch": 6,
+      "engine": 186942198,
+      "version": 5,
+      "changed": true,
+      "nonEmptyBlocks": 1,
+      "sx": 2,
+      "sy": 7,
+      "sz": 4,
+      "wrote": "minecraft:air"
+    },
+    "lastUpdate": {
+      "seq": 10,
+      "epoch": 6,
+      "engine": 186942198,
+      "version": 5,
+      "changed": true,
+      "nonEmptyBlocks": 1,
+      "sx": 2,
+      "sy": 7,
+      "sz": 4,
+      "wrote": "minecraft:air"
+    },
+    "leafDirty": {
+      "seq": 11,
+      "epoch": 6,
+      "engine": 186942198
+    },
+    "leafMeshed": {
+      "seq": 12,
+      "epoch": 6,
+      "engine": 186942198,
+      "version": 4,
+      "probeHeld": "minecraft:glass"
+    },
+    "leafUnwatched": null
+  },
+  "freshResult": {
+    "before": 8,
+    "beforeGeneration": 4,
+    "after": 15,
+    "afterGeneration": 5,
+    "epoch": 6,
+    "engine": 186942198,
+    "heldBefore": "minecraft:glass",
+    "heldAfter": "minecraft:air",
+    "ingest": {
+      "seq": 9,
+      "epoch": 6,
+      "engine": 186942198
+    },
+    "update": {
+      "seq": 10,
+      "epoch": 6,
+      "engine": 186942198,
+      "version": 5,
+      "changed": true,
+      "nonEmptyBlocks": 1,
+      "sx": 2,
+      "sy": 7,
+      "sz": 4,
+      "wrote": "minecraft:air"
+    },
+    "lastUpdate": {
+      "seq": 10,
+      "epoch": 6,
+      "engine": 186942198,
+      "version": 5,
+      "changed": true,
+      "nonEmptyBlocks": 1,
+      "sx": 2,
+      "sy": 7,
+      "sz": 4,
+      "wrote": "minecraft:air"
+    },
+    "leafDirty": {
+      "seq": 11,
+      "epoch": 6,
+      "engine": 186942198
+    },
+    "leafMeshed": {
+      "seq": 14,
+      "epoch": 6,
+      "engine": 186942198,
+      "version": 5,
+      "probeHeld": "minecraft:air"
+    },
+    "leafUnwatched": null
+  },
+  "emptyTerminal": {
+    "before": 18,
+    "beforeGeneration": 7,
+    "after": 23,
+    "afterGeneration": 8,
+    "epoch": 7,
+    "engine": 186942198,
+    "heldBefore": "minecraft:glass",
+    "heldAfter": "minecraft:air",
+    "ingest": {
+      "seq": 19,
+      "epoch": 7,
+      "engine": 186942198
+    },
+    "update": {
+      "seq": 20,
+      "epoch": 7,
+      "engine": 186942198,
+      "version": 8,
+      "changed": true,
+      "nonEmptyBlocks": 0,
+      "sx": 2,
+      "sy": 7,
+      "sz": 4,
+      "wrote": "minecraft:air"
+    },
+    "lastUpdate": {
+      "seq": 20,
+      "epoch": 7,
+      "engine": 186942198,
+      "version": 8,
+      "changed": true,
+      "nonEmptyBlocks": 0,
+      "sx": 2,
+      "sy": 7,
+      "sz": 4,
+      "wrote": "minecraft:air"
+    },
+    "leafDirty": {
+      "seq": 21,
+      "epoch": 7,
+      "engine": 186942198
+    },
+    "leafMeshed": null,
+    "leafUnwatched": {
+      "seq": 22,
+      "epoch": 7,
+      "engine": 186942198,
+      "version": 8,
+      "nonEmptyBlocks": 0
+    }
+  },
+  "noOpOutcome": {
+    "seq": 24,
+    "epoch": 8,
+    "engine": 186942198,
+    "version": 8,
+    "changed": false,
+    "nonEmptyBlocks": 0,
+    "sx": 2,
+    "sy": 7,
+    "sz": 4,
+    "wrote": "minecraft:air"
+  },
+  "ownedChildrenJoined": true,
+  "childErrors": 0
+}

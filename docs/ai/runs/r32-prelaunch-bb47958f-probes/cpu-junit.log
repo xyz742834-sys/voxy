@@ -1,0 +1,55 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.6.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :
+Fabric Loom: 1.16.3
+
+> Task :compileJava FROM-CACHE
+> Task :processResources
+> Task :classes
+> Task :compileTestJava FROM-CACHE
+> Task :processTestResources NO-SOURCE
+> Task :testClasses UP-TO-DATE
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.joml.MemUtil$MemUtilUnsafe (file:/Users/xyz/.gradle/caches/modules-2/files-2.1/org.joml/joml/1.10.8/fc0a71dad90a2cf41d82a76156a0e700af8e4f8d/joml-1.10.8.jar)
+WARNING: Please consider reporting this to the maintainers of class org.joml.MemUtil$MemUtilUnsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+
+> Task :test
+
+McNativeCausalityRaceTest > reObservingWhileOldWritersHoldOrWaitForTheLockKeepsOneContentLock() STANDARD_OUT
+    [19:04:28] [Test worker/ERROR]: [me.cx.vy.cl.VoxyCommon]: Running voxy without minecraft
+
+McNativeCausalityRaceTest > reObservingWhileOldWritersHoldOrWaitForTheLockKeepsOneContentLock() PASSED
+
+McNativeCausalityRaceTest > theUnrelatedSectionsChangeAloneProducesNoTargetUpdate() PASSED
+
+McNativeCausalityRaceTest > aMeshReadBlocksAWriteUntilItEndsAndTheWriteCannotBeHalfSeen() PASSED
+
+McNativeCausalityRaceTest > thePausedTargetPublicationCannotLendTheUnrelatedChangeToTheOldMesh() PASSED
+
+McNativeIngestTraceTest > aMeshIsCreditedOnlyWithTheContentItReadUnderTheLock() PASSED
+
+McNativeIngestTraceTest > anotherEnginesReadOrWriteIsNotObserved() PASSED
+
+McNativeIngestTraceTest > theRemovedLeafTerminalRecordsTheVersionAndTheCountItReadUnderTheLock() PASSED
+
+McNativeIngestTraceTest > observingAgainStartsANewEpochAndKeepsTheContentVersionOfTheSameLeafAndEngine() PASSED
+
+McNativeIngestTraceTest > onlyTheTargetSectionsPublishedChangeIsTheUpdateAndOnlyAChangeAdvancesTheVersion() PASSED
+
+McNativeIngestTraceTest > inertWhenOff() PASSED
+
+McNativeIngestTraceTest > aQueuedIngestWithAnOlderDirtyKeyAndAnUnchangedRemeshIsNoCause() PASSED
+
+[Incubating] Problems report is available at: file:///Users/xyz/orca/workspaces/voxy/native-prelaunch-bb47958f/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/9.6.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 8s
+4 actionable tasks: 2 executed, 2 from cache
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.6.0/userguide/configuration_cache_enabling.html

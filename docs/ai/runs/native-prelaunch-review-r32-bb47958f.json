@@ -1,0 +1,137 @@
+{
+  "verdict": "CLEAR_FOR_BOUNDED_VALIDATION",
+  "final_verdict": "CLEAR_FOR_BOUNDED_VALIDATION",
+  "reviewed_commit": "bb47958f48be60fef44c9a864c8218294f42b0d1",
+  "base_commit": "dd23001649bda8e05e2e02911c6556f1d665a3ee",
+  "scope": "ONLY reset_lock_split survivor and directly relevant source/CPU regression",
+  "review_complete": true,
+  "launch_authority": false,
+  "reset_judgment": {
+    "closed": true,
+    "scope": "Captured old holder/waiter versus observation reset on same engine/physical leaf; shared domain survives temporary observation switches and return",
+    "evidence": [
+      ".agent-run/prelaunch/DomainResetProbe.java",
+      ".agent-run/prelaunch/domain-reset.json",
+      ".agent-run/prelaunch/gate-results.json"
+    ],
+    "observed": "New read and target positively parked behind old holder; exact Domain identity retained; held read matched raw content/version in50 checks; serialized current target no-op remained changed=false with no current lastChange; stale glass/v4 refused, fresh air/v5 and empty terminal/v8 accepted",
+    "limitations": "Actual updater/world/trace and raw read; full mesh factory, scene and pixels not executed"
+  },
+  "per_blocker_closures": {
+    "R29-PRELAUNCH-CAUSALITY": {
+      "closed_for_this_source_cpu_survivor": true,
+      "survivor": "reset_lock_split"
+    },
+    "R29-PRELAUNCH-SHUTDOWN": {
+      "closed_for_cpu_counterexample": true,
+      "carried_from": "dd23001649bda8e05e2e02911c6556f1d665a3ee",
+      "source_tests_unchanged": true,
+      "rerun": false,
+      "native_acceptance": false
+    }
+  },
+  "blocking_findings": [],
+  "script_identity": {
+    "unchanged_from_base": true,
+    "tracked_file_count": 13,
+    "gate_weakened": false,
+    "binding": ".agent-run/prelaunch/source-binding.json"
+  },
+  "tests": {
+    "focused_cpu_junit": {
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "classes": 2,
+      "exit": 0,
+      "command_file": ".agent-run/prelaunch/cpu-junit-exit.json"
+    },
+    "independent_reset_probe": {
+      "compile_exit": 0,
+      "java_exit": 0,
+      "owned_children_joined": true,
+      "commands": ".agent-run/prelaunch/README.md"
+    },
+    "focused_python": {
+      "tests": 1,
+      "passed": 1,
+      "exit": 0,
+      "command": "python3 .agent-run/prelaunch/gate_probe.py"
+    },
+    "whole_gate": {
+      "control": {
+        "success": true,
+        "failures": []
+      },
+      "staleResult": {
+        "success": false,
+        "failures": [
+          "ValueError: the product render launch's native update: the remove mesh was made from the leaf's content at generation 4, before the removal's 5"
+        ]
+      },
+      "freshResult": {
+        "success": true,
+        "failures": []
+      },
+      "emptyTerminal": {
+        "success": true,
+        "failures": []
+      },
+      "historical_dd230016_false_record": {
+        "success": true,
+        "failures": []
+      }
+    },
+    "mutations": "NOT_RERUN; unchanged scripts, outside requested narrow rerun"
+  },
+  "gate_interpretation": "Historical contradictory dd230016 JSON still structurally accepted by unchanged gate. Current source prevents the split-lock producer schedule; truthful stale result is refused. No claim that verifier independently detects false producer content metadata.",
+  "full_python": {
+    "candidate_status": "NOT_RERUN",
+    "historical_commit": "dd23001649bda8e05e2e02911c6556f1d665a3ee",
+    "historical_tests": 351,
+    "historical_exit": 0,
+    "historical_evidence": "docs/ai/runs/r30-prelaunch-repair/python-suite.log",
+    "ongoing_external_suite": false,
+    "new_java_or_hardware_certified": false
+  },
+  "pendingPython": false,
+  "limits": [
+    "Weak-map lifetime assessed from actual final WorldEngine identity semantics and captured references; no exhaustive GC stress or arbitrary observer enable/disable test",
+    "Harness shared-lock waits/render-thread timing under native load remain unrun",
+    "Full mesh factory, scene acceptance/geometry removal and pixels modeled or unrun",
+    "Existing live unload-arrival, held-glass, warmup scene and LOD preconditions await coordinated validation",
+    "Other placement and sustained updates remain wider missing acceptance",
+    "Carried shutdown closure does not approve native10s stall, indefinite non-daemon retention or unflushed-data failure policy"
+  ],
+  "not_run": {
+    "offscreen_vulkan": "CPU_ONLY; no launch authority",
+    "minecraft_native_live": "CPU_ONLY; no launch authority",
+    "full_mesh_factory_scene_pixels": "OUTSIDE_CPU_PROBE",
+    "real_unload_arrival_warmup_lod": "FUTURE_COORDINATED_VALIDATION",
+    "native_shutdown": "CARRIED_CPU_CLOSURE_ONLY",
+    "full_python_on_candidate": "NOT_RERUN; no ongoing external run"
+  },
+  "old_native_evidence": "UNBOUND",
+  "default_on_readiness": {
+    "ready": false,
+    "remaining": [
+      "Candidate-bound coordinated hardware/lifecycle validation",
+      "Actual ordinary unload ingest establishing glass and full scene removal terminal",
+      "Live placement and sustained update acceptance; pixels separate from mesh evidence",
+      "Default-on native cleanup stall, retention and persistence policy plus unchanged wider delivery gates"
+    ]
+  },
+  "delivery_acceptance": "NOT_GRANTED",
+  "default_on_acceptance": "NOT_GRANTED",
+  "normal_play_acceptance": "NOT_GRANTED",
+  "gpuqueue": {
+    "active": 0,
+    "queued": 0,
+    "planned": 0,
+    "reservations": [],
+    "accepted_holds": []
+  },
+  "report": "docs/ai/runs/native-prelaunch-review.md",
+  "review_utc": "2026-10-14T10:09:01.847969+00:00"
+}
