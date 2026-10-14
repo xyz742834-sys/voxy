@@ -268,8 +268,8 @@ public final class McNativeHierarchicalLoad implements Destroyable {
     private static final java.util.TreeMap<String, Long> FRAME_SKIPS = new java.util.TreeMap<>();
     private static int builds, problems, closeFailures, leakedScenes, readbacksInFlight, frameId = 1;
     private static int meshWorkersLeaked;
-    /** How long Voxy's instance shutdown waits for a world a native worker still holds. */
-    static final long WORLD_RELEASE_MILLIS = 10_000;
+    /** How long Voxy's whole instance shutdown may take on the native path (R29-PRELAUNCH-SHUTDOWN). */
+    static final long SHUTDOWN_MILLIS = 10_000;
     private static boolean attempted, deviceDiverged, startedTracker;
     private static String firstProblem;
     private static long ownerDeviceSeen;
@@ -418,6 +418,35 @@ public final class McNativeHierarchicalLoad implements Destroyable {
             me.cortex.voxy.common.world.WorldEngine.getWorldSectionId(0, x >> 5, y >> 5, z >> 5));
     }
 
+    /**
+     * The block Voxy's world holds at a position, read back from the live scene's engine (harness
+     * observation; render thread): {@code "none"} when the engine holds no level-0 section there, the
+     * block's registry key otherwise ({@code minecraft:air} included), or null without a scene. Reading
+     * acquires and releases the section as the mesher does. R29-PRELAUNCH-REMOVAL: the gate needs the
+     * content Voxy held before an action, not an assumption about it.
+     */
+    public static String heldBlockAt(int x, int y, int z) {
+        var live = instance;
+        if (live == null || live.destroyed) return null;
+        var world = live.scene.world();
+        if (!world.isLive()) return null;
+        var section = world.acquireIfExists(me.cortex.voxy.common.world.WorldEngine.getWorldSectionId(0, x >> 5, y >> 5, z >> 5));
+        if (section == null) return "none";
+        try {
+            long id = section._unsafeGetRawDataArray()[me.cortex.voxy.common.world.WorldSection.getIndex(x & 31, y & 31, z & 31)];
+            if (me.cortex.voxy.common.world.other.Mapper.isAir(id)) return "minecraft:air";
+            int blockId = me.cortex.voxy.common.world.other.Mapper.getBlockId(id);
+            try {
+                var state = world.getMapper().getBlockStateFromBlockId(blockId);
+                return net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString();
+            } catch (RuntimeException e) {
+                return "unknown:" + blockId;   // an id the mapper has no state for
+            }
+        } finally {
+            section.release();
+        }
+    }
+
     /** Identity of the live scene's world engine, or 0 without a scene (harness observation). */
     public static int sceneEngineIdentity() {
         var live = instance;
@@ -448,9 +477,10 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         }
         renderCalls++;
         if (renderCalls == 1) {
-            // R29-WORLD-SHUTDOWN-BOUND: a mesher worker that outlives its stop holds its world; the
-            // instance's shutdown leaves such a world unfreed after this, rather than waiting forever
-            me.cortex.voxy.commonImpl.VoxyInstance.boundWorldRelease(WORLD_RELEASE_MILLIS);
+            // R29-WORLD-SHUTDOWN-BOUND / R29-PRELAUNCH-SHUTDOWN: a mesher worker that outlives its
+            // stop holds its world; the instance's whole shutdown (services, worlds, pool) ends at this
+            // deadline after this, leaving what still runs as it is and counting it, rather than waiting forever
+            me.cortex.voxy.commonImpl.VoxyInstance.boundShutdown(SHUTDOWN_MILLIS);
         }
         logStageChange();
         // a retired scene's mesher whose workers outlived their stop: free it once they end
@@ -1592,6 +1622,14 @@ public final class McNativeHierarchicalLoad implements Destroyable {
         sb.append("  \"meshWorkersReaped\": ").append(VkHierarchicalScene.lingeringReaped()).append(",\n");
         sb.append("  \"meshWorkersLeaked\": ").append(meshWorkersLeaked).append(",\n");
         sb.append("  \"worldsLeftUnfreed\": ").append(me.cortex.voxy.commonImpl.VoxyInstance.worldsLeftUnfreed()).append(",\n");
+        // R29-PRELAUNCH-SHUTDOWN: the whole shutdown's accounting (stages past the deadline, in order)
+        sb.append("  \"shutdownIncomplete\": [");
+        var stages = me.cortex.voxy.commonImpl.VoxyInstance.shutdownIncomplete();
+        for (int i = 0; i < stages.size(); i++) sb.append(i == 0 ? "" : ", ").append(McNativeVulkanProbe.quote(stages.get(i)));
+        sb.append("],\n");
+        sb.append("  \"shutdownInterrupted\": ").append(me.cortex.voxy.commonImpl.VoxyInstance.shutdownInterrupted()).append(",\n");
+        sb.append("  \"saveEntriesUnflushed\": ").append(me.cortex.voxy.commonImpl.VoxyInstance.saveEntriesUnflushed()).append(",\n");
+        sb.append("  \"poolThreadsLeft\": ").append(me.cortex.voxy.commonImpl.VoxyInstance.poolThreadsLeft()).append(",\n");
         sb.append("  \"deviceDiverged\": ").append(deviceDiverged).append(",\n");
         sb.append("  \"readbacksInFlight\": ").append(readbacksInFlight).append(",\n");
         sb.append("  \"atlasReads\": ").append(McNativeAtlas.reads()).append(",\n");

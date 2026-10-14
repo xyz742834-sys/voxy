@@ -1,5 +1,6 @@
 package me.cortex.voxy.common.thread;
 
+import me.cortex.voxy.common.Logger;
 import me.cortex.voxy.common.util.Pair;
 
 import java.util.ArrayList;
@@ -64,21 +65,30 @@ public class UnifiedServiceThreadPool {
     }
 
     public void shutdown() {
-        this.serviceManager.shutdown();
+        this.shutdownUntil(Deadline.NONE);
+    }
+
+    /**
+     * Shut the services down and wait for the worker threads until {@code deadlineNanos}
+     * ({@link Deadline}). @return the worker threads still alive at the deadline; they keep the
+     * semaphore block they may still touch (leaked on purpose, reported by the caller)
+     */
+    public int shutdownUntil(long deadlineNanos) {
+        boolean jobsEnded = this.serviceManager.shutdownUntil(deadlineNanos);
         this.selfBlock.release(10000);
+        int alive;
         while (true) {
             synchronized (this.threads) {
-                if (this.threads.isEmpty()) {
-                    break;
-                }
+                alive = this.threads.size();
             }
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
+            if (alive == 0 || !Deadline.sleep(100, deadlineNanos)) break;
         }
-        this.selfBlock.free();
+        if (alive == 0 && jobsEnded) {
+            this.selfBlock.free();
+        } else {
+            Logger.error("Voxy thread pool shutdown: " + alive + " worker thread(s) still alive at the deadline" + (jobsEnded ? "" : " with a job running") + "; its semaphore is left for them");
+        }
+        return alive;
     }
 
 

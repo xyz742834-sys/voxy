@@ -38,18 +38,37 @@ def environment():
 
 def update_probe(stage):
     """The harness's native update observation as a passing run records it (engine 77, scene
-    builds 2 as the fixture report; `remove` with its ordered ingest/dirty/mesh chain)."""
+    builds 2 as the fixture report). warmup: the placement with its precondition; return: the
+    chunk-unload ingest during travel delivered it (Voxy holds the glass, generation 1); remove: the
+    causal chain — ingest queued, updater changed the leaf (generation 2, now empty), dirty consumed,
+    re-meshed from generation 2."""
     was, now = verify.UPDATE_PROBE_STAGES[stage]
-    base = 100 if stage == "edit" else 200
-    probe = {"block": list(verify.UPDATE_PROBE_BLOCK),
-             "before": {"seq": base, "block": was, "builds": 2, "sceneEngine": 77, "leafMeshVersion": 40,
-                        "sectionEmpty": stage == "edit"},
-             "after": {"seq": base + 50, "block": now, "builds": 2, "sceneEngine": 77,
-                       "leafMeshVersion": 40 if stage == "edit" else 46},
-             "ingest": None, "leafDirty": None, "leafMeshed": None}
-    if stage == "remove":
-        probe.update(ingest={"seq": base + 3, "engine": 77}, leafDirty={"seq": base + 7, "engine": 77},
-                     leafMeshed={"seq": base + 20, "engine": 77})
+    base = 200 if stage == "remove" else 100
+    def state(seq, block, held, generation, revision):
+        return {"seq": seq, "block": block, "voxyHeld": held, "leafGeneration": generation,
+                "builds": 2, "sceneEngine": 77, "leafMeshVersion": revision}
+    probe = {"block": list(verify.UPDATE_PROBE_BLOCK), "ingest": None, "update": None, "lastUpdate": None,
+             "leafDirty": None, "leafMeshed": None, "leafUnwatched": None}
+    if stage == "warmup":
+        probe["before"] = dict(state(base, was, "none", 0, 0), chunkLoaded=True, sectionEmpty=True)
+        probe["after"] = state(base + 50, now, "none", 0, 0)
+    elif stage == "return":
+        # the same before as warmup's: the placement mark; the arrival is dated between the marks
+        probe["before"] = dict(state(100, was, "none", 0, 0), chunkLoaded=True, sectionEmpty=True)
+        probe["after"] = state(180, now, verify.UPDATE_PROBE_HELD, 1, 12)
+        probe["update"] = probe["lastUpdate"] = {"seq": 130, "engine": 77, "changed": True,
+                                                 "generation": 1, "nonEmptyBlocks": 1}
+        probe["leafDirty"] = {"seq": 160, "engine": 77}
+        probe["leafMeshed"] = {"seq": 170, "engine": 77, "generation": 1}
+    else:
+        probe["before"] = dict(state(base, was, verify.UPDATE_PROBE_HELD, 1, 40), chunkLoaded=True,
+                               sectionEmpty=False)
+        probe["after"] = state(base + 50, now, "minecraft:air", 2, 46)
+        probe["ingest"] = {"seq": base + 3, "engine": 77}
+        probe["update"] = probe["lastUpdate"] = {"seq": base + 5, "engine": 77, "changed": True,
+                                                 "generation": 2, "nonEmptyBlocks": 0}
+        probe["leafDirty"] = {"seq": base + 7, "engine": 77}
+        probe["leafMeshed"] = {"seq": base + 20, "engine": 77, "generation": 2}
     return probe
 
 
@@ -77,6 +96,7 @@ def report(**overrides):
             "depthStateReadBack": False, "instanceMode": True, "results": [], "problems": 0,
             "firstProblem": None, "closeFailures": 0, "leakedScenes": 0, "deviceDiverged": False,
             "meshWorkersDeferred": 0, "meshWorkersReaped": 0, "meshWorkersLeaked": 0, "worldsLeftUnfreed": 0,
+            "shutdownIncomplete": [], "shutdownInterrupted": False, "saveEntriesUnflushed": 0, "poolThreadsLeft": 0,
             "readbacksInFlight": 0, "atlasReads": 1, "device": hex(DEVICE), "notes": []}
     body.update(overrides)
     return body
@@ -234,8 +254,9 @@ class RenderGateTest(unittest.TestCase):
         self.assertRefused(self.run_gate(log=sizeless), "states no frame size")
 
     def test_native_updates_must_reach_voxys_mesh(self):
-        # round-28 R28-NATIVE-UPDATE-OBSERVATION and R29: the removal reaches exactly the probe's
-        # level-0 native mesh through the visibility ingest, in order, on the scene's own engine
+        # round-28 R28-NATIVE-UPDATE-OBSERVATION, R29, and the R29 prelaunch review (CAUSALITY,
+        # REMOVAL): the removal is observed only where Voxy held the placement, derives through the
+        # updater's content generation, and ends in a truthful terminal state
         def at(stage, f):
             def edit(e):
                 for case in e["checkpoints"]:
@@ -252,15 +273,23 @@ class RenderGateTest(unittest.TestCase):
                 else:
                     target[path[-1]] = value
             return at(stage, f)
+        def setall(stage, **changes):
+            def f(p):
+                for path, value in changes.items():
+                    target = p
+                    keys = path.split("__")
+                    for k in keys[:-1]:
+                        target = target[k]
+                    target[keys[-1]] = value
+            return at(stage, f)
         ok = self.run_gate()
         self.assertTrue(ok["success"], ok["failures"])
-        for stage in ("edit", "remove"):
+        for stage in ("warmup", "return", "remove"):
             for path, value, fragment in (
                     (("block",), [0, 104, 24], "carries no update observation"),
                     (("after",), KeyError, "lacks its before/after state"),
                     # R29-UPDATE-COUNTERS: domains and consistency with the report's builds (2)
                     (("before", "builds"), -5, "before.builds is -5"),
-                    (("before", "builds"), 999999, "spans no single scene"),
                     (("after", "builds"), 3, "spans no single scene"),
                     (("before", "seq"), -1, "before.seq is -1"),
                     (("after", "seq"), 1, "out of order"),
@@ -268,27 +297,89 @@ class RenderGateTest(unittest.TestCase):
                     (("before", "sceneEngine"), 0, "before.sceneEngine is 0"),
                     (("before", "leafMeshVersion"), -1, "before.leafMeshVersion is -1"),
                     (("after", "leafMeshVersion"), True, "after.leafMeshVersion is True"),
+                    (("after", "leafGeneration"), -1, "after.leafGeneration is -1"),
+                    (("before", "leafGeneration"), 9, "went backwards"),
+                    # R29-PRELAUNCH-REMOVAL: Voxy's own held content must be read back, never assumed
+                    (("before", "voxyHeld"), None, "was not read back"),
+                    (("after", "voxyHeld"), 7, "was not read back"),
                     (("after", "block"), "minecraft:stone", "probe block went")):
                 self.assertRefused(self.run_gate(env=setp(stage, path, value)), fragment)
-        self.assertRefused(self.run_gate(env=at("edit", lambda p: p.pop("updateProbe", None) or
+        self.assertRefused(self.run_gate(env=setp("warmup", ("before", "builds"), 999999)), "spans no single scene")
+        self.assertRefused(self.run_gate(env=setp("remove", ("before", "builds"), 999999)), "spans no single scene")
+        # return spans travel: a scene rebuild between its marks is allowed, another engine is not
+        self.assertTrue(self.run_gate(env=setp("return", ("after", "builds"), 2))["success"])
+        self.assertTrue(self.run_gate(env=setp("return", ("before", "builds"), 1))["success"])
+        self.assertRefused(self.run_gate(env=at("warmup", lambda p: p.pop("updateProbe", None) or
                                                  p.clear())), "carries no update observation")
-        self.assertRefused(self.run_gate(env=setp("edit", ("before", "sectionEmpty"), False)), "was not all air")
-        self.assertRefused(self.run_gate(env=setp("edit", ("before", "sectionEmpty"), None)), "was not all air")
-        # R29-UPDATE-PLACEMENT: the placement is not ingested on GL either; edit asks nothing causal
-        self.assertTrue(self.run_gate(env=setp("edit", ("after", "leafMeshVersion"), 40))["success"])
-        # R29-UPDATE-CAUSALITY: every link present, on the scene's engine, strictly ordered
-        for name in ("ingest", "leafDirty", "leafMeshed"):
-            self.assertRefused(self.run_gate(env=setp("remove", (name,), None)), f"records no {name} event")
+        # warmup: the placement's precondition only, nothing causal
+        self.assertRefused(self.run_gate(env=setp("warmup", ("before", "sectionEmpty"), False)), "was not all air")
+        self.assertRefused(self.run_gate(env=setp("warmup", ("before", "sectionEmpty"), None)), "was not all air")
+        self.assertRefused(self.run_gate(env=setp("warmup", ("before", "chunkLoaded"), False)), "was not loaded")
+        self.assertTrue(self.run_gate(env=setp("warmup", ("after", "leafMeshVersion"), 40))["success"])
+        # return: the chunk-unload ingest during travel must have delivered the placement to Voxy
+        self.assertRefused(self.run_gate(env=setp("return", ("after", "voxyHeld"), "none")),
+                           "did not reach Voxy's world through the chunk-unload ingest")
+        self.assertRefused(self.run_gate(env=setp("return", ("after", "voxyHeld"), "minecraft:air")),
+                           "did not reach Voxy's world")
+        self.assertRefused(self.run_gate(env=setp("return", ("update",), None)), "records no update event")
+        self.assertRefused(self.run_gate(env=setp("return", ("update", "changed"), False)), "says changed=False")
+        self.assertRefused(self.run_gate(env=setp("return", ("update", "seq"), 99)), "is not after 100")
+        self.assertRefused(self.run_gate(env=setp("return", ("update", "generation"), 0)), "does not advance")
+        self.assertRefused(self.run_gate(env=setp("return", ("update", "nonEmptyBlocks"), 0)), "no non-air block")
+        # R29-PRELAUNCH-CAUSALITY, the reviewer's counterexample: the ingest was only queued, an older
+        # dirty key of the same leaf was consumed and an unchanged-content remesh accepted — there is no
+        # updater outcome, so no cause; a strictly ordered ingest/dirty/mesh triple is not one
+        self.assertRefused(self.run_gate(env=setp("remove", ("update",), None)),
+                           "records no update event (None) (the updater changed nothing of the leaf)")
+        self.assertRefused(self.run_gate(env=setall("remove", update=None, lastUpdate={
+            "seq": 205, "engine": 77, "changed": False, "generation": 1, "nonEmptyBlocks": 1})),
+            "records no update event")
+        self.assertRefused(self.run_gate(env=setp("remove", ("update", "changed"), False)), "says changed=False")
+        # a mesh made from content older than the removal (the mesher read before the updater wrote)
+        self.assertRefused(self.run_gate(env=setp("remove", ("leafMeshed", "generation"), 1)),
+                           "made from the leaf's content at generation 1, before the removal's 2")
+        self.assertRefused(self.run_gate(env=setp("remove", ("leafMeshed", "generation"), -1)),
+                           "leafMeshed event's generation is -1")
+        # the generation must be the leaf's own, advanced by this update and held after
+        self.assertRefused(self.run_gate(env=setp("remove", ("update", "generation"), 1)), "does not advance")
+        self.assertRefused(self.run_gate(env=setp("remove", ("update", "generation"), 3)), "does not advance")
+        self.assertRefused(self.run_gate(env=setp("remove", ("update", "generation"), -2)), "update event's generation is -2")
+        # R29-PRELAUNCH-REMOVAL, the reviewer's counterexample: Voxy never held the glass, so the real
+        # updater sees unchanged air and emits nothing — refused as a precondition, not as a defect
+        self.assertRefused(self.run_gate(env=setp("remove", ("before", "voxyHeld"), "minecraft:air")),
+                           "Voxy never held the placement")
+        self.assertRefused(self.run_gate(env=setp("remove", ("before", "voxyHeld"), "none")),
+                           "Voxy never held the placement")
+        self.assertRefused(self.run_gate(env=setp("remove", ("after", "voxyHeld"), "minecraft:glass")),
+                           "after the removal Voxy holds 'minecraft:glass'")
+        # every link present, on the scene's engine, strictly ordered
+        for name, floor in (("ingest", 200), ("leafDirty", 205), ("leafMeshed", 207)):
+            self.assertRefused(self.run_gate(env=setp("remove", (name,), None)),
+                               "removed" if name == "leafMeshed" else f"records no {name} event")
             self.assertRefused(self.run_gate(env=setp("remove", (name, "engine"), 78)), "not the scene's 77")
             self.assertRefused(self.run_gate(env=setp("remove", (name, "seq"), -3)), f"records no {name} event")
             self.assertRefused(self.run_gate(env=setp("remove", (name, "seq"), 260)), "is not after")
-        self.assertRefused(self.run_gate(env=setp("remove", ("ingest", "seq"), 150)), "is not after 200")
-        self.assertRefused(self.run_gate(env=setp("remove", ("leafDirty", "seq"), 202)), "is not after 203")
-        self.assertRefused(self.run_gate(env=setp("remove", ("leafMeshed", "seq"), 206)), "is not after 207")
-        # the reviewer's ancestor counterexample: an ancestor grew (20 -> 22) but the probe's own
-        # level-0 section was never re-meshed — the leaf's revision and mesh event are what count
+            self.assertRefused(self.run_gate(env=setp("remove", (name, "seq"), floor)), f"is not after {floor}")
+        self.assertRefused(self.run_gate(env=setp("remove", ("ingest", "seq"), 206)), "is not after 200 and before 205")
+        self.assertRefused(self.run_gate(env=setp("remove", ("update", "seq"), 202)), "ingest event (sequence 203) is not after")
+        # the reviewer's ancestor counterexample: an ancestor grew but the probe's own level-0 section
+        # was never re-meshed — the leaf's revision and mesh event are what count
         self.assertRefused(self.run_gate(env=setp("remove", ("after", "leafMeshVersion"), 40)), "was not re-meshed")
-        self.assertRefused(self.run_gate(env=setp("remove", ("leafMeshed",), None)), "records no leafMeshed event")
+        # R29-PRELAUNCH-REMOVAL: the emptied leaf's other truthful terminal state — its geometry removed
+        # (the scene stopped watching it) after the update; accepted without a mesh
+        removed = dict(leafMeshed=None, leafUnwatched={"seq": 230, "engine": 77})
+        self.assertTrue(self.run_gate(env=setall("remove", **removed))["success"])
+        self.assertTrue(self.run_gate(env=setall("remove", after__leafMeshVersion=40, **removed))["success"])
+        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None, leafUnwatched=None)),
+                           "records no leafUnwatched event (None) (the emptied leaf was neither re-meshed nor removed)")
+        self.assertRefused(self.run_gate(env=setall("remove", update__nonEmptyBlocks=3, **removed)),
+                           "still has 3 non-air block(s) but was neither re-meshed nor removed")
+        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None,
+                                                    leafUnwatched={"seq": 204, "engine": 77})), "is not after 205")
+        self.assertRefused(self.run_gate(env=setall("remove", leafMeshed=None,
+                                                    leafUnwatched={"seq": 230, "engine": 78})), "not the scene's 77")
+        # a no-change outcome is never promoted: an unwatch without the updater's change is nothing
+        self.assertRefused(self.run_gate(env=setall("remove", update=None, **removed)), "records no update event")
         # the report's own builds must be stated
         self.assertRefused(self.run_gate(mutate=lambda b: b.update(builds=0)), "scene build(s)")
 
@@ -309,6 +400,19 @@ class RenderGateTest(unittest.TestCase):
                                "past Voxy's bounded shutdown wait")
         self.assertRefused(self.run_gate(mutate=lambda b: b.pop("worldsLeftUnfreed")),
                            "worldsLeftUnfreed=None")
+        # R29-PRELAUNCH-SHUTDOWN: the whole shutdown's accounting
+        for value in (["world"], ["ingest", "thread-pool"], None, "", 0):
+            self.assertRefused(self.run_gate(mutate=lambda b, v=value: b.update(shutdownIncomplete=v)),
+                               "left stages running at its deadline")
+        self.assertRefused(self.run_gate(mutate=lambda b: b.pop("shutdownIncomplete")), "shutdownIncomplete=None")
+        for value in (True, None, 0):
+            self.assertRefused(self.run_gate(mutate=lambda b, v=value: b.update(shutdownInterrupted=v)),
+                               f"shutdownInterrupted={value!r}")
+        for field, what in (("saveEntriesUnflushed", "section save(s) left unflushed"),
+                            ("poolThreadsLeft", "service worker thread(s) left alive")):
+            for value in (1, None, True, -1):
+                self.assertRefused(self.run_gate(mutate=lambda b, f=field, v=value: b.update({f: v})), what)
+            self.assertRefused(self.run_gate(mutate=lambda b, f=field: b.pop(f)), f"{field}=None")
 
     def assertWithinRun(self, result):
         """Refused by the within-size-run check itself, not the cross-lifecycle one."""

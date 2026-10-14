@@ -9,6 +9,16 @@ import static me.cortex.voxy.common.world.WorldEngine.*;
 public class WorldUpdater {
     //Executes an update to the world and automatically updates all the parent mip layers up to level 4 (e.g. where 1 chunk section is 1 block big)
 
+    /**
+     * Sees each level-0 outcome as it is final and before it is marked dirty: the section, and whether
+     * its content changed. Null in production; the native harness's trace installs one
+     * ({@code McNativeIngestTrace}, R29-PRELAUNCH-CAUSALITY: the observation needs the updater's real
+     * outcome, not the enqueue).
+     */
+    public interface Observer {void leafUpdated(WorldEngine into, WorldSection leaf, boolean changed);}
+    private static volatile Observer observer;
+    public static void setObserver(Observer o) {observer = o;}
+
     //NOTE: THIS RUNS ON THE THREAD IT WAS EXECUTED ON, when this method exits, the calling method may assume that VoxelizedSection is no longer needed
     public static void insertUpdate(WorldEngine into, VoxelizedSection section) {//TODO: add a bitset of levels to update and if it should force update
 
@@ -44,6 +54,8 @@ public class WorldUpdater {
                     worldSection.addNonEmptyBlockCount(nonAirCountDelta);
                     emptinessStateChange = worldSection.updateLvl0State() ? 2 : 0;
                 }
+                var obs = observer;
+                if (obs != null) obs.leafUpdated(into, worldSection, didStateChange);
             }
 
             if (didStateChange||(emptinessStateChange!=0)) {

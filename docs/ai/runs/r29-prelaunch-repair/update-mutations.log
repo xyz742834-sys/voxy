@@ -1,0 +1,31 @@
+DETECTED | if not isinstance(event, dict) or not positive(event.get("seq")) or not positive(event.get("engine")):
+DETECTED | if event["engine"] != engine:
+DETECTED | if not before < event["seq"] < after:
+DETECTED | if not nonnegative(event.get(key)):
+DETECTED | if not positive(final_builds):
+DETECTED | if not isinstance(probe, dict) or probe.get("block") != UPDATE_PROBE_BLOCK:
+DETECTED | if not isinstance(before, dict) or not isinstance(after, dict):
+DETECTED | if not positive(state.get(key)):
+DETECTED | if not nonnegative(state.get(key)):
+DETECTED | if not isinstance(state.get("voxyHeld"), str):
+DETECTED | if before["seq"] >= after["seq"]:
+DETECTED | if after["leafGeneration"] < before["leafGeneration"]:
+DETECTED | if before.get("block") != was or after.get("block") != now:
+DETECTED | if before.get("chunkLoaded") is not True:
+DETECTED | if before.get("sectionEmpty") is not True:
+DETECTED | if problem:
+DETECTED | if update.get("changed") is not True:
+DETECTED | if not before["leafGeneration"] < update["generation"] <= after["leafGeneration"]:
+DETECTED | if after["voxyHeld"] != UPDATE_PROBE_HELD:
+DETECTED | if update["nonEmptyBlocks"] < 1:
+DETECTED | if before["voxyHeld"] != UPDATE_PROBE_HELD:
+DETECTED | if after["voxyHeld"] != now:
+DETECTED | if problem:
+DETECTED | if problem:
+DETECTED | if problem:
+DETECTED | if meshed["generation"] < update["generation"]:
+DETECTED | if after["leafMeshVersion"] <= before["leafMeshVersion"]:
+DETECTED | if update["nonEmptyBlocks"] != 0:
+DETECTED | if problem:
+29/29 detected
+mut-rc=0

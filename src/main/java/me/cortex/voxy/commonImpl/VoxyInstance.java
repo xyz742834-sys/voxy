@@ -2,6 +2,7 @@ package me.cortex.voxy.commonImpl;
 
 import me.cortex.voxy.common.Logger;
 import me.cortex.voxy.common.config.section.SectionStorage;
+import me.cortex.voxy.common.thread.Deadline;
 import me.cortex.voxy.common.thread.ServiceManager;
 import me.cortex.voxy.common.thread.UnifiedServiceThreadPool;
 import me.cortex.voxy.common.util.MemoryBuffer;
@@ -223,46 +224,75 @@ public abstract class VoxyInstance {
 
 
     /**
-     * How long shutdown waits for a world still in use before leaving it unfreed; negative waits for
-     * as long as it takes, as Voxy always has (the default, so GL's behaviour is unchanged). The
-     * native path bounds it (round-29 R29-WORLD-SHUTDOWN-BOUND): a native mesher worker that outlives
-     * its stop holds its world, and disconnect or application exit must not wait on it forever.
+     * How long a shutdown may take in all, in milliseconds; negative waits for as long as it takes,
+     * as Voxy always has (the default, so GL's behaviour is unchanged). The native path bounds it
+     * (R29-WORLD-SHUTDOWN-BOUND, then R29-PRELAUNCH-SHUTDOWN: one deadline for the whole lifecycle —
+     * the cleaner, the ingest and saving services, each used world, the thread pool — not a wait
+     * that only starts after the unbounded ones). What is still running at the deadline is left as it
+     * is, never freed under its reader, and counted here for the harness report.
      */
-    private static volatile long worldReleaseDeadlineMillis = -1;
-    private static volatile int worldsLeftUnfreed;
+    private static volatile long shutdownDeadlineMillis = -1;
+    private static volatile int worldsLeftUnfreed, saveEntriesUnflushed, poolThreadsLeft;
+    private static volatile boolean shutdownInterrupted;
+    private static final List<String> SHUTDOWN_INCOMPLETE = java.util.Collections.synchronizedList(new ArrayList<>());
 
-    public static void boundWorldRelease(long millis) { worldReleaseDeadlineMillis = millis; }
+    public static void boundShutdown(long millis) { shutdownDeadlineMillis = millis; }
 
-    /** Worlds a shutdown left unfreed because they were still in use past the deadline. */
+    /** Worlds a shutdown left unfreed because they were still in use at the deadline. */
     public static int worldsLeftUnfreed() { return worldsLeftUnfreed; }
+    /** Section saves a shutdown left unflushed at the deadline (that data is lost). */
+    public static int saveEntriesUnflushed() { return saveEntriesUnflushed; }
+    /** Service worker threads still alive at a shutdown's deadline (their semaphore is leaked). */
+    public static int poolThreadsLeft() { return poolThreadsLeft; }
+    /** Whether a shutdown's thread was interrupted (it finished without waiting, flag restored). */
+    public static boolean shutdownInterrupted() { return shutdownInterrupted; }
+    /** The stages every shutdown so far left incomplete, in order (empty: all complete). */
+    public static List<String> shutdownIncomplete() { return List.copyOf(SHUTDOWN_INCOMPLETE); }
 
     /**
      * Wait until {@code used} turns false, or until {@code deadlineMillis} has passed (negative: no
      * deadline). @return whether it was released
      */
     static boolean awaitWorldRelease(BooleanSupplier used, long deadlineMillis) {
-        long end = deadlineMillis < 0 ? Long.MAX_VALUE : System.nanoTime() + deadlineMillis * 1_000_000L;
+        return awaitWorldReleaseUntil(used, Deadline.in(deadlineMillis)) == RELEASED;
+    }
+
+    static final int RELEASED = 1, TIMED_OUT = 0, INTERRUPTED = -1;
+
+    /** Wait until {@code used} turns false or the deadline ({@link Deadline}); an interrupt stops the wait and keeps its flag. */
+    static int awaitWorldReleaseUntil(BooleanSupplier used, long deadlineNanos) {
         while (used.getAsBoolean()) {
-            if (System.nanoTime() >= end) return false;
-            try {
-                //noinspection BusyWait
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
+            if (Thread.currentThread().isInterrupted()) return INTERRUPTED;
+            if (Deadline.passed(deadlineNanos)) return TIMED_OUT;
+            if (!Deadline.sleep(10, deadlineNanos)) {
+                if (Thread.currentThread().isInterrupted()) return INTERRUPTED;
+                if (Deadline.passed(deadlineNanos)) return TIMED_OUT;
             }
         }
-        return true;
+        return RELEASED;
     }
 
     public void shutdown() {
         Logger.info("Shutting down voxy instance");
+        long deadline = Deadline.in(shutdownDeadlineMillis);
+        // an interrupt never abandons the lifecycle half-way (R29-PRELAUNCH-SHUTDOWN): the remaining
+        // steps run without waiting, everything still running is counted, and the flag is restored
+        boolean interrupted = Thread.interrupted();
+        if (interrupted) deadline = System.nanoTime();
+        var incomplete = new ArrayList<String>();
         this.isRunning = false;
         try {
-            this.worldCleaner.join();
+            if (deadline == Deadline.NONE) this.worldCleaner.join();
+            else {
+                long left = Deadline.remainingMillis(deadline);
+                if (left > 0) this.worldCleaner.join(left);
+            }
         } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+            Thread.currentThread().interrupt();
         }
-        this.cleanIdle();
+        if (this.worldCleaner.isAlive()) incomplete.add("world-cleaner");
+        if (Thread.interrupted()) { interrupted = true; deadline = System.nanoTime(); }
+        try {this.cleanIdle();} catch (Exception e) {Logger.error(e);}
 
         if (!this.activeWorlds.isEmpty()) {
             long stamp = this.activeWorldLock.readLock();
@@ -272,45 +302,71 @@ public abstract class VoxyInstance {
             this.activeWorldLock.unlockRead(stamp);
         }
 
-        try {this.ingestService.shutdown();} catch (Exception e) {Logger.error(e);}
-        try {this.savingService.shutdown();} catch (Exception e) {Logger.error(e);}
-
+        try {
+            if (!this.ingestService.shutdownUntil(deadline)) incomplete.add("ingest");
+        } catch (Exception e) {Logger.error(e);}
+        if (Thread.interrupted()) { interrupted = true; deadline = System.nanoTime(); }
+        try {
+            int unflushed = this.savingService.shutdownUntil(deadline);
+            if (unflushed != 0) { incomplete.add("saving"); saveEntriesUnflushed += unflushed; }
+        } catch (Exception e) {Logger.error(e);}
+        if (Thread.interrupted()) { interrupted = true; deadline = System.nanoTime(); }
 
         long stamp = this.activeWorldLock.writeLock();
-
-        if (!this.activeWorlds.isEmpty()) {
-            boolean printedNotice = false;
-            for (var world : new ArrayList<>(this.activeWorlds.values())) {
-                if (world.isWorldUsed()) {
-                    if (!printedNotice) {
-                        printedNotice = true;
-                        Logger.error("Not all worlds shutdown, force closing worlds");
+        try {
+            if (!this.activeWorlds.isEmpty()) {
+                boolean printedNotice = false;
+                for (var world : new ArrayList<>(this.activeWorlds.values())) {
+                    if (world.isWorldUsed()) {
+                        if (!printedNotice) {
+                            printedNotice = true;
+                            Logger.error("Not all worlds shutdown, force closing worlds");
+                        }
+                        //Dont lock in the loopy thing, this should basicly never happen if it does something horrific happened
+                        this.activeWorldLock.unlockWrite(stamp);
+                        int released = awaitWorldReleaseUntil(world::isWorldUsed, deadline);
+                        stamp = this.activeWorldLock.writeLock();
+                        if (released == INTERRUPTED) { interrupted = true; deadline = System.nanoTime(); Thread.interrupted(); }
+                        if (released != RELEASED) {
+                            // still read by someone: freeing it would free it under its reader; leak it
+                            worldsLeftUnfreed++;
+                            incomplete.add("world");
+                            Logger.error("A world was still in use at the shutdown deadline ("
+                                + shutdownDeadlineMillis + " ms); left unfreed (not flushed or closed)");
+                            continue;
+                        }
                     }
-                    //Dont lock in the loopy thing, this should basicly never happen if it does something horrific happened
-                    this.activeWorldLock.unlockWrite(stamp);
-                    boolean released = awaitWorldRelease(world::isWorldUsed, worldReleaseDeadlineMillis);
-                    stamp = this.activeWorldLock.writeLock();
-                    if (!released) {
-                        // still read by someone: freeing it would free it under its reader; leak it
+                    //Free the world
+                    try {
+                        world.free();
+                    } catch (Exception e) {
                         worldsLeftUnfreed++;
-                        Logger.error("A world was still in use " + worldReleaseDeadlineMillis
-                            + " ms into shutdown; left unfreed (not flushed or closed)");
-                        continue;
+                        incomplete.add("world");
+                        Logger.error("Freeing a world at shutdown failed; left as it is", e);
                     }
                 }
-                //Free the world
-                world.free();
+                this.activeWorlds.clear();
             }
-            this.activeWorlds.clear();
+
+            try {
+                int alive = this.threadPool.shutdownUntil(deadline);
+                if (alive != 0) { incomplete.add("thread-pool"); poolThreadsLeft += alive; }
+            } catch (Exception e) {Logger.error(e);}
+        } finally {
+            this.activeWorldLock.unlockWrite(stamp);
         }
+        if (Thread.interrupted()) interrupted = true;
 
-        try {this.threadPool.shutdown();} catch (Exception e) {Logger.error(e);}
-
-        if (!this.activeWorlds.isEmpty()) {
-            throw new IllegalStateException("Not all worlds shutdown");
+        if (!incomplete.isEmpty()) {
+            SHUTDOWN_INCOMPLETE.addAll(incomplete);
+            Logger.error("Instance shutdown incomplete at its deadline: " + incomplete);
+        }
+        if (interrupted) {
+            shutdownInterrupted = true;
+            Logger.error("Instance shutdown was interrupted; it finished without waiting");
+            Thread.currentThread().interrupt();
         }
         Logger.info("Instance shutdown");
-        this.activeWorldLock.unlockWrite(stamp);
     }
 
     public boolean isIngestEnabled(WorldIdentifier worldId) {

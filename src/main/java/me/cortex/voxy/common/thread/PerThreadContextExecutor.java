@@ -83,18 +83,30 @@ public class PerThreadContextExecutor extends TrackedObject {
     }
 
     public void shutdown() {
+        this.shutdownUntil(Deadline.NONE);
+    }
+
+    /**
+     * Stop accepting jobs and wait for the running ones until {@code deadlineNanos} ({@link Deadline}).
+     * @return whether every job ended; false leaves the per-thread contexts uncleaned and this object
+     * tracked, because a job may still be using them (R29-PRELAUNCH-SHUTDOWN: never free under a
+     * running reader; the caller reports the incomplete stage)
+     */
+    public boolean shutdownUntil(long deadlineNanos) {
         if (!this.isLive) {
             throw new IllegalStateException("Tried shutting down a executor twice");
         }
         this.isLive = false;
-        while (this.currentRunning.get() != 0) {
-            Thread.onSpinWait();//TODO: maybe add a sleep or something
+        if (!Deadline.spinUntil(() -> this.currentRunning.get() == 0, deadlineNanos)) {
+            Logger.error("Executor shutdown: " + this.currentRunning.get() + " job(s) still running at the deadline; their contexts are left as they are");
+            return false;
         }
         for (var ctx : this.contexts.clear()) {
             ctx.cleanup.run();
         }
 
         this.free0();
+        return true;
     }
 
     @Override

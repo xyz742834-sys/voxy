@@ -156,6 +156,7 @@ public final class VkRealMesher {
         WorldSection section = this.world.acquireIfExists(level, x, y, z);
         if (section == null) { this.missing++; return null; }
         try {
+            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.meshStarted(section.key);
             // ⚠ **先にモデルを焼く。** 本番は例外を投げて非同期に焼かせるが、
             // ここは同期なので先回りするほうが単純である
             this.modelsBaked += this.bakery.ensureModels(blockIdsIn(section));
@@ -230,6 +231,8 @@ public final class VkRealMesher {
         WorldSection section = this.world.acquireIfExists(position);
         if (section == null) return new AsyncResult(position, null, null);
         try {
+            // harness trace: the content generation this read can see, captured before reading
+            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.meshStarted(position);
             // the models this section needs and the factory lacks (GL: computeAndRequestRequiredModels)
             var missing = new IntOpenHashSet();
             var models = this.bakery.factory();

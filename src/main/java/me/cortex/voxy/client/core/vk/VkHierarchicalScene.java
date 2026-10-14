@@ -59,7 +59,12 @@ public final class VkHierarchicalScene {
         @Override public boolean unwatch(long position, int types) {
             int v = this.watched.get(position) & ~types;
             if (v == 0) this.watched.remove(position); else this.watched.put(position, v);
-            if ((v & WorldEngine.UPDATE_TYPE_BLOCK_BIT) == 0) pendingMesh.remove(position);
+            if ((v & WorldEngine.UPDATE_TYPE_BLOCK_BIT) == 0) {
+                pendingMesh.remove(position);
+                if ((types & WorldEngine.UPDATE_TYPE_BLOCK_BIT) != 0) {
+                    me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.unwatched(position, VkHierarchicalScene.this.world);
+                }
+            }
             // ⚠⚠ 実機クラッシュの原因 (2026-09-21): ここが常に true を返していた。
             // NodeManager.clearGeometryInternal は「unwatch(BLOCK_BIT だけ) が true =
             // 他のビット (CHILD_EXISTENCE_BIT) まで巻き込んで全消去された = 異常」と読む

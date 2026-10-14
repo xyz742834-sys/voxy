@@ -69,17 +69,38 @@ public class Service {
         }
     }
 
+    /** {@link #blockTillEmpty} until {@code deadlineNanos} ({@link Deadline}). @return whether it emptied */
+    public boolean blockTillEmptyUntil(long deadlineNanos) {
+        while (this.isLive() && this.numJobs() != 0) {
+            Thread.yield();
+            if (!Deadline.sleep(10, deadlineNanos)) break;
+        }
+        return !this.isLive() || this.numJobs() == 0;
+    }
+
     public int shutdown() {
+        this.shutdownUntil(Deadline.NONE);
+        return this.lastShutdownRemaining;
+    }
+
+    private int lastShutdownRemaining;
+
+    /**
+     * Shut down, waiting for the running jobs until {@code deadlineNanos} ({@link Deadline}). The
+     * service is dead afterwards either way; @return whether every running job ended
+     */
+    public boolean shutdownUntil(long deadlineNanos) {
         if (this.isStopping) {
             throw new IllegalStateException("Service not live");
         }
         this.isStopping = true;//First mark the service as stopping
         this.sm.removeService(this);//Remove the service this is so that new jobs are never executed
-        this.executor.shutdown();//Await shutdown of all running jobs
+        boolean ended = this.executor.shutdownUntil(deadlineNanos);//Await shutdown of all running jobs
         int remaining = this.tasks.drainPermits();//Drain the remaining tasks to 0
         this.isLive = false;//Mark the service as dead
         this.sm.remJobs(remaining);
-        return remaining;
+        this.lastShutdownRemaining = remaining;
+        return ended;
     }
 
     public boolean steal() {

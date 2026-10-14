@@ -83,15 +83,31 @@ public class SectionSavingService {
     }
 
     public void shutdown() {
+        this.shutdownUntil(me.cortex.voxy.common.thread.Deadline.NONE);
+    }
+
+    /**
+     * Shut down, waiting until {@code deadlineNanos} ({@code Deadline}) for the workers and saving
+     * the rest here while time remains. @return the entries left unsaved at the deadline (their
+     * sections' data since the last save is lost, as with a killed process; R29-PRELAUNCH-SHUTDOWN
+     * reports it rather than waiting without bound)
+     */
+    public int shutdownUntil(long deadlineNanos) {
         if (this.service.numJobs() != 0) {
             Logger.error("Voxy section saving still in progress, estimated " + this.service.numJobs() + " sections remaining.");
-            this.service.blockTillEmpty();
+            this.service.blockTillEmptyUntil(deadlineNanos);
         }
-        this.service.shutdown();
+        this.service.shutdownUntil(deadlineNanos);
         //Manually save any remaining entries
         while (!this.saveQueue.isEmpty()) {
+            if (me.cortex.voxy.common.thread.Deadline.passed(deadlineNanos) || Thread.currentThread().isInterrupted()) {
+                int left = this.saveQueue.size();
+                Logger.error("Voxy section saving: " + left + " section(s) left unsaved at the shutdown deadline");
+                return left;
+            }
             this.processJob();
         }
+        return 0;
     }
 
     public int getTaskCount() {

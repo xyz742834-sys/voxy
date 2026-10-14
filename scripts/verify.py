@@ -2560,28 +2560,64 @@ HIER_FRAME_SKIPS = REAL_LOAD_SKIPS + ("fog-covers-all",)
 
 
 UPDATE_PROBE_BLOCK = [40, 118, 72]   # LiveWorldHarness.PROBE_X/Y/Z
-UPDATE_PROBE_STAGES = {"edit": ("minecraft:air", "minecraft:glass"),
+# stage -> (probe block before, after). warmup: the placement (precondition only); return: the
+# placement reached Voxy through the chunk-unload ingest during travel; remove: the causal removal
+UPDATE_PROBE_STAGES = {"warmup": ("minecraft:air", "minecraft:glass"),
+                       "return": ("minecraft:air", "minecraft:glass"),
                        "remove": ("minecraft:glass", "minecraft:air")}
+UPDATE_PROBE_HELD = "minecraft:glass"   # what Voxy must hold at the probe before the removal
 
 
 def native_update_problem(checkpoints, final_builds):
     """Why the native update observation fails (None if it holds).
 
     ⚠ Round-28 Codex review of record, R28-NATIVE-UPDATE-OBSERVATION; R29-UPDATE-PLACEMENT,
-    R29-UPDATE-CAUSALITY, R29-UPDATE-COUNTERS. The harness places one glass block at `edit` and
-    removes it at `remove`, at an interior position of a chunk section that was all air, in a
-    level-0 Voxy section of its own. As on GL, Sodium's visibility-change ingest admits only a
-    section that WAS visible, so the placement is not ingested (until the chunk unloads): `edit`
-    records it and its precondition, nothing causal. The removal empties the section again, and on
-    the native path an interior removal reaches Voxy only through that ingest. `remove` must show,
-    within one scene on one engine, strictly in this order after the harness's action: the ingest of
-    the probe's chunk section accepted into the scene's engine; the scene consuming a dirty update
-    for exactly the probe's level-0 section; and the scene accepting a mesh of exactly that section
-    (submitted after the dirty update, so made from the changed world). No ancestor counts. Mesh
-    level, not pixels: Voxy draws only where Minecraft's depth is clear, which this close it is
-    not. Only the first lifecycle's checkpoints are recorded (a stated coverage limit)."""
+    R29-UPDATE-CAUSALITY, R29-UPDATE-COUNTERS; R29-PRELAUNCH-CAUSALITY and -REMOVAL. The harness places
+    one glass block at `warmup`, at an interior position of a chunk section that was all air, in a
+    level-0 Voxy section (the leaf) of its own, and removes it at `remove`. Every state carries what
+    Voxy's own world holds at the probe (`voxyHeld`, read back from the engine) and the leaf's content
+    generation (`leafGeneration`: advanced only by the real updater, only when it changed the leaf's
+    level-0 content). No counter the observer increments itself is accepted as a cause.
+
+    `warmup`: the placement and its precondition (chunk loaded, chunk section all air). As on GL,
+    Sodium's visibility-change ingest admits only a section that WAS visible, so the placement reaches
+    Voxy only when its chunk unloads: `return` must show that it did, during `travel` — Voxy holds the
+    glass, and the updater's content change is dated after the placement.
+
+    `remove`: Voxy must hold the glass before (a removal of a block Voxy never held is correctly a
+    no-op, and observing it would mean nothing). Then, on the scene's own engine and strictly after
+    the harness's action: the probe's chunk section was queued for ingest; the updater changed the
+    leaf's content (its generation advanced past the one held before, and Voxy now holds air); the
+    scene consumed a dirty update for exactly the leaf; and the leaf reached one of two truthful
+    terminal states — re-meshed from content at or after that generation (its mesh revision
+    advanced), or, the leaf having emptied (no non-air block left), its geometry removed (the scene
+    stopped watching it). A mesh made from older content, an unchanged leaf, or no terminal state is
+    refused; a no-change outcome is never promoted to changed geometry. No ancestor counts. Mesh level,
+    not pixels: Voxy draws only where Minecraft's depth is clear, which this close it is not. Only the
+    first lifecycle's checkpoints are recorded (a stated coverage limit)."""
     def positive(v):
         return finite_int(v) and v > 0
+
+    def nonnegative(v):
+        return finite_int(v) and v >= 0
+
+    def dated_event(stage, probe, name, engine, after, before, extra=()):
+        """The event, or a problem string: present, on the scene's engine, dated after `before`
+        and before `after`, with every `extra` key a non-negative int."""
+        event = probe.get(name)
+        if not isinstance(event, dict) or not positive(event.get("seq")) \
+                or not positive(event.get("engine")):
+            return None, f"the {stage} observation records no {name} event ({event!r})"
+        if event["engine"] != engine:
+            return None, (f"the {stage} {name} event concerns engine {event['engine']}, not the"
+                          f" scene's {engine}")
+        if not before < event["seq"] < after:
+            return None, (f"the {stage} {name} event (sequence {event['seq']}) is not after"
+                          f" {before} and before {after}")
+        for key in extra:
+            if not nonnegative(event.get(key)):
+                return None, f"the {stage} {name} event's {key} is {event.get(key)!r}"
+        return event, None
 
     by_stage = {}
     for case in checkpoints:
@@ -2599,40 +2635,82 @@ def native_update_problem(checkpoints, final_builds):
             for key in ("seq", "builds", "sceneEngine"):
                 if not positive(state.get(key)):
                     return f"the {stage} update observation's {side}.{key} is {state.get(key)!r}"
-            if not finite_int(state.get("leafMeshVersion")) or state["leafMeshVersion"] < 0:
-                return (f"the {stage} update observation's {side}.leafMeshVersion is"
-                        f" {state.get('leafMeshVersion')!r}")
+            for key in ("leafMeshVersion", "leafGeneration"):
+                if not nonnegative(state.get(key)):
+                    return f"the {stage} update observation's {side}.{key} is {state.get(key)!r}"
+            if not isinstance(state.get("voxyHeld"), str):
+                return (f"the {stage} update observation's {side}.voxyHeld is"
+                        f" {state.get('voxyHeld')!r}: Voxy's own held content was not read back")
         if before["seq"] >= after["seq"]:
             return f"the {stage} observation's marks are out of order ({before['seq']} -> {after['seq']})"
-        if after["builds"] != before["builds"] or after["builds"] > final_builds \
-                or after["sceneEngine"] != before["sceneEngine"]:
+        if after["builds"] > final_builds or after["sceneEngine"] != before["sceneEngine"] \
+                or (stage != "return" and after["builds"] != before["builds"]):
+            # return spans travel: the scene may have been rebuilt, the world engine is the same
             return (f"the {stage} observation spans no single scene (builds {before['builds']} ->"
                     f" {after['builds']} of {final_builds}, engine {before['sceneEngine']} ->"
                     f" {after['sceneEngine']})")
-        if stage == "edit" and before.get("sectionEmpty") is not True:
-            return (f"the {stage} probe's chunk section was not all air before the placement"
-                    f" (sectionEmpty={before.get('sectionEmpty')!r})")
+        if after["leafGeneration"] < before["leafGeneration"]:
+            return (f"the {stage} observation's leaf generation went backwards"
+                    f" ({before['leafGeneration']} -> {after['leafGeneration']})")
         if before.get("block") != was or after.get("block") != now:
             return (f"the {stage} probe block went {before.get('block')!r} -> {after.get('block')!r},"
                     f" not {was} -> {now}")
-        if stage == "edit":
-            continue   # GL's ingest does not see a placement into an empty section
-        engine, chain, last = before["sceneEngine"], [], before["seq"]
-        for name in ("ingest", "leafDirty", "leafMeshed"):
-            event = probe.get(name)
-            if not isinstance(event, dict) or not positive(event.get("seq")) \
-                    or not positive(event.get("engine")):
-                return f"the {stage} observation records no {name} event ({event!r})"
-            if event["engine"] != engine:
-                return (f"the {stage} {name} event concerns engine {event['engine']}, not the"
-                        f" scene's {engine}")
-            if not last < event["seq"] < after["seq"]:
-                return (f"the {stage} {name} event (sequence {event['seq']}) is not after"
-                        f" {last} and before {after['seq']}")
-            last = event["seq"]
-        if after["leafMeshVersion"] <= before["leafMeshVersion"]:
-            return (f"the {stage} probe's level-0 section was not re-meshed (revision"
-                    f" {before['leafMeshVersion']} -> {after['leafMeshVersion']})")
+        engine = before["sceneEngine"]
+        if stage == "warmup":
+            if before.get("chunkLoaded") is not True:
+                return (f"the {stage} probe's chunk was not loaded on the client before the placement"
+                        f" (chunkLoaded={before.get('chunkLoaded')!r})")
+            if before.get("sectionEmpty") is not True:
+                return (f"the {stage} probe's chunk section was not all air before the placement"
+                        f" (sectionEmpty={before.get('sectionEmpty')!r})")
+            continue   # GL's ingest does not see a placement into an empty section: nothing causal
+        update, problem = dated_event(stage, probe, "update", engine, after["seq"], before["seq"],
+                                      ("generation", "nonEmptyBlocks"))
+        if problem:
+            return problem + " (the updater changed nothing of the leaf)"
+        if update.get("changed") is not True:
+            return f"the {stage} update event says changed={update.get('changed')!r}"
+        if not before["leafGeneration"] < update["generation"] <= after["leafGeneration"]:
+            return (f"the {stage} update's content generation {update['generation']} does not advance"
+                    f" the leaf's ({before['leafGeneration']} -> {after['leafGeneration']})")
+        if stage == "return":
+            if after["voxyHeld"] != UPDATE_PROBE_HELD:
+                return (f"the placement did not reach Voxy's world through the chunk-unload ingest during"
+                        f" travel: at {stage} Voxy holds {after['voxyHeld']!r}, not {UPDATE_PROBE_HELD}")
+            if update["nonEmptyBlocks"] < 1:
+                return f"the {stage} update left the leaf with no non-air block, yet Voxy holds the glass"
+            continue
+        # remove
+        if before["voxyHeld"] != UPDATE_PROBE_HELD:
+            return (f"Voxy never held the placement: before the removal it holds {before['voxyHeld']!r},"
+                    f" not {UPDATE_PROBE_HELD}, so the removal is a no-op for Voxy and observes nothing")
+        if after["voxyHeld"] != now:
+            return f"after the removal Voxy holds {after['voxyHeld']!r}, not {now}"
+        ingest, problem = dated_event(stage, probe, "ingest", engine, update["seq"], before["seq"])
+        if problem:
+            return problem
+        dirty, problem = dated_event(stage, probe, "leafDirty", engine, after["seq"], update["seq"])
+        if problem:
+            return problem
+        meshed = probe.get("leafMeshed")
+        if isinstance(meshed, dict):
+            meshed, problem = dated_event(stage, probe, "leafMeshed", engine, after["seq"], dirty["seq"],
+                                          ("generation",))
+            if problem:
+                return problem
+            if meshed["generation"] < update["generation"]:
+                return (f"the {stage} mesh was made from the leaf's content at generation"
+                        f" {meshed['generation']}, before the removal's {update['generation']}")
+            if after["leafMeshVersion"] <= before["leafMeshVersion"]:
+                return (f"the {stage} probe's level-0 section was not re-meshed (revision"
+                        f" {before['leafMeshVersion']} -> {after['leafMeshVersion']})")
+            continue
+        if update["nonEmptyBlocks"] != 0:
+            return (f"the {stage} leaf still has {update['nonEmptyBlocks']} non-air block(s) but was"
+                    f" neither re-meshed nor removed")
+        unwatched, problem = dated_event(stage, probe, "leafUnwatched", engine, after["seq"], update["seq"])
+        if problem:
+            return problem + " (the emptied leaf was neither re-meshed nor removed)"
     return None
 
 
@@ -3283,6 +3361,20 @@ def native_render_result(output, log_text, expected_device=None, command=None,
         if not finite_int(unfreed) or unfreed != 0:
             raise ValueError(f"the {L} report states worldsLeftUnfreed={unfreed!r}: a world was still"
                              f" in use past Voxy's bounded shutdown wait")
+        # R29-PRELAUNCH-SHUTDOWN: the whole shutdown (cleaner, services, worlds, pool) ended inside its
+        # deadline, uninterrupted, with every save flushed and every worker thread gone
+        incomplete = report.get("shutdownIncomplete")
+        if not isinstance(incomplete, list) or incomplete != []:
+            raise ValueError(f"the {L} report states shutdownIncomplete={incomplete!r}: Voxy's shutdown"
+                             f" left stages running at its deadline")
+        if report.get("shutdownInterrupted") is not False:
+            raise ValueError(f"the {L} report states shutdownInterrupted="
+                             f"{report.get('shutdownInterrupted')!r}")
+        for field, what in (("saveEntriesUnflushed", "section save(s) left unflushed"),
+                            ("poolThreadsLeft", "service worker thread(s) left alive")):
+            if not finite_int(report.get(field)) or report[field] != 0:
+                raise ValueError(f"the {L} report states {field}={report.get(field)!r}: {what} at"
+                                 f" Voxy's shutdown deadline")
         composited, skips, calls = (report.get("framesComposited"), report.get("frameSkips"),
                                     report.get("renderCalls"))
         if not finite_int(composited) or not finite_int(calls) or not isinstance(skips, dict):

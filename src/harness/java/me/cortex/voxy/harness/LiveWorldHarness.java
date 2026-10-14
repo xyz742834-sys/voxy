@@ -160,6 +160,13 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 advance();
                 return;
             }
+            // the native update probe's placement: at warmup, once the client holds the probe's chunk
+            // (an EmptyLevelChunk would say "all air" of a section it does not have)
+            if (nativeMode && name().equals("warmup") && probeBefore == null && inWorld(mc)
+                    && mc.level.getChunkSource().hasChunk(PROBE_X >> 4, PROBE_Z >> 4)) {
+                updateProbeBefore(mc);
+                command(mc, "setblock " + PROBE_X + " " + PROBE_Y + " " + PROBE_Z + " minecraft:glass");
+            }
             if (!inWorld(mc) || !ready(mc)) return;
             if (ladderReadyMark < 0) {
                 ladderReadyMark = me.cortex.voxy.client.core.vk.mcnative.McNativeDepthLadder.samplesRequested();
@@ -279,8 +286,6 @@ public final class LiveWorldHarness implements ClientModInitializer {
                 command(mc, "tp @s 0 120 0 0 30");
             }
             case "edit" -> {
-                if (nativeMode) updateProbeBefore(mc);
-                if (nativeMode) command(mc, "setblock " + PROBE_X + " " + PROBE_Y + " " + PROBE_Z + " minecraft:glass");
                 command(mc, "time set noon");   // back from the night look
                 command(mc, "fill " + HORIZON_WALL_X + " 150 0 " + HORIZON_WALL_X + " 165 12 minecraft:air");
                 // back to where `edit` always ran, so later stages see what they saw before `horizon`
@@ -314,16 +319,26 @@ public final class LiveWorldHarness implements ClientModInitializer {
     }
 
     /**
-     * Native update observation (round-28 Codex review of record, R28-NATIVE-UPDATE-OBSERVATION): one
-     * glass block placed at {@code edit} and removed at {@code remove}, in view from the edit pose,
-     * at an interior position of a chunk section that must be all air before (local 8, 6, 8) and in
-     * a level-0 Voxy section of its own (1, 3, 2: away from the edit fill's).
+     * Native update observation (round-28 Codex review of record, R28-NATIVE-UPDATE-OBSERVATION; R29;
+     * R29-PRELAUNCH-CAUSALITY and -REMOVAL): one glass block at an interior position of a chunk section
+     * that must be all air (local 8, 6, 8), in a level-0 Voxy section of its own (1, 3, 2: away from
+     * the edit fill's), in view from the spawn pose.
      *
-     * <p>As on GL, Sodium's visibility-change ingest admits only a section that WAS visible (it was
-     * emptied; MixinRenderSectionManager), so the placement (invisible to visible) is not ingested
-     * until the chunk unloads — GL's behaviour, recorded, not required. The removal empties the
-     * section again (visible to invisible); on the native path an interior removal reaches Voxy only
-     * through that ingest, so a re-mesh of exactly that level-0 section is attributable to it (R29).
+     * <p>Three observations, each with Voxy's own held content read back from its world
+     * ({@code heldBlockAt}) and the trace's events ({@code McNativeIngestTrace}):
+     * <ul>
+     *   <li>{@code warmup}: the placement, as a precondition only. As on GL, Sodium's visibility-change
+     *       ingest admits only a section that WAS visible, so a placement into an empty section reaches
+     *       Voxy only when its chunk unloads.</li>
+     *   <li>{@code return}: that ordinary chunk-unload ingest happened during {@code travel} (the
+     *       spawn chunks leave the client's view distance): Voxy now holds the glass, and the updater's
+     *       outcome that changed the leaf's content is dated between the placement and this mark.</li>
+     *   <li>{@code remove}: with Voxy holding the glass (precondition, read back; a removal of a block
+     *       Voxy never held is correctly a no-op), the removal empties the chunk section again, Sodium's
+     *       ingest is queued, the updater changes the leaf (its generation advances), the scene consumes
+     *       the dirty update, and the leaf ends in one of its truthful terminal states: re-meshed from
+     *       content at or after that generation, or — the leaf emptied — its geometry removed.</li>
+     * </ul>
      */
     private static final int PROBE_X = 40, PROBE_Y = 118, PROBE_Z = 72;
     private java.util.Map<String, Object> probeBefore;
@@ -336,10 +351,32 @@ public final class LiveWorldHarness implements ClientModInitializer {
         return m;
     }
 
+    private static java.util.Map<String, Object> update(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.Update u) {
+        if (u == null) return null;
+        var m = new java.util.LinkedHashMap<String, Object>();
+        m.put("seq", u.seq());
+        m.put("engine", u.engine());
+        m.put("changed", u.changed());
+        m.put("generation", u.generation());
+        m.put("nonEmptyBlocks", u.nonEmptyBlocks());
+        return m;
+    }
+
+    private static java.util.Map<String, Object> mesh(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.Mesh e) {
+        if (e == null) return null;
+        var m = new java.util.LinkedHashMap<String, Object>();
+        m.put("seq", e.seq());
+        m.put("engine", e.engine());
+        m.put("generation", e.generation());
+        return m;
+    }
+
     private java.util.Map<String, Object> probeState(Minecraft mc) {
         var state = new java.util.LinkedHashMap<String, Object>();
         state.put("seq", me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.now());
         state.put("block", blockAt(mc));
+        state.put("voxyHeld", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.heldBlockAt(PROBE_X, PROBE_Y, PROBE_Z));
+        state.put("leafGeneration", me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.generation());
         state.put("builds", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.buildsSoFar());
         state.put("sceneEngine", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.sceneEngineIdentity());
         state.put("leafMeshVersion", me.cortex.voxy.client.core.vk.mcnative.McNativeHierarchicalLoad.level0MeshVersionAt(PROBE_X, PROBE_Y, PROBE_Z));
@@ -350,8 +387,10 @@ public final class LiveWorldHarness implements ClientModInitializer {
     private void updateProbeBefore(Minecraft mc) {
         me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.observeLeaf(
             me.cortex.voxy.common.world.WorldEngine.getWorldSectionId(0, PROBE_X >> 5, PROBE_Y >> 5, PROBE_Z >> 5));
+        boolean loaded = mc.level.getChunkSource().hasChunk(PROBE_X >> 4, PROBE_Z >> 4);
         var section = mc.level.getChunk(PROBE_X >> 4, PROBE_Z >> 4).getSection(mc.level.getSectionIndex(PROBE_Y));
         var before = probeState(mc);
+        before.put("chunkLoaded", loaded);
         before.put("sectionEmpty", section.hasOnlyAir());
         probeBefore = before;
     }
@@ -368,10 +407,15 @@ public final class LiveWorldHarness implements ClientModInitializer {
         probe.put("after", probeState(mc));
         probe.put("ingest", event(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace
             .lastIngest(PROBE_X >> 4, PROBE_Y >> 4, PROBE_Z >> 4)));
+        probe.put("update", update(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.lastChange()));
+        probe.put("lastUpdate", update(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.lastUpdate()));
         probe.put("leafDirty", event(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.leafDirty()));
-        probe.put("leafMeshed", event(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.leafMeshed()));
+        probe.put("leafMeshed", mesh(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.leafMeshed()));
+        probe.put("leafUnwatched", event(me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.leafUnwatched()));
         return probe;
     }
+
+    private static final java.util.Set<String> PROBE_STAGES = java.util.Set.of("warmup", "return", "remove");
 
     /** Odd cycles grow the window to 960x540, even ones return it to the default 854x480. */
     private int resizeWidth() { return cycle % 2 == 1 ? 960 : 854; }
@@ -384,7 +428,9 @@ public final class LiveWorldHarness implements ClientModInitializer {
 
     private boolean ready(Minecraft mc) {
         return switch (name()) {
-            case "warmup", "return", "overworld" -> mc.level.dimension() == Level.OVERWORLD && near(mc, 0, 120, 0);
+            case "warmup" -> mc.level.dimension() == Level.OVERWORLD && near(mc, 0, 120, 0)
+                && (!nativeMode || (probeBefore != null && blockAt(mc).equals("minecraft:glass")));
+            case "return", "overworld" -> mc.level.dimension() == Level.OVERWORLD && near(mc, 0, 120, 0);
             case "travel" -> near(mc, travelLeg == 0 ? 768 : travelLeg == 1 ? FAR_TRAVEL_X : FADE_TRAVEL_X, 120, 0);
             case "far", "fade" -> near(mc, 0, FAR_Y, 0);
             case "night" -> near(mc, 0, 120, 0) && isNight(mc);
@@ -472,7 +518,7 @@ public final class LiveWorldHarness implements ClientModInitializer {
         entry.put("cameraY", mc.gameRenderer.mainCamera().position().y);
         entry.put("playerPitch", mc.player.getXRot());
         entry.put("groundY", groundY == Integer.MIN_VALUE ? null : groundY);
-        if ((name.equals("edit") || name.equals("remove")) && probeBefore != null) entry.put("updateProbe", updateProbe(mc));
+        if (PROBE_STAGES.contains(name) && probeBefore != null) entry.put("updateProbe", updateProbe(mc));
         nativeCheckpoints.add(entry);
         screenshotsPending.incrementAndGet();
         Screenshot.takeScreenshot(mc.gameRenderer.mainRenderTarget(), image -> {

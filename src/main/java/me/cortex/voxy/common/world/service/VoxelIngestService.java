@@ -182,12 +182,21 @@ public class VoxelIngestService {
     }
 
     public void shutdown() {
-        this.service.shutdown();
+        this.shutdownUntil(me.cortex.voxy.common.thread.Deadline.NONE);
+    }
+
+    /**
+     * Shut down, waiting for running ingests until {@code deadlineNanos}. Queued, never-run entries
+     * give their world references back here either way; a job still running at the deadline keeps
+     * its own until it ends (R29-PRELAUNCH-SHUTDOWN). @return whether every running ingest ended
+     */
+    public boolean shutdownUntil(long deadlineNanos) {
+        boolean ended = this.service.shutdownUntil(deadlineNanos);
         while (!this.ingestQueue.isEmpty()) {
             //We need to manually release all our world locks
             this.ingestQueue.pop().world.releaseRef();
         }
-
+        return ended;
     }
 
     //Utility method to ingest a chunk into the given WorldIdentifier or world

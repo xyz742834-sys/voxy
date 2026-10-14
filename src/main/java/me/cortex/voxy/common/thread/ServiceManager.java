@@ -128,6 +128,15 @@ public class ServiceManager {
     }
 
     public void shutdown() {
+        this.shutdownUntil(Deadline.NONE);
+    }
+
+    /**
+     * Wait for the services to be gone and their jobs to end, until {@code deadlineNanos}
+     * ({@link Deadline}). @return whether that happened (a job still running at the deadline keeps
+     * its count; nothing of it is freed here)
+     */
+    public boolean shutdownUntil(long deadlineNanos) {
         if (this.isShutdown) {
             throw new IllegalStateException("Service manager already shutdown");
         }
@@ -141,10 +150,9 @@ public class ServiceManager {
                     }
                 }
             }
+            if (Deadline.passed(deadlineNanos) || Thread.currentThread().isInterrupted()) break;
         }
-        while (this.totalJobs.get()!=0) {
-            Thread.yield();
-        }
+        return Deadline.spinUntil(() -> this.services.length == 0 && this.totalJobs.get() == 0, deadlineNanos);
     }
 
     synchronized void removeService(Service service) {

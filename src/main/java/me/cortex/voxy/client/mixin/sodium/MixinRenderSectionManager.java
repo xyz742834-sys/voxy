@@ -146,7 +146,7 @@ public class MixinRenderSectionManager {
                     else {
                         var engine = nativeWorld.getOrCreateEngine();
                         if (engine != null && VoxelIngestService.rawIngest(engine, section, x, y, z, bl, sl)) {
-                            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.visibilityIngested(x, y, z, engine);
+                            me.cortex.voxy.client.core.vk.mcnative.McNativeIngestTrace.ingestQueued(x, y, z, engine);
                         }
                     }
                 }
