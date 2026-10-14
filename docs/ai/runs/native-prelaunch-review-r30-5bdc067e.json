@@ -1,0 +1,139 @@
+{
+  "verdict": "HOLD",
+  "final_verdict": "HOLD",
+  "reviewed_commit": "5bdc067ef30fa75f735ff3e078edff9c1ccd85a1",
+  "base_commit": "5c976db828a04f9ec2960275a7ff0ac207e84052",
+  "scope": "Independent narrow CPU-only prelaunch review of three existing5c976db8 blockers only",
+  "review_complete": true,
+  "launch_authority": false,
+  "per_blocker_closures": {
+    "R29-PRELAUNCH-CAUSALITY": {
+      "closed": false,
+      "old_counterexample_refused": true,
+      "survivor": "Real unrelated same-leaf updater change plus target write paused before observer publication allows stale modeled mesh/held-air snapshot to pass whole gate.",
+      "evidence": [
+        ".agent-run/prelaunch/probe-results.json",
+        ".agent-run/prelaunch/gate-results.json"
+      ]
+    },
+    "R29-PRELAUNCH-REMOVAL": {
+      "closed_for_narrow_source_cpu_premise_and_terminal": true,
+      "native_observation_closed": false,
+      "details": "Held-glass precondition, actual updater no-op refusal and empty-unwatch terminal repair the previous isolated defects. Terminal causality remains dependent on open causality blocker.",
+      "live_preconditions": [
+        "Chunk unload/ordinary ingest arrival",
+        "Native scene at initial warmup mark",
+        "Level0 watch and genuine empty-leaf geometry removal"
+      ]
+    },
+    "R29-PRELAUNCH-SHUTDOWN": {
+      "closed": false,
+      "old_job_wait_and_interruption_cases_pass": true,
+      "survivor": "Actual instance/world shutdown enters synchronous storage flush outside deadline; other untimed locks/import/saving operations remain.",
+      "evidence": [
+        ".agent-run/prelaunch/probe-results.json",
+        ".agent-run/prelaunch/probes.log"
+      ]
+    }
+  },
+  "blocking_findings": [
+    {
+      "id": "R29-PRELAUNCH-CAUSALITY",
+      "source": [
+        "src/main/java/me/cortex/voxy/common/world/WorldUpdater.java:46",
+        "src/main/java/me/cortex/voxy/client/core/vk/mcnative/McNativeIngestTrace.java:106",
+        "scripts/verify.py:2663"
+      ],
+      "finding": "Generation does not consistently bind the target write, held-content snapshot and accepted mesh. Whole gate false acceptance reproduced with actual updater/world/trace and modeled mesh read/acceptance."
+    },
+    {
+      "id": "R29-PRELAUNCH-SHUTDOWN",
+      "source": [
+        "src/main/java/me/cortex/voxy/commonImpl/VoxyInstance.java:295",
+        "src/main/java/me/cortex/voxy/commonImpl/VoxyInstance.java:345",
+        "src/main/java/me/cortex/voxy/common/world/WorldEngine.java:164",
+        "src/main/java/me/cortex/voxy/common/world/service/SectionSavingService.java:108"
+      ],
+      "finding": "The whole shutdown bound does not cover synchronous flush/save/import cancellation/locks. Actual instance with slow storage remained blocked after1200ms and interrupt, until explicit release at2524ms."
+    }
+  ],
+  "non_blocking_findings": [
+    {
+      "id": "REMOVAL-LIVE-PRECONDITIONS",
+      "finding": "Warmup awaits chunk availability, not native scene readiness; live arrival/LOD/empty-terminal validity remains NOT_RUN. No separate source-proven impossible gate established."
+    },
+    {
+      "id": "MATRIX-CLAIMS",
+      "finding": "Rows4/5 repaired-source claims overstate the surviving causality and deadline repairs."
+    },
+    {
+      "id": "OBSERVER-DEFAULT",
+      "finding": "Trace static initialization installs observer even when recording disabled; no-op callback differs from literal null-in-production comment, no separate GL defect established."
+    }
+  ],
+  "tests": {
+    "focused_cpu_junit": {
+      "tests": 24,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "parent_exit": 0,
+      "class_count": 5,
+      "xml": ".agent-run/prelaunch/junit/"
+    },
+    "production_cpu_probes": {
+      "compile_exit": 0,
+      "java_exit": 0,
+      "all_controlled_children_joined": true,
+      "actual_world_updater_trace_instance": true,
+      "storage": "CPU collaborator with controlled flush",
+      "mesh_scene": "Modeled read/acceptance, not actual full mesher/scene",
+      "actual_mapper_glass_binding": true,
+      "shutdown_elapsed_ms": 2524
+    },
+    "focused_python": {
+      "tests": 2,
+      "passed": 2
+    },
+    "guard_removal": {
+      "detected": 30,
+      "total": 30,
+      "scope": "native_update_problem including helper, in-memory AST only"
+    },
+    "whole_gate": {
+      "control": true,
+      "old_enqueue_only": false,
+      "unchanged_noop_shape": false,
+      "empty_unwatch_control": true,
+      "unrelated_change_delayed_target_publication": true
+    }
+  },
+  "remaining_limits": [
+    "Repair coherent target-content/mesh/terminal identity across concurrent updater publication and observation",
+    "Bound all reachable cleanup operations and account unfinished resources",
+    "Future source-bound unload-arrival/full-scene/hardware validation",
+    "No pixels, other placement routes or sustained-update acceptance",
+    "Deliberate unflushed data/resource retention and native stall policy not accepted for default-on"
+  ],
+  "not_run": {
+    "offscreen_vulkan": "CPU_ONLY",
+    "minecraft_native_live": "CPU_ONLY",
+    "real_unload_arrival": "REQUIRES_FUTURE_COORDINATED_VALIDATION",
+    "full_scene_mesh_and_unwatch": "CPU_MODELS_ONLY",
+    "native_timeout_interrupt": "CPU_COLLABORATOR_ONLY",
+    "pixels": "OUTSIDE_NARROW_SCOPE"
+  },
+  "old_native_evidence": "UNBOUND",
+  "delivery_acceptance": "NOT_ASSESSED_OR_GRANTED",
+  "default_on_acceptance": "NOT_ASSESSED_OR_GRANTED",
+  "normal_play_acceptance": "NOT_ASSESSED_OR_GRANTED",
+  "gpuqueue": {
+    "active": 0,
+    "queued": 0,
+    "planned": 0,
+    "reservations": [],
+    "accepted_holds": [],
+    "tipssi_holds": "RELEASED"
+  },
+  "report": "docs/ai/runs/native-prelaunch-review.md"
+}

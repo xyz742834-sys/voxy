@@ -1,0 +1,15 @@
+F
+======================================================================
+FAIL: test_native_updates_must_reach_voxys_mesh (test_render_gate.RenderGateTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-5bdc067e/scripts/tests/test_render_gate.py", line 357, in test_native_updates_must_reach_voxys_mesh
+    self.assertRefused(self.run_gate(env=setp("remove", (name,), None)),
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-5bdc067e/scripts/tests/test_render_gate.py", line 158, in assertRefused
+    self.assertIn(fragment, " ".join(result["failures"]))
+AssertionError: 'records no leafDirty event' not found in "TypeError: 'NoneType' object is not subscriptable"
+
+----------------------------------------------------------------------
+Ran 1 test in 0.065s
+
+FAILED (failures=1)

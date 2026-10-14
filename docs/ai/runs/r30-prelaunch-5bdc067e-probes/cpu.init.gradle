@@ -1,0 +1,10 @@
+allprojects {
+    afterEvaluate {
+        tasks.named('test') {
+            doFirst {
+                def output = new File(rootProject.projectDir, '.agent-run/prelaunch/runtime-classpath.txt')
+                output.text = classpath.asPath
+            }
+        }
+    }
+}

@@ -1,0 +1,15 @@
+F
+======================================================================
+FAIL: test_native_updates_must_reach_voxys_mesh (test_render_gate.RenderGateTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-5bdc067e/scripts/tests/test_render_gate.py", line 341, in test_native_updates_must_reach_voxys_mesh
+    self.assertRefused(self.run_gate(env=setp("remove", ("leafMeshed", "generation"), -1)),
+  File "/Users/xyz/orca/workspaces/voxy/native-prelaunch-5bdc067e/scripts/tests/test_render_gate.py", line 158, in assertRefused
+    self.assertIn(fragment, " ".join(result["failures"]))
+AssertionError: "leafMeshed event's generation is -1" not found in "TypeError: 'NoneType' object is not subscriptable"
+
+----------------------------------------------------------------------
+Ran 1 test in 0.056s
+
+FAILED (failures=1)
